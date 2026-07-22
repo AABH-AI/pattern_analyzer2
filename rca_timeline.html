@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RCA Agent — Build Timeline to 30 July</title>
+<style>
+  :root{
+    --bg:#ffffff; --panel:#ffffff; --panel-2:#f5f8fc; --border:#e1e7f0;
+    --text:#14203a; --muted:#586179; --accent:#2d6cdf; --done:#12986f;
+    --prog:#c96a10; --todo:#8a93a8; --milestone:#7952d1; --danger:#d13a58; --wk:#eceff5;
+  }
+  :root[data-theme="dark"]{--bg:#0a1020;--panel:#111a2e;--panel-2:#182339;--border:#26324d;--text:#e8ecf5;--muted:#93a0ba;--accent:#5b9bff;--done:#7ee0b8;--prog:#ffb86b;--todo:#6b7899;--milestone:#b48cff;--danger:#ff7a90;--wk:#0e1526;}
+  :root[data-theme="light"]{--bg:#eef2f9;--panel:#ffffff;--panel-2:#f1f5fb;--border:#d3dbe9;--text:#14203a;--muted:#586179;--accent:#2d6cdf;--done:#12986f;--prog:#c96a10;--todo:#8a93a8;--milestone:#7952d1;--danger:#d13a58;--wk:#eceff5;}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0a1020;--panel:#111a2e;--panel-2:#182339;--border:#26324d;--text:#e8ecf5;--muted:#93a0ba;--accent:#5b9bff;--done:#7ee0b8;--prog:#ffb86b;--todo:#6b7899;--milestone:#b48cff;--danger:#ff7a90;--wk:#0e1526;}}
+  *{box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);margin:0;padding:26px 20px 60px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;line-height:1.5;}
+  .wrap{max-width:1180px;margin:0 auto;}
+  h1{font-size:25px;margin:0 0 4px;letter-spacing:-0.3px;}
+  .sub{color:var(--muted);font-size:13.5px;margin-bottom:18px;}
+
+  .top{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;}
+  .kpi{background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:13px 15px;}
+  .kpi .v{font-size:22px;font-weight:800;}
+  .kpi .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
+  .kpi.hot .v{color:var(--danger);}
+
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:14px;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .sw{width:14px;height:10px;border-radius:3px;display:inline-block;}
+  .sw.done{background:var(--done);} .sw.prog{background:var(--prog);} .sw.todo{background:var(--todo);}
+  .sw.ms{background:var(--milestone);border-radius:50%;width:11px;height:11px;transform:rotate(45deg);}
+
+  .gantt{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:8px 12px 16px;overflow-x:auto;}
+  .grid-head, .row{display:grid;grid-template-columns:250px repeat(11,minmax(46px,1fr));align-items:center;}
+  .grid-head{position:sticky;top:0;border-bottom:1px solid var(--border);padding:8px 0;}
+  .grid-head .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;font-weight:700;}
+  .dh{text-align:center;font-size:11px;color:var(--muted);}
+  .dh b{display:block;color:var(--text);font-size:13px;}
+  .dh.wknd{color:var(--muted);}
+  .dh.deadline b{color:var(--danger);}
+  .dh.today b{color:var(--accent);}
+
+  .row{border-top:1px dashed var(--border);min-height:52px;}
+  .row .name{padding:8px 10px 8px 0;}
+  .row .name .t{font-size:13px;font-weight:700;}
+  .row .name .d{font-size:11px;color:var(--muted);margin-top:1px;}
+  .chip{font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:999px;text-transform:uppercase;letter-spacing:.4px;margin-left:6px;vertical-align:middle;}
+  .chip.done{background:rgba(126,224,184,.16);color:var(--done);}
+  .chip.prog{background:rgba(255,184,107,.16);color:var(--prog);}
+  .chip.todo{background:rgba(140,150,180,.16);color:var(--todo);}
+
+  .track{grid-column:2 / span 11;display:grid;grid-template-columns:repeat(11,1fr);position:relative;height:34px;align-items:center;}
+  .cell{grid-row:1;height:34px;border-left:1px solid var(--border);}
+  .cell.wknd{background:var(--wk);}
+  .cell:last-child{border-right:1px solid var(--border);}
+  .bar{grid-row:1;height:22px;border-radius:6px;z-index:2;display:flex;align-items:center;justify-content:center;
+    font-size:10.5px;font-weight:700;color:#08111f;padding:0 6px;overflow:hidden;white-space:nowrap;}
+  .bar.done{background:var(--done);}
+  .bar.prog{background:var(--prog);}
+  .bar.todo{background:var(--todo);color:#fff;}
+  .ms{grid-row:1;z-index:3;justify-self:center;width:16px;height:16px;background:var(--milestone);transform:rotate(45deg);
+    border:2px solid var(--bg);border-radius:3px;}
+  .todayline{grid-row:1;z-index:1;width:2px;background:var(--accent);justify-self:start;height:34px;margin-left:-1px;opacity:.6;}
+
+  .notes{margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px;}
+  .card h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);}
+  .card ul{margin:0;padding-left:16px;font-size:12.5px;color:var(--muted);}
+  .card li{margin-bottom:6px;} .card li b{color:var(--text);}
+  .card.risk{border-left:3px solid var(--danger);}
+  @media (max-width:820px){.top{grid-template-columns:repeat(2,1fr);}.notes{grid-template-columns:1fr;}}
+  @media print{body{background:#fff;color:#000;}.gantt,.card,.kpi{break-inside:avoid;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Demand Pattern RCA Agent — Build Timeline</h1>
+  <div class="sub">Phase pipeline from Mon 20 Jul 2026 to the mockup deadline (Thu 30 Jul 2026). Scope = Phase 1: scheduled scan → page-per-queue RCA reports (no chat). <b>Today = Wed 22 Jul.</b></div>
+
+  <div class="top">
+    <div class="kpi hot"><div class="v">8 days</div><div class="l">To 30 July deadline</div></div>
+    <div class="kpi"><div class="v">8</div><div class="l">Phases</div></div>
+    <div class="kpi"><div class="v">4 ✓</div><div class="l">Built &amp; verified</div></div>
+    <div class="kpi"><div class="v">Mockup</div><div class="l">30 Jul deliverable</div></div>
+  </div>
+
+  <div class="legend">
+    <span><span class="sw done"></span> Done (prototype ready)</span>
+    <span><span class="sw prog"></span> In progress</span>
+    <span><span class="sw todo"></span> To do</span>
+    <span><span class="sw ms"></span> Milestone</span>
+    <span style="color:var(--accent);">▏ = today (22 Jul)</span>
+  </div>
+
+  <div class="gantt">
+    <div class="grid-head">
+      <div class="lbl">Phase</div>
+      <div class="dh"><b>20</b>Mon</div>
+      <div class="dh"><b>21</b>Tue</div>
+      <div class="dh today"><b>22</b>Wed</div>
+      <div class="dh"><b>23</b>Thu</div>
+      <div class="dh"><b>24</b>Fri</div>
+      <div class="dh wknd"><b>25</b>Sat</div>
+      <div class="dh wknd"><b>26</b>Sun</div>
+      <div class="dh"><b>27</b>Mon</div>
+      <div class="dh"><b>28</b>Tue</div>
+      <div class="dh"><b>29</b>Wed</div>
+      <div class="dh deadline"><b>30</b>Thu</div>
+    </div>
+
+    <!-- P1 -->
+    <div class="row">
+      <div class="name"><span class="t">1 · Data foundation &amp; schema lock<span class="chip done">Done</span></span><div class="d">33-col schema, 10 filter dims, adherence rule (±10%), CQN key confirmed</div></div>
+      <div class="track">
+        <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        <div class="todayline" style="grid-column:3;"></div>
+        <div class="bar done" style="grid-column:1 / 4;">✓ schema locked</div>
+      </div>
+    </div>
+
+    <!-- P2 -->
+    <div class="row">
+      <div class="name"><span class="t">2 · RCA engine core<span class="chip done">Done</span></span><div class="d">Two-metric engine fixed — accuracy now 100−MAPE (bidirectional), formulas verified</div></div>
+      <div class="track">
+        <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        <div class="bar done" style="grid-column:1 / 4;">✓ calc fixed</div>
+      </div>
+    </div>
+
+    <!-- P3 -->
+    <div class="row">
+      <div class="name"><span class="t">3 · File ingestion + big-file handling<span class="chip done">Done</span></span><div class="d">CSV / Excel upload, in-browser parse, 100k+ rows</div></div>
+      <div class="track">
+        <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        <div class="bar done" style="grid-column:1 / 4;">✓ built</div>
+      </div>
+    </div>
+
+    <!-- P4 -->
+    <div class="row">
+      <div class="name"><span class="t">4 · Multi-queue scan + Phase-1 digest<span class="chip prog">In prog</span></span><div class="d">~100 queues → top-N flagged → page-per-queue report</div></div>
+      <div class="track">
+        <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        <div class="bar prog" style="grid-column:4 / 8;">Jul 23–26</div>
+      </div>
+    </div>
+
+    <!-- P5 -->
+    <div class="row">
+      <div class="name"><span class="t">5 · Volume metrics + evidence trail<span class="chip done">Done</span></span><div class="d">EPIC volumetrics + Dashboard graphs, tool-call evidence trail, ⓘ math</div></div>
+      <div class="track">
+        <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        <div class="bar done" style="grid-column:3 / 6;">✓ dashboard</div>
+      </div>
+    </div>
+
+    <!-- P6 -->
+    <div class="row">
+      <div class="name"><span class="t">6 · Validation + threshold tuning<span class="chip todo">To do</span></span><div class="d">Run on full real dataset with Prashant / SME; tune band</div></div>
+      <div class="track">
+        <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        <div class="bar todo" style="grid-column:7 / 10;">Jul 26–28</div>
+      </div>
+    </div>
+
+    <!-- P7 -->
+    <div class="row">
+      <div class="name"><span class="t">7 · Demo packaging + dry run<span class="chip todo">To do</span></span><div class="d">Digest export, walkthrough script, rehearsal</div></div>
+      <div class="track">
+        <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        <div class="bar todo" style="grid-column:9 / 11;">Jul 28–29</div>
+      </div>
+    </div>
+
+    <!-- P8 milestone -->
+    <div class="row">
+      <div class="name"><span class="t">8 · Mockup presentation<span class="chip todo">Milestone</span></span><div class="d">Present working single-agent RCA on real data</div></div>
+      <div class="track">
+        <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        <div class="ms" style="grid-column:11;" title="30 July — Demo"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <div class="card">
+      <h3>Already in the bag (de-risks the deadline)</h3>
+      <ul>
+        <li><b>Upload for CSV &amp; Excel</b> — in-browser parse, handles 100k+ rows.</li>
+        <li><b>Two-metric RCA engine</b> — Forecast Accuracy + Plan Adherence, with ⓘ formula/number modal.</li>
+        <li><b>Avg accuracy fixed</b> — was a misleading ~99% (over/under cancel); now 100−MAPE (77.1% on full file).</li>
+        <li><b>Volumetrics + Dashboard graphs</b> across all 10 business dimensions, reactive to filters.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Critical path to 30 Jul</h3>
+      <ul>
+        <li><b>P4 Phase-1 digest</b> — multi-queue scan → top-N → printable report is the main remaining build.</li>
+        <li><b>P6 validation with Prashant</b> must land by <b>28 Jul</b> to leave a buffer day.</li>
+        <li>Weekend (25–26 Jul) kept light — validation and packaging are weekday-anchored.</li>
+      </ul>
+    </div>
+    <div class="card risk">
+      <h3>Risks &amp; dependencies</h3>
+      <ul>
+        <li><b>RCA calculation</b> — fixed &amp; verified (P2 done); downstream phases now unblocked.</li>
+        <li><b>Real full dataset access</b> — needed for P4/P6; slippage compresses validation.</li>
+        <li><b>Adherence band (±10% vs ±15%)</b> — confirm with Prashant before P6 tuning.</li>
+        <li>On-prem LLaMA narration is a later phase, not in the 30 Jul scope.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>What the 30 Jul demo shows</h3>
+      <ul>
+        <li>Upload the real file → live scan → flagged queues + Dashboard volumetrics.</li>
+        <li>Open any flagged queue → data-backed root cause + volume metrics.</li>
+        <li>One-click <b>Phase-1 digest</b> of all flagged queues.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+</body>
+</html>

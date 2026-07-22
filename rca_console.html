@@ -1,0 +1,1128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demand Pattern RCA Agent — Console</title>
+<style>
+  :root{
+    --bg:#f4f7fc; --panel:#ffffff; --panel-2:#f5f8fc; --border:#e1e7f0; --nav:#0d1b3e;
+    --text:#14203a; --muted:#586179; --accent:#2d6cdf; --accent-2:#12986f;
+    --warn:#c96a10; --danger:#d13a58; --purple:#7952d1; --pink:#c43e86;
+  }
+  *{box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;line-height:1.5;}
+
+  /* NAV BAR */
+  .nav{background:var(--nav);color:#fff;position:sticky;top:0;z-index:50;box-shadow:0 2px 10px rgba(0,0,0,.15);}
+  .nav-in{max-width:1400px;margin:0 auto;display:flex;align-items:center;gap:6px;padding:0 16px;flex-wrap:wrap;}
+  .brand{font-weight:800;font-size:15px;letter-spacing:-0.2px;padding:12px 14px 12px 0;display:flex;align-items:center;gap:9px;}
+  .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent-2);}
+  .nav a{color:#c7d2ec;text-decoration:none;font-size:12.5px;font-weight:600;padding:14px 12px;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;}
+  .nav a:hover{color:#fff;}
+  .nav a.active{color:#fff;border-bottom-color:var(--accent-2);}
+  .nav .spacer{flex:1;}
+  .nav .env{font-size:11px;color:#9fb0d4;padding:0 6px;}
+
+  .page{max-width:1400px;margin:0 auto;padding:20px 16px 70px;}
+  .tab{display:none;} .tab.active{display:block;}
+  h1{font-size:22px;margin:0 0 3px;letter-spacing:-0.3px;}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:16px;}
+  h2.sec{font-size:12px;text-transform:uppercase;letter-spacing:1.1px;color:var(--muted);margin:26px 0 12px;font-weight:800;}
+
+  /* generic cards */
+  .cards{display:grid;gap:12px;}
+  .g2{grid-template-columns:repeat(2,1fr);} .g3{grid-template-columns:repeat(3,1fr);} .g4{grid-template-columns:repeat(4,1fr);}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 15px;}
+  .card h4{margin:0 0 8px;font-size:13.5px;}
+  .card ul{margin:0;padding-left:16px;font-size:12.5px;color:var(--muted);} .card li{margin-bottom:5px;} .card li b{color:var(--text);}
+  .tag{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;background:rgba(45,108,223,.1);color:var(--accent);border:1px solid rgba(45,108,223,.25);margin:0 4px 4px 0;}
+  .tag.g{background:rgba(18,152,111,.1);color:var(--accent-2);border-color:rgba(18,152,111,.25);}
+  .tag.p{background:rgba(121,82,209,.1);color:var(--purple);border-color:rgba(121,82,209,.25);}
+  .tag.w{background:rgba(201,106,16,.1);color:var(--warn);border-color:rgba(201,106,16,.25);}
+
+  /* ===== RCA CONSOLE ===== */
+  .toolbar{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .filebtn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;}
+  .filebtn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent);}
+  .filebtn.map{background:var(--purple);}
+  .status{font-size:11.5px;color:var(--muted);}
+  .status b{color:var(--text);}
+  .badge{font-size:10px;font-weight:800;padding:2px 8px;border-radius:5px;letter-spacing:.3px;}
+  .badge.ok{background:rgba(18,152,111,.12);color:var(--accent-2);border:1px solid rgba(18,152,111,.3);}
+  .badge.unm{background:rgba(201,106,16,.12);color:var(--warn);border:1px solid rgba(201,106,16,.3);}
+  label.band{font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;margin-left:auto;}
+  input[type=number]{width:56px;background:var(--panel-2);border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:12px;color:var(--text);}
+
+  .console{display:grid;grid-template-columns:236px 300px 1fr;gap:14px;align-items:start;}
+  @media (max-width:1100px){.console{grid-template-columns:1fr;}}
+
+  /* Excel-style filters */
+  .filters{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;position:sticky;top:64px;}
+  .filters .fh{padding:10px 13px;border-bottom:1px solid var(--border);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;}
+  .fgroup{border-bottom:1px solid var(--border);}
+  .fgroup > .ft{padding:9px 13px;font-size:12.5px;font-weight:700;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;}
+  .fgroup .fbody{padding:0 13px 10px;display:block;}
+  .fgroup.collapsed .fbody{display:none;}
+  .fsearch{width:100%;border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:11.5px;margin:2px 0 7px;background:var(--panel-2);color:var(--text);}
+  .fopts{max-height:150px;overflow:auto;}
+  .fopt{display:flex;align-items:center;gap:7px;font-size:12px;padding:3px 0;cursor:pointer;}
+  .fopt input{accent-color:var(--accent);}
+  .reset{width:100%;border:1px solid var(--danger);color:var(--danger);background:transparent;border-radius:8px;padding:9px;font-size:12px;font-weight:700;cursor:pointer;margin:10px 0 0;}
+
+  .metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px;}
+  .metric{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px 11px;}
+  .metric .v{font-size:18px;font-weight:800;} .metric .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:1px;}
+  .metric.flag .v{color:var(--danger);} .metric.good .v{color:var(--accent-2);}
+
+  .listcol h3, .reportcol h3{margin:0 0 9px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);}
+  .qwrap{max-height:640px;overflow:auto;}
+  .qitem{background:var(--panel);border:1px solid var(--border);border-radius:9px;padding:10px 11px;margin-bottom:8px;cursor:pointer;}
+  .qitem:hover{border-color:var(--accent);}
+  .qitem.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;}
+  .qitem .qn{font-size:12px;font-weight:700;}
+  .qitem .qmeta{font-size:10.5px;color:var(--muted);margin-top:2px;}
+  .qitem .chips{margin-top:6px;display:flex;gap:5px;flex-wrap:wrap;}
+  .chip{font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;}
+  .chip.red{background:rgba(209,58,88,.13);color:var(--danger);border:1px solid rgba(209,58,88,.3);}
+  .chip.amber{background:rgba(201,106,16,.13);color:var(--warn);border:1px solid rgba(201,106,16,.3);}
+  .chip.green{background:rgba(18,152,111,.13);color:var(--accent-2);border:1px solid rgba(18,152,111,.3);}
+
+  .reportcol{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;min-height:360px;}
+  .rhead{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;}
+  .rtitle{font-size:16px;font-weight:800;}
+  .rmeta{font-size:11.5px;color:var(--muted);margin-top:2px;}
+  .acc{text-align:right;} .acc .big{font-size:24px;font-weight:800;} .acc .lbl{font-size:11px;color:var(--muted);}
+
+  .rca-bullets{list-style:none;padding:0;margin:14px 0 0;}
+  .rca-bullets li{display:flex;gap:9px;align-items:flex-start;padding:9px 0;border-top:1px dashed var(--border);font-size:13px;}
+  .rca-bullets li:first-child{border-top:none;}
+  .bdot{width:7px;height:7px;border-radius:50%;margin-top:6px;flex-shrink:0;}
+  .bdot.hit{background:var(--danger);} .bdot.part{background:var(--warn);} .bdot.info{background:var(--accent);}
+  .btext{flex:1;} .btext b{color:var(--text);}
+  .ibtn{flex-shrink:0;width:19px;height:19px;border-radius:50%;border:1px solid var(--accent);color:var(--accent);background:transparent;font-size:11px;font-weight:800;cursor:pointer;font-style:italic;line-height:1;}
+  .ibtn:hover{background:var(--accent);color:#fff;}
+
+  .subhead{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:800;margin:18px 0 6px;}
+  .kv{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;gap:10px;} .kv .k{color:var(--muted);} .kv .val{font-weight:700;}
+  .evi{font-size:11.5px;color:var(--muted);font-family:ui-monospace,Menlo,Consolas,monospace;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
+  .evi div{padding:2px 0;}
+
+  .empty{color:var(--muted);font-size:13px;text-align:center;padding:60px 16px;border:1px dashed var(--border);border-radius:12px;background:var(--panel);}
+  .empty b{color:var(--text);}
+
+  /* ===== VOLUMETRICS (EPIC) ===== */
+  .vol{position:relative;background:radial-gradient(120% 140% at 0% 0%,#1d4f8f 0%,#16306b 42%,#0b1631 100%);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:26px 28px;margin-bottom:16px;color:#fff;box-shadow:0 18px 44px -18px rgba(8,16,36,.7);overflow:hidden;}
+  .vol::before{content:"";position:absolute;inset:0;background:radial-gradient(60% 80% at 100% 0%,rgba(95,224,176,.10),transparent 60%);pointer-events:none;}
+  .vol > *{position:relative;}
+  .vol .vtop{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:20px;}
+  .vol .vtitle{font-size:17px;font-weight:800;letter-spacing:-.3px;display:flex;align-items:center;gap:10px;}
+  .vol .vtitle .spark{font-size:22px;}
+  .vol .vsub{font-size:12px;color:#c2d0ee;margin-top:4px;max-width:660px;line-height:1.5;}
+  .vol .vscope{font-size:11px;color:#aebfe4;text-align:right;white-space:nowrap;}
+  .vol .vscope b{color:#fff;}
+  .vhero{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:24px;}
+  .vhcell{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:15px 16px;transition:transform .12s,background .12s;}
+  .vhcell:hover{background:rgba(255,255,255,.1);transform:translateY(-2px);}
+  .vhcell .n{font-size:29px;font-weight:800;letter-spacing:-.8px;line-height:1;}
+  .vhcell .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.6px;color:#aebfe4;margin-top:8px;}
+  .vhcell.accent .n{color:#5fe0b0;} .vhcell.warn .n{color:#ffb968;} .vhcell.flag .n{color:#ff8199;}
+  .vgrid-h{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#9fb2d8;margin:0 0 12px;display:flex;align-items:center;gap:10px;}
+  .vgrid-h::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(255,255,255,.18),transparent);}
+  .vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(256px,1fr));gap:12px;}
+  .vdim{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:14px 15px;transition:border-color .12s,background .12s;}
+  .vdim:hover{border-color:rgba(95,224,176,.4);background:rgba(255,255,255,.07);}
+  .vdim .vd-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;gap:8px;padding-bottom:9px;border-bottom:1px solid rgba(255,255,255,.08);}
+  .vdim .vd-l{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:#c2d0ee;font-weight:800;}
+  .vdim .vd-c{font-size:21px;font-weight:800;letter-spacing:-.5px;}
+  .vdim .vd-c small{font-size:9px;font-weight:700;color:#8fa3cf;letter-spacing:.3px;margin-left:3px;}
+  .vbar{margin:8px 0;}
+  .vbar .vb-t{display:flex;justify-content:space-between;font-size:11px;color:#e4ebf8;margin-bottom:4px;gap:8px;}
+  .vbar .vb-t .vb-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;font-weight:600;}
+  .vbar .vb-t .vb-pct{color:#cdd9f2;flex-shrink:0;font-variant-numeric:tabular-nums;font-weight:700;}
+  .vbar .vb-track{height:6px;background:rgba(255,255,255,.12);border-radius:99px;overflow:hidden;}
+  .vbar .vb-fill{height:100%;background:linear-gradient(90deg,#3d8bff,#5fe0b0);border-radius:99px;}
+  .vdim .vd-more{font-size:10px;color:#8fa3cf;margin-top:9px;}
+
+  /* ===== DASHBOARD CHARTS ===== */
+  .dash{display:grid;gap:14px;}
+  .dgrid{display:grid;gap:14px;grid-template-columns:1fr 1fr;}
+  @media (max-width:900px){.dgrid{grid-template-columns:1fr;}}
+  .chart{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:15px 16px;position:relative;}
+  .chart h4{margin:0 0 2px;font-size:13.5px;}
+  .chart .cs{font-size:11px;color:var(--muted);margin-bottom:12px;}
+  .chart svg{display:block;width:100%;height:auto;overflow:visible;}
+  .trend{position:relative;}
+  .ax{fill:var(--muted);font-size:10px;font-family:inherit;}
+  .axt{fill:var(--muted);font-size:9.5px;font-family:inherit;}
+  .vlbl{fill:var(--text);font-size:10px;font-weight:700;font-family:inherit;font-variant-numeric:tabular-nums;}
+  .grid-l{stroke:var(--border);stroke-width:1;}
+  .barrect{transition:opacity .12s;} .barrect:hover{opacity:.82;}
+  .dotm:hover{r:5.5;}
+  /* crosshair tooltip */
+  .cx-tip{position:absolute;pointer-events:none;background:var(--nav);color:#fff;border-radius:7px;padding:6px 9px;font-size:11px;line-height:1.35;box-shadow:0 6px 20px -8px rgba(0,0,0,.5);opacity:0;transform:translate(-50%,-115%);transition:opacity .08s;white-space:nowrap;z-index:6;}
+  .cx-tip b{color:#9fd0ff;}
+  .cx-line{stroke:var(--accent);stroke-width:1;stroke-dasharray:3 3;opacity:.55;}
+  .dlegend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:8px;}
+  .dlegend span{display:inline-flex;align-items:center;gap:6px;}
+  .dlegend .sw{width:12px;height:9px;border-radius:3px;display:inline-block;}
+
+  /* ===== EMBEDDED GANTT (Timeline tab) ===== */
+  #tab-timeline .top{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+  #tab-timeline .kpi{background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:13px 15px;}
+  #tab-timeline .kpi .v{font-size:22px;font-weight:800;}
+  #tab-timeline .kpi .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
+  #tab-timeline .kpi.hot .v{color:var(--danger);}
+  #tab-timeline .glegend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:14px;}
+  #tab-timeline .glegend span{display:inline-flex;align-items:center;gap:6px;}
+  #tab-timeline .gsw{width:14px;height:10px;border-radius:3px;display:inline-block;}
+  #tab-timeline .gsw.done{background:var(--accent-2);} #tab-timeline .gsw.prog{background:var(--warn);} #tab-timeline .gsw.todo{background:#8a93a8;}
+  #tab-timeline .gsw.ms{background:var(--purple);border-radius:50%;width:11px;height:11px;transform:rotate(45deg);}
+  #tab-timeline .gantt{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:8px 12px 16px;overflow-x:auto;}
+  #tab-timeline .grid-head,#tab-timeline .grow{display:grid;grid-template-columns:250px repeat(11,minmax(46px,1fr));align-items:center;}
+  #tab-timeline .grid-head{border-bottom:1px solid var(--border);padding:8px 0;}
+  #tab-timeline .grid-head .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;font-weight:700;}
+  #tab-timeline .dh{text-align:center;font-size:11px;color:var(--muted);}
+  #tab-timeline .dh b{display:block;color:var(--text);font-size:13px;}
+  #tab-timeline .dh.wknd{color:var(--muted);}
+  #tab-timeline .dh.deadline b{color:var(--danger);}
+  #tab-timeline .dh.today b{color:var(--accent);}
+  #tab-timeline .grow{border-top:1px dashed var(--border);min-height:52px;}
+  #tab-timeline .grow .gname{padding:8px 10px 8px 0;}
+  #tab-timeline .grow .gname .t{font-size:13px;font-weight:700;}
+  #tab-timeline .grow .gname .d{font-size:11px;color:var(--muted);margin-top:1px;}
+  #tab-timeline .gchip{font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:999px;text-transform:uppercase;letter-spacing:.4px;margin-left:6px;vertical-align:middle;}
+  #tab-timeline .gchip.done{background:rgba(18,152,111,.16);color:var(--accent-2);}
+  #tab-timeline .gchip.prog{background:rgba(201,106,16,.16);color:var(--warn);}
+  #tab-timeline .gchip.todo{background:rgba(140,150,180,.16);color:#8a93a8;}
+  #tab-timeline .track{grid-column:2 / span 11;display:grid;grid-template-columns:repeat(11,1fr);position:relative;height:34px;align-items:center;}
+  #tab-timeline .cell{grid-row:1;height:34px;border-left:1px solid var(--border);}
+  #tab-timeline .cell.wknd{background:#eceff5;}
+  #tab-timeline .cell:last-child{border-right:1px solid var(--border);}
+  #tab-timeline .bar{grid-row:1;height:22px;border-radius:6px;z-index:2;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;color:#08111f;padding:0 6px;overflow:hidden;white-space:nowrap;}
+  #tab-timeline .bar.done{background:var(--accent-2);color:#fff;}
+  #tab-timeline .bar.prog{background:var(--warn);color:#fff;}
+  #tab-timeline .bar.todo{background:#8a93a8;color:#fff;}
+  #tab-timeline .msq{grid-row:1;z-index:3;justify-self:center;width:16px;height:16px;background:var(--purple);transform:rotate(45deg);border:2px solid var(--panel);border-radius:3px;}
+  #tab-timeline .todayline{grid-row:1;z-index:1;width:2px;background:var(--accent);justify-self:start;height:34px;margin-left:-1px;opacity:.6;}
+  #tab-timeline .gnotes{margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  #tab-timeline .gnotes .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px;}
+  #tab-timeline .gnotes .card.risk{border-left:3px solid var(--danger);}
+  @media (max-width:820px){#tab-timeline .top{grid-template-columns:repeat(2,1fr);}#tab-timeline .gnotes{grid-template-columns:1fr;}}
+
+  /* math modal */
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(10,20,40,.45);z-index:100;align-items:center;justify-content:center;padding:20px;}
+  .modal-bg.show{display:flex;}
+  .modal{background:var(--panel);border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;padding:20px 22px;box-shadow:0 20px 60px -20px rgba(0,0,0,.5);}
+  .modal h3{margin:0 0 4px;font-size:16px;}
+  .modal .msub{font-size:12px;color:var(--muted);margin-bottom:14px;}
+  .formula{background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;margin-bottom:10px;}
+  .formula .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);display:block;margin-bottom:4px;font-family:inherit;}
+  .formula .res{color:var(--accent-2);font-weight:700;}
+  .mclose{margin-top:8px;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-weight:600;cursor:pointer;float:right;}
+
+  /* probing */
+  .probe{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-top:14px;}
+  .probe .q{font-size:13px;font-weight:700;margin-bottom:8px;}
+  .probe textarea{width:100%;height:56px;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12.5px;resize:vertical;background:var(--panel-2);color:var(--text);}
+  .probe .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;}
+  .kbitem{font-size:12px;border-top:1px dashed var(--border);padding:7px 0;}
+  .kbitem b{color:var(--text);} .kbitem .a{color:var(--muted);}
+  .pill{font-size:11px;background:var(--panel-2);border:1px solid var(--border);border-radius:999px;padding:3px 9px;cursor:pointer;color:var(--muted);}
+  .pill:hover{border-color:var(--accent);color:var(--accent);}
+
+  table.def{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.def th,table.def td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
+  table.def th{color:var(--muted);text-transform:uppercase;font-size:10.5px;letter-spacing:.5px;}
+  table.def td code{background:var(--panel-2);padding:1px 5px;border-radius:4px;font-size:11.5px;}
+</style>
+</head>
+<body>
+
+<!-- NAV BAR -->
+<div class="nav">
+  <div class="nav-in">
+    <div class="brand"><span class="dot"></span>Demand Pattern RCA Agent</div>
+    <a data-tab="console" class="active">RCA Console</a>
+    <a data-tab="dashboard">Dashboard</a>
+    <a data-tab="timeline">Timeline</a>
+    <a data-tab="arch">Architecture</a>
+    <a data-tab="stack">Tech Stack</a>
+    <a data-tab="models">AI Models</a>
+    <a data-tab="data">Data &amp; Files</a>
+    <a data-tab="defs">Definitions &amp; Formulas</a>
+    <span class="spacer"></span>
+    <span class="env">Client env · GitLab · on-prem</span>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- ============ RCA CONSOLE ============ -->
+  <div class="tab active" id="tab-console">
+    <h1>RCA Console</h1>
+    <div class="sub">Upload the weekly file, then type your 2–3 target <b>Forecast_name</b>s in the test box (or filter like Excel). Only two metrics are computed — <b>Forecast Accuracy</b> and <b>Plan Adherence</b>; each has an <b>ⓘ</b> showing the exact formula and the numbers used. Rows with no/zero forecast are skipped (can't compute).</div>
+
+    <div class="toolbar">
+      <input type="file" id="fileWeekly" accept=".csv,.tsv,.txt,.xlsx" style="display:none" onchange="onWeekly(this.files&&this.files[0])">
+      <input type="file" id="fileMap" accept=".csv,.tsv,.txt,.xlsx" style="display:none" onchange="onMapping(this.files&&this.files[0])">
+      <button class="filebtn" onclick="document.getElementById('fileWeekly').click()">⬆ Upload weekly file</button>
+      <button class="filebtn map" onclick="document.getElementById('fileMap').click()">⬆ Upload CQN mapping</button>
+      <span class="status" id="fileStatus">No file loaded.</span>
+      <span id="mapBadge"></span>
+      <input id="focusInput" style="flex:1;min-width:220px;max-width:420px;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--text);background:var(--panel-2)" placeholder="Test specific Forecast_name(s) — comma-separated" onkeydown="if(event.key==='Enter')applyFocus()">
+      <button class="filebtn ghost" onclick="applyFocus()">Test these</button>
+      <button class="filebtn ghost" onclick="clearFocus()" title="Clear the focus box">✕</button>
+      <label class="band">Accuracy band ±<input type="number" id="band" value="10" min="1" max="50" onchange="if(ROWS.length)applyAndScan()">%</label>
+    </div>
+
+    <div id="emptyState" class="empty">
+      <div style="font-size:34px;margin-bottom:8px;">📂</div>
+      <b>Upload the weekly demand file to begin.</b><br>
+      Accepted: <b>.csv, .tsv, .xlsx</b> · header row + the standard demand columns (Fiscal_Week, Region, Forecast_name, Actual_Offered, fcst_offered, …).<br>
+      Optionally add the <b>CQN mapping file</b> to resolve the true Combined Queue Name — without it the tool falls back to <code>Forecast_name</code> and marks queues <span class="badge unm">unmapped</span>.
+    </div>
+
+    <div id="consoleArea" style="display:none;">
+      <div class="console">
+        <!-- FILTERS -->
+        <div class="filters" id="filters">
+          <div class="fh">Filters <span class="pill" onclick="resetFilters()">Reset</span></div>
+          <div id="filterGroups"></div>
+          <div style="padding:0 13px 12px;"><button class="reset" onclick="resetFilters()">↻ Reset All Filters</button></div>
+        </div>
+
+        <!-- FLAGGED LIST -->
+        <div class="listcol">
+          <div class="metrics" id="metrics"></div>
+          <h3>Flagged queues / weeks</h3>
+          <div class="qwrap" id="qlist"></div>
+        </div>
+
+        <!-- REPORT -->
+        <div>
+          <div class="reportcol" id="report"><div class="empty" style="border:none;padding:40px 10px;">Select a flagged item to see its RCA.</div></div>
+
+          <!-- PROBING -->
+          <div class="probe">
+            <div class="q">🧠 Probing layer — knowledge gathering</div>
+            <div style="font-size:11.5px;color:var(--muted);margin-bottom:8px;">The agent asks to clarify domain rules. Answers are saved to a Markdown knowledge base you can download and reuse.</div>
+            <div class="row" id="probePills"></div>
+            <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+              <input id="probeQ" class="fsearch" style="margin:0;flex:1;min-width:200px;" placeholder="Question the agent is clarifying…">
+              <select id="probeCat" class="fsearch" style="margin:0;width:150px;flex:0 0 auto;">
+                <option value="General">General</option>
+                <option value="Adherence rule">Adherence rule</option>
+                <option value="Plan restatement">Plan restatement</option>
+                <option value="CQN / mapping">CQN / mapping</option>
+                <option value="Forecaster">Forecaster</option>
+                <option value="Offering / Channel">Offering / Channel</option>
+                <option value="Calendar / holiday">Calendar / holiday</option>
+                <option value="Definition">Definition</option>
+              </select>
+            </div>
+            <textarea id="probeA" placeholder="Your answer / domain knowledge…"></textarea>
+            <label class="fopt" style="margin:6px 0 2px;"><input type="checkbox" id="probeCtx" checked> Attach current queue/week context</label>
+            <div class="row">
+              <button class="filebtn" onclick="saveKnowledge()">＋ Save to knowledge base</button>
+              <button class="filebtn ghost" onclick="downloadKB()">⬇ Download knowledge base (.md)</button>
+              <span class="status" id="kbCount">0 entries</span>
+            </div>
+            <div id="kbList" style="margin-top:8px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DASHBOARD ============ -->
+  <div class="tab" id="tab-dashboard">
+    <h1>Dashboard</h1>
+    <div class="sub">Volumetrics and demand-signal graphs for the loaded file. Reflects the filters set in the <b>RCA Console</b>. Only Actual/Forecast-offered figures are charted — nothing is inferred or invented.</div>
+    <div id="dashEmpty" class="empty">
+      <div style="font-size:34px;margin-bottom:8px;">📊</div>
+      <b>No data loaded.</b><br>Upload the weekly demand file in the <b>RCA Console</b> tab — this dashboard populates automatically and follows your filters.
+    </div>
+    <div id="dashboardArea" style="display:none;"></div>
+  </div>
+
+  <!-- ============ TIMELINE (deadline Gantt) ============ -->
+  <div class="tab" id="tab-timeline">
+    <h1>Build Timeline — to 30 July</h1>
+    <div class="sub">Phase pipeline from Mon 20 Jul 2026 to the mockup deadline (Thu 30 Jul 2026). Scope = Phase 1: scheduled scan → page-per-queue RCA reports (no chat). <b>Today = Wed 22 Jul.</b></div>
+
+    <div class="top">
+      <div class="kpi hot"><div class="v">8 days</div><div class="l">To 30 July deadline</div></div>
+      <div class="kpi"><div class="v">8</div><div class="l">Phases</div></div>
+      <div class="kpi"><div class="v">4 ✓</div><div class="l">Built &amp; verified</div></div>
+      <div class="kpi"><div class="v">Mockup</div><div class="l">30 Jul deliverable</div></div>
+    </div>
+
+    <div class="glegend">
+      <span><span class="gsw done"></span> Done (prototype ready)</span>
+      <span><span class="gsw prog"></span> In progress</span>
+      <span><span class="gsw todo"></span> To do</span>
+      <span><span class="gsw ms"></span> Milestone</span>
+      <span style="color:var(--accent);">▏ = today (22 Jul)</span>
+    </div>
+
+    <div class="gantt">
+      <div class="grid-head">
+        <div class="lbl">Phase</div>
+        <div class="dh"><b>20</b>Mon</div><div class="dh"><b>21</b>Tue</div>
+        <div class="dh today"><b>22</b>Wed</div><div class="dh"><b>23</b>Thu</div><div class="dh"><b>24</b>Fri</div>
+        <div class="dh wknd"><b>25</b>Sat</div><div class="dh wknd"><b>26</b>Sun</div>
+        <div class="dh"><b>27</b>Mon</div><div class="dh"><b>28</b>Tue</div><div class="dh"><b>29</b>Wed</div>
+        <div class="dh deadline"><b>30</b>Thu</div>
+      </div>
+
+      <div class="grow">
+        <div class="gname"><span class="t">1 · Data foundation &amp; schema lock<span class="gchip done">Done</span></span><div class="d">33-col schema, 10 filter dims, adherence rule (±10%), CQN key confirmed</div></div>
+        <div class="track">
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          <div class="todayline" style="grid-column:3;"></div>
+          <div class="bar done" style="grid-column:1 / 4;">✓ schema locked</div>
+        </div>
+      </div>
+
+      <div class="grow">
+        <div class="gname"><span class="t">2 · RCA engine core<span class="gchip done">Done</span></span><div class="d">Two-metric engine fixed — accuracy now 100−MAPE (bidirectional), formulas verified</div></div>
+        <div class="track">
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          <div class="bar done" style="grid-column:1 / 4;">✓ calc fixed</div>
+        </div>
+      </div>
+
+      <div class="grow">
+        <div class="gname"><span class="t">3 · File ingestion + big-file handling<span class="gchip done">Done</span></span><div class="d">CSV / Excel upload, in-browser parse, 100k+ rows</div></div>
+        <div class="track">
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          <div class="bar done" style="grid-column:1 / 4;">✓ built</div>
+        </div>
+      </div>
+
+      <div class="grow">
+        <div class="gname"><span class="t">4 · Multi-queue scan + Phase-1 digest<span class="gchip prog">In prog</span></span><div class="d">~100 queues → top-N flagged → page-per-queue report</div></div>
+        <div class="track">
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          <div class="bar prog" style="grid-column:4 / 8;">Jul 23–26</div>
+        </div>
+      </div>
+
+      <div class="grow">
+        <div class="gname"><span class="t">5 · Volume metrics + evidence trail<span class="gchip done">Done</span></span><div class="d">EPIC volumetrics + Dashboard graphs, tool-call evidence trail, ⓘ math</div></div>
+        <div class="track">
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          <div class="bar done" style="grid-column:3 / 6;">✓ dashboard</div>
+        </div>
+      </div>
+
+      <div class="grow">
+        <div class="gname"><span class="t">6 · Validation + threshold tuning<span class="gchip todo">To do</span></span><div class="d">Run on full real dataset with Prashant / SME; tune band</div></div>
+        <div class="track">
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          <div class="bar todo" style="grid-column:7 / 10;">Jul 26–28</div>
+        </div>
+      </div>
+
+      <div class="grow">
+        <div class="gname"><span class="t">7 · Demo packaging + dry run<span class="gchip todo">To do</span></span><div class="d">Digest export, walkthrough script, rehearsal</div></div>
+        <div class="track">
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          <div class="bar todo" style="grid-column:9 / 11;">Jul 28–29</div>
+        </div>
+      </div>
+
+      <div class="grow">
+        <div class="gname"><span class="t">8 · Mockup presentation<span class="gchip todo">Milestone</span></span><div class="d">Present working single-agent RCA on real data</div></div>
+        <div class="track">
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          <div class="msq" style="grid-column:11;" title="30 July — Demo"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gnotes">
+      <div class="card">
+        <h3>Already in the bag (de-risks the deadline)</h3>
+        <ul>
+          <li><b>Upload for CSV &amp; Excel</b> — in-browser parse, handles 100k+ rows.</li>
+          <li><b>Two-metric RCA engine</b> — Forecast Accuracy + Plan Adherence, with ⓘ formula/number modal.</li>
+          <li><b>Avg accuracy fixed</b> — was a misleading ~99% (over/under cancel); now 100−MAPE (77.1% on full file).</li>
+          <li><b>Volumetrics + Dashboard graphs</b> across all 10 business dimensions, reactive to filters.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Critical path to 30 Jul</h3>
+        <ul>
+          <li><b>P4 Phase-1 digest</b> — multi-queue scan → top-N → printable report is the main remaining build.</li>
+          <li><b>P6 validation with Prashant</b> must land by <b>28 Jul</b> to leave a buffer day.</li>
+          <li>Weekend (25–26 Jul) kept light — validation and packaging are weekday-anchored.</li>
+        </ul>
+      </div>
+      <div class="card risk">
+        <h3>Risks &amp; dependencies</h3>
+        <ul>
+          <li><b>RCA calculation</b> — fixed &amp; verified (P2 done); downstream phases now unblocked.</li>
+          <li><b>Real full dataset access</b> — needed for P4/P6; slippage compresses validation.</li>
+          <li><b>Adherence band (±10% vs ±15%)</b> — confirm with Prashant before P6 tuning.</li>
+          <li>On-prem LLaMA narration is a later phase, not in the 30 Jul scope.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>What the 30 Jul demo shows</h3>
+        <ul>
+          <li>Upload the real file → live scan → flagged queues + Dashboard volumetrics.</li>
+          <li>Open any flagged queue → data-backed root cause + volume metrics.</li>
+          <li>One-click <b>Phase-1 digest</b> of all flagged queues.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ARCHITECTURE ============ -->
+  <div class="tab" id="tab-arch">
+    <h1>Architecture — on the enterprise Agentic Platform</h1>
+    <div class="sub">Every component maps to the client's existing Agentic Platform. Nothing built outside the approved stack. Code lives in client-hosted GitLab.</div>
+    <div class="cards g3">
+      <div class="card"><h4>① Discover</h4><ul><li><b>Agent Catalog</b> — register "Demand Pattern RCA Agent"</li><li><b>Tools Catalog (MCP)</b> — adherence, wow, plan-bias, peer, holiday, volume tools</li><li><b>Alation</b> — catalog demand_facts + metric defs</li></ul></div>
+      <div class="card"><h4>② Security</h4><ul><li><b>Guardrails</b> — block unsafe I/O; reject numbers not backed by a tool</li><li><b>Kong</b> — SSO + API gateway on every call</li></ul></div>
+      <div class="card"><h4>③·④ Agentic Platform</h4><ul><li><b>RCA agent</b> on <b>LangGraph</b></li><li>Connectors: SQL Server (source), ServiceNow (escalation)</li><li>Frameworks available: CrewAI · AutoGen · LangGraph</li></ul></div>
+      <div class="card"><h4>⑤ LLMs &amp; Embeddings</h4><ul><li><b>On-prem LLaMA</b> (chosen) · Mistral · Gemini</li><li>In-network, no data egress</li></ul></div>
+      <div class="card"><h4>⑥ Interoperability</h4><ul><li><b>MCP Server</b> hosts RCA tools</li><li><b>A2A protocol</b> for agent-to-agent</li></ul></div>
+      <div class="card"><h4>⑦ Intent Orchestrator</h4><ul><li>Routes "why did &lt;CQN&gt; miss?" → RCA agent</li></ul></div>
+      <div class="card"><h4>⑧ AI Ready Data</h4><ul><li>demand_facts + metric views (adherence, WoW, flags)</li><li>Source: SQL Server → AI Ready Data</li></ul></div>
+      <div class="card"><h4>⑨ Agentic Memory</h4><ul><li>Session queue/week + confirmed known-causes (probing KB)</li></ul></div>
+      <div class="card"><h4>⑩ Deploy · Publish · Observe</h4><ul><li><b>GitLab CI/CD</b> (client-hosted repos)</li><li>Langfuse · Splunk · Prometheus</li><li>Results → Data Mesh</li></ul></div>
+    </div>
+    <h2 class="sec">Runtime flow</h2>
+    <div class="card"><ul style="font-size:12.5px;color:var(--muted);margin:0;padding-left:16px;">
+      <li>UI (custom, via Kong) → <b>Intent Orchestrator</b> receives intent</li>
+      <li><b>Guardrails</b> checks input → <b>RCA agent (LangGraph)</b> clarifies scope</li>
+      <li>Agent calls deterministic <b>MCP tools</b> → query <b>AI Ready Data</b></li>
+      <li>Reasons with <b>on-prem LLaMA</b>; remembers via <b>Agentic Memory</b></li>
+      <li>Output filtered by Guardrails → back through Kong → traced in Langfuse/Splunk</li>
+    </ul></div>
+  </div>
+
+  <!-- ============ TECH STACK ============ -->
+  <div class="tab" id="tab-stack">
+    <h1>Technology Stack</h1>
+    <div class="sub">Everything constrained to the client's approved platform + client-hosted GitLab for source control.</div>
+    <div class="cards g3">
+      <div class="card"><h4>Data &amp; ingestion</h4><span class="tag">SQL Server (source)</span><span class="tag">AI Ready Data</span><span class="tag">Data Mesh</span><span class="tag">Pandera (validation)</span><span class="tag">CSV / Excel upload</span></div>
+      <div class="card"><h4>Storage &amp; metrics</h4><span class="tag g">demand_facts table</span><span class="tag g">SQL metric views</span><span class="tag g">Alation catalog</span></div>
+      <div class="card"><h4>Agent framework</h4><span class="tag p">LangGraph ✓</span><span class="tag p">CrewAI</span><span class="tag p">AutoGen</span></div>
+      <div class="card"><h4>AI models</h4><span class="tag">LLaMA (on-prem) ✓</span><span class="tag">Mistral</span><span class="tag">Gemini</span><span class="tag w">Llama Guard (guardrails, TBD)</span></div>
+      <div class="card"><h4>Tooling &amp; interop</h4><span class="tag p">MCP Server</span><span class="tag p">A2A protocol</span><span class="tag p">Intent Orchestrator</span><span class="tag p">Agentic Memory</span></div>
+      <div class="card"><h4>Security &amp; gateway</h4><span class="tag w">Kong (auth + gateway)</span><span class="tag w">Guardrails</span><span class="tag w">SSO (Entra/Okta)</span></div>
+      <div class="card"><h4>Source control (client env)</h4><span class="tag">GitLab (client-hosted)</span><span class="tag">GitLab CI/CD</span><span class="tag">Merge-request review</span></div>
+      <div class="card"><h4>Observability</h4><span class="tag">Langfuse (LLM traces)</span><span class="tag">Prometheus</span><span class="tag">Splunk</span></div>
+      <div class="card"><h4>UI</h4><span class="tag">Custom UI via Kong</span><span class="tag">Excel-style filters</span><span class="tag">Bullet RCA + ⓘ math</span></div>
+    </div>
+    <h2 class="sec">Guiding principles</h2>
+    <div class="card"><ul style="font-size:12.5px;color:var(--muted);margin:0;padding-left:16px;">
+      <li><b>LLM never does arithmetic</b> — every number comes from a deterministic (rule-based) tool; the ⓘ button shows that math.</li>
+      <li><b>Data never leaves the network</b> — model served on-prem; code in client GitLab.</li>
+      <li><b>Metrics &amp; rules are SQL/config specs</b> the business can sign off.</li>
+    </ul></div>
+  </div>
+
+  <!-- ============ AI MODELS ============ -->
+  <div class="tab" id="tab-models">
+    <h1>AI Models</h1>
+    <div class="sub">Reasoning + narration layer. The RCA math itself is rule-based Python tool calls — the model orchestrates and explains, never invents numbers.</div>
+    <div class="cards g2">
+      <div class="card"><h4>LLaMA — on-prem <span class="tag g">chosen</span></h4><ul><li>Open-weight, served in-network on GPU (vLLM / TGI)</li><li>No data egress — satisfies client data-residency</li><li>Role: scope clarification, driver narration, summary</li></ul></div>
+      <div class="card"><h4>Mistral / Gemini <span class="tag">alternatives</span></h4><ul><li>Mistral — on-prem alternative</li><li>Gemini — cloud; only if egress approved (not selected)</li></ul></div>
+      <div class="card"><h4>Embeddings</h4><ul><li>For known-cause retrieval (RAG) over the probing knowledge base</li><li>Served alongside the on-prem model</li></ul></div>
+      <div class="card"><h4>Guardrails model <span class="tag w">TBD</span></h4><ul><li>Llama Guard-style input/output filter</li><li>Hard rule: reject any claim not backed by a tool result</li></ul></div>
+    </div>
+  </div>
+
+  <!-- ============ DATA & FILES ============ -->
+  <div class="tab" id="tab-data">
+    <h1>Data &amp; Files</h1>
+    <div class="sub">What we ingest, the grain, and the domain meaning of each field.</div>
+    <div class="cards g3">
+      <div class="card"><h4>File types accepted</h4><ul><li><b>.xlsx</b> (Excel) — parsed in-browser, no libraries</li><li><b>.csv / .tsv</b> — delimiter auto-detected</li><li>Weekly demand file + optional <b>CQN mapping file</b></li></ul></div>
+      <div class="card"><h4>Grain &amp; key</h4><ul><li>Keyed on <b>Forecast_name × Fiscal_Week</b></li><li>Forecasting is based on <b>Forecast_name</b></li><li>Mapping file (optional) resolves sequence → Forecast_name</li></ul></div>
+      <div class="card"><h4>Scale</h4><ul><li>~100 queues scanned weekly</li><li>Handles 100k+ rows with chunked parsing</li><li>Top-N affected queues surfaced</li></ul></div>
+      <div class="card"><h4>Domain knowledge</h4><ul><li><b>Final_Y1–Y5</b> = installed units under warranty year 1–5 (demand driver, <i>not</i> prior-year actuals)</li><li><b>ASU</b> = Planned/Actual service driver (exact acronym to confirm)</li><li><b>Mon–Sun</b> = day-level holiday/weekend flags</li></ul></div>
+      <div class="card"><h4>Scope</h4><ul><li>Keyed on <b>Forecast_name</b> — forecasting is per forecast_name</li><li>Priority: <b>2–3 forecast_names</b>, not the whole file</li><li>Filter to the target forecast_names, then read RCA</li></ul></div>
+      <div class="card"><h4>Metrics (only these two)</h4><ul><li><b>Forecast Accuracy</b> = (Actual_Offered ÷ fcst_offered) × 100</li><li><b>Plan Adherence</b> = ABS(1 − Actual_Offered ÷ fcst_offered) × 100</li><li>Flag when Plan Adherence deviation &gt; band %</li></ul></div>
+    </div>
+  </div>
+
+  <!-- ============ DEFINITIONS & FORMULAS ============ -->
+  <div class="tab" id="tab-defs">
+    <h1>Definitions &amp; Formulas</h1>
+    <div class="sub">Field headings, meaning, and the exact formula each rule-based tool computes.</div>
+    <h2 class="sec">Formulas — the only two computed</h2>
+    <table class="def">
+      <tr><th>Metric</th><th>Excel</th><th>Python (rule-based tool)</th></tr>
+      <tr><td><b>Forecast Accuracy</b></td><td><code>=Actual_Offered / fcst_offered * 100</code></td><td><code>actual_offered / fcst_offered * 100</code></td></tr>
+      <tr><td><b>Plan Adherence (ML/Manual)</b></td><td><code>=IF(Actual_Offered="","",ABS(1-(Actual_Offered/fcst_offered))*100)</code></td><td><code>"" if actual_offered=="" else abs(1-(actual_offered/fcst_offered))*100</code></td></tr>
+    </table>
+    <div class="sub" style="margin-top:10px;">Forecast = <code>fcst_offered</code> (ML). Keyed on <code>Forecast_name</code>. Both shown as %. <b>Forecast Accuracy</b> is the traditional formula; <b>Plan Adherence</b> is the formula used in the current Excel system. Flag = accuracy outside <b>±10%</b> (≡ plan-adherence &gt; 10%). <b>No other formulas are computed</b> — nothing is inferred or invented.</div>
+    <h2 class="sec">Field definitions</h2>
+    <table class="def" id="defTable">
+      <tr><th>Field</th><th>Meaning</th></tr>
+      <tr><td><code>Forecast_name</code></td><td>Queue label; part of the CQN key</td></tr>
+      <tr><td><code>CQN</code></td><td>Combined Queue Name = Forecast_name + Region + SubRegion + Country + Channel</td></tr>
+      <tr><td><code>Actual_Offered / Actual_Handled</code></td><td>Actual demand offered to / handled by the queue</td></tr>
+      <tr><td><code>fcst_offered / fcst_handled</code></td><td>Forecast for offered / handled</td></tr>
+      <tr><td><code>Projection_plan_name</code></td><td>Forecast plan version (e.g. FY22 Jan, FY23 Feb) — restatement = a driver</td></tr>
+      <tr><td><code>Planned_ASU / Actual_ASU</code></td><td>Service driver (exact acronym to confirm with business)</td></tr>
+      <tr><td><code>Final_Units</code></td><td>Installed base (warranty units) — a demand driver</td></tr>
+      <tr><td><code>Final_Y1..Y5</code></td><td>Installed units under warranty years 1–5 (not prior-year actuals)</td></tr>
+      <tr><td><code>Holiday_Count / Mon..Sun</code></td><td>Calendar: holiday count and day-level holiday/weekend flags</td></tr>
+      <tr><td><code>Volume_Category</code></td><td>Volume band (e.g. 501–1000)</td></tr>
+    </table>
+  </div>
+
+</div>
+
+<!-- MATH MODAL -->
+<div class="modal-bg" id="mathModal" onclick="if(event.target===this)closeMath()">
+  <div class="modal">
+    <h3 id="mTitle">Formula</h3>
+    <div class="msub" id="mSub"></div>
+    <div id="mBody"></div>
+    <button class="mclose" onclick="closeMath()">Close</button>
+  </div>
+</div>
+
+<script>
+/* ---------------- Tabs ---------------- */
+document.querySelectorAll('.nav a[data-tab]').forEach(a=>{
+  a.onclick=()=>{
+    document.querySelectorAll('.nav a[data-tab]').forEach(x=>x.classList.remove('active'));
+    a.classList.add('active');
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.getElementById('tab-'+a.dataset.tab).classList.add('active');
+    window.scrollTo(0,0);
+  };
+});
+
+/* ---------------- State ---------------- */
+let ROWS=[], FLAGS=[], MAP=null, FILTERS={}, FOCUS=new Set();
+function applyFocus(){
+  const raw=document.getElementById('focusInput').value.split(',').map(s=>s.trim()).filter(Boolean);
+  FOCUS=new Set(raw.map(s=>s.toLowerCase()));
+  if(ROWS.length) applyAndScan();
+}
+function clearFocus(){ document.getElementById('focusInput').value=''; FOCUS=new Set(); if(ROWS.length) applyAndScan(); }
+const FILTER_FIELDS=[
+  ['Fiscal_Week','Fiscal Week'],
+  ['Region','Region'],
+  ['SubRegion','Sub-Region'],
+  ['Country','Country'],
+  ['Forecast_name','Forecast Name'],
+  ['Forecaster','Forecaster'],
+  ['Offering','Offering'],
+  ['Projection_plan_name','Projection Plan'],
+  ['channel','Channel'],
+  ['business_org','Business Org']
+];
+// dimensions summarised in the volumetrics panel (same set the business selected)
+const VOL_DIMS=FILTER_FIELDS;
+function fmt2(v){ const x=num(v); return x==null ? (v===''||v==null?'(blank)':String(v)) : x.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+function num(v){ if(v==null) return null; const x=parseFloat(String(v).replace(/,/g,'').trim()); return isNaN(x)?null:x; }
+function cqn(r){ return [r.Forecast_name,r.Region,r.SubRegion,r.Country,r.channel].filter(Boolean).join(' · '); }
+
+/* ---------------- Parsing (CSV / TSV / XLSX) ---------------- */
+function detectDelim(t){const fl=(t.split(/\r?\n/)[0]||'');const a=(fl.match(/\t/g)||[]).length,c=(fl.match(/,/g)||[]).length,s=(fl.match(/;/g)||[]).length;if(a>=c&&a>=s&&a>0)return '\t';if(s>c)return ';';return ',';}
+function parseDelimited(text,d){
+  if(text.indexOf('"')===-1){const o=[];const ls=text.split(/\r?\n/);for(let i=0;i<ls.length;i++)if(ls[i].length)o.push(ls[i].split(d));return o;}
+  const rows=[];let row=[],cur='',q=false;
+  for(let i=0;i<text.length;i++){const ch=text[i];
+    if(q){if(ch==='"'){if(text[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=ch;}
+    else{if(ch==='"')q=true;else if(ch===d){row.push(cur);cur='';}else if(ch==='\n'){row.push(cur);rows.push(row);row=[];cur='';}else if(ch==='\r'){}else cur+=ch;}}
+  if(cur.length||row.length){row.push(cur);rows.push(row);}
+  return rows.filter(r=>r.some(c=>c!==''));
+}
+function colIndex(ref){const m=(ref||'').match(/^[A-Z]+/);if(!m)return -1;let x=0;for(const c of m[0])x=x*26+(c.charCodeAt(0)-64);return x-1;}
+function decodeEnt(s){if(s.indexOf('&')===-1)return s;return s.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&#x([0-9a-fA-F]+);/g,(_,h)=>String.fromCodePoint(parseInt(h,16))).replace(/&#(\d+);/g,(_,d)=>String.fromCodePoint(parseInt(d,10))).replace(/&amp;/g,'&');}
+async function inflateRaw(u8){const ds=new DecompressionStream('deflate-raw');const st=new Blob([u8]).stream().pipeThrough(ds);return new Uint8Array(await new Response(st).arrayBuffer());}
+function parseShared(xml){const a=[];if(!xml)return a;const si=/<si\b[^>]*>([\s\S]*?)<\/si>/g,t=/<t\b[^>]*>([\s\S]*?)<\/t>/g;let m;while((m=si.exec(xml))){let s='';t.lastIndex=0;let tm;while((tm=t.exec(m[1])))s+=decodeEnt(tm[1]);a.push(s);}return a;}
+function parseRow(inner,shared){const arr=[];const cRe=/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;let cm;while((cm=cRe.exec(inner))){const at=cm[1]||'',bd=cm[2];const rM=at.match(/r="([A-Z]+)\d+"/);const ci=rM?colIndex(rM[1]):-1;const tM=at.match(/t="([^"]+)"/);const t=tM?tM[1]:null;let v='';if(bd!==undefined){if(t==='s'){const vM=bd.match(/<v>([\s\S]*?)<\/v>/);const idx=vM?parseInt(vM[1],10):-1;v=(idx>=0&&shared[idx]!=null)?shared[idx]:'';}else if(t==='inlineStr'){const tR=/<t\b[^>]*>([\s\S]*?)<\/t>/g;let tm;while((tm=tR.exec(bd)))v+=decodeEnt(tm[1]);}else{const vM=bd.match(/<v>([\s\S]*?)<\/v>/);v=vM?decodeEnt(vM[1]):'';}}if(ci>=0)arr[ci]=v;else arr.push(v);}for(let i=0;i<arr.length;i++)if(arr[i]===undefined)arr[i]='';return arr;}
+async function parseXlsx(buf){
+  const dv=new DataView(buf),u8=new Uint8Array(buf),dec=new TextDecoder();
+  let e=-1;for(let i=u8.length-22;i>=0&&i>u8.length-65558;i--){if(dv.getUint32(i,true)===0x06054b50){e=i;break;}}
+  if(e<0)throw new Error('Not a valid .xlsx');
+  const cdo=dv.getUint32(e+16,true),cdc=dv.getUint16(e+10,true);const ent={};let p=cdo;
+  for(let k=0;k<cdc;k++){if(dv.getUint32(p,true)!==0x02014b50)break;const meth=dv.getUint16(p+10,true),cs=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),el=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),lo=dv.getUint32(p+42,true);const nm=dec.decode(u8.subarray(p+46,p+46+nl)).replace(/\\/g,'/');ent[nm]={meth,cs,lo};p+=46+nl+el+cl;}
+  async function read(n){const x=ent[n];if(!x)return null;const nl=dv.getUint16(x.lo+26,true),el=dv.getUint16(x.lo+28,true),st=x.lo+30+nl+el;const d=u8.subarray(st,st+x.cs);let out;if(x.meth===0)out=d;else if(x.meth===8)out=await inflateRaw(d);else throw new Error('zip method');return dec.decode(out);}
+  const shared=parseShared(await read('xl/sharedStrings.xml'));
+  let sn='xl/worksheets/sheet1.xml';if(!ent[sn]){const k=Object.keys(ent).find(x=>/^xl\/worksheets\/sheet\d+\.xml$/.test(x));if(k)sn=k;}
+  const sx=await read(sn);if(!sx)throw new Error('no sheet');
+  const rows=[];const rr=/<row\b[^>]*>([\s\S]*?)<\/row>/g;let m;while((m=rr.exec(sx)))rows.push(parseRow(m[1],shared));return rows;
+}
+function buildRows(arrays){if(!arrays||arrays.length<2)return[];const h=arrays[0].map(x=>String(x==null?'':x).trim());const o=[];for(let i=1;i<arrays.length;i++){const c=arrays[i];if(!c||!c.length)continue;const r={};for(let j=0;j<h.length;j++)if(h[j])r[h[j]]=(c[j]!==undefined?String(c[j]).trim():'');o.push(r);}return o;}
+async function fileToArrays(file){const nm=(file.name||'').toLowerCase();if(nm.endsWith('.xlsx'))return parseXlsx(await file.arrayBuffer());if(nm.endsWith('.xls'))throw new Error('Legacy .xls not supported — save as .xlsx/.csv');const t=await file.text();return parseDelimited(t,detectDelim(t));}
+
+/* ---------------- Upload handlers ---------------- */
+async function onWeekly(file){
+  if(!file)return;
+  document.getElementById('fileStatus').textContent='Reading '+file.name+' …';
+  try{
+    const rows=buildRows(await fileToArrays(file));
+    if(!rows.length)throw new Error('no rows');
+    ROWS=rows;
+    document.getElementById('fileStatus').innerHTML='<b>'+file.name+'</b> — '+rows.length.toLocaleString()+' rows';
+    document.getElementById('emptyState').style.display='none';
+    document.getElementById('consoleArea').style.display='block';
+    buildFilters();
+    applyAndScan();
+  }catch(e){ document.getElementById('fileStatus').textContent='Error: '+e.message; alert('Could not read weekly file: '+e.message); }
+}
+async function onMapping(file){
+  if(!file)return;
+  try{
+    const arr=await fileToArrays(file);
+    MAP={}; for(let i=1;i<arr.length;i++){ if(arr[i][0]) MAP[String(arr[i][0]).trim()]=String(arr[i][1]!==undefined?arr[i][1]:'').trim(); }
+    document.getElementById('mapBadge').innerHTML='<span class="badge ok">CQN mapped · '+Object.keys(MAP).length+' entries</span>';
+    if(ROWS.length) applyAndScan();
+  }catch(e){ alert('Could not read mapping file: '+e.message); }
+}
+
+/* ---------------- Filters (Excel-style) ---------------- */
+function distinctValues(field){
+  const s=new Set();
+  ROWS.forEach(r=>{ const v=r[field]; if(v!=null&&v!=='') s.add(String(v)); });
+  return [...s].sort();
+}
+function buildFilters(){
+  FILTERS={};
+  const host=document.getElementById('filterGroups'); host.innerHTML='';
+  FILTER_FIELDS.forEach(([field,label])=>{
+    FILTERS[field]=null; // null = All
+    const vals=distinctValues(field);
+    const g=document.createElement('div'); g.className='fgroup';
+    g.innerHTML=`<div class="ft" onclick="this.parentNode.classList.toggle('collapsed')">${label}<span>▾</span></div>
+      <div class="fbody">
+        <input class="fsearch" placeholder="Search ${label}…" oninput="filterSearch('${field}',this.value)">
+        <label class="fopt"><input type="checkbox" checked onchange="toggleAll('${field}',this.checked)"> <b>(All)</b></label>
+        <div class="fopts" id="fopts-${field}">
+          ${vals.map(v=>`<label class="fopt" data-v="${v.replace(/"/g,'&quot;')}"><input type="checkbox" onchange="toggleOpt('${field}','${v.replace(/'/g,"\\'")}',this.checked)"> ${v}</label>`).join('')}
+        </div>
+      </div>`;
+    host.appendChild(g);
+  });
+}
+function filterSearch(field,q){ q=q.toLowerCase(); document.querySelectorAll('#fopts-'+field+' .fopt').forEach(el=>{ el.style.display=el.getAttribute('data-v').toLowerCase().includes(q)?'flex':'none'; }); }
+function toggleAll(field,on){
+  FILTERS[field]= on?null:new Set();
+  document.querySelectorAll('#fopts-'+field+' input').forEach(cb=>cb.checked=false);
+  applyAndScan();
+}
+function toggleOpt(field,val,on){
+  if(FILTERS[field]==null) FILTERS[field]=new Set();
+  if(on) FILTERS[field].add(val); else FILTERS[field].delete(val);
+  // if none selected -> treat as All
+  const allCb=document.querySelector('#fopts-'+field).parentNode.querySelector('.fopt input');
+  if(FILTERS[field].size===0){ FILTERS[field]=null; allCb.checked=true; } else allCb.checked=false;
+  applyAndScan();
+}
+function resetFilters(){ buildFilters(); applyAndScan(); }
+function passFilters(r){
+  if(FOCUS.size && !FOCUS.has(String(r.Forecast_name||'').toLowerCase())) return false;
+  for(const [field] of FILTER_FIELDS){
+    const sel=FILTERS[field]; if(!sel) continue;
+    if(!sel.has(String(r[field]))) return false;
+  }
+  return true;
+}
+
+/* ---------------- Scan (ONLY the two specified formulas, keyed on Forecast_name) ---------------- */
+function applyAndScan(){
+  const band=num(document.getElementById('band').value)||10;
+  const rows=ROWS.filter(passFilters);
+  rows.forEach(r=>{
+    r._ao=num(r.Actual_Offered); r._fo=num(r.fcst_offered);
+    // Forecast Accuracy = Actual_Offered / fcst_offered * 100   (Forecast = fcst_offered, ML)
+    r._acc=(r._ao!=null&&r._fo!=null&&r._fo>0)? r._ao/r._fo*100 : null;
+    // Plan Adherence (ML/Manual) = ABS(1 - Actual_Offered/fcst_offered) * 100 ; blank if no actual
+    r._padh=(r.Actual_Offered===''||r._ao==null)? null : ((r._fo!=null&&r._fo>0)? Math.abs(1-(r._ao/r._fo))*100 : null);
+    r._noF=(r._ao!=null&&(r._fo==null||r._fo<=0));   // actual present but no/zero forecast → undefined
+    r._key=String(r.Forecast_name||''); r._wk=String(r.Fiscal_Week||'');
+    r._mapped = MAP ? (MAP[r.Forecast_name]!=null) : false;
+  });
+  const groups={};
+  rows.forEach(r=>{ (groups[r._key]=groups[r._key]||[]).push(r); });
+  Object.values(groups).forEach(g=>{ g.sort((a,b)=>a._wk.localeCompare(b._wk)); g.forEach(r=>r._group=g); });
+  // Only computable rows (valid actual + forecast). Zero/blank forecast rows are data gaps — never shown as results.
+  const computable=rows.filter(r=>!r._noF && r._padh!=null);
+  window._noFCount=rows.length-computable.length;
+  const flaggedCount=computable.filter(r=> +r._padh.toFixed(1) > band).length;   // ±band% on accuracy ≡ plan-adh > band%
+  if(FOCUS.size){
+    // Testing mode: show EVERY computable week for the focused Forecast_name(s), chronological.
+    FLAGS=computable.slice().sort((a,b)=> a._key.localeCompare(b._key) || a._wk.localeCompare(b._wk));
+  } else {
+    // Default: only weeks outside the ±band (worst first), on the displayed 1-dp value.
+    FLAGS=computable.filter(r=> +r._padh.toFixed(1) > band).sort((a,b)=> b._padh - a._padh);
+  }
+  const avgAcc=setAccuracy(rows);
+  renderMetrics(groups,rows,flaggedCount,avgAcc);
+  renderDashboard(rows,groups,flaggedCount,avgAcc);
+  renderContextProbes(rows,groups);
+  renderList();
+  document.getElementById('report').innerHTML='<div class="empty" style="border:none;padding:40px 10px;">Select a flagged item to see its RCA.</div>';
+  if(FLAGS.length) selectFlag(0);
+}
+// Forecast accuracy of the set = 100 − MAPE (mean absolute % error), where the
+// per-row absolute % error is exactly the Plan-Adherence deviation (_padh).
+// A plain mean of Actual÷Fcst lets over/under-forecasts cancel and reads ~100%
+// even on badly-off data — this reflects the real error instead.
+function setAccuracy(rows){
+  const errs=rows.filter(r=>r._padh!=null).map(r=>r._padh);
+  if(!errs.length) return null;
+  const mape=errs.reduce((a,b)=>a+b,0)/errs.length;
+  return Math.max(0,100-mape);
+}
+function renderMetrics(groups,rows,flaggedCount,avgAcc){
+  const nq=Object.keys(groups).length;
+  const accTxt=(avgAcc==null)?'N/A':avgAcc.toFixed(1)+'%';
+  const m=[['metric','',nq,'Forecast names'],['metric','',rows.length.toLocaleString(),'Rows'],['metric flag','',flaggedCount,'Flagged (±band)'],['metric good','title="100 − MAPE (mean absolute % error). Averaging Actual÷Fcst directly cancels over/under-forecasts and overstates accuracy."',accTxt,'Avg accuracy (100−MAPE)']];
+  document.getElementById('metrics').innerHTML=m.map(x=>`<div class="${x[0]}" ${x[1]}><div class="v">${x[2]}</div><div class="l">${x[3]}</div></div>`).join('');
+}
+
+/* ---------------- Chart primitives (no libraries) ---------------- */
+const compactN=n=>{ n=Math.round(n); if(n>=1e9)return (n/1e9).toFixed(2)+'B'; if(n>=1e6)return (n/1e6).toFixed(2)+'M'; if(n>=1e3)return (n/1e3).toFixed(1)+'K'; return n.toLocaleString(); };
+let _gradSeq=0;
+// Horizontal bars in plain HTML — single-hue (magnitude), rounded ends, value labels + native hover title.
+function htmlBars(items,opt){
+  opt=opt||{}; const fmt=opt.fmt||(v=>v.toLocaleString());
+  if(!items.length) return '<div class="cs">No data in scope.</div>';
+  const max=Math.max(1,...items.map(d=>d.value));
+  return `<div style="display:flex;flex-direction:column;gap:9px;">`+items.map(d=>{
+    const pct=(d.value/max*100), col=d.color||'var(--accent)';
+    return `<div title="${String(d.label+': '+fmt(d.value)).replace(/"/g,'&quot;')}">
+      <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:3px;gap:8px;">
+        <span style="color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${d.label}</span>
+        <span style="color:var(--muted);font-variant-numeric:tabular-nums;flex-shrink:0;">${fmt(d.value)}${d.note?' · '+d.note:''}</span>
+      </div>
+      <div style="height:9px;background:var(--panel-2);border-radius:99px;overflow:hidden;"><div style="height:100%;width:${pct.toFixed(1)}%;background:${col};border-radius:99px;"></div></div>
+    </div>`;
+  }).join('')+`</div>`;
+}
+// Single-series area+line trend as SVG, with a JS crosshair+tooltip wired by wireTrends().
+function buildTrend(points,opt){
+  opt=opt||{}; const n=points.length; if(!n) return '<div class="cs">No data in scope.</div>';
+  const W=640,H=170,padL=46,padR=12,padT=12,padB=22, iw=W-padL-padR, ih=H-padT-padB;
+  const max=Math.max(...points.map(p=>p.value),0)||1, min=0;
+  const X=i=> padL + (n===1?iw/2:i*iw/(n-1));
+  const Y=v=> padT + ih - ((v-min)/((max-min)||1))*ih;
+  const line=points.map((p,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(p.value).toFixed(1)).join(' ');
+  const area='M'+X(0).toFixed(1)+' '+(padT+ih)+' '+points.map((p,i)=>'L'+X(i).toFixed(1)+' '+Y(p.value).toFixed(1)).join(' ')+' L'+X(n-1).toFixed(1)+' '+(padT+ih)+' Z';
+  let grid=''; [0,.5,1].forEach(t=>{ const v=min+(max-min)*t, y=Y(v).toFixed(1); grid+=`<line class="grid-l" x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}"/><text class="axt" x="${padL-6}" y="${(+y+3).toFixed(1)}" text-anchor="end">${opt.yfmt?opt.yfmt(v):Math.round(v)}</text>`; });
+  let xl=''; [...new Set([0,Math.floor((n-1)/2),n-1])].forEach(i=>{ xl+=`<text class="axt" x="${X(i).toFixed(1)}" y="${H-6}" text-anchor="middle">${points[i].label}</text>`; });
+  const col=opt.color||'var(--accent)', gid='grad'+(_gradSeq++);
+  const pts=points.map((p,i)=>({x:+X(i).toFixed(1),y:+Y(p.value).toFixed(1),l:p.disp||p.label,v:opt.tip?opt.tip(p.value):String(p.value)}));
+  return `<div class="trend" data-pts='${JSON.stringify(pts).replace(/'/g,"&#39;")}'>
+    <svg viewBox="0 0 ${W} ${H}" role="img">
+      <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity="0.26"/><stop offset="1" stop-color="${col}" stop-opacity="0.02"/></linearGradient></defs>
+      ${grid}${xl}
+      <path d="${area}" fill="url(#${gid})"/>
+      <path d="${line}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      <line class="cx-line cx-ln" x1="0" y1="${padT}" x2="0" y2="${padT+ih}" style="opacity:0"/>
+      <circle class="cx-dot" r="4" fill="${col}" stroke="var(--panel)" stroke-width="1.5" style="opacity:0"/>
+    </svg>
+    <div class="cx-tip"></div>
+  </div>`;
+}
+function wireTrends(){
+  const VBW=640,VBH=170;
+  document.querySelectorAll('#dashboardArea .trend').forEach(el=>{
+    let pts; try{ pts=JSON.parse(el.getAttribute('data-pts')||'[]'); }catch(e){ return; }
+    if(!pts.length) return;
+    const svg=el.querySelector('svg'), ln=el.querySelector('.cx-ln'), dot=el.querySelector('.cx-dot'), tip=el.querySelector('.cx-tip');
+    svg.addEventListener('mousemove',e=>{
+      const rect=svg.getBoundingClientRect(); if(!rect.width) return;
+      const xv=Math.min(1,Math.max(0,(e.clientX-rect.left)/rect.width))*VBW;
+      let best=0,bd=1e9; pts.forEach((p,i)=>{ const d=Math.abs(p.x-xv); if(d<bd){bd=d;best=i;} });
+      const p=pts[best];
+      ln.setAttribute('x1',p.x); ln.setAttribute('x2',p.x); ln.style.opacity=1;
+      dot.setAttribute('cx',p.x); dot.setAttribute('cy',p.y); dot.style.opacity=1;
+      tip.style.left=((p.x/VBW)*rect.width)+'px'; tip.style.top=((p.y/VBH)*rect.height)+'px'; tip.style.opacity=1;
+      tip.innerHTML=`<b>${p.l}</b><br>${p.v}`;
+    });
+    svg.addEventListener('mouseleave',()=>{ ln.style.opacity=0; dot.style.opacity=0; tip.style.opacity=0; });
+  });
+}
+
+/* ---------------- Dashboard — volumetrics + graphs, reflects the ACTIVE filters ---------------- */
+function renderDashboard(rows,groups,flaggedCount,avgAcc){
+  const empty=document.getElementById('dashEmpty'), host=document.getElementById('dashboardArea');
+  if(!rows.length){ empty.style.display='block'; host.style.display='none'; host.innerHTML=''; return; }
+  empty.style.display='none'; host.style.display='block';
+
+  // ---- single-pass aggregation ----
+  let totOff=0,totHand=0,haveOff=0;
+  const dimMaps={}; VOL_DIMS.forEach(([f])=>dimMaps[f]=new Map());
+  const volBy={Region:new Map(),Offering:new Map(),channel:new Map()};
+  const weekOff=new Map(), weekPadh=new Map();     // fw -> Σoffered ; fw -> [padh…]
+  const flagByName=new Map();                       // forecast_name -> flagged count
+  const band=num(document.getElementById('band').value)||10;
+  const dev=[0,0,0,0];                              // ≤band, band–25, 25–50, >50
+  rows.forEach(r=>{
+    const ao=r._ao; if(ao!=null){ totOff+=ao; haveOff++; }
+    const ah=num(r.Actual_Handled); if(ah!=null) totHand+=ah;
+    VOL_DIMS.forEach(([f])=>{ const v=(r[f]==null||r[f]==='')?'(blank)':String(r[f]); dimMaps[f].set(v,(dimMaps[f].get(v)||0)+1); });
+    Object.keys(volBy).forEach(f=>{ if(ao!=null){ const v=(r[f]==null||r[f]==='')?'(blank)':String(r[f]); volBy[f].set(v,(volBy[f].get(v)||0)+ao); } });
+    const wk=r._wk||'(blank)';
+    if(ao!=null) weekOff.set(wk,(weekOff.get(wk)||0)+ao);
+    if(r._padh!=null){ (weekPadh.get(wk)||weekPadh.set(wk,[]).get(wk)).push(r._padh);
+      const d=r._padh; if(d<=band)dev[0]++; else if(d<=25)dev[1]++; else if(d<=50)dev[2]++; else dev[3]++;
+      if(d>band){ const nm=r.Forecast_name||'(blank)'; flagByName.set(nm,(flagByName.get(nm)||0)+1); }
+    }
+  });
+  const fw=[...dimMaps['Fiscal_Week'].keys()].filter(x=>x!=='(blank)').sort();
+  const fwSpan=fw.length?(fw[0]===fw[fw.length-1]?fw[0]:fw[0]+' → '+fw[fw.length-1]):'—';
+  const filtered=Object.values(FILTERS).some(v=>v)||FOCUS.size;
+
+  // ---- EPIC volumetrics hero ----
+  const hero=[
+    ['',rows.length.toLocaleString(),'Rows in scope'],
+    ['',Object.keys(groups).length.toLocaleString(),'Forecast names'],
+    ['',fwSpan,'Fiscal weeks ('+dimMaps['Fiscal_Week'].size+')'],
+    ['accent',compactN(totOff),'Actual offered (Σ)'],
+    ['accent',compactN(totHand),'Actual handled (Σ)'],
+    ['flag',flaggedCount.toLocaleString(),'Flagged (±band)'],
+    ['warn',(avgAcc==null?'N/A':avgAcc.toFixed(1)+'%'),'Avg accuracy'],
+  ];
+  const heroHtml=hero.map(h=>`<div class="vhcell ${h[0]}"><div class="n">${h[1]}</div><div class="k">${h[2]}</div></div>`).join('');
+  // Fiscal_Week is excluded here — it's a time axis (already in the KPIs + the two week-trend charts),
+  // and its hundreds of members made per-value shares meaningless. Bars show ROW COUNTS, not % of total.
+  const dimHtml=VOL_DIMS.filter(([f])=>f!=='Fiscal_Week').map(([f,label])=>{
+    const mp=dimMaps[f], top=[...mp.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3), mx=top.length?top[0][1]:1;
+    const bars=top.map(([v,c])=>`<div class="vbar"><div class="vb-t"><span class="vb-name" title="${String(v).replace(/"/g,'&quot;')}">${v}</span><span class="vb-pct">${c.toLocaleString()}</span></div><div class="vb-track"><div class="vb-fill" style="width:${(c/mx*100).toFixed(1)}%"></div></div></div>`).join('');
+    const more=mp.size>top.length?`<div class="vd-more">+${(mp.size-top.length).toLocaleString()} more</div>`:'';
+    return `<div class="vdim"><div class="vd-h"><span class="vd-l">${label}</span><span class="vd-c">${mp.size.toLocaleString()}<small>values</small></span></div>${bars}${more}</div>`;
+  }).join('');
+
+  // ---- trend series (chronological) ----
+  const offPts=fw.map(w=>({label:w.slice(-2)?w:w,disp:'FW '+w,value:weekOff.get(w)||0}));
+  offPts.forEach(p=>p.label=p.disp.replace('FW ',''));
+  const accPts=fw.filter(w=>weekPadh.get(w)).map(w=>{ const a=weekPadh.get(w); const m=a.reduce((x,y)=>x+y,0)/a.length; return {label:w.slice(2),disp:'FW '+w,value:Math.max(0,100-m)}; });
+
+  // ---- bar datasets ----
+  const topFlag=[...flagByName.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8).map(([l,v])=>({label:l,value:v,color:'var(--danger)'}));
+  const regBars=[...volBy.Region.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8).map(([l,v])=>({label:l,value:v}));
+  const chBars=[...volBy.channel.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8).map(([l,v])=>({label:l,value:v}));
+  const offBars=[...volBy.Offering.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8).map(([l,v])=>({label:l,value:v}));
+  const devTot=dev[0]+dev[1]+dev[2]+dev[3]||1;
+  const devBars=[
+    {label:`≤${band}% · on-plan`,value:dev[0],color:'var(--accent-2)'},
+    {label:`${band}–25% · warning`,value:dev[1],color:'var(--warn)'},
+    {label:'25–50% · serious',value:dev[2],color:'#dd7a3a'},
+    {label:'>50% · critical',value:dev[3],color:'var(--danger)'},
+  ].map(d=>({...d,note:(d.value/devTot*100).toFixed(0)+'%'}));
+
+  host.innerHTML=`
+  <div class="vol">
+    <div class="vtop">
+      <div>
+        <div class="vtitle"><span class="spark">📊</span> Data Volumetrics</div>
+        <div class="vsub">Shape of the loaded demand file at a glance — headline totals, then how the data splits across each business dimension (distinct values + leading members by row count). Updates live as you filter in the RCA Console.</div>
+      </div>
+      <div class="vscope">${filtered?'<b>Filtered</b> view':'<b>Full</b> file'}<br>${haveOff.toLocaleString()} rows with Actual_Offered</div>
+    </div>
+    <div class="vhero">${heroHtml}</div>
+    <div class="vgrid-h">Dimension mix — distinct values &amp; top members</div>
+    <div class="vgrid">${dimHtml}</div>
+  </div>
+
+  <div class="dash">
+    <div class="dgrid">
+      <div class="chart"><h4>Actual offered by fiscal week</h4><div class="cs">Total demand offered per week (Σ Actual_Offered). Hover for the week's value.</div>${buildTrend(offPts,{color:'var(--accent)',yfmt:v=>compactN(v),tip:v=>compactN(v)+' offered'})}</div>
+      <div class="chart"><h4>Forecast accuracy by fiscal week</h4><div class="cs">Weekly accuracy = 100 − mean plan-adherence deviation. Higher is better.</div>${buildTrend(accPts,{color:'var(--accent-2)',yfmt:v=>v.toFixed(0)+'%',tip:v=>v.toFixed(1)+'% accuracy'})}</div>
+    </div>
+    <div class="dgrid">
+      <div class="chart"><h4>Forecast-accuracy deviation spread</h4><div class="cs">Computable weeks bucketed by |1 − Actual÷Fcst|. Bands carry a status label, not colour alone.</div>${htmlBars(devBars,{fmt:v=>v.toLocaleString()+' wks'})}</div>
+      <div class="chart"><h4>Top flagged forecast names</h4><div class="cs">Forecast names with the most weeks outside the ±${band}% band.</div>${htmlBars(topFlag,{fmt:v=>v.toLocaleString()+' wks'})}</div>
+    </div>
+    <div class="dgrid">
+      <div class="chart"><h4>Actual offered by Region</h4><div class="cs">Σ Actual_Offered per region.</div>${htmlBars(regBars,{fmt:compactN})}</div>
+      <div class="chart"><h4>Actual offered by Channel</h4><div class="cs">Σ Actual_Offered per channel.</div>${htmlBars(chBars,{fmt:compactN})}</div>
+    </div>
+    <div class="chart"><h4>Actual offered by Offering</h4><div class="cs">Σ Actual_Offered per offering tier.</div>${htmlBars(offBars,{fmt:compactN})}</div>
+  </div>`;
+  wireTrends();
+}
+function renderList(){
+  const el=document.getElementById('qlist');
+  const hd=document.querySelector('.listcol h3'); if(hd) hd.textContent=FOCUS.size?'Results — focused forecast names':'Flagged queues / weeks';
+  const noFNote=(window._noFCount>0)?`<div class="empty" style="border:none;font-size:11px;">${window._noFCount.toLocaleString()} row(s) skipped — no/zero forecast (can't compute).</div>`:'';
+  if(!FLAGS.length){ el.innerHTML=(FOCUS.size?'<div class="empty" style="border:none;">No matching computable rows for those Forecast_name(s).</div>':'<div class="empty" style="border:none;">No weeks outside the ±band 🎉</div>')+noFNote; return; }
+  const CAP=250, shown=FLAGS.slice(0,CAP);
+  const band=num(document.getElementById('band').value)||10;
+  let h=shown.map((r,i)=>{
+    const dev=+r._padh.toFixed(1);
+    const sev=dev>25?'red':(dev>band?'amber':'green');
+    return `<div class="qitem" id="q${i}" onclick="selectFlag(${i})">
+      <div class="qn">${r.Forecast_name} ${r._mapped?'':'<span class="badge unm" style="font-size:8.5px">unmapped</span>'}</div>
+      <div class="qmeta">${r.Region||''} · ${r.Country||''} · ${r.channel||''} · FW ${r._wk}</div>
+      <div class="chips"><span class="chip ${sev}">acc ${r._acc.toFixed(0)}%</span><span class="chip ${sev}">${r._padh.toFixed(0)}% dev</span></div>
+    </div>`;
+  }).join('');
+  if(FLAGS.length>CAP)h+=`<div class="empty" style="border:none;font-size:11px;">Top ${CAP} of ${FLAGS.length.toLocaleString()} shown</div>`;
+  el.innerHTML=h+noFNote;
+}
+
+/* ---------------- Drivers with math (for ⓘ) ---------------- */
+let CUR_MATH=[];
+function buildFindings(r){
+  const band=num(document.getElementById('band').value)||10;
+  const d=[], A=r._ao, F=r._fo;
+  // 1) Forecast Accuracy = Actual_Offered / fcst_offered * 100   (Forecast = fcst_offered, ML)
+  d.push({
+    s:(r._acc!=null&&Math.abs(r._acc-100)<=band)?'info':'hit',
+    b:r._noF?`<b>Forecast accuracy — N/A.</b> fcst_offered is zero/blank, so Actual ÷ Forecast is undefined.`
+            :`<b>Forecast accuracy = ${r._acc.toFixed(1)}%</b> — Actual_Offered ÷ fcst_offered.`,
+    m:{title:'Forecast Accuracy',
+       formula:'Forecast Accuracy = (Actual_Offered ÷ forecast offered (Simple)) × 100',
+       values:[`Actual_Offered = ${A}`,`forecast offered (Simple) = ${r._noF?'0 / blank':fmt2(F)}`],
+       result:r._noF?'N/A (fcst_offered ≤ 0)':r._acc.toFixed(1)+'%'}
+  });
+  // 2) Plan Adherence (ML/Manual) = ABS(1 - Actual_Offered/fcst_offered) * 100 ; blank if no actual
+  const noActual=(r.Actual_Offered===''||r._ao==null);
+  d.push({
+    s:(r._padh!=null&&r._padh<=band)?'info':'hit',
+    b:noActual?`<b>Plan adherence — blank.</b> No Actual_Offered for this week (formula returns "").`
+       :r._noF?`<b>Plan adherence — N/A.</b> fcst_offered is zero/blank → division undefined.`
+       :`<b>Plan adherence (ML/Manual) = ${r._padh.toFixed(1)}%</b> deviation from forecast (0% = perfect).`,
+    m:{title:'Plan Adherence (ML/Manual)',
+       formula:'Plan Adherence = ABS(1- ((Actual offered / forecast offered (Simple))*100 ))',
+       values:[`Actual_Offered = ${noActual?'(blank)':A}`,`forecast offered (Simple) = ${r._noF?'0 / blank':fmt2(F)}`],
+       result:noActual?'"" (blank, no actual)':(r._noF?'N/A (÷ by zero)':r._padh.toFixed(1)+'%')}
+  });
+  return d;
+}
+
+function selectFlag(i){
+  document.querySelectorAll('.qitem').forEach(e=>e.classList.remove('active'));
+  const qi=document.getElementById('q'+i); if(qi)qi.classList.add('active');
+  const r=FLAGS[i]; const d=buildFindings(r); CUR_MATH=d.map(x=>x.m);
+  window.CUR_CTX=`${r.Forecast_name||'—'} · FW ${r._wk} · ${r.Region||''}/${r.Country||''} · ${r.channel||''} · Plan ${r.Projection_plan_name||'—'} · Forecaster ${r.Forecaster||'—'}`;
+  const accCol=(r._acc==null)?'var(--muted)':((r._padh!=null&&r._padh>25)?'var(--danger)':(r._padh!=null&&r._padh>10)?'var(--warn)':'var(--accent-2)');
+  const bullets=d.map((x,idx)=>`<li><span class="bdot ${x.s}"></span><div class="btext">${x.b}</div><button class="ibtn" title="Show the formula & numbers" onclick="showMath(${idx})">i</button></li>`).join('');
+  const evi=[
+    `Forecast Accuracy = ${r._ao} ÷ ${r._fo!=null?fmt2(r._fo):'(blank)'} × 100 = ${r._acc!=null?r._acc.toFixed(1)+'%':'N/A'}`,
+    `Plan Adherence = ABS(1 − ${r.Actual_Offered===''?'(blank)':r._ao} ÷ ${r._fo!=null?fmt2(r._fo):'(blank)'}) × 100 = ${r._padh!=null?r._padh.toFixed(1)+'%':(r.Actual_Offered===''?'""':'N/A')}`
+  ];
+  document.getElementById('report').innerHTML=`
+    <div class="rhead">
+      <div>
+        <div class="rtitle">${r.Forecast_name} ${r._mapped?'<span class="badge ok">mapped</span>':'<span class="badge unm">unmapped</span>'}</div>
+        <div class="rmeta">${r.Region||''} · ${r.SubRegion||''} · ${r.Country||''} · ${r.channel||''}<br>Fiscal Week ${r._wk} · Plan: ${r.Projection_plan_name||'—'} · Forecaster: ${r.Forecaster||'—'}</div>
+      </div>
+      <div class="acc"><div class="big" style="color:${accCol}">${r._acc!=null?r._acc.toFixed(1)+'%':'N/A'}</div><div class="lbl">forecast accuracy</div></div>
+    </div>
+    <div class="subhead">Findings <span style="text-transform:none;font-weight:500;color:var(--muted)">(ⓘ = the exact formula &amp; numbers)</span></div>
+    <ul class="rca-bullets">${bullets}</ul>
+    <div class="subhead">Inputs used (from file)</div>
+    <div class="kv"><span class="k">Actual_Offered</span><span class="val">${r.Actual_Offered===''?'(blank)':(r._ao!=null?r._ao.toLocaleString():r.Actual_Offered)}</span></div>
+    <div class="kv"><span class="k">forecast offered (Simple)</span><span class="val">${r._fo!=null?fmt2(r._fo):(r.fcst_offered||'(blank)')}</span></div>
+    <div class="subhead">Evidence trail (rule-based calculation)</div>
+    <div class="evi">${evi.map(e=>`<div>${e}</div>`).join('')}</div>
+  `;
+}
+
+/* ---------------- Math modal ---------------- */
+function showMath(idx){
+  const m=CUR_MATH[idx]; if(!m)return;
+  document.getElementById('mTitle').textContent=m.title;
+  document.getElementById('mSub').textContent='Rule-based calculation — the exact formula and the numbers from the file.';
+  document.getElementById('mBody').innerHTML=
+    `<div class="formula"><span class="lbl">Formula</span>${m.formula}</div>`+
+    (m.values&&m.values.length?`<div class="formula"><span class="lbl">Values</span>${m.values.join('<br>')}</div>`:'')+
+    `<div class="formula"><span class="lbl">Result</span><span class="res">${m.result}</span></div>`;
+  document.getElementById('mathModal').classList.add('show');
+}
+function closeMath(){ document.getElementById('mathModal').classList.remove('show'); }
+
+/* ---------------- Probing → Markdown knowledge base ---------------- */
+// Static domain probes — expanded to cover the newly-filterable dimensions.
+const PROBES=[
+  'Which columns are the source of truth for adherence — Offered or Handled?',
+  'Is the adherence band ±10% or ±15%? Does it tier by Volume_Category?',
+  'When Projection_plan_name changes mid-cycle, is the miss forgiven?',
+  'Does each Offering (Basic/…) have a different acceptable band?',
+  'Are some channels (e.g. Voice vs Chat) expected to be less predictable?',
+  'Should a Forecaster be assessed on plan-adherence, or on ML accuracy?',
+  'Does business_org roll-up change how misses are escalated?',
+  'What defines a "peer" queue for divergence checks?',
+  'What is the exact meaning of ASU (Planned/Actual)?',
+  'How should weeks with a holiday (Holiday_Count>0) be treated?'
+];
+// Data-driven probes — generated from the loaded (filtered) rows so the agent
+// asks about the specific anomalies present, not just generic domain rules.
+let CTX_PROBES=[];
+function renderContextProbes(rows,groups){
+  CTX_PROBES=[];
+  // 1) Plan restatements: a Forecast_name carrying >1 Projection_plan_name.
+  let restated=0, restatedEx='';
+  Object.entries(groups).forEach(([name,g])=>{
+    const plans=new Set(g.map(r=>String(r.Projection_plan_name||'').trim()).filter(Boolean));
+    if(plans.size>1){ restated++; if(!restatedEx) restatedEx=`${name} (${[...plans].slice(0,2).join(' → ')}…)`; }
+  });
+  if(restated) CTX_PROBES.push(`${restated} forecast name(s) were restated across plan versions — e.g. ${restatedEx}. Is the miss forgiven on restatement?`);
+  // 2) Unmapped queues (only when a CQN map is loaded).
+  if(MAP){
+    const unmapped=new Set(rows.filter(r=>MAP[r.Forecast_name]==null).map(r=>r.Forecast_name));
+    if(unmapped.size) CTX_PROBES.push(`${unmapped.size} forecast name(s) have no CQN mapping (e.g. ${[...unmapped].slice(0,2).join(', ')}). Provide the mapping or confirm fallback?`);
+  }
+  // 3) Forecaster carrying the most flagged weeks.
+  const band=num(document.getElementById('band').value)||10;
+  const byF={};
+  rows.forEach(r=>{ if(r._padh!=null && +r._padh.toFixed(1)>band){ const f=r.Forecaster||'(unknown)'; byF[f]=(byF[f]||0)+1; } });
+  const topF=Object.entries(byF).sort((a,b)=>b[1]-a[1])[0];
+  if(topF && topF[1]>0) CTX_PROBES.push(`Forecaster ${topF[0]} owns ${topF[1]} flagged week(s) — is that expected for their book?`);
+  // 4) Data-gap volume.
+  if(window._noFCount>0) CTX_PROBES.push(`${window._noFCount.toLocaleString()} row(s) have no/zero forecast and can't be scored — treat as a gap or investigate upstream?`);
+  renderProbePills();
+}
+function renderProbePills(){
+  const host=document.getElementById('probePills'); if(!host) return;
+  const ctx=CTX_PROBES.map(p=>`<span class="pill" style="border-color:var(--purple);color:var(--purple)" onclick="pickProbe(this)" title="Auto-detected from the loaded data">✨ ${p}</span>`).join('');
+  const stat=PROBES.map(p=>`<span class="pill" onclick="pickProbe(this)">${p}</span>`).join('');
+  host.innerHTML=ctx+stat;
+}
+function pickProbe(el){ document.getElementById('probeQ').value=el.textContent.replace(/^✨\s*/,''); }
+let KB=[];
+try{ KB=JSON.parse(localStorage.getItem('rca_kb')||'[]'); }catch(e){ KB=[]; }
+function renderProbe(){
+  renderProbePills();
+  document.getElementById('kbCount').textContent=KB.length+' entries';
+  document.getElementById('kbList').innerHTML=KB.map((k,i)=>`<div class="kbitem"><b>Q:</b> ${k.q} ${k.cat?`<span class="chip green" style="font-size:9px">${k.cat}</span>`:''}<br><span class="a"><b>A:</b> ${k.a}</span>${k.ctx?`<br><span class="a" style="font-size:10.5px">↳ context: ${k.ctx}</span>`:''} <span class="pill" onclick="delKB(${i})" style="float:right">✕</span></div>`).join('');
+}
+function saveKnowledge(){
+  const q=document.getElementById('probeQ').value.trim(), a=document.getElementById('probeA').value.trim();
+  const cat=document.getElementById('probeCat').value;
+  const attach=document.getElementById('probeCtx').checked;
+  if(!q&&!a){ alert('Enter a question and/or answer.'); return; }
+  KB.push({q:q||'(note)',a:a||'',cat:cat,ctx:(attach&&window.CUR_CTX)?window.CUR_CTX:'',ts:new Date().toISOString()});
+  localStorage.setItem('rca_kb',JSON.stringify(KB));
+  document.getElementById('probeQ').value=''; document.getElementById('probeA').value='';
+  renderProbe();
+}
+function delKB(i){ KB.splice(i,1); localStorage.setItem('rca_kb',JSON.stringify(KB)); renderProbe(); }
+function downloadKB(){
+  let md='# Demand Pattern RCA — Knowledge Base\n\n_Domain knowledge gathered via the probing layer._\n\n';
+  // group by category for a cleaner, reusable spec
+  const cats={}; KB.forEach((k,idx)=>{ (cats[k.cat||'General']=cats[k.cat||'General']||[]).push({...k,idx}); });
+  Object.keys(cats).sort().forEach(c=>{
+    md+=`## ${c}\n\n`;
+    cats[c].forEach(k=>{ md+=`### ${k.q}\n\n${k.a||'_(no answer yet)_'}\n\n`+(k.ctx?`> Context: ${k.ctx}\n\n`:'')+`_saved: ${k.ts}_\n\n`; });
+  });
+  if(!KB.length) md+='_No entries yet._\n';
+  const blob=new Blob([md],{type:'text/markdown'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='RCA_KNOWLEDGE_BASE.md'; a.click(); URL.revokeObjectURL(url);
+}
+renderProbe();
+</script>
+</body>
+</html>
