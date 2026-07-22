@@ -561,23 +561,41 @@
     <h2 class="sec">Formulas — the only two computed</h2>
     <table class="def">
       <tr><th>Metric</th><th>Excel</th><th>Python (rule-based tool)</th></tr>
-      <tr><td><b>Forecast Accuracy</b></td><td><code>=Actual_Offered / fcst_offered * 100</code></td><td><code>actual_offered / fcst_offered * 100</code></td></tr>
-      <tr><td><b>Plan Adherence (ML/Manual)</b></td><td><code>=IF(Actual_Offered="","",ABS(1-(Actual_Offered/fcst_offered))*100)</code></td><td><code>"" if actual_offered=="" else abs(1-(actual_offered/fcst_offered))*100</code></td></tr>
+      <tr><td><b>Forecast Accuracy</b></td><td><code>=(Actual_Offered / fcst_offered) * 100</code></td><td><code>(actual_offered / fcst_offered) * 100</code></td></tr>
+      <tr><td><b>Forecast Adherence</b></td><td><code>=IF(Actual_Offered="","",ABS(1-(Actual_Offered/fcst_offered))*100)</code></td><td><code>"" if actual_offered=="" else abs(1-(actual_offered/fcst_offered))*100</code></td></tr>
     </table>
-    <div class="sub" style="margin-top:10px;">Forecast = <code>fcst_offered</code> (ML). Keyed on <code>Forecast_name</code>. Both shown as %. <b>Forecast Accuracy</b> is the traditional formula; <b>Plan Adherence</b> is the formula used in the current Excel system. Flag = accuracy outside <b>±10%</b> (≡ plan-adherence &gt; 10%). <b>No other formulas are computed</b> — nothing is inferred or invented.</div>
+    <div class="sub" style="margin-top:10px;">Forecast = <code>fcst_offered</code> (ML). Keyed on <code>Forecast_name</code>. Both shown as %. <b>Forecast Accuracy</b> is the traditional formula; <b>Forecast Adherence</b> is the formula used in the current Excel system. Flag = accuracy outside <b>±10%</b> (≡ forecast-adherence &gt; 10%). <b>No other formulas are computed</b> — nothing is inferred or invented.</div>
     <h2 class="sec">Field definitions</h2>
     <table class="def" id="defTable">
       <tr><th>Field</th><th>Meaning</th></tr>
-      <tr><td><code>Forecast_name</code></td><td>Queue label; part of the CQN key</td></tr>
-      <tr><td><code>CQN</code></td><td>Combined Queue Name = Forecast_name + Region + SubRegion + Country + Channel</td></tr>
-      <tr><td><code>Actual_Offered / Actual_Handled</code></td><td>Actual demand offered to / handled by the queue</td></tr>
-      <tr><td><code>fcst_offered / fcst_handled</code></td><td>Forecast for offered / handled</td></tr>
-      <tr><td><code>Projection_plan_name</code></td><td>Forecast plan version (e.g. FY22 Jan, FY23 Feb) — restatement = a driver</td></tr>
-      <tr><td><code>Planned_ASU / Actual_ASU</code></td><td>Service driver (exact acronym to confirm with business)</td></tr>
-      <tr><td><code>Final_Units</code></td><td>Installed base (warranty units) — a demand driver</td></tr>
-      <tr><td><code>Final_Y1..Y5</code></td><td>Installed units under warranty years 1–5 (not prior-year actuals)</td></tr>
-      <tr><td><code>Holiday_Count / Mon..Sun</code></td><td>Calendar: holiday count and day-level holiday/weekend flags</td></tr>
-      <tr><td><code>Volume_Category</code></td><td>Volume band (e.g. 501–1000)</td></tr>
+      <tr><td><code>Fiscal_Week</code></td><td>Fiscal calendar week the row belongs to (e.g. 202249) — the primary time key.</td></tr>
+      <tr><td><code>Week_Ending</code></td><td>Calendar date on which that fiscal week ends.</td></tr>
+      <tr><td><code>Region</code></td><td>Top-level geographic region of the queue.</td></tr>
+      <tr><td><code>SubRegion</code></td><td>Sub-region within the region.</td></tr>
+      <tr><td><code>Country</code></td><td>Country of the queue.</td></tr>
+      <tr><td><code>Forecast_name</code></td><td>Queue label; part of the CQN key.</td></tr>
+      <tr><td><code>Forecaster</code></td><td>Person / team that owns the forecast for the queue.</td></tr>
+      <tr><td><code>Offering</code></td><td>Product or service offering the demand belongs to.</td></tr>
+      <tr><td><code>Projection_plan_name</code></td><td>Forecast plan version (e.g. FY22 Jan, FY23 Feb) — restatement = a driver.</td></tr>
+      <tr><td><code>channel</code></td><td>Contact / demand channel (e.g. phone, chat, email).</td></tr>
+      <tr><td><code>business_org</code></td><td>Business organisation the queue rolls up to.</td></tr>
+      <tr><td><code>Actual_Offered</code></td><td>Actual demand offered to the queue — numerator of Forecast Accuracy.</td></tr>
+      <tr><td><code>Actual_Handled</code></td><td>Actual demand handled by the queue.</td></tr>
+      <tr><td><code>fcst_offered</code></td><td>Forecast of offered demand (ML) — denominator of Forecast Accuracy.</td></tr>
+      <tr><td><code>fcst_handled</code></td><td>Forecast of handled demand.</td></tr>
+      <tr><td><code>Planned_ASU</code></td><td>Planned service driver (ASU — exact acronym to confirm with business).</td></tr>
+      <tr><td><code>formula</code></td><td>Source / plan formula tag used to derive the forecast.</td></tr>
+      <tr><td><code>Actual_ASU</code></td><td>Actual service driver (ASU — exact acronym to confirm with business).</td></tr>
+      <tr><td><code>Final_Units</code></td><td>Installed base (warranty units) — a demand driver.</td></tr>
+      <tr><td><code>Final_Y5</code></td><td>Installed units under warranty in year 5.</td></tr>
+      <tr><td><code>Final_Y4</code></td><td>Installed units under warranty in year 4.</td></tr>
+      <tr><td><code>Final_Y3</code></td><td>Installed units under warranty in year 3.</td></tr>
+      <tr><td><code>Final_Y2</code></td><td>Installed units under warranty in year 2.</td></tr>
+      <tr><td><code>Final_Y1</code></td><td>Installed units under warranty in year 1.</td></tr>
+      <tr><td><code>Final_upp_units</code></td><td>Additional installed units under an upgrade / extended-protection plan (&ldquo;upp&rdquo; — confirm with business).</td></tr>
+      <tr><td><code>Holiday_Count</code></td><td>Number of holidays falling in the fiscal week.</td></tr>
+      <tr><td><code>Monday–Sunday</code></td><td>Day-level flag for each day of the week (holiday / non-working-day / weekend indicator).</td></tr>
+      <tr><td><code>Volume_Category</code></td><td>Volume band the queue falls into (e.g. 501–1000).</td></tr>
     </table>
   </div>
 
@@ -866,7 +884,7 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
   const weekOff=new Map(), weekPadh=new Map();     // fw -> Σoffered ; fw -> [padh…]
   const flagByName=new Map();                       // forecast_name -> flagged count
   const band=num(document.getElementById('band').value)||10;
-  const dev=[0,0,0,0];                              // ≤band, band–25, 25–50, >50
+  const dev=[0,0,0,0,0];                            // ≤5, 5–10, 10–20, 20–25, >25 (abs deviation %)
   rows.forEach(r=>{
     const ao=r._ao; if(ao!=null){ totOff+=ao; haveOff++; }
     const ah=num(r.Actual_Handled); if(ah!=null) totHand+=ah;
@@ -875,7 +893,7 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
     const wk=r._wk||'(blank)';
     if(ao!=null) weekOff.set(wk,(weekOff.get(wk)||0)+ao);
     if(r._padh!=null){ (weekPadh.get(wk)||weekPadh.set(wk,[]).get(wk)).push(r._padh);
-      const d=r._padh; if(d<=band)dev[0]++; else if(d<=25)dev[1]++; else if(d<=50)dev[2]++; else dev[3]++;
+      const d=r._padh; if(d<=5)dev[0]++; else if(d<=10)dev[1]++; else if(d<=20)dev[2]++; else if(d<=25)dev[3]++; else dev[4]++;
       if(d>band){ const nm=r.Forecast_name||'(blank)'; flagByName.set(nm,(flagByName.get(nm)||0)+1); }
     }
   });
@@ -913,12 +931,13 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
   const regBars=[...volBy.Region.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8).map(([l,v])=>({label:l,value:v}));
   const chBars=[...volBy.channel.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8).map(([l,v])=>({label:l,value:v}));
   const offBars=[...volBy.Offering.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8).map(([l,v])=>({label:l,value:v}));
-  const devTot=dev[0]+dev[1]+dev[2]+dev[3]||1;
+  const devTot=dev[0]+dev[1]+dev[2]+dev[3]+dev[4]||1;
   const devBars=[
-    {label:`≤${band}% · on-plan`,value:dev[0],color:'var(--accent-2)'},
-    {label:`${band}–25% · warning`,value:dev[1],color:'var(--warn)'},
-    {label:'25–50% · serious',value:dev[2],color:'#dd7a3a'},
-    {label:'>50% · critical',value:dev[3],color:'var(--danger)'},
+    {label:'±5% · on-plan',value:dev[0],color:'var(--accent-2)'},
+    {label:'±10% · warning',value:dev[1],color:'var(--warn)'},
+    {label:'±15–20% · elevated',value:dev[2],color:'#dd7a3a'},
+    {label:'±20–25% · serious',value:dev[3],color:'#c8542f'},
+    {label:'>±25% · critical',value:dev[4],color:'var(--danger)'},
   ].map(d=>({...d,note:(d.value/devTot*100).toFixed(0)+'%'}));
 
   host.innerHTML=`
