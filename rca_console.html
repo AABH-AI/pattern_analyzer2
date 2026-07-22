@@ -180,6 +180,28 @@
   .dlegend span{display:inline-flex;align-items:center;gap:6px;}
   .dlegend .sw{width:12px;height:9px;border-radius:3px;display:inline-block;}
 
+  /* insights callout */
+  .insights{background:linear-gradient(135deg,rgba(45,108,223,.09),rgba(18,152,111,.07));border:1px solid var(--border);border-left:3px solid var(--accent);}
+  .insights h4{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:13.5px;}
+  .insights h4 .isc{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:none;}
+  .insights ul{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:9px 18px;}
+  @media (max-width:820px){.insights ul{grid-template-columns:1fr;}}
+  .insights li{font-size:12.5px;color:var(--text);display:flex;gap:9px;align-items:flex-start;line-height:1.45;}
+  .insights li .ic{flex-shrink:0;font-size:14px;line-height:1.3;}
+  .insights b{color:var(--text);font-weight:700;}
+  .ins-up{color:var(--accent-2);font-weight:800;} .ins-down{color:var(--danger);font-weight:800;}
+  /* diverging (signed bias) bars */
+  .dvg{display:flex;flex-direction:column;gap:11px;}
+  .dvg-row .dvg-t{display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px;gap:8px;}
+  .dvg-row .dvg-t .nm{color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dvg-track{position:relative;height:12px;background:var(--panel-2);border-radius:4px;overflow:hidden;}
+  .dvg-track .mid{position:absolute;left:50%;top:-1px;bottom:-1px;width:1px;background:var(--muted);opacity:.55;}
+  .dvg-fill{position:absolute;top:2px;height:8px;border-radius:3px;transition:width .15s;}
+  .dvg-legend{display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);margin-top:9px;}
+  /* KPI delta chip in the volumetrics hero */
+  .vhcell .d{font-size:10.5px;font-weight:800;margin-top:4px;}
+  .vhcell .d.up{color:#5fe0b0;} .vhcell .d.down{color:#ff8199;}
+
   /* ===== EMBEDDED GANTT (Timeline tab) ===== */
   #tab-timeline .top{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
   #tab-timeline .kpi{background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:13px 15px;}
@@ -848,20 +870,81 @@ function buildTrend(points,opt){
     <div class="cx-tip"></div>
   </div>`;
 }
+// Two-series trend (e.g. Actual vs Forecast) — same y-scale (same unit, no dual-axis). Legend + crosshair.
+function buildTrend2(labels, sa, sb, opt){
+  opt=opt||{}; const n=labels.length; if(!n) return '<div class="cs">No data in scope.</div>';
+  const W=640,H=180,padL=48,padR=12,padT=14,padB=24, iw=W-padL-padR, ih=H-padT-padB;
+  const max=Math.max(...sa.vals,...sb.vals,0)||1, min=0;
+  const X=i=> padL+(n===1?iw/2:i*iw/(n-1));
+  const Y=v=> padT+ih-((v-min)/((max-min)||1))*ih;
+  const path=vals=> vals.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join(' ');
+  const area='M'+X(0).toFixed(1)+' '+(padT+ih)+' '+sa.vals.map((v,i)=>'L'+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join(' ')+' L'+X(n-1).toFixed(1)+' '+(padT+ih)+' Z';
+  let grid=''; [0,.5,1].forEach(t=>{ const v=min+(max-min)*t, y=Y(v).toFixed(1); grid+=`<line class="grid-l" x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}"/><text class="axt" x="${padL-6}" y="${(+y+3).toFixed(1)}" text-anchor="end">${opt.yfmt?opt.yfmt(v):Math.round(v)}</text>`; });
+  let xl=''; [...new Set([0,Math.floor((n-1)/2),n-1])].forEach(i=>{ xl+=`<text class="axt" x="${X(i).toFixed(1)}" y="${H-6}" text-anchor="middle">${labels[i]}</text>`; });
+  const gid='grad'+(_gradSeq++), fmt=opt.fmt||(v=>String(v));
+  const pts=labels.map((l,i)=>({x:+X(i).toFixed(1), l:'FW '+l, items:[
+    {y:+Y(sa.vals[i]).toFixed(1), v:fmt(sa.vals[i]), name:sa.name, c:sa.color},
+    {y:+Y(sb.vals[i]).toFixed(1), v:fmt(sb.vals[i]), name:sb.name, c:sb.color}
+  ]}));
+  return `<div class="trend" data-multi='${JSON.stringify({pts}).replace(/'/g,"&#39;")}'>
+    <svg viewBox="0 0 ${W} ${H}" role="img">
+      <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sa.color}" stop-opacity="0.22"/><stop offset="1" stop-color="${sa.color}" stop-opacity="0.02"/></linearGradient></defs>
+      ${grid}${xl}
+      <path d="${area}" fill="url(#${gid})"/>
+      <path d="${path(sa.vals)}" fill="none" stroke="${sa.color}" stroke-width="2" stroke-linejoin="round"/>
+      <path d="${path(sb.vals)}" fill="none" stroke="${sb.color}" stroke-width="2" stroke-dasharray="4 3" stroke-linejoin="round"/>
+      <line class="cx-line cx-ln" x1="0" y1="${padT}" x2="0" y2="${padT+ih}" style="opacity:0"/>
+      <circle class="cx-dot" r="4" fill="${sa.color}" stroke="var(--panel)" stroke-width="1.5" style="opacity:0"/>
+      <circle class="cx-dot" r="4" fill="${sb.color}" stroke="var(--panel)" stroke-width="1.5" style="opacity:0"/>
+    </svg>
+    <div class="cx-tip"></div>
+    <div class="dlegend"><span><span class="sw" style="background:${sa.color}"></span>${sa.name}</span><span><span class="sw" style="background:${sb.color};opacity:.9"></span>${sb.name} <span style="opacity:.6">(dashed)</span></span></div>
+  </div>`;
+}
+// Diverging signed-bias bars centred on zero. value = Σactual÷Σforecast − 1 (fraction).
+function divergingBars(items, opt){
+  opt=opt||{}; if(!items.length) return '<div class="cs">Not enough matched Actual+Forecast rows in scope.</div>';
+  const maxAbs=Math.max(0.05,...items.map(d=>Math.abs(d.value)));
+  const over=opt.overColor||'var(--accent)', under=opt.underColor||'var(--warn)';
+  const rows=items.map(d=>{
+    const half=Math.abs(d.value)/maxAbs*50, pos=d.value>=0;
+    const style=pos?`left:50%;width:${half.toFixed(1)}%;background:${under};`:`right:50%;width:${half.toFixed(1)}%;background:${over};`;
+    const sign=(d.value>0?'+':'')+(d.value*100).toFixed(1)+'%';
+    return `<div class="dvg-row"><div class="dvg-t"><span class="nm" title="${String(d.label).replace(/"/g,'&quot;')}">${d.label}</span><span style="color:${pos?under:over};font-weight:800;font-variant-numeric:tabular-nums;">${sign}${opt.sub?' · '+opt.sub(d):''}</span></div><div class="dvg-track"><div class="mid"></div><div class="dvg-fill" style="${style}"></div></div></div>`;
+  }).join('');
+  return `<div class="dvg">${rows}</div><div class="dvg-legend"><span>◀ over-forecast (fcst &gt; actual)</span><span>under-forecast (actual &gt; fcst) ▶</span></div>`;
+}
 function wireTrends(){
-  const VBW=640,VBH=170;
   document.querySelectorAll('#dashboardArea .trend').forEach(el=>{
+    const svg=el.querySelector('svg'), ln=el.querySelector('.cx-ln'), tip=el.querySelector('.cx-tip');
+    const multiAttr=el.getAttribute('data-multi');
+    if(multiAttr){
+      let data; try{ data=JSON.parse(multiAttr); }catch(e){ return; }
+      const pts=data.pts, dots=[...el.querySelectorAll('.cx-dot')];
+      svg.addEventListener('mousemove',e=>{
+        const rect=svg.getBoundingClientRect(); if(!rect.width) return;
+        const xv=Math.min(1,Math.max(0,(e.clientX-rect.left)/rect.width))*640;
+        let best=0,bd=1e9; pts.forEach((p,i)=>{ const d=Math.abs(p.x-xv); if(d<bd){bd=d;best=i;} });
+        const p=pts[best];
+        ln.setAttribute('x1',p.x); ln.setAttribute('x2',p.x); ln.style.opacity=1;
+        p.items.forEach((it,i)=>{ if(dots[i]){ dots[i].setAttribute('cx',p.x); dots[i].setAttribute('cy',it.y); dots[i].style.opacity=1; } });
+        tip.style.left=((p.x/640)*rect.width)+'px'; tip.style.top=((Math.min(...p.items.map(it=>it.y))/180)*rect.height)+'px'; tip.style.opacity=1;
+        tip.innerHTML=`<b>${p.l}</b><br>`+p.items.map(it=>`<span style="color:${it.c}">■</span> ${it.name}: ${it.v}`).join('<br>');
+      });
+      svg.addEventListener('mouseleave',()=>{ ln.style.opacity=0; dots.forEach(d=>d.style.opacity=0); tip.style.opacity=0; });
+      return;
+    }
     let pts; try{ pts=JSON.parse(el.getAttribute('data-pts')||'[]'); }catch(e){ return; }
     if(!pts.length) return;
-    const svg=el.querySelector('svg'), ln=el.querySelector('.cx-ln'), dot=el.querySelector('.cx-dot'), tip=el.querySelector('.cx-tip');
+    const dot=el.querySelector('.cx-dot');
     svg.addEventListener('mousemove',e=>{
       const rect=svg.getBoundingClientRect(); if(!rect.width) return;
-      const xv=Math.min(1,Math.max(0,(e.clientX-rect.left)/rect.width))*VBW;
+      const xv=Math.min(1,Math.max(0,(e.clientX-rect.left)/rect.width))*640;
       let best=0,bd=1e9; pts.forEach((p,i)=>{ const d=Math.abs(p.x-xv); if(d<bd){bd=d;best=i;} });
       const p=pts[best];
       ln.setAttribute('x1',p.x); ln.setAttribute('x2',p.x); ln.style.opacity=1;
       dot.setAttribute('cx',p.x); dot.setAttribute('cy',p.y); dot.style.opacity=1;
-      tip.style.left=((p.x/VBW)*rect.width)+'px'; tip.style.top=((p.y/VBH)*rect.height)+'px'; tip.style.opacity=1;
+      tip.style.left=((p.x/640)*rect.width)+'px'; tip.style.top=((p.y/170)*rect.height)+'px'; tip.style.opacity=1;
       tip.innerHTML=`<b>${p.l}</b><br>${p.v}`;
     });
     svg.addEventListener('mouseleave',()=>{ ln.style.opacity=0; dot.style.opacity=0; tip.style.opacity=0; });
@@ -901,9 +984,12 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
   let totOff=0,totHand=0,haveOff=0;
   const dimMaps={}; VOL_DIMS.forEach(([f])=>dimMaps[f]=new Map());
   const volBy={Region:new Map(),Offering:new Map(),channel:new Map()};
-  const weekOff=new Map(), weekPadh=new Map();     // fw -> Σoffered ; fw -> [padh…]
+  const weekOff=new Map(), weekFcst=new Map(), weekPadh=new Map();   // fw -> Σoffered ; Σforecast ; [padh…]
   const flagByName=new Map();                       // forecast_name -> flagged count
+  const sumReg=new Map(), sumName=new Map();        // signed-bias sums: key -> [Σactual, Σforecast]
+  let cA=0,cF=0,noFscope=0;                          // computable Σactual/Σforecast ; unscoreable rows
   const dev=[0,0,0,0];                              // ≤band, band–25, 25–50, >50
+  const biasAdd=(m,k,a,f)=>{ k=(k==null||k==='')?'(blank)':String(k); const o=m.get(k)||[0,0]; o[0]+=a; o[1]+=f; m.set(k,o); };
   rows.forEach(r=>{
     const ao=r._ao; if(ao!=null){ totOff+=ao; haveOff++; }
     const ah=num(r.Actual_Handled); if(ah!=null) totHand+=ah;
@@ -911,6 +997,9 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
     Object.keys(volBy).forEach(f=>{ if(ao!=null){ const v=(r[f]==null||r[f]==='')?'(blank)':String(r[f]); volBy[f].set(v,(volBy[f].get(v)||0)+ao); } });
     const wk=r._wk||'(blank)';
     if(ao!=null) weekOff.set(wk,(weekOff.get(wk)||0)+ao);
+    if(r._fo!=null) weekFcst.set(wk,(weekFcst.get(wk)||0)+r._fo);
+    if(r._noF) noFscope++;
+    if(ao!=null && r._fo!=null && r._fo>0){ cA+=ao; cF+=r._fo; biasAdd(sumReg,r.Region,ao,r._fo); biasAdd(sumName,r.Forecast_name,ao,r._fo); }
     if(r._padh!=null){ (weekPadh.get(wk)||weekPadh.set(wk,[]).get(wk)).push(r._padh);
       const d=r._padh; if(d<=band)dev[0]++; else if(d<=25)dev[1]++; else if(d<=50)dev[2]++; else dev[3]++;
       if(d>band){ const nm=r.Forecast_name||'(blank)'; flagByName.set(nm,(flagByName.get(nm)||0)+1); }
@@ -920,17 +1009,20 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
   const fwSpan=fw.length?(fw[0]===fw[fw.length-1]?fw[0]:fw[0]+' → '+fw[fw.length-1]):'—';
   const filtered=Object.values(FILTERS).some(v=>v)||FOCUS.size;
 
-  // ---- EPIC volumetrics hero ----
+  // ---- EPIC volumetrics hero (with drill-vs-baseline delta on accuracy) ----
+  const base=window._lastAcc;
+  const accDelta=(DRILL.length && base!=null && avgAcc!=null)?(avgAcc-base):null;
+  const accDeltaHtml=accDelta!=null?`<div class="d ${accDelta>=0?'up':'down'}">${accDelta>=0?'▲ +':'▼ '}${accDelta.toFixed(1)}pp vs all</div>`:'';
   const hero=[
-    ['',rows.length.toLocaleString(),'Rows in scope'],
-    ['',nForecast.toLocaleString(),'Forecast names'],
-    ['',fwSpan,'Fiscal weeks ('+dimMaps['Fiscal_Week'].size+')'],
-    ['accent',compactN(totOff),'Actual offered (Σ)'],
-    ['accent',compactN(totHand),'Actual handled (Σ)'],
-    ['flag',flaggedCount.toLocaleString(),'Flagged (±band)'],
-    ['warn',(avgAcc==null?'N/A':avgAcc.toFixed(1)+'%'),'Avg accuracy'],
+    ['',rows.length.toLocaleString(),'Rows in scope',''],
+    ['',nForecast.toLocaleString(),'Forecast names',''],
+    ['',fwSpan,'Fiscal weeks ('+dimMaps['Fiscal_Week'].size+')',''],
+    ['accent',compactN(totOff),'Actual offered (Σ)',''],
+    ['accent',compactN(totHand),'Actual handled (Σ)',''],
+    ['flag',flaggedCount.toLocaleString(),'Flagged (±band)',''],
+    ['warn',(avgAcc==null?'N/A':avgAcc.toFixed(1)+'%'),'Avg accuracy',accDeltaHtml],
   ];
-  const heroHtml=hero.map(h=>`<div class="vhcell ${h[0]}"><div class="n">${h[1]}</div><div class="k">${h[2]}</div></div>`).join('');
+  const heroHtml=hero.map(h=>`<div class="vhcell ${h[0]}"><div class="n">${h[1]}</div><div class="k">${h[2]}</div>${h[3]||''}</div>`).join('');
   // Cards drill down: click any value → the whole panel re-scopes to it (one→many). Dimensions
   // already on the drill path are hidden. Fiscal_Week is excluded (it's the time axis; see week charts).
   // Bars show ROW COUNTS, not % of total. "+N more" expands the member list in place.
@@ -966,6 +1058,30 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
     {label:'>50% · critical',value:dev[3],color:'var(--danger)'},
   ].map(d=>({...d,note:(d.value/devTot*100).toFixed(0)+'%'}));
 
+  // ---- Actual vs Forecast overlay (same unit → one y-scale) ----
+  const sActual={name:'Actual offered',color:'var(--accent-2)',vals:fw.map(w=>weekOff.get(w)||0)};
+  const sFcst  ={name:'Forecast offered',color:'var(--accent)', vals:fw.map(w=>Math.round(weekFcst.get(w)||0))};
+
+  // ---- signed forecast bias = Σactual ÷ Σforecast − 1 (positive = under-forecast) ----
+  const biasReg=[...sumReg.entries()].map(([k,[a,f]])=>({label:k,value:a/f-1,a,f})).sort((x,y)=>Math.abs(y.value)-Math.abs(x.value));
+  const matFloor=0.003*(cF||1);   // material queues only: ≥0.3% of forecast volume, so tiny queues don't dominate
+  const movers=[...sumName.entries()].filter(([,[a,f]])=>f>=matFloor).map(([k,[a,f]])=>({label:k,value:a/f-1,a,f}))
+                 .sort((x,y)=>Math.abs(y.value)-Math.abs(x.value)).slice(0,8);
+  const overallBias=cF?(cA/cF-1):null;
+
+  // ---- rule-based auto-insights for the current scope ----
+  const ins=[];
+  if(avgAcc!=null){
+    if(DRILL.length && base!=null){ const dp=avgAcc-base; ins.push({i:dp>=0?'▲':'▼',t:`Accuracy here is <b>${avgAcc.toFixed(1)}%</b> — <span class="ins-${dp>=0?'up':'down'}">${dp>=0?'+':''}${dp.toFixed(1)}pp</span> vs the overall <b>${base.toFixed(1)}%</b>.`}); }
+    else ins.push({i:'🎯',t:`Overall forecast accuracy is <b>${avgAcc.toFixed(1)}%</b> (100 − MAPE).`});
+  }
+  if(overallBias!=null){ const p=overallBias*100; ins.push({i:p>=0?'📈':'📉',t:`Forecast runs <b>${Math.abs(p).toFixed(1)}% ${p>=0?'under':'over'}</b> on average — actual demand ${p>=0?'exceeded':'fell short of'} plan (Σ actual vs Σ forecast).`}); }
+  if(movers.length){ const m=movers[0], p=m.value*100; ins.push({i:'🔎',t:`Most mis-forecast queue: <b>${m.label}</b> at <b>${p>=0?'+':''}${p.toFixed(0)}%</b> (${p>=0?'under':'over'}-forecast).`}); }
+  { const ch=[...volBy.channel.entries()].sort((a,b)=>b[1]-a[1])[0]; if(ch) ins.push({i:'📊',t:`<b>${ch[0]}</b> is the largest channel — <b>${(ch[1]/(totOff||1)*100).toFixed(0)}%</b> of offered volume.`}); }
+  { const tot=[...flagByName.values()].reduce((a,b)=>a+b,0); if(tot){ const t3=[...flagByName.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3); const s3=t3.reduce((a,[,v])=>a+v,0); ins.push({i:'⚠️',t:`Top 3 queues drive <b>${(s3/tot*100).toFixed(0)}%</b> of flagged weeks (${t3.map(x=>x[0]).join(', ')}).`}); } }
+  if(noFscope>0) ins.push({i:'🧩',t:`<b>${noFscope.toLocaleString()}</b> row(s) can't be scored (no/zero forecast) — data gap, excluded from accuracy.`});
+  const insHtml=`<div class="chart insights"><h4>💡 Insights <span class="isc">${DRILL.length?'scoped to '+DRILL.map(d=>d.v).join(' › '):'whole '+(filtered?'filtered set':'file')}</span></h4><ul>${ins.map(x=>`<li><span class="ic">${x.i}</span><span>${x.t}</span></li>`).join('')}</ul></div>`;
+
   host.innerHTML=`
   <div class="vol">
     <div class="vtop">
@@ -982,9 +1098,14 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
   </div>
 
   <div class="dash">
+    ${insHtml}
     <div class="dgrid">
-      <div class="chart"><h4>Actual offered by fiscal week</h4><div class="cs">Total demand offered per week (Σ Actual_Offered). Hover for the week's value.</div>${buildTrend(offPts,{color:'var(--accent)',yfmt:v=>compactN(v),tip:v=>compactN(v)+' offered'})}</div>
+      <div class="chart"><h4>Actual vs Forecast — offered by week</h4><div class="cs">Green = actual, dashed blue = forecast (fcst_offered). The gap between the lines <b>is</b> the miss.</div>${buildTrend2(fw.map(w=>w),sActual,sFcst,{yfmt:v=>compactN(v),fmt:v=>compactN(v)})}</div>
       <div class="chart"><h4>Forecast accuracy by fiscal week</h4><div class="cs">Weekly accuracy = 100 − mean plan-adherence deviation. Higher is better.</div>${buildTrend(accPts,{color:'var(--accent-2)',yfmt:v=>v.toFixed(0)+'%',tip:v=>v.toFixed(1)+'% accuracy'})}</div>
+    </div>
+    <div class="dgrid">
+      <div class="chart"><h4>Forecast bias by Region</h4><div class="cs">Signed Σactual ÷ Σforecast − 1. Right = under-forecast (demand ran hot); left = over-forecast (plan too high).</div>${divergingBars(biasReg,{sub:d=>compactN(d.a)+' vs '+compactN(d.f)})}</div>
+      <div class="chart"><h4>Most over/under-forecast queues</h4><div class="cs">Largest signed bias among material queues (≥0.3% of forecast volume). The RCA shortlist.</div>${divergingBars(movers)}</div>
     </div>
     <div class="dgrid">
       <div class="chart"><h4>Forecast-accuracy deviation spread</h4><div class="cs">Computable weeks bucketed by |1 − Actual÷Fcst|. Bands carry a status label, not colour alone.</div>${htmlBars(devBars,{fmt:v=>v.toLocaleString()+' wks'})}</div>

@@ -27,6 +27,11 @@ Deploy **30 Jul 2026** · last dev day **29 Jul**. Ordered by priority.
 - [ ] RAG over the probing KB to auto-surface known causes on matching queues.
 - [ ] Let confirmed KB rules feed back into flag suppression / re-flagging.
 
+## Done ✓ (2026-07-22, session 4 — RCA analytics bundle)
+- [x] Actual-vs-Forecast weekly overlay (two-series, one y-scale)
+- [x] Signed forecast bias (diverging) by Region + top over/under-forecast queues
+- [x] Rule-based auto-insight callouts (scope-aware) + KPI delta vs baseline on drill
+
 ## Done ✓ (2026-07-22, session 3)
 - [x] Volumetrics **drill-down** — click any dimension value to re-scope the whole panel card-by-card; breadcrumb + clear; expandable member lists; row counts (not 0% shares)
 - [x] Pushed project to GitHub `AABH-AI/pattern_analyzer2` (public) + `index.html` Pages entry
