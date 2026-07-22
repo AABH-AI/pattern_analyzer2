@@ -41,9 +41,28 @@ The old tile averaged `Actual÷Fcst` across rows. Because over- and under-foreca
 - **Fiscal_Week is excluded** from the dimension grid — it's a time axis already summarised by the KPI hero (span + count) and the two week-trend charts, so a card listing 3 arbitrary weeks was redundant clutter.
 - Layout is deliberately roomy: top-3 members per card, larger figures, header dividers, hover lift — tuned for legibility over density.
 
+### Drill-down (one-to-many, card-by-card)
+- Every member row in a dimension card is **clickable**. Clicking a value (e.g. Region → EMEA) pushes it onto a **drill path** and re-scopes the *entire* panel — KPIs, all remaining cards, and every chart below — to that subset. Dimensions already on the path are hidden; a **breadcrumb** ("All data › Region: EMEA › …") lets you climb back, and **✕ clear drill** resets.
+- The drill is **local to the dashboard** — it does **not** change the RCA Console filters. It re-renders from the last scanned row set (`window._lastRows`) without re-scanning; changing a console filter or band resets the drill.
+- Cards show more members when drilled (top 6 vs top 3); **"+N more"** expands the rest in place (scroll-capped at 25). Row counts drive the bars, scaled to the top member of the current scope.
+- Implementation: `DRILL[]` state + `drillInto/drillTo/drillClear/drillCrumbs`; clicks handled by one delegated listener on `#dashboardArea` (survives re-renders); members carry `data-df`/`data-dv`, the more-pill carries `data-expand`.
+
+### RCA analytics bundle (signed bias · Actual-vs-Forecast · auto-insights)
+- **Actual vs Forecast overlay** (`buildTrend2`) — two series on **one** y-scale (same unit → never a dual-axis): green solid = Σ Actual_Offered/wk, dashed blue = Σ fcst_offered/wk. The visible gap *is* the miss. Shared crosshair shows both + legend.
+- **Signed forecast bias** (`divergingBars`) — `Σactual ÷ Σforecast − 1` per member, centred on zero: **right/amber = under-forecast** (actual ran hot), **left/blue = over-forecast** (plan too high). Volume-weighted (sums, not mean-of-ratios) so it's robust. Two charts: by Region (all) and "Most over/under-forecast queues" (top |bias| among **material** queues ≥0.3% of forecast volume, so tiny queues don't dominate). This is the directional signal the old engine lacked.
+- **Auto-insights** — rule-based bullets for the current scope (accuracy vs baseline, overall signed bias + direction, worst-mis-forecast queue, largest channel share, flag concentration, data-gap count). No LLM; this is exactly what the on-prem LLaMA layer will later narrate.
+- **KPI delta** — when drilled, the Avg-accuracy tile shows ▲/▼ pp vs the un-drilled baseline (`window._lastAcc`), so drilling is comparative.
+- All of the above re-scope with the drill path and the console filters, same as the rest of the dashboard.
+
 ### Known trade-offs / future polish
 - Trend charts plot every fiscal week present (up to 325 points); fine as a dense sparkline. A brush/zoom is a future nice-to-have.
 - Full crosshair is on the two trend charts only; bars rely on native tooltips. A shared hover legend is a later enhancement.
+
+## Full pipeline: data ingestion → RCA (mockup)
+- A **pipeline strip** at the top of the RCA Console visualises the end-to-end path and fills as data flows: **Source → Ingest (rows) → Compute · 2 metrics (scored) → Flag · ±band (flagged) → RCA (ready)**. It's always visible (pending state before load) so the demo tells the whole story at a glance.
+- **"🗄 Connect to SQL Server (AA)"** button + modal (Server / Database / Table = `sqlsrv-aa-prod.internal` · `AI_Ready_Data` · `dbo.demand_facts`). Since the mockup has no backend, **Fetch table** ingests the exported file as a stand-in for the live query and tags the source as SQL, so the pipeline's Source stage reads "SQL Server (AA)". In production the same pipeline runs the query directly (no upload) and computes the two metrics server-side — this is Timeline phase 6.
+- Source tracking: `window._pendingSrc` ('sql' via the modal, 'file' via Upload) → `window.SRC`, read in `onWeekly`; `renderPipe()` is called on load (pending), on ingest, and after each scan.
+- **Evidence trail removed** from the RCA report (was redundant with the Findings bullets + the ⓘ formula/number modal, which remain the source of the math). The report is now: Findings (with ⓘ) → Inputs used.
 
 ## Timeline / Gantt
 The build Gantt lives both **in the app** (Timeline tab, scoped under `#tab-timeline`) and as a **standalone** `rca_timeline.html` (theme-aware light/dark). Keep the two in sync when phase status changes. Today marker and KPIs are currently hard-set to **22 Jul** — update them as the project moves.

@@ -3,6 +3,7 @@
 Deploy **30 Jul 2026** · last dev day **29 Jul**. Ordered by priority.
 
 ## P0 — critical path to the mockup
+- [ ] **P6 · Connect to SQL Server (AA)** — live data ingestion + server-side compute of the two metrics; the bridge from the file-upload mockup to production. (Now a phase on the Timeline, Jul 24–29.)
 - [ ] **P4 · Phase-1 digest** — one-click export of *all* flagged queues (multi-queue scan → top-N → printable/report page). Main remaining build.
 - [ ] **P6 · Validation with Prashant / SME** on the full real dataset — must land by **28 Jul** to keep a buffer day.
 - [ ] **Confirm the adherence band** — ±10% vs ±15%, and whether it tiers by `Volume_Category`. Blocks P6 tuning.
@@ -26,6 +27,15 @@ Deploy **30 Jul 2026** · last dev day **29 Jul**. Ordered by priority.
 - [ ] Wire the two metrics as **MCP tools** + SQL metric views.
 - [ ] RAG over the probing KB to auto-surface known causes on matching queues.
 - [ ] Let confirmed KB rules feed back into flag suppression / re-flagging.
+
+## Done ✓ (2026-07-22, session 4 — RCA analytics bundle)
+- [x] Actual-vs-Forecast weekly overlay (two-series, one y-scale)
+- [x] Signed forecast bias (diverging) by Region + top over/under-forecast queues
+- [x] Rule-based auto-insight callouts (scope-aware) + KPI delta vs baseline on drill
+
+## Done ✓ (2026-07-22, session 3)
+- [x] Volumetrics **drill-down** — click any dimension value to re-scope the whole panel card-by-card; breadcrumb + clear; expandable member lists; row counts (not 0% shares)
+- [x] Pushed project to GitHub `AABH-AI/pattern_analyzer2` (public) + `index.html` Pages entry
 
 ## Done ✓ (2026-07-22)
 - [x] 10-dimension filters

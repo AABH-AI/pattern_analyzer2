@@ -1,0 +1,12 @@
+# User-generated probing-layer exports (downloaded into the folder) — not source
+RCA_KNOWLEDGE_BASE.md
+
+# Local input data (never commit the demand file)
+Input_To_ML_*.xlsx
+*.xlsx
+*.csv
+
+# OS / editor cruft
+Thumbs.db
+.DS_Store
+.vscode/

@@ -46,6 +46,25 @@
   .filebtn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;}
   .filebtn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent);}
   .filebtn.map{background:var(--purple);}
+  .filebtn.sql{background:var(--accent-2);}
+  /* pipeline strip: data ingestion → RCA */
+  .pipe{display:flex;align-items:stretch;gap:0;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:10px 6px;margin-bottom:14px;overflow-x:auto;}
+  .pstage{flex:1;min-width:118px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 12px;position:relative;text-align:center;}
+  .pstage:not(:last-child)::after{content:"›";position:absolute;right:-5px;top:calc(50% - 2px);transform:translateY(-50%);color:var(--muted);font-weight:800;font-size:18px;}
+  .pstage .pi{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--panel-2);border:1px solid var(--border);}
+  .pstage .pt{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);}
+  .pstage .pv{font-size:11.5px;font-weight:800;color:var(--text);min-height:15px;}
+  .pstage.pending{opacity:.5;}
+  .pstage.done .pi{background:rgba(18,152,111,.15);border-color:var(--accent-2);}
+  .pstage.done .pt{color:var(--accent-2);}
+  .pstage.active .pi{background:rgba(45,108,223,.15);border-color:var(--accent);}
+  .pstage.active .pt{color:var(--accent);}
+  /* SQL connect modal fields */
+  .sqlf{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+  .sqlf label{width:96px;font-size:12px;color:var(--muted);flex-shrink:0;}
+  .sqlf input{flex:1;border:1px solid var(--border);border-radius:6px;padding:7px 9px;font-size:12px;background:var(--panel-2);color:var(--text);font-family:ui-monospace,Consolas,monospace;}
+  .sqlnote{font-size:11.5px;color:var(--muted);background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin:12px 0 14px;line-height:1.5;}
+  .sqlnote code{background:var(--panel);padding:1px 5px;border-radius:3px;}
   .status{font-size:11.5px;color:var(--muted);}
   .status b{color:var(--text);}
   .badge{font-size:10px;font-weight:800;padding:2px 8px;border-radius:5px;letter-spacing:.3px;}
@@ -142,7 +161,20 @@
   .vbar .vb-t .vb-pct{color:#cdd9f2;flex-shrink:0;font-variant-numeric:tabular-nums;font-weight:700;}
   .vbar .vb-track{height:6px;background:rgba(255,255,255,.12);border-radius:99px;overflow:hidden;}
   .vbar .vb-fill{height:100%;background:linear-gradient(90deg,#3d8bff,#5fe0b0);border-radius:99px;}
-  .vdim .vd-more{font-size:10px;color:#8fa3cf;margin-top:9px;}
+  .vdim .vd-more{font-size:10px;color:#8fa3cf;margin-top:9px;cursor:pointer;user-select:none;}
+  .vdim .vd-more:hover{color:#cdd9f2;text-decoration:underline;}
+  .vdim .vd-rest{margin-top:2px;max-height:230px;overflow:auto;}
+  /* drill-down */
+  .vbar.drillable{cursor:pointer;border-radius:8px;padding:3px 7px;margin:5px -7px;transition:background .1s;}
+  .vbar.drillable:hover{background:rgba(95,224,176,.13);}
+  .vbar.drillable .vb-name::after{content:" ›";color:#5fe0b0;font-weight:800;}
+  .vdrill{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin:0 0 14px;font-size:11.5px;}
+  .vd-crumb{color:#9fd0ff;cursor:pointer;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);}
+  .vd-crumb:hover{background:rgba(255,255,255,.13);}
+  .vd-crumb.cur{color:#0b1631;background:#5fe0b0;border-color:#5fe0b0;cursor:default;}
+  .vd-sep{color:#6b7ea6;}
+  .vd-clear{margin-left:4px;background:rgba(255,129,153,.14);border:1px solid rgba(255,129,153,.42);color:#ff9bad;border-radius:999px;padding:2px 10px;font-size:10.5px;font-weight:700;cursor:pointer;}
+  .vd-clear:hover{background:rgba(255,129,153,.24);}
 
   /* ===== DASHBOARD CHARTS ===== */
   .dash{display:grid;gap:14px;}
@@ -166,6 +198,28 @@
   .dlegend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:8px;}
   .dlegend span{display:inline-flex;align-items:center;gap:6px;}
   .dlegend .sw{width:12px;height:9px;border-radius:3px;display:inline-block;}
+
+  /* insights callout */
+  .insights{background:linear-gradient(135deg,rgba(45,108,223,.09),rgba(18,152,111,.07));border:1px solid var(--border);border-left:3px solid var(--accent);}
+  .insights h4{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:13.5px;}
+  .insights h4 .isc{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:none;}
+  .insights ul{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:9px 18px;}
+  @media (max-width:820px){.insights ul{grid-template-columns:1fr;}}
+  .insights li{font-size:12.5px;color:var(--text);display:flex;gap:9px;align-items:flex-start;line-height:1.45;}
+  .insights li .ic{flex-shrink:0;font-size:14px;line-height:1.3;}
+  .insights b{color:var(--text);font-weight:700;}
+  .ins-up{color:var(--accent-2);font-weight:800;} .ins-down{color:var(--danger);font-weight:800;}
+  /* diverging (signed bias) bars */
+  .dvg{display:flex;flex-direction:column;gap:11px;}
+  .dvg-row .dvg-t{display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px;gap:8px;}
+  .dvg-row .dvg-t .nm{color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dvg-track{position:relative;height:12px;background:var(--panel-2);border-radius:4px;overflow:hidden;}
+  .dvg-track .mid{position:absolute;left:50%;top:-1px;bottom:-1px;width:1px;background:var(--muted);opacity:.55;}
+  .dvg-fill{position:absolute;top:2px;height:8px;border-radius:3px;transition:width .15s;}
+  .dvg-legend{display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);margin-top:9px;}
+  /* KPI delta chip in the volumetrics hero */
+  .vhcell .d{font-size:10.5px;font-weight:800;margin-top:4px;}
+  .vhcell .d.up{color:#5fe0b0;} .vhcell .d.down{color:#ff8199;}
 
   /* ===== EMBEDDED GANTT (Timeline tab) ===== */
   #tab-timeline .top{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
@@ -266,7 +320,8 @@
     <div class="toolbar">
       <input type="file" id="fileWeekly" accept=".csv,.tsv,.txt,.xlsx" style="display:none" onchange="onWeekly(this.files&&this.files[0])">
       <input type="file" id="fileMap" accept=".csv,.tsv,.txt,.xlsx" style="display:none" onchange="onMapping(this.files&&this.files[0])">
-      <button class="filebtn" onclick="document.getElementById('fileWeekly').click()">⬆ Upload weekly file</button>
+      <button class="filebtn sql" onclick="openSQL()">🗄 Connect to SQL Server (AA)</button>
+      <button class="filebtn" onclick="window._pendingSrc='file';document.getElementById('fileWeekly').click()">⬆ Upload weekly file</button>
       <button class="filebtn map" onclick="document.getElementById('fileMap').click()">⬆ Upload CQN mapping</button>
       <span class="status" id="fileStatus">No file loaded.</span>
       <span id="mapBadge"></span>
@@ -275,6 +330,9 @@
       <button class="filebtn ghost" onclick="clearFocus()" title="Clear the focus box">✕</button>
       <label class="band">Accuracy band ±<input type="number" id="band" value="10" min="1" max="50" onchange="if(ROWS.length)applyAndScan()">%</label>
     </div>
+
+    <!-- pipeline: data ingestion → RCA (fills in as data flows) -->
+    <div class="pipe" id="pipe"></div>
 
     <div id="emptyState" class="empty">
       <div style="font-size:34px;margin-bottom:8px;">📂</div>
@@ -353,7 +411,7 @@
 
     <div class="top">
       <div class="kpi hot"><div class="v">8 days</div><div class="l">To 30 July deadline</div></div>
-      <div class="kpi"><div class="v">8</div><div class="l">Phases</div></div>
+      <div class="kpi"><div class="v">9</div><div class="l">Phases</div></div>
       <div class="kpi"><div class="v">4 ✓</div><div class="l">Built &amp; verified</div></div>
       <div class="kpi"><div class="v">Mockup</div><div class="l">30 Jul deliverable</div></div>
     </div>
@@ -410,7 +468,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">5 · Volume metrics + evidence trail<span class="gchip done">Done</span></span><div class="d">EPIC volumetrics + Dashboard graphs, tool-call evidence trail, ⓘ math</div></div>
+        <div class="gname"><span class="t">5 · Volume metrics + evidence trail<span class="gchip done">Done</span></span><div class="d">EPIC volumetrics + Dashboard graphs + ⓘ formula math</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar done" style="grid-column:3 / 6;">✓ dashboard</div>
@@ -418,7 +476,15 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">6 · Validation + threshold tuning<span class="gchip todo">To do</span></span><div class="d">Run on full real dataset with Prashant / SME; tune band</div></div>
+        <div class="gname"><span class="t">6 · Connect to SQL Server (AA)<span class="gchip todo">To do</span></span><div class="d">Live ingestion from SQL Server → server-side compute of the two metrics (replaces manual upload)</div></div>
+        <div class="track">
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          <div class="bar todo" style="grid-column:3 / 6;">Jul 22–24</div>
+        </div>
+      </div>
+
+      <div class="grow">
+        <div class="gname"><span class="t">7 · Validation + threshold tuning<span class="gchip todo">To do</span></span><div class="d">Run on full real dataset with Prashant / SME; tune band</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar todo" style="grid-column:7 / 10;">Jul 26–28</div>
@@ -426,7 +492,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">7 · Demo packaging + dry run<span class="gchip todo">To do</span></span><div class="d">Digest export, walkthrough script, rehearsal</div></div>
+        <div class="gname"><span class="t">8 · Demo packaging + dry run<span class="gchip todo">To do</span></span><div class="d">Digest export, walkthrough script, rehearsal</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar todo" style="grid-column:9 / 11;">Jul 28–29</div>
@@ -434,7 +500,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">8 · Mockup presentation<span class="gchip todo">Milestone</span></span><div class="d">Present working single-agent RCA on real data</div></div>
+        <div class="gname"><span class="t">9 · Mockup presentation<span class="gchip todo">Milestone</span></span><div class="d">Present working single-agent RCA on real data</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="msq" style="grid-column:11;" title="30 July — Demo"></div>
@@ -456,7 +522,8 @@
         <h3>Critical path to 30 Jul</h3>
         <ul>
           <li><b>P4 Phase-1 digest</b> — multi-queue scan → top-N → printable report is the main remaining build.</li>
-          <li><b>P6 validation with Prashant</b> must land by <b>28 Jul</b> to leave a buffer day.</li>
+          <li><b>P6 SQL Server (AA) connection</b> — live ingestion + server-side metric compute; the bridge from the file-upload mockup to production.</li>
+          <li><b>P7 validation with Prashant</b> must land by <b>28 Jul</b> to leave a buffer day.</li>
           <li>Weekend (25–26 Jul) kept light — validation and packaging are weekday-anchored.</li>
         </ul>
       </div>
@@ -611,6 +678,20 @@
   </div>
 </div>
 
+<!-- SQL SERVER (AA) CONNECT MODAL -->
+<div class="modal-bg" id="sqlModal" onclick="if(event.target===this)closeSQL()">
+  <div class="modal">
+    <h3>🗄 Connect to SQL Server (AA)</h3>
+    <div class="msub">Pull the weekly demand table straight from the AA data layer — the same pipeline the deployed agent uses. Metrics are computed on the ingested table, not invented.</div>
+    <div class="sqlf"><label>Server</label><input id="sqlSrv" value="sqlsrv-aa-prod.internal"></div>
+    <div class="sqlf"><label>Database</label><input id="sqlDb" value="AI_Ready_Data"></div>
+    <div class="sqlf"><label>Table / view</label><input id="sqlTbl" value="dbo.demand_facts"></div>
+    <div class="sqlnote">🔌 <b>Mockup:</b> click <b>Fetch table</b> and pick the exported <code>Input_To_ML_*.xlsx/.csv</code> — it stands in for the live query result. In production this runs the query directly (no upload) and the pipeline below is identical.</div>
+    <button class="mclose" style="float:none" onclick="sqlFetch()">⇩ Fetch table &amp; run pipeline</button>
+    <button class="filebtn ghost" style="margin-left:8px" onclick="closeSQL()">Cancel</button>
+  </div>
+</div>
+
 <script>
 /* ---------------- Tabs ---------------- */
 document.querySelectorAll('.nav a[data-tab]').forEach(a=>{
@@ -650,6 +731,24 @@ function fmt2(v){ const x=num(v); return x==null ? (v===''||v==null?'(blank)':St
 function num(v){ if(v==null) return null; const x=parseFloat(String(v).replace(/,/g,'').trim()); return isNaN(x)?null:x; }
 function cqn(r){ return [r.Forecast_name,r.Region,r.SubRegion,r.Country,r.channel].filter(Boolean).join(' · '); }
 
+/* ---------------- SQL Server (AA) connect + ingestion pipeline ---------------- */
+function openSQL(){ document.getElementById('sqlModal').classList.add('show'); }
+function closeSQL(){ document.getElementById('sqlModal').classList.remove('show'); }
+// Mockup: the exported table stands in for the live query. Fetch = ingest the file, tagged as a SQL source.
+function sqlFetch(){ window._pendingSrc='sql'; closeSQL(); document.getElementById('fileWeekly').click(); }
+function pstage(cls,icon,title,val){ return `<div class="pstage ${cls}"><div class="pi">${icon}</div><div class="pt">${title}</div><div class="pv">${val}</div></div>`; }
+// Visualises the full path: source → ingest → compute (2 metrics) → flag (±band) → RCA. Fills as data flows.
+function renderPipe(st){
+  st=st||{}; const el=document.getElementById('pipe'); if(!el) return;
+  const src=st.source, rows=st.rows, comp=st.computable, flg=st.flagged, ready=st.ready;
+  el.innerHTML=
+    pstage(src?'done':'pending', src==='sql'?'🗄':'📄', 'Source', src==='sql'?'SQL Server (AA)':src==='file'?'File upload':'—')+
+    pstage(rows?'done':'pending', '📥', 'Ingest', rows?rows.toLocaleString()+' rows':'—')+
+    pstage(comp!=null?'done':'pending', '🧮', 'Compute · 2 metrics', comp!=null?comp.toLocaleString()+' scored':'—')+
+    pstage(rows?'done':'pending', '🚩', 'Flag · ±band', flg!=null?flg.toLocaleString()+' flagged':'—')+
+    pstage(ready?'done':(rows?'active':'pending'), '🔍', 'RCA', ready?'ready':(rows?'scanning…':'—'));
+}
+
 /* ---------------- Parsing (CSV / TSV / XLSX) ---------------- */
 function detectDelim(t){const fl=(t.split(/\r?\n/)[0]||'');const a=(fl.match(/\t/g)||[]).length,c=(fl.match(/,/g)||[]).length,s=(fl.match(/;/g)||[]).length;if(a>=c&&a>=s&&a>0)return '\t';if(s>c)return ';';return ',';}
 function parseDelimited(text,d){
@@ -684,17 +783,20 @@ async function fileToArrays(file){const nm=(file.name||'').toLowerCase();if(nm.e
 /* ---------------- Upload handlers ---------------- */
 async function onWeekly(file){
   if(!file)return;
-  document.getElementById('fileStatus').textContent='Reading '+file.name+' …';
+  const src=window._pendingSrc||'file'; window.SRC=src; window._pendingSrc=null;
+  document.getElementById('fileStatus').textContent=(src==='sql'?'Querying SQL Server (AA) → ':'Reading ')+file.name+' …';
+  renderPipe({source:src});
   try{
     const rows=buildRows(await fileToArrays(file));
     if(!rows.length)throw new Error('no rows');
     ROWS=rows;
-    document.getElementById('fileStatus').innerHTML='<b>'+file.name+'</b> — '+rows.length.toLocaleString()+' rows';
+    document.getElementById('fileStatus').innerHTML=(src==='sql'?'🗄 <b>SQL Server (AA)</b> · dbo.demand_facts — ':'<b>'+file.name+'</b> — ')+rows.length.toLocaleString()+' rows';
     document.getElementById('emptyState').style.display='none';
     document.getElementById('consoleArea').style.display='block';
+    renderPipe({source:src, rows:rows.length});
     buildFilters();
     applyAndScan();
-  }catch(e){ document.getElementById('fileStatus').textContent='Error: '+e.message; alert('Could not read weekly file: '+e.message); }
+  }catch(e){ document.getElementById('fileStatus').textContent='Error: '+e.message; renderPipe({source:src}); alert('Could not read weekly file: '+e.message); }
 }
 async function onMapping(file){
   if(!file)return;
@@ -784,6 +886,9 @@ function applyAndScan(){
   }
   const avgAcc=setAccuracy(rows);
   renderMetrics(groups,rows,flaggedCount,avgAcc);
+  // stash for the dashboard's drill-down (which re-renders without re-scanning); a filter change resets the drill.
+  window._lastRows=rows; window._lastGroups=groups; window._lastFlagged=flaggedCount; window._lastAcc=avgAcc; DRILL=[];
+  renderPipe({source:window.SRC||'file', rows:ROWS.length, computable:computable.length, flagged:flaggedCount, ready:true});
   renderDashboard(rows,groups,flaggedCount,avgAcc);
   renderContextProbes(rows,groups);
   renderList();
@@ -851,40 +956,126 @@ function buildTrend(points,opt){
     <div class="cx-tip"></div>
   </div>`;
 }
+// Two-series trend (e.g. Actual vs Forecast) — same y-scale (same unit, no dual-axis). Legend + crosshair.
+function buildTrend2(labels, sa, sb, opt){
+  opt=opt||{}; const n=labels.length; if(!n) return '<div class="cs">No data in scope.</div>';
+  const W=640,H=180,padL=48,padR=12,padT=14,padB=24, iw=W-padL-padR, ih=H-padT-padB;
+  const max=Math.max(...sa.vals,...sb.vals,0)||1, min=0;
+  const X=i=> padL+(n===1?iw/2:i*iw/(n-1));
+  const Y=v=> padT+ih-((v-min)/((max-min)||1))*ih;
+  const path=vals=> vals.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join(' ');
+  const area='M'+X(0).toFixed(1)+' '+(padT+ih)+' '+sa.vals.map((v,i)=>'L'+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join(' ')+' L'+X(n-1).toFixed(1)+' '+(padT+ih)+' Z';
+  let grid=''; [0,.5,1].forEach(t=>{ const v=min+(max-min)*t, y=Y(v).toFixed(1); grid+=`<line class="grid-l" x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}"/><text class="axt" x="${padL-6}" y="${(+y+3).toFixed(1)}" text-anchor="end">${opt.yfmt?opt.yfmt(v):Math.round(v)}</text>`; });
+  let xl=''; [...new Set([0,Math.floor((n-1)/2),n-1])].forEach(i=>{ xl+=`<text class="axt" x="${X(i).toFixed(1)}" y="${H-6}" text-anchor="middle">${labels[i]}</text>`; });
+  const gid='grad'+(_gradSeq++), fmt=opt.fmt||(v=>String(v));
+  const pts=labels.map((l,i)=>({x:+X(i).toFixed(1), l:'FW '+l, items:[
+    {y:+Y(sa.vals[i]).toFixed(1), v:fmt(sa.vals[i]), name:sa.name, c:sa.color},
+    {y:+Y(sb.vals[i]).toFixed(1), v:fmt(sb.vals[i]), name:sb.name, c:sb.color}
+  ]}));
+  return `<div class="trend" data-multi='${JSON.stringify({pts}).replace(/'/g,"&#39;")}'>
+    <svg viewBox="0 0 ${W} ${H}" role="img">
+      <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sa.color}" stop-opacity="0.22"/><stop offset="1" stop-color="${sa.color}" stop-opacity="0.02"/></linearGradient></defs>
+      ${grid}${xl}
+      <path d="${area}" fill="url(#${gid})"/>
+      <path d="${path(sa.vals)}" fill="none" stroke="${sa.color}" stroke-width="2" stroke-linejoin="round"/>
+      <path d="${path(sb.vals)}" fill="none" stroke="${sb.color}" stroke-width="2" stroke-dasharray="4 3" stroke-linejoin="round"/>
+      <line class="cx-line cx-ln" x1="0" y1="${padT}" x2="0" y2="${padT+ih}" style="opacity:0"/>
+      <circle class="cx-dot" r="4" fill="${sa.color}" stroke="var(--panel)" stroke-width="1.5" style="opacity:0"/>
+      <circle class="cx-dot" r="4" fill="${sb.color}" stroke="var(--panel)" stroke-width="1.5" style="opacity:0"/>
+    </svg>
+    <div class="cx-tip"></div>
+    <div class="dlegend"><span><span class="sw" style="background:${sa.color}"></span>${sa.name}</span><span><span class="sw" style="background:${sb.color};opacity:.9"></span>${sb.name} <span style="opacity:.6">(dashed)</span></span></div>
+  </div>`;
+}
+// Diverging signed-bias bars centred on zero. value = Σactual÷Σforecast − 1 (fraction).
+function divergingBars(items, opt){
+  opt=opt||{}; if(!items.length) return '<div class="cs">Not enough matched Actual+Forecast rows in scope.</div>';
+  const maxAbs=Math.max(0.05,...items.map(d=>Math.abs(d.value)));
+  const over=opt.overColor||'var(--accent)', under=opt.underColor||'var(--warn)';
+  const rows=items.map(d=>{
+    const half=Math.abs(d.value)/maxAbs*50, pos=d.value>=0;
+    const style=pos?`left:50%;width:${half.toFixed(1)}%;background:${under};`:`right:50%;width:${half.toFixed(1)}%;background:${over};`;
+    const sign=(d.value>0?'+':'')+(d.value*100).toFixed(1)+'%';
+    return `<div class="dvg-row"><div class="dvg-t"><span class="nm" title="${String(d.label).replace(/"/g,'&quot;')}">${d.label}</span><span style="color:${pos?under:over};font-weight:800;font-variant-numeric:tabular-nums;">${sign}${opt.sub?' · '+opt.sub(d):''}</span></div><div class="dvg-track"><div class="mid"></div><div class="dvg-fill" style="${style}"></div></div></div>`;
+  }).join('');
+  return `<div class="dvg">${rows}</div><div class="dvg-legend"><span>◀ over-forecast (fcst &gt; actual)</span><span>under-forecast (actual &gt; fcst) ▶</span></div>`;
+}
 function wireTrends(){
-  const VBW=640,VBH=170;
   document.querySelectorAll('#dashboardArea .trend').forEach(el=>{
+    const svg=el.querySelector('svg'), ln=el.querySelector('.cx-ln'), tip=el.querySelector('.cx-tip');
+    const multiAttr=el.getAttribute('data-multi');
+    if(multiAttr){
+      let data; try{ data=JSON.parse(multiAttr); }catch(e){ return; }
+      const pts=data.pts, dots=[...el.querySelectorAll('.cx-dot')];
+      svg.addEventListener('mousemove',e=>{
+        const rect=svg.getBoundingClientRect(); if(!rect.width) return;
+        const xv=Math.min(1,Math.max(0,(e.clientX-rect.left)/rect.width))*640;
+        let best=0,bd=1e9; pts.forEach((p,i)=>{ const d=Math.abs(p.x-xv); if(d<bd){bd=d;best=i;} });
+        const p=pts[best];
+        ln.setAttribute('x1',p.x); ln.setAttribute('x2',p.x); ln.style.opacity=1;
+        p.items.forEach((it,i)=>{ if(dots[i]){ dots[i].setAttribute('cx',p.x); dots[i].setAttribute('cy',it.y); dots[i].style.opacity=1; } });
+        tip.style.left=((p.x/640)*rect.width)+'px'; tip.style.top=((Math.min(...p.items.map(it=>it.y))/180)*rect.height)+'px'; tip.style.opacity=1;
+        tip.innerHTML=`<b>${p.l}</b><br>`+p.items.map(it=>`<span style="color:${it.c}">■</span> ${it.name}: ${it.v}`).join('<br>');
+      });
+      svg.addEventListener('mouseleave',()=>{ ln.style.opacity=0; dots.forEach(d=>d.style.opacity=0); tip.style.opacity=0; });
+      return;
+    }
     let pts; try{ pts=JSON.parse(el.getAttribute('data-pts')||'[]'); }catch(e){ return; }
     if(!pts.length) return;
-    const svg=el.querySelector('svg'), ln=el.querySelector('.cx-ln'), dot=el.querySelector('.cx-dot'), tip=el.querySelector('.cx-tip');
+    const dot=el.querySelector('.cx-dot');
     svg.addEventListener('mousemove',e=>{
       const rect=svg.getBoundingClientRect(); if(!rect.width) return;
-      const xv=Math.min(1,Math.max(0,(e.clientX-rect.left)/rect.width))*VBW;
+      const xv=Math.min(1,Math.max(0,(e.clientX-rect.left)/rect.width))*640;
       let best=0,bd=1e9; pts.forEach((p,i)=>{ const d=Math.abs(p.x-xv); if(d<bd){bd=d;best=i;} });
       const p=pts[best];
       ln.setAttribute('x1',p.x); ln.setAttribute('x2',p.x); ln.style.opacity=1;
       dot.setAttribute('cx',p.x); dot.setAttribute('cy',p.y); dot.style.opacity=1;
-      tip.style.left=((p.x/VBW)*rect.width)+'px'; tip.style.top=((p.y/VBH)*rect.height)+'px'; tip.style.opacity=1;
+      tip.style.left=((p.x/640)*rect.width)+'px'; tip.style.top=((p.y/170)*rect.height)+'px'; tip.style.opacity=1;
       tip.innerHTML=`<b>${p.l}</b><br>${p.v}`;
     });
     svg.addEventListener('mouseleave',()=>{ ln.style.opacity=0; dot.style.opacity=0; tip.style.opacity=0; });
   });
 }
 
-/* ---------------- Dashboard — volumetrics + graphs, reflects the ACTIVE filters ---------------- */
+/* ---------------- Dashboard drill-down (local to the volumetrics; does NOT touch console filters) ---------------- */
+let DRILL=[];   // breadcrumb path: [{f,label,v}]
+function reDash(){ if(window._lastRows) renderDashboard(window._lastRows,window._lastGroups,window._lastFlagged,window._lastAcc); }
+function drillInto(f,v){ if(DRILL.some(d=>d.f===f)) return; const lbl=(FILTER_FIELDS.find(x=>x[0]===f)||[f,f])[1]; DRILL.push({f,label:lbl,v}); reDash(); }
+function drillTo(n){ DRILL=DRILL.slice(0,n); reDash(); }        // keep first n crumbs
+function drillClear(){ DRILL=[]; reDash(); }
+function drillMatch(r,d){ return d.v==='(blank)' ? (r[d.f]==null||r[d.f]==='') : String(r[d.f]==null?'':r[d.f])===d.v; }
+function drillCrumbs(){
+  const esc=s=>String(s).replace(/</g,'&lt;');
+  let h=`<div class="vdrill"><span class="vd-crumb${DRILL.length?'':' cur'}" onclick="drillClear()">All data</span>`;
+  DRILL.forEach((d,i)=>{ h+=`<span class="vd-sep">›</span><span class="vd-crumb${i===DRILL.length-1?' cur':''}" onclick="drillTo(${i+1})">${esc(d.label)}: ${esc(d.v)}</span>`; });
+  if(DRILL.length) h+=`<button class="vd-clear" onclick="drillClear()">✕ clear drill</button>`;
+  return h+`</div>`;
+}
+
+/* ---------------- Dashboard — volumetrics + graphs, reflects the ACTIVE filters + drill path ---------------- */
 function renderDashboard(rows,groups,flaggedCount,avgAcc){
   const empty=document.getElementById('dashEmpty'), host=document.getElementById('dashboardArea');
   if(!rows.length){ empty.style.display='block'; host.style.display='none'; host.innerHTML=''; return; }
   empty.style.display='none'; host.style.display='block';
 
+  const band=num(document.getElementById('band').value)||10;
+  // scope to the active drill path, then recompute the headline numbers from the scoped set
+  if(DRILL.length) rows=rows.filter(r=>DRILL.every(d=>drillMatch(r,d)));
+  if(!rows.length){ host.innerHTML=`<div class="vol"><div class="vtop"><div class="vtitle"><span class="spark">📊</span> Data Volumetrics</div></div>${drillCrumbs()}<div class="empty" style="border:none;color:#c2d0ee;">No rows for this drill path.</div></div>`; return; }
+  const gset=new Set(); rows.forEach(r=>gset.add(String(r.Forecast_name||''))); const nForecast=gset.size;
+  flaggedCount=rows.filter(r=>r._padh!=null && +r._padh.toFixed(1)>band).length;
+  { const e=rows.filter(r=>r._padh!=null).map(r=>r._padh); avgAcc=e.length?Math.max(0,100-e.reduce((a,b)=>a+b,0)/e.length):null; }
+
   // ---- single-pass aggregation ----
   let totOff=0,totHand=0,haveOff=0;
   const dimMaps={}; VOL_DIMS.forEach(([f])=>dimMaps[f]=new Map());
   const volBy={Region:new Map(),Offering:new Map(),channel:new Map()};
-  const weekOff=new Map(), weekPadh=new Map();     // fw -> Σoffered ; fw -> [padh…]
+  const weekOff=new Map(), weekFcst=new Map(), weekPadh=new Map();   // fw -> Σoffered ; Σforecast ; [padh…]
   const flagByName=new Map();                       // forecast_name -> flagged count
-  const band=num(document.getElementById('band').value)||10;
+  const sumReg=new Map(), sumName=new Map();        // signed-bias sums: key -> [Σactual, Σforecast]
+  let cA=0,cF=0,noFscope=0;                          // computable Σactual/Σforecast ; unscoreable rows
   const dev=[0,0,0,0,0];                            // ≤5, 5–10, 10–20, 20–25, >25 (abs deviation %)
+  const biasAdd=(m,k,a,f)=>{ k=(k==null||k==='')?'(blank)':String(k); const o=m.get(k)||[0,0]; o[0]+=a; o[1]+=f; m.set(k,o); };
   rows.forEach(r=>{
     const ao=r._ao; if(ao!=null){ totOff+=ao; haveOff++; }
     const ah=num(r.Actual_Handled); if(ah!=null) totHand+=ah;
@@ -892,6 +1083,9 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
     Object.keys(volBy).forEach(f=>{ if(ao!=null){ const v=(r[f]==null||r[f]==='')?'(blank)':String(r[f]); volBy[f].set(v,(volBy[f].get(v)||0)+ao); } });
     const wk=r._wk||'(blank)';
     if(ao!=null) weekOff.set(wk,(weekOff.get(wk)||0)+ao);
+    if(r._fo!=null) weekFcst.set(wk,(weekFcst.get(wk)||0)+r._fo);
+    if(r._noF) noFscope++;
+    if(ao!=null && r._fo!=null && r._fo>0){ cA+=ao; cF+=r._fo; biasAdd(sumReg,r.Region,ao,r._fo); biasAdd(sumName,r.Forecast_name,ao,r._fo); }
     if(r._padh!=null){ (weekPadh.get(wk)||weekPadh.set(wk,[]).get(wk)).push(r._padh);
       const d=r._padh; if(d<=5)dev[0]++; else if(d<=10)dev[1]++; else if(d<=20)dev[2]++; else if(d<=25)dev[3]++; else dev[4]++;
       if(d>band){ const nm=r.Forecast_name||'(blank)'; flagByName.set(nm,(flagByName.get(nm)||0)+1); }
@@ -901,24 +1095,35 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
   const fwSpan=fw.length?(fw[0]===fw[fw.length-1]?fw[0]:fw[0]+' → '+fw[fw.length-1]):'—';
   const filtered=Object.values(FILTERS).some(v=>v)||FOCUS.size;
 
-  // ---- EPIC volumetrics hero ----
+  // ---- EPIC volumetrics hero (with drill-vs-baseline delta on accuracy) ----
+  const base=window._lastAcc;
+  const accDelta=(DRILL.length && base!=null && avgAcc!=null)?(avgAcc-base):null;
+  const accDeltaHtml=accDelta!=null?`<div class="d ${accDelta>=0?'up':'down'}">${accDelta>=0?'▲ +':'▼ '}${accDelta.toFixed(1)}pp vs all</div>`:'';
   const hero=[
-    ['',rows.length.toLocaleString(),'Rows in scope'],
-    ['',Object.keys(groups).length.toLocaleString(),'Forecast names'],
-    ['',fwSpan,'Fiscal weeks ('+dimMaps['Fiscal_Week'].size+')'],
-    ['accent',compactN(totOff),'Actual offered (Σ)'],
-    ['accent',compactN(totHand),'Actual handled (Σ)'],
-    ['flag',flaggedCount.toLocaleString(),'Flagged (±band)'],
-    ['warn',(avgAcc==null?'N/A':avgAcc.toFixed(1)+'%'),'Avg accuracy'],
+    ['',rows.length.toLocaleString(),'Rows in scope',''],
+    ['',nForecast.toLocaleString(),'Forecast names',''],
+    ['',fwSpan,'Fiscal weeks ('+dimMaps['Fiscal_Week'].size+')',''],
+    ['accent',compactN(totOff),'Actual offered (Σ)',''],
+    ['accent',compactN(totHand),'Actual handled (Σ)',''],
+    ['flag',flaggedCount.toLocaleString(),'Flagged (±band)',''],
+    ['warn',(avgAcc==null?'N/A':avgAcc.toFixed(1)+'%'),'Avg accuracy',accDeltaHtml],
   ];
-  const heroHtml=hero.map(h=>`<div class="vhcell ${h[0]}"><div class="n">${h[1]}</div><div class="k">${h[2]}</div></div>`).join('');
-  // Fiscal_Week is excluded here — it's a time axis (already in the KPIs + the two week-trend charts),
-  // and its hundreds of members made per-value shares meaningless. Bars show ROW COUNTS, not % of total.
-  const dimHtml=VOL_DIMS.filter(([f])=>f!=='Fiscal_Week').map(([f,label])=>{
-    const mp=dimMaps[f], top=[...mp.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3), mx=top.length?top[0][1]:1;
-    const bars=top.map(([v,c])=>`<div class="vbar"><div class="vb-t"><span class="vb-name" title="${String(v).replace(/"/g,'&quot;')}">${v}</span><span class="vb-pct">${c.toLocaleString()}</span></div><div class="vb-track"><div class="vb-fill" style="width:${(c/mx*100).toFixed(1)}%"></div></div></div>`).join('');
-    const more=mp.size>top.length?`<div class="vd-more">+${(mp.size-top.length).toLocaleString()} more</div>`:'';
-    return `<div class="vdim"><div class="vd-h"><span class="vd-l">${label}</span><span class="vd-c">${mp.size.toLocaleString()}<small>values</small></span></div>${bars}${more}</div>`;
+  const heroHtml=hero.map(h=>`<div class="vhcell ${h[0]}"><div class="n">${h[1]}</div><div class="k">${h[2]}</div>${h[3]||''}</div>`).join('');
+  // Cards drill down: click any value → the whole panel re-scopes to it (one→many). Dimensions
+  // already on the drill path are hidden. Fiscal_Week is excluded (it's the time axis; see week charts).
+  // Bars show ROW COUNTS, not % of total. "+N more" expands the member list in place.
+  const attr=s=>String(s).replace(/"/g,'&quot;');
+  const mkBar=(f,v,c,mx)=>`<div class="vbar drillable" data-df="${attr(f)}" data-dv="${attr(v)}" title="Drill into ${attr(v)}"><div class="vb-t"><span class="vb-name">${v}</span><span class="vb-pct">${c.toLocaleString()}</span></div><div class="vb-track"><div class="vb-fill" style="width:${(c/mx*100).toFixed(1)}%"></div></div></div>`;
+  const K=DRILL.length?6:3, REST_CAP=25;
+  const dimHtml=VOL_DIMS.filter(([f])=>f!=='Fiscal_Week' && !DRILL.some(d=>d.f===f)).map(([f,label])=>{
+    const mp=dimMaps[f], ent=[...mp.entries()].sort((a,b)=>b[1]-a[1]), mx=ent.length?ent[0][1]:1;
+    const vis=ent.slice(0,K).map(([v,c])=>mkBar(f,v,c,mx)).join('');
+    const restArr=ent.slice(K,K+REST_CAP);
+    const rest=restArr.length?`<div class="vd-rest" id="rest-${attr(f)}" hidden>${restArr.map(([v,c])=>mkBar(f,v,c,mx)).join('')}</div>`:'';
+    const beyond=ent.length-K;
+    const moreTxt=beyond>0?`+${beyond.toLocaleString()} more${ent.length>K+REST_CAP?' (showing top '+REST_CAP+')':''}`:'';
+    const more=beyond>0?`<div class="vd-more" data-expand="${attr(f)}" data-more="${attr(moreTxt)}">${moreTxt}</div>`:'';
+    return `<div class="vdim"><div class="vd-h"><span class="vd-l">${label}</span><span class="vd-c">${mp.size.toLocaleString()}<small>values</small></span></div>${vis}${rest}${more}</div>`;
   }).join('');
 
   // ---- trend series (chronological) ----
@@ -940,24 +1145,54 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
     {label:'>±25% · critical',value:dev[4],color:'var(--danger)'},
   ].map(d=>({...d,note:(d.value/devTot*100).toFixed(0)+'%'}));
 
+  // ---- Actual vs Forecast overlay (same unit → one y-scale) ----
+  const sActual={name:'Actual offered',color:'var(--accent-2)',vals:fw.map(w=>weekOff.get(w)||0)};
+  const sFcst  ={name:'Forecast offered',color:'var(--accent)', vals:fw.map(w=>Math.round(weekFcst.get(w)||0))};
+
+  // ---- signed forecast bias = Σactual ÷ Σforecast − 1 (positive = under-forecast) ----
+  const biasReg=[...sumReg.entries()].map(([k,[a,f]])=>({label:k,value:a/f-1,a,f})).sort((x,y)=>Math.abs(y.value)-Math.abs(x.value));
+  const matFloor=0.003*(cF||1);   // material queues only: ≥0.3% of forecast volume, so tiny queues don't dominate
+  const movers=[...sumName.entries()].filter(([,[a,f]])=>f>=matFloor).map(([k,[a,f]])=>({label:k,value:a/f-1,a,f}))
+                 .sort((x,y)=>Math.abs(y.value)-Math.abs(x.value)).slice(0,8);
+  const overallBias=cF?(cA/cF-1):null;
+
+  // ---- rule-based auto-insights for the current scope ----
+  const ins=[];
+  if(avgAcc!=null){
+    if(DRILL.length && base!=null){ const dp=avgAcc-base; ins.push({i:dp>=0?'▲':'▼',t:`Accuracy here is <b>${avgAcc.toFixed(1)}%</b> — <span class="ins-${dp>=0?'up':'down'}">${dp>=0?'+':''}${dp.toFixed(1)}pp</span> vs the overall <b>${base.toFixed(1)}%</b>.`}); }
+    else ins.push({i:'🎯',t:`Overall forecast accuracy is <b>${avgAcc.toFixed(1)}%</b> (100 − MAPE).`});
+  }
+  if(overallBias!=null){ const p=overallBias*100; ins.push({i:p>=0?'📈':'📉',t:`Forecast runs <b>${Math.abs(p).toFixed(1)}% ${p>=0?'under':'over'}</b> on average — actual demand ${p>=0?'exceeded':'fell short of'} plan (Σ actual vs Σ forecast).`}); }
+  if(movers.length){ const m=movers[0], p=m.value*100; ins.push({i:'🔎',t:`Most mis-forecast queue: <b>${m.label}</b> at <b>${p>=0?'+':''}${p.toFixed(0)}%</b> (${p>=0?'under':'over'}-forecast).`}); }
+  { const ch=[...volBy.channel.entries()].sort((a,b)=>b[1]-a[1])[0]; if(ch) ins.push({i:'📊',t:`<b>${ch[0]}</b> is the largest channel — <b>${(ch[1]/(totOff||1)*100).toFixed(0)}%</b> of offered volume.`}); }
+  { const tot=[...flagByName.values()].reduce((a,b)=>a+b,0); if(tot){ const t3=[...flagByName.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3); const s3=t3.reduce((a,[,v])=>a+v,0); ins.push({i:'⚠️',t:`Top 3 queues drive <b>${(s3/tot*100).toFixed(0)}%</b> of flagged weeks (${t3.map(x=>x[0]).join(', ')}).`}); } }
+  if(noFscope>0) ins.push({i:'🧩',t:`<b>${noFscope.toLocaleString()}</b> row(s) can't be scored (no/zero forecast) — data gap, excluded from accuracy.`});
+  const insHtml=`<div class="chart insights"><h4>💡 Insights <span class="isc">${DRILL.length?'scoped to '+DRILL.map(d=>d.v).join(' › '):'whole '+(filtered?'filtered set':'file')}</span></h4><ul>${ins.map(x=>`<li><span class="ic">${x.i}</span><span>${x.t}</span></li>`).join('')}</ul></div>`;
+
   host.innerHTML=`
   <div class="vol">
     <div class="vtop">
       <div>
         <div class="vtitle"><span class="spark">📊</span> Data Volumetrics</div>
-        <div class="vsub">Shape of the loaded demand file at a glance — headline totals, then how the data splits across each business dimension (distinct values + leading members by row count). Updates live as you filter in the RCA Console.</div>
+        <div class="vsub">Shape of the loaded demand file at a glance — headline totals, then how the data splits across each business dimension. <b>Click any value to drill in</b> (e.g. Region → EMEA) and the whole panel re-scopes card-by-card. Updates live as you filter in the RCA Console.</div>
       </div>
-      <div class="vscope">${filtered?'<b>Filtered</b> view':'<b>Full</b> file'}<br>${haveOff.toLocaleString()} rows with Actual_Offered</div>
+      <div class="vscope">${(filtered||DRILL.length)?'<b>Filtered</b> view':'<b>Full</b> file'}<br>${haveOff.toLocaleString()} rows with Actual_Offered</div>
     </div>
     <div class="vhero">${heroHtml}</div>
-    <div class="vgrid-h">Dimension mix — distinct values &amp; top members</div>
+    ${drillCrumbs()}
+    <div class="vgrid-h">${DRILL.length?'Drill-down · scoped to '+DRILL.map(d=>d.v).join(' › ')+' — click to go deeper':'Dimension mix — click a value to drill in'}</div>
     <div class="vgrid">${dimHtml}</div>
   </div>
 
   <div class="dash">
+    ${insHtml}
     <div class="dgrid">
-      <div class="chart"><h4>Actual offered by fiscal week</h4><div class="cs">Total demand offered per week (Σ Actual_Offered). Hover for the week's value.</div>${buildTrend(offPts,{color:'var(--accent)',yfmt:v=>compactN(v),tip:v=>compactN(v)+' offered'})}</div>
+      <div class="chart"><h4>Actual vs Forecast — offered by week</h4><div class="cs">Green = actual, dashed blue = forecast (fcst_offered). The gap between the lines <b>is</b> the miss.</div>${buildTrend2(fw.map(w=>w),sActual,sFcst,{yfmt:v=>compactN(v),fmt:v=>compactN(v)})}</div>
       <div class="chart"><h4>Forecast accuracy by fiscal week</h4><div class="cs">Weekly accuracy = 100 − mean plan-adherence deviation. Higher is better.</div>${buildTrend(accPts,{color:'var(--accent-2)',yfmt:v=>v.toFixed(0)+'%',tip:v=>v.toFixed(1)+'% accuracy'})}</div>
+    </div>
+    <div class="dgrid">
+      <div class="chart"><h4>Forecast bias by Region</h4><div class="cs">Signed Σactual ÷ Σforecast − 1. Right = under-forecast (demand ran hot); left = over-forecast (plan too high).</div>${divergingBars(biasReg,{sub:d=>compactN(d.a)+' vs '+compactN(d.f)})}</div>
+      <div class="chart"><h4>Most over/under-forecast queues</h4><div class="cs">Largest signed bias among material queues (≥0.3% of forecast volume). The RCA shortlist.</div>${divergingBars(movers)}</div>
     </div>
     <div class="dgrid">
       <div class="chart"><h4>Forecast-accuracy deviation spread</h4><div class="cs">Computable weeks bucketed by |1 − Actual÷Fcst|. Bands carry a status label, not colour alone.</div>${htmlBars(devBars,{fmt:v=>v.toLocaleString()+' wks'})}</div>
@@ -1028,10 +1263,6 @@ function selectFlag(i){
   window.CUR_CTX=`${r.Forecast_name||'—'} · FW ${r._wk} · ${r.Region||''}/${r.Country||''} · ${r.channel||''} · Plan ${r.Projection_plan_name||'—'} · Forecaster ${r.Forecaster||'—'}`;
   const accCol=(r._acc==null)?'var(--muted)':((r._padh!=null&&r._padh>25)?'var(--danger)':(r._padh!=null&&r._padh>10)?'var(--warn)':'var(--accent-2)');
   const bullets=d.map((x,idx)=>`<li><span class="bdot ${x.s}"></span><div class="btext">${x.b}</div><button class="ibtn" title="Show the formula & numbers" onclick="showMath(${idx})">i</button></li>`).join('');
-  const evi=[
-    `Forecast Accuracy = ${r._ao} ÷ ${r._fo!=null?fmt2(r._fo):'(blank)'} × 100 = ${r._acc!=null?r._acc.toFixed(1)+'%':'N/A'}`,
-    `Plan Adherence = ABS(1 − ${r.Actual_Offered===''?'(blank)':r._ao} ÷ ${r._fo!=null?fmt2(r._fo):'(blank)'}) × 100 = ${r._padh!=null?r._padh.toFixed(1)+'%':(r.Actual_Offered===''?'""':'N/A')}`
-  ];
   document.getElementById('report').innerHTML=`
     <div class="rhead">
       <div>
@@ -1045,8 +1276,6 @@ function selectFlag(i){
     <div class="subhead">Inputs used (from file)</div>
     <div class="kv"><span class="k">Actual_Offered</span><span class="val">${r.Actual_Offered===''?'(blank)':(r._ao!=null?r._ao.toLocaleString():r.Actual_Offered)}</span></div>
     <div class="kv"><span class="k">forecast offered (Simple)</span><span class="val">${r._fo!=null?fmt2(r._fo):(r.fcst_offered||'(blank)')}</span></div>
-    <div class="subhead">Evidence trail (rule-based calculation)</div>
-    <div class="evi">${evi.map(e=>`<div>${e}</div>`).join('')}</div>
   `;
 }
 
@@ -1142,6 +1371,18 @@ function downloadKB(){
   const a=document.createElement('a'); a.href=url; a.download='RCA_KNOWLEDGE_BASE.md'; a.click(); URL.revokeObjectURL(url);
 }
 renderProbe();
+renderPipe();   // initial: all stages pending until a source is connected
+
+/* delegated clicks for the volumetrics drill-down & member expand (attached once) */
+(function(){
+  const da=document.getElementById('dashboardArea'); if(!da) return;
+  da.addEventListener('click',e=>{
+    const ex=e.target.closest('[data-expand]');
+    if(ex){ const r=document.getElementById('rest-'+ex.getAttribute('data-expand')); if(r){ r.hidden=!r.hidden; ex.textContent=r.hidden?ex.getAttribute('data-more'):'− show less'; } return; }
+    const d=e.target.closest('[data-df]');
+    if(d) drillInto(d.getAttribute('data-df'), d.getAttribute('data-dv'));
+  });
+})();
 </script>
 </body>
 </html>
