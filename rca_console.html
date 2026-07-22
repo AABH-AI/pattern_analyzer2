@@ -388,7 +388,7 @@
 
     <div class="top">
       <div class="kpi hot"><div class="v">8 days</div><div class="l">To 30 July deadline</div></div>
-      <div class="kpi"><div class="v">8</div><div class="l">Phases</div></div>
+      <div class="kpi"><div class="v">9</div><div class="l">Phases</div></div>
       <div class="kpi"><div class="v">4 ✓</div><div class="l">Built &amp; verified</div></div>
       <div class="kpi"><div class="v">Mockup</div><div class="l">30 Jul deliverable</div></div>
     </div>
@@ -453,7 +453,15 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">6 · Validation + threshold tuning<span class="gchip todo">To do</span></span><div class="d">Run on full real dataset with Prashant / SME; tune band</div></div>
+        <div class="gname"><span class="t">6 · Connect to SQL Server (AA)<span class="gchip todo">To do</span></span><div class="d">Live ingestion from SQL Server → server-side compute of the two metrics (replaces manual upload)</div></div>
+        <div class="track">
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          <div class="bar todo" style="grid-column:5 / 11;">Jul 24–29</div>
+        </div>
+      </div>
+
+      <div class="grow">
+        <div class="gname"><span class="t">7 · Validation + threshold tuning<span class="gchip todo">To do</span></span><div class="d">Run on full real dataset with Prashant / SME; tune band</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar todo" style="grid-column:7 / 10;">Jul 26–28</div>
@@ -461,7 +469,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">7 · Demo packaging + dry run<span class="gchip todo">To do</span></span><div class="d">Digest export, walkthrough script, rehearsal</div></div>
+        <div class="gname"><span class="t">8 · Demo packaging + dry run<span class="gchip todo">To do</span></span><div class="d">Digest export, walkthrough script, rehearsal</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar todo" style="grid-column:9 / 11;">Jul 28–29</div>
@@ -469,7 +477,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">8 · Mockup presentation<span class="gchip todo">Milestone</span></span><div class="d">Present working single-agent RCA on real data</div></div>
+        <div class="gname"><span class="t">9 · Mockup presentation<span class="gchip todo">Milestone</span></span><div class="d">Present working single-agent RCA on real data</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="msq" style="grid-column:11;" title="30 July — Demo"></div>
@@ -491,7 +499,8 @@
         <h3>Critical path to 30 Jul</h3>
         <ul>
           <li><b>P4 Phase-1 digest</b> — multi-queue scan → top-N → printable report is the main remaining build.</li>
-          <li><b>P6 validation with Prashant</b> must land by <b>28 Jul</b> to leave a buffer day.</li>
+          <li><b>P6 SQL Server (AA) connection</b> — live ingestion + server-side metric compute; the bridge from the file-upload mockup to production.</li>
+          <li><b>P7 validation with Prashant</b> must land by <b>28 Jul</b> to leave a buffer day.</li>
           <li>Weekend (25–26 Jul) kept light — validation and packaging are weekday-anchored.</li>
         </ul>
       </div>

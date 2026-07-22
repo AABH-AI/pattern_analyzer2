@@ -3,6 +3,7 @@
 Deploy **30 Jul 2026** · last dev day **29 Jul**. Ordered by priority.
 
 ## P0 — critical path to the mockup
+- [ ] **P6 · Connect to SQL Server (AA)** — live data ingestion + server-side compute of the two metrics; the bridge from the file-upload mockup to production. (Now a phase on the Timeline, Jul 24–29.)
 - [ ] **P4 · Phase-1 digest** — one-click export of *all* flagged queues (multi-queue scan → top-N → printable/report page). Main remaining build.
 - [ ] **P6 · Validation with Prashant / SME** on the full real dataset — must land by **28 Jul** to keep a buffer day.
 - [ ] **Confirm the adherence band** — ±10% vs ±15%, and whether it tiers by `Volume_Category`. Blocks P6 tuning.
