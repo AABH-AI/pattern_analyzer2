@@ -41,6 +41,12 @@ The old tile averaged `Actual÷Fcst` across rows. Because over- and under-foreca
 - **Fiscal_Week is excluded** from the dimension grid — it's a time axis already summarised by the KPI hero (span + count) and the two week-trend charts, so a card listing 3 arbitrary weeks was redundant clutter.
 - Layout is deliberately roomy: top-3 members per card, larger figures, header dividers, hover lift — tuned for legibility over density.
 
+### Drill-down (one-to-many, card-by-card)
+- Every member row in a dimension card is **clickable**. Clicking a value (e.g. Region → EMEA) pushes it onto a **drill path** and re-scopes the *entire* panel — KPIs, all remaining cards, and every chart below — to that subset. Dimensions already on the path are hidden; a **breadcrumb** ("All data › Region: EMEA › …") lets you climb back, and **✕ clear drill** resets.
+- The drill is **local to the dashboard** — it does **not** change the RCA Console filters. It re-renders from the last scanned row set (`window._lastRows`) without re-scanning; changing a console filter or band resets the drill.
+- Cards show more members when drilled (top 6 vs top 3); **"+N more"** expands the rest in place (scroll-capped at 25). Row counts drive the bars, scaled to the top member of the current scope.
+- Implementation: `DRILL[]` state + `drillInto/drillTo/drillClear/drillCrumbs`; clicks handled by one delegated listener on `#dashboardArea` (survives re-renders); members carry `data-df`/`data-dv`, the more-pill carries `data-expand`.
+
 ### Known trade-offs / future polish
 - Trend charts plot every fiscal week present (up to 325 points); fine as a dense sparkline. A brush/zoom is a future nice-to-have.
 - Full crosshair is on the two trend charts only; bars rely on native tooltips. A shared hover legend is a later enhancement.

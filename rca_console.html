@@ -142,7 +142,20 @@
   .vbar .vb-t .vb-pct{color:#cdd9f2;flex-shrink:0;font-variant-numeric:tabular-nums;font-weight:700;}
   .vbar .vb-track{height:6px;background:rgba(255,255,255,.12);border-radius:99px;overflow:hidden;}
   .vbar .vb-fill{height:100%;background:linear-gradient(90deg,#3d8bff,#5fe0b0);border-radius:99px;}
-  .vdim .vd-more{font-size:10px;color:#8fa3cf;margin-top:9px;}
+  .vdim .vd-more{font-size:10px;color:#8fa3cf;margin-top:9px;cursor:pointer;user-select:none;}
+  .vdim .vd-more:hover{color:#cdd9f2;text-decoration:underline;}
+  .vdim .vd-rest{margin-top:2px;max-height:230px;overflow:auto;}
+  /* drill-down */
+  .vbar.drillable{cursor:pointer;border-radius:8px;padding:3px 7px;margin:5px -7px;transition:background .1s;}
+  .vbar.drillable:hover{background:rgba(95,224,176,.13);}
+  .vbar.drillable .vb-name::after{content:" ›";color:#5fe0b0;font-weight:800;}
+  .vdrill{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin:0 0 14px;font-size:11.5px;}
+  .vd-crumb{color:#9fd0ff;cursor:pointer;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);}
+  .vd-crumb:hover{background:rgba(255,255,255,.13);}
+  .vd-crumb.cur{color:#0b1631;background:#5fe0b0;border-color:#5fe0b0;cursor:default;}
+  .vd-sep{color:#6b7ea6;}
+  .vd-clear{margin-left:4px;background:rgba(255,129,153,.14);border:1px solid rgba(255,129,153,.42);color:#ff9bad;border-radius:999px;padding:2px 10px;font-size:10.5px;font-weight:700;cursor:pointer;}
+  .vd-clear:hover{background:rgba(255,129,153,.24);}
 
   /* ===== DASHBOARD CHARTS ===== */
   .dash{display:grid;gap:14px;}
@@ -766,6 +779,8 @@ function applyAndScan(){
   }
   const avgAcc=setAccuracy(rows);
   renderMetrics(groups,rows,flaggedCount,avgAcc);
+  // stash for the dashboard's drill-down (which re-renders without re-scanning); a filter change resets the drill.
+  window._lastRows=rows; window._lastGroups=groups; window._lastFlagged=flaggedCount; window._lastAcc=avgAcc; DRILL=[];
   renderDashboard(rows,groups,flaggedCount,avgAcc);
   renderContextProbes(rows,groups);
   renderList();
@@ -853,11 +868,34 @@ function wireTrends(){
   });
 }
 
-/* ---------------- Dashboard — volumetrics + graphs, reflects the ACTIVE filters ---------------- */
+/* ---------------- Dashboard drill-down (local to the volumetrics; does NOT touch console filters) ---------------- */
+let DRILL=[];   // breadcrumb path: [{f,label,v}]
+function reDash(){ if(window._lastRows) renderDashboard(window._lastRows,window._lastGroups,window._lastFlagged,window._lastAcc); }
+function drillInto(f,v){ if(DRILL.some(d=>d.f===f)) return; const lbl=(FILTER_FIELDS.find(x=>x[0]===f)||[f,f])[1]; DRILL.push({f,label:lbl,v}); reDash(); }
+function drillTo(n){ DRILL=DRILL.slice(0,n); reDash(); }        // keep first n crumbs
+function drillClear(){ DRILL=[]; reDash(); }
+function drillMatch(r,d){ return d.v==='(blank)' ? (r[d.f]==null||r[d.f]==='') : String(r[d.f]==null?'':r[d.f])===d.v; }
+function drillCrumbs(){
+  const esc=s=>String(s).replace(/</g,'&lt;');
+  let h=`<div class="vdrill"><span class="vd-crumb${DRILL.length?'':' cur'}" onclick="drillClear()">All data</span>`;
+  DRILL.forEach((d,i)=>{ h+=`<span class="vd-sep">›</span><span class="vd-crumb${i===DRILL.length-1?' cur':''}" onclick="drillTo(${i+1})">${esc(d.label)}: ${esc(d.v)}</span>`; });
+  if(DRILL.length) h+=`<button class="vd-clear" onclick="drillClear()">✕ clear drill</button>`;
+  return h+`</div>`;
+}
+
+/* ---------------- Dashboard — volumetrics + graphs, reflects the ACTIVE filters + drill path ---------------- */
 function renderDashboard(rows,groups,flaggedCount,avgAcc){
   const empty=document.getElementById('dashEmpty'), host=document.getElementById('dashboardArea');
   if(!rows.length){ empty.style.display='block'; host.style.display='none'; host.innerHTML=''; return; }
   empty.style.display='none'; host.style.display='block';
+
+  const band=num(document.getElementById('band').value)||10;
+  // scope to the active drill path, then recompute the headline numbers from the scoped set
+  if(DRILL.length) rows=rows.filter(r=>DRILL.every(d=>drillMatch(r,d)));
+  if(!rows.length){ host.innerHTML=`<div class="vol"><div class="vtop"><div class="vtitle"><span class="spark">📊</span> Data Volumetrics</div></div>${drillCrumbs()}<div class="empty" style="border:none;color:#c2d0ee;">No rows for this drill path.</div></div>`; return; }
+  const gset=new Set(); rows.forEach(r=>gset.add(String(r.Forecast_name||''))); const nForecast=gset.size;
+  flaggedCount=rows.filter(r=>r._padh!=null && +r._padh.toFixed(1)>band).length;
+  { const e=rows.filter(r=>r._padh!=null).map(r=>r._padh); avgAcc=e.length?Math.max(0,100-e.reduce((a,b)=>a+b,0)/e.length):null; }
 
   // ---- single-pass aggregation ----
   let totOff=0,totHand=0,haveOff=0;
@@ -865,7 +903,6 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
   const volBy={Region:new Map(),Offering:new Map(),channel:new Map()};
   const weekOff=new Map(), weekPadh=new Map();     // fw -> Σoffered ; fw -> [padh…]
   const flagByName=new Map();                       // forecast_name -> flagged count
-  const band=num(document.getElementById('band').value)||10;
   const dev=[0,0,0,0];                              // ≤band, band–25, 25–50, >50
   rows.forEach(r=>{
     const ao=r._ao; if(ao!=null){ totOff+=ao; haveOff++; }
@@ -886,7 +923,7 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
   // ---- EPIC volumetrics hero ----
   const hero=[
     ['',rows.length.toLocaleString(),'Rows in scope'],
-    ['',Object.keys(groups).length.toLocaleString(),'Forecast names'],
+    ['',nForecast.toLocaleString(),'Forecast names'],
     ['',fwSpan,'Fiscal weeks ('+dimMaps['Fiscal_Week'].size+')'],
     ['accent',compactN(totOff),'Actual offered (Σ)'],
     ['accent',compactN(totHand),'Actual handled (Σ)'],
@@ -894,13 +931,21 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
     ['warn',(avgAcc==null?'N/A':avgAcc.toFixed(1)+'%'),'Avg accuracy'],
   ];
   const heroHtml=hero.map(h=>`<div class="vhcell ${h[0]}"><div class="n">${h[1]}</div><div class="k">${h[2]}</div></div>`).join('');
-  // Fiscal_Week is excluded here — it's a time axis (already in the KPIs + the two week-trend charts),
-  // and its hundreds of members made per-value shares meaningless. Bars show ROW COUNTS, not % of total.
-  const dimHtml=VOL_DIMS.filter(([f])=>f!=='Fiscal_Week').map(([f,label])=>{
-    const mp=dimMaps[f], top=[...mp.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3), mx=top.length?top[0][1]:1;
-    const bars=top.map(([v,c])=>`<div class="vbar"><div class="vb-t"><span class="vb-name" title="${String(v).replace(/"/g,'&quot;')}">${v}</span><span class="vb-pct">${c.toLocaleString()}</span></div><div class="vb-track"><div class="vb-fill" style="width:${(c/mx*100).toFixed(1)}%"></div></div></div>`).join('');
-    const more=mp.size>top.length?`<div class="vd-more">+${(mp.size-top.length).toLocaleString()} more</div>`:'';
-    return `<div class="vdim"><div class="vd-h"><span class="vd-l">${label}</span><span class="vd-c">${mp.size.toLocaleString()}<small>values</small></span></div>${bars}${more}</div>`;
+  // Cards drill down: click any value → the whole panel re-scopes to it (one→many). Dimensions
+  // already on the drill path are hidden. Fiscal_Week is excluded (it's the time axis; see week charts).
+  // Bars show ROW COUNTS, not % of total. "+N more" expands the member list in place.
+  const attr=s=>String(s).replace(/"/g,'&quot;');
+  const mkBar=(f,v,c,mx)=>`<div class="vbar drillable" data-df="${attr(f)}" data-dv="${attr(v)}" title="Drill into ${attr(v)}"><div class="vb-t"><span class="vb-name">${v}</span><span class="vb-pct">${c.toLocaleString()}</span></div><div class="vb-track"><div class="vb-fill" style="width:${(c/mx*100).toFixed(1)}%"></div></div></div>`;
+  const K=DRILL.length?6:3, REST_CAP=25;
+  const dimHtml=VOL_DIMS.filter(([f])=>f!=='Fiscal_Week' && !DRILL.some(d=>d.f===f)).map(([f,label])=>{
+    const mp=dimMaps[f], ent=[...mp.entries()].sort((a,b)=>b[1]-a[1]), mx=ent.length?ent[0][1]:1;
+    const vis=ent.slice(0,K).map(([v,c])=>mkBar(f,v,c,mx)).join('');
+    const restArr=ent.slice(K,K+REST_CAP);
+    const rest=restArr.length?`<div class="vd-rest" id="rest-${attr(f)}" hidden>${restArr.map(([v,c])=>mkBar(f,v,c,mx)).join('')}</div>`:'';
+    const beyond=ent.length-K;
+    const moreTxt=beyond>0?`+${beyond.toLocaleString()} more${ent.length>K+REST_CAP?' (showing top '+REST_CAP+')':''}`:'';
+    const more=beyond>0?`<div class="vd-more" data-expand="${attr(f)}" data-more="${attr(moreTxt)}">${moreTxt}</div>`:'';
+    return `<div class="vdim"><div class="vd-h"><span class="vd-l">${label}</span><span class="vd-c">${mp.size.toLocaleString()}<small>values</small></span></div>${vis}${rest}${more}</div>`;
   }).join('');
 
   // ---- trend series (chronological) ----
@@ -926,12 +971,13 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
     <div class="vtop">
       <div>
         <div class="vtitle"><span class="spark">📊</span> Data Volumetrics</div>
-        <div class="vsub">Shape of the loaded demand file at a glance — headline totals, then how the data splits across each business dimension (distinct values + leading members by row count). Updates live as you filter in the RCA Console.</div>
+        <div class="vsub">Shape of the loaded demand file at a glance — headline totals, then how the data splits across each business dimension. <b>Click any value to drill in</b> (e.g. Region → EMEA) and the whole panel re-scopes card-by-card. Updates live as you filter in the RCA Console.</div>
       </div>
-      <div class="vscope">${filtered?'<b>Filtered</b> view':'<b>Full</b> file'}<br>${haveOff.toLocaleString()} rows with Actual_Offered</div>
+      <div class="vscope">${(filtered||DRILL.length)?'<b>Filtered</b> view':'<b>Full</b> file'}<br>${haveOff.toLocaleString()} rows with Actual_Offered</div>
     </div>
     <div class="vhero">${heroHtml}</div>
-    <div class="vgrid-h">Dimension mix — distinct values &amp; top members</div>
+    ${drillCrumbs()}
+    <div class="vgrid-h">${DRILL.length?'Drill-down · scoped to '+DRILL.map(d=>d.v).join(' › ')+' — click to go deeper':'Dimension mix — click a value to drill in'}</div>
     <div class="vgrid">${dimHtml}</div>
   </div>
 
@@ -1123,6 +1169,17 @@ function downloadKB(){
   const a=document.createElement('a'); a.href=url; a.download='RCA_KNOWLEDGE_BASE.md'; a.click(); URL.revokeObjectURL(url);
 }
 renderProbe();
+
+/* delegated clicks for the volumetrics drill-down & member expand (attached once) */
+(function(){
+  const da=document.getElementById('dashboardArea'); if(!da) return;
+  da.addEventListener('click',e=>{
+    const ex=e.target.closest('[data-expand]');
+    if(ex){ const r=document.getElementById('rest-'+ex.getAttribute('data-expand')); if(r){ r.hidden=!r.hidden; ex.textContent=r.hidden?ex.getAttribute('data-more'):'− show less'; } return; }
+    const d=e.target.closest('[data-df]');
+    if(d) drillInto(d.getAttribute('data-df'), d.getAttribute('data-dv'));
+  });
+})();
 </script>
 </body>
 </html>
