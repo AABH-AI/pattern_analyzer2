@@ -46,6 +46,25 @@
   .filebtn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;}
   .filebtn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent);}
   .filebtn.map{background:var(--purple);}
+  .filebtn.sql{background:var(--accent-2);}
+  /* pipeline strip: data ingestion → RCA */
+  .pipe{display:flex;align-items:stretch;gap:0;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:10px 6px;margin-bottom:14px;overflow-x:auto;}
+  .pstage{flex:1;min-width:118px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 12px;position:relative;text-align:center;}
+  .pstage:not(:last-child)::after{content:"›";position:absolute;right:-5px;top:calc(50% - 2px);transform:translateY(-50%);color:var(--muted);font-weight:800;font-size:18px;}
+  .pstage .pi{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--panel-2);border:1px solid var(--border);}
+  .pstage .pt{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);}
+  .pstage .pv{font-size:11.5px;font-weight:800;color:var(--text);min-height:15px;}
+  .pstage.pending{opacity:.5;}
+  .pstage.done .pi{background:rgba(18,152,111,.15);border-color:var(--accent-2);}
+  .pstage.done .pt{color:var(--accent-2);}
+  .pstage.active .pi{background:rgba(45,108,223,.15);border-color:var(--accent);}
+  .pstage.active .pt{color:var(--accent);}
+  /* SQL connect modal fields */
+  .sqlf{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+  .sqlf label{width:96px;font-size:12px;color:var(--muted);flex-shrink:0;}
+  .sqlf input{flex:1;border:1px solid var(--border);border-radius:6px;padding:7px 9px;font-size:12px;background:var(--panel-2);color:var(--text);font-family:ui-monospace,Consolas,monospace;}
+  .sqlnote{font-size:11.5px;color:var(--muted);background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin:12px 0 14px;line-height:1.5;}
+  .sqlnote code{background:var(--panel);padding:1px 5px;border-radius:3px;}
   .status{font-size:11.5px;color:var(--muted);}
   .status b{color:var(--text);}
   .badge{font-size:10px;font-weight:800;padding:2px 8px;border-radius:5px;letter-spacing:.3px;}
@@ -301,7 +320,8 @@
     <div class="toolbar">
       <input type="file" id="fileWeekly" accept=".csv,.tsv,.txt,.xlsx" style="display:none" onchange="onWeekly(this.files&&this.files[0])">
       <input type="file" id="fileMap" accept=".csv,.tsv,.txt,.xlsx" style="display:none" onchange="onMapping(this.files&&this.files[0])">
-      <button class="filebtn" onclick="document.getElementById('fileWeekly').click()">⬆ Upload weekly file</button>
+      <button class="filebtn sql" onclick="openSQL()">🗄 Connect to SQL Server (AA)</button>
+      <button class="filebtn" onclick="window._pendingSrc='file';document.getElementById('fileWeekly').click()">⬆ Upload weekly file</button>
       <button class="filebtn map" onclick="document.getElementById('fileMap').click()">⬆ Upload CQN mapping</button>
       <span class="status" id="fileStatus">No file loaded.</span>
       <span id="mapBadge"></span>
@@ -310,6 +330,9 @@
       <button class="filebtn ghost" onclick="clearFocus()" title="Clear the focus box">✕</button>
       <label class="band">Accuracy band ±<input type="number" id="band" value="10" min="1" max="50" onchange="if(ROWS.length)applyAndScan()">%</label>
     </div>
+
+    <!-- pipeline: data ingestion → RCA (fills in as data flows) -->
+    <div class="pipe" id="pipe"></div>
 
     <div id="emptyState" class="empty">
       <div style="font-size:34px;margin-bottom:8px;">📂</div>
@@ -445,7 +468,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">5 · Volume metrics + evidence trail<span class="gchip done">Done</span></span><div class="d">EPIC volumetrics + Dashboard graphs, tool-call evidence trail, ⓘ math</div></div>
+        <div class="gname"><span class="t">5 · Volume metrics + evidence trail<span class="gchip done">Done</span></span><div class="d">EPIC volumetrics + Dashboard graphs + ⓘ formula math</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar done" style="grid-column:3 / 6;">✓ dashboard</div>
@@ -456,7 +479,7 @@
         <div class="gname"><span class="t">6 · Connect to SQL Server (AA)<span class="gchip todo">To do</span></span><div class="d">Live ingestion from SQL Server → server-side compute of the two metrics (replaces manual upload)</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
-          <div class="bar todo" style="grid-column:5 / 11;">Jul 24–29</div>
+          <div class="bar todo" style="grid-column:3 / 6;">Jul 22–24</div>
         </div>
       </div>
 
@@ -637,6 +660,20 @@
   </div>
 </div>
 
+<!-- SQL SERVER (AA) CONNECT MODAL -->
+<div class="modal-bg" id="sqlModal" onclick="if(event.target===this)closeSQL()">
+  <div class="modal">
+    <h3>🗄 Connect to SQL Server (AA)</h3>
+    <div class="msub">Pull the weekly demand table straight from the AA data layer — the same pipeline the deployed agent uses. Metrics are computed on the ingested table, not invented.</div>
+    <div class="sqlf"><label>Server</label><input id="sqlSrv" value="sqlsrv-aa-prod.internal"></div>
+    <div class="sqlf"><label>Database</label><input id="sqlDb" value="AI_Ready_Data"></div>
+    <div class="sqlf"><label>Table / view</label><input id="sqlTbl" value="dbo.demand_facts"></div>
+    <div class="sqlnote">🔌 <b>Mockup:</b> click <b>Fetch table</b> and pick the exported <code>Input_To_ML_*.xlsx/.csv</code> — it stands in for the live query result. In production this runs the query directly (no upload) and the pipeline below is identical.</div>
+    <button class="mclose" style="float:none" onclick="sqlFetch()">⇩ Fetch table &amp; run pipeline</button>
+    <button class="filebtn ghost" style="margin-left:8px" onclick="closeSQL()">Cancel</button>
+  </div>
+</div>
+
 <script>
 /* ---------------- Tabs ---------------- */
 document.querySelectorAll('.nav a[data-tab]').forEach(a=>{
@@ -676,6 +713,24 @@ function fmt2(v){ const x=num(v); return x==null ? (v===''||v==null?'(blank)':St
 function num(v){ if(v==null) return null; const x=parseFloat(String(v).replace(/,/g,'').trim()); return isNaN(x)?null:x; }
 function cqn(r){ return [r.Forecast_name,r.Region,r.SubRegion,r.Country,r.channel].filter(Boolean).join(' · '); }
 
+/* ---------------- SQL Server (AA) connect + ingestion pipeline ---------------- */
+function openSQL(){ document.getElementById('sqlModal').classList.add('show'); }
+function closeSQL(){ document.getElementById('sqlModal').classList.remove('show'); }
+// Mockup: the exported table stands in for the live query. Fetch = ingest the file, tagged as a SQL source.
+function sqlFetch(){ window._pendingSrc='sql'; closeSQL(); document.getElementById('fileWeekly').click(); }
+function pstage(cls,icon,title,val){ return `<div class="pstage ${cls}"><div class="pi">${icon}</div><div class="pt">${title}</div><div class="pv">${val}</div></div>`; }
+// Visualises the full path: source → ingest → compute (2 metrics) → flag (±band) → RCA. Fills as data flows.
+function renderPipe(st){
+  st=st||{}; const el=document.getElementById('pipe'); if(!el) return;
+  const src=st.source, rows=st.rows, comp=st.computable, flg=st.flagged, ready=st.ready;
+  el.innerHTML=
+    pstage(src?'done':'pending', src==='sql'?'🗄':'📄', 'Source', src==='sql'?'SQL Server (AA)':src==='file'?'File upload':'—')+
+    pstage(rows?'done':'pending', '📥', 'Ingest', rows?rows.toLocaleString()+' rows':'—')+
+    pstage(comp!=null?'done':'pending', '🧮', 'Compute · 2 metrics', comp!=null?comp.toLocaleString()+' scored':'—')+
+    pstage(rows?'done':'pending', '🚩', 'Flag · ±band', flg!=null?flg.toLocaleString()+' flagged':'—')+
+    pstage(ready?'done':(rows?'active':'pending'), '🔍', 'RCA', ready?'ready':(rows?'scanning…':'—'));
+}
+
 /* ---------------- Parsing (CSV / TSV / XLSX) ---------------- */
 function detectDelim(t){const fl=(t.split(/\r?\n/)[0]||'');const a=(fl.match(/\t/g)||[]).length,c=(fl.match(/,/g)||[]).length,s=(fl.match(/;/g)||[]).length;if(a>=c&&a>=s&&a>0)return '\t';if(s>c)return ';';return ',';}
 function parseDelimited(text,d){
@@ -710,17 +765,20 @@ async function fileToArrays(file){const nm=(file.name||'').toLowerCase();if(nm.e
 /* ---------------- Upload handlers ---------------- */
 async function onWeekly(file){
   if(!file)return;
-  document.getElementById('fileStatus').textContent='Reading '+file.name+' …';
+  const src=window._pendingSrc||'file'; window.SRC=src; window._pendingSrc=null;
+  document.getElementById('fileStatus').textContent=(src==='sql'?'Querying SQL Server (AA) → ':'Reading ')+file.name+' …';
+  renderPipe({source:src});
   try{
     const rows=buildRows(await fileToArrays(file));
     if(!rows.length)throw new Error('no rows');
     ROWS=rows;
-    document.getElementById('fileStatus').innerHTML='<b>'+file.name+'</b> — '+rows.length.toLocaleString()+' rows';
+    document.getElementById('fileStatus').innerHTML=(src==='sql'?'🗄 <b>SQL Server (AA)</b> · dbo.demand_facts — ':'<b>'+file.name+'</b> — ')+rows.length.toLocaleString()+' rows';
     document.getElementById('emptyState').style.display='none';
     document.getElementById('consoleArea').style.display='block';
+    renderPipe({source:src, rows:rows.length});
     buildFilters();
     applyAndScan();
-  }catch(e){ document.getElementById('fileStatus').textContent='Error: '+e.message; alert('Could not read weekly file: '+e.message); }
+  }catch(e){ document.getElementById('fileStatus').textContent='Error: '+e.message; renderPipe({source:src}); alert('Could not read weekly file: '+e.message); }
 }
 async function onMapping(file){
   if(!file)return;
@@ -812,6 +870,7 @@ function applyAndScan(){
   renderMetrics(groups,rows,flaggedCount,avgAcc);
   // stash for the dashboard's drill-down (which re-renders without re-scanning); a filter change resets the drill.
   window._lastRows=rows; window._lastGroups=groups; window._lastFlagged=flaggedCount; window._lastAcc=avgAcc; DRILL=[];
+  renderPipe({source:window.SRC||'file', rows:ROWS.length, computable:computable.length, flagged:flaggedCount, ready:true});
   renderDashboard(rows,groups,flaggedCount,avgAcc);
   renderContextProbes(rows,groups);
   renderList();
@@ -1185,10 +1244,6 @@ function selectFlag(i){
   window.CUR_CTX=`${r.Forecast_name||'—'} · FW ${r._wk} · ${r.Region||''}/${r.Country||''} · ${r.channel||''} · Plan ${r.Projection_plan_name||'—'} · Forecaster ${r.Forecaster||'—'}`;
   const accCol=(r._acc==null)?'var(--muted)':((r._padh!=null&&r._padh>25)?'var(--danger)':(r._padh!=null&&r._padh>10)?'var(--warn)':'var(--accent-2)');
   const bullets=d.map((x,idx)=>`<li><span class="bdot ${x.s}"></span><div class="btext">${x.b}</div><button class="ibtn" title="Show the formula & numbers" onclick="showMath(${idx})">i</button></li>`).join('');
-  const evi=[
-    `Forecast Accuracy = ${r._ao} ÷ ${r._fo!=null?fmt2(r._fo):'(blank)'} × 100 = ${r._acc!=null?r._acc.toFixed(1)+'%':'N/A'}`,
-    `Plan Adherence = ABS(1 − ${r.Actual_Offered===''?'(blank)':r._ao} ÷ ${r._fo!=null?fmt2(r._fo):'(blank)'}) × 100 = ${r._padh!=null?r._padh.toFixed(1)+'%':(r.Actual_Offered===''?'""':'N/A')}`
-  ];
   document.getElementById('report').innerHTML=`
     <div class="rhead">
       <div>
@@ -1202,8 +1257,6 @@ function selectFlag(i){
     <div class="subhead">Inputs used (from file)</div>
     <div class="kv"><span class="k">Actual_Offered</span><span class="val">${r.Actual_Offered===''?'(blank)':(r._ao!=null?r._ao.toLocaleString():r.Actual_Offered)}</span></div>
     <div class="kv"><span class="k">forecast offered (Simple)</span><span class="val">${r._fo!=null?fmt2(r._fo):(r.fcst_offered||'(blank)')}</span></div>
-    <div class="subhead">Evidence trail (rule-based calculation)</div>
-    <div class="evi">${evi.map(e=>`<div>${e}</div>`).join('')}</div>
   `;
 }
 
@@ -1299,6 +1352,7 @@ function downloadKB(){
   const a=document.createElement('a'); a.href=url; a.download='RCA_KNOWLEDGE_BASE.md'; a.click(); URL.revokeObjectURL(url);
 }
 renderProbe();
+renderPipe();   // initial: all stages pending until a source is connected
 
 /* delegated clicks for the volumetrics drill-down & member expand (attached once) */
 (function(){

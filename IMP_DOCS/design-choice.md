@@ -58,5 +58,11 @@ The old tile averaged `Actual÷Fcst` across rows. Because over- and under-foreca
 - Trend charts plot every fiscal week present (up to 325 points); fine as a dense sparkline. A brush/zoom is a future nice-to-have.
 - Full crosshair is on the two trend charts only; bars rely on native tooltips. A shared hover legend is a later enhancement.
 
+## Full pipeline: data ingestion → RCA (mockup)
+- A **pipeline strip** at the top of the RCA Console visualises the end-to-end path and fills as data flows: **Source → Ingest (rows) → Compute · 2 metrics (scored) → Flag · ±band (flagged) → RCA (ready)**. It's always visible (pending state before load) so the demo tells the whole story at a glance.
+- **"🗄 Connect to SQL Server (AA)"** button + modal (Server / Database / Table = `sqlsrv-aa-prod.internal` · `AI_Ready_Data` · `dbo.demand_facts`). Since the mockup has no backend, **Fetch table** ingests the exported file as a stand-in for the live query and tags the source as SQL, so the pipeline's Source stage reads "SQL Server (AA)". In production the same pipeline runs the query directly (no upload) and computes the two metrics server-side — this is Timeline phase 6.
+- Source tracking: `window._pendingSrc` ('sql' via the modal, 'file' via Upload) → `window.SRC`, read in `onWeekly`; `renderPipe()` is called on load (pending), on ingest, and after each scan.
+- **Evidence trail removed** from the RCA report (was redundant with the Findings bullets + the ⓘ formula/number modal, which remain the source of the math). The report is now: Findings (with ⓘ) → Inputs used.
+
 ## Timeline / Gantt
 The build Gantt lives both **in the app** (Timeline tab, scoped under `#tab-timeline`) and as a **standalone** `rca_timeline.html` (theme-aware light/dark). Keep the two in sync when phase status changes. Today marker and KPIs are currently hard-set to **22 Jul** — update them as the project moves.
