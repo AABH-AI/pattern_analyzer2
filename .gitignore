@@ -6,6 +6,11 @@ Input_To_ML_*.xlsx
 *.xlsx
 *.csv
 
+# Backend secrets & Python cruft
+backend/config.json
+__pycache__/
+*.pyc
+
 # OS / editor cruft
 Thumbs.db
 .DS_Store
