@@ -1,0 +1,21 @@
+# Internal-server deployment. Put SQL_USERNAME / SQL_PASSWORD in a .env file
+# next to this file (see backend/.env.example), then:  docker compose up -d --build
+# Access on the AA network:  http://<server-ip>:8000/rca_console.html
+services:
+  rca:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      SQL_SERVER: "10.10.9.75"
+      SQL_DATABASE: "Playground"
+      SQL_TABLE: "dbo.Input_To_ML"
+      SQL_AUTH: "sql"
+      SQL_USERNAME: "${SQL_USERNAME}"
+      SQL_PASSWORD: "${SQL_PASSWORD}"
+      SQL_DRIVER: "ODBC Driver 18 for SQL Server"
+      SQL_ENCRYPT: "false"
+      SQL_TRUST_CERT: "true"
+    restart: unless-stopped

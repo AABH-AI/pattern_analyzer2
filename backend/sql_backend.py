@@ -19,6 +19,7 @@ Connection details come from backend/config.json (see config.example.json).
 config.json is gitignored so credentials are never committed.
 """
 import json
+import os
 from decimal import Decimal
 from pathlib import Path
 
@@ -38,9 +39,26 @@ app.add_middleware(
 
 
 def load_config():
+    """Config from backend/config.json, with environment variables taking
+    precedence (so secrets can be injected in deployment without a file)."""
+    cfg = {}
     if CONFIG.exists():
-        return json.loads(CONFIG.read_text(encoding="utf-8"))
-    return {}
+        cfg = json.loads(CONFIG.read_text(encoding="utf-8"))
+    sql = dict(cfg.get("sql", {}))
+    envmap = {"server": "SQL_SERVER", "database": "SQL_DATABASE", "table": "SQL_TABLE",
+              "auth": "SQL_AUTH", "username": "SQL_USERNAME", "password": "SQL_PASSWORD",
+              "driver": "SQL_DRIVER"}
+    for key, env in envmap.items():
+        v = os.environ.get(env)
+        if v not in (None, ""):
+            sql[key] = v
+    if os.environ.get("SQL_ENCRYPT") is not None:
+        sql["encrypt"] = os.environ["SQL_ENCRYPT"].lower() in ("1", "true", "yes")
+    if os.environ.get("SQL_TRUST_CERT") is not None:
+        sql["trust_server_certificate"] = os.environ["SQL_TRUST_CERT"].lower() in ("1", "true", "yes")
+    if sql:
+        cfg["sql"] = sql
+    return cfg
 
 
 def connect(cfg):
