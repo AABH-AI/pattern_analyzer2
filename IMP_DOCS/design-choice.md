@@ -58,11 +58,19 @@ The old tile averaged `Actual÷Fcst` across rows. Because over- and under-foreca
 - Trend charts plot every fiscal week present (up to 325 points); fine as a dense sparkline. A brush/zoom is a future nice-to-have.
 - Full crosshair is on the two trend charts only; bars rely on native tooltips. A shared hover legend is a later enhancement.
 
-## Full pipeline: data ingestion → RCA (mockup)
+## Full pipeline: data ingestion → RCA (live SQL)
 - A **pipeline strip** at the top of the RCA Console visualises the end-to-end path and fills as data flows: **Source → Ingest (rows) → Compute · 2 metrics (scored) → Flag · ±band (flagged) → RCA (ready)**. It's always visible (pending state before load) so the demo tells the whole story at a glance.
-- **"🗄 Connect to SQL Server (AA)"** button + modal (Server / Database / Table = `sqlsrv-aa-prod.internal` · `AI_Ready_Data` · `dbo.demand_facts`). Since the mockup has no backend, **Fetch table** ingests the exported file as a stand-in for the live query and tags the source as SQL, so the pipeline's Source stage reads "SQL Server (AA)". In production the same pipeline runs the query directly (no upload) and computes the two metrics server-side — this is Timeline phase 6.
+- **"🗄 Connect to SQL Server (AA)"** button + modal (Server / Database / Table = `10.10.9.75` · `Playground` · `dbo.Input_To_ML`). **Now live** (Timeline P6 done): **Fetch table** calls the local **FastAPI + pyODBC** backend (`backend/sql_backend.py`, `GET /api/data`) which runs `SELECT * FROM <table>` and returns JSON; `sqlFetch` loads it straight into the pipeline — no upload. Connection details live in `backend/config.json` or `SQL_*` env vars (both gitignored). The full **138,775-row** table is loaded into `Playground.dbo.Input_To_ML` by `backend/upload_excel_to_sql.py`. Always-on hosting (internal server) is packaged in `DEPLOY.md` (Docker/service). Setup + troubleshooting: `IMP_DOCS/installation-and-connection.md`. Browsers can't reach SQL directly — the backend is the bridge; a public static host (GitHub Pages) therefore can't use SQL, by design.
 - Source tracking: `window._pendingSrc` ('sql' via the modal, 'file' via Upload) → `window.SRC`, read in `onWeekly`; `renderPipe()` is called on load (pending), on ingest, and after each scan.
 - **Evidence trail removed** from the RCA report (was redundant with the Findings bullets + the ⓘ formula/number modal, which remain the source of the math). The report is now: Findings (with ⓘ) → Inputs used.
+
+## SQL table & data types (`Playground.dbo.Input_To_ML`)
+Loaded from the weekly Excel by `backend/upload_excel_to_sql.py`. **33 columns · 138,775 rows.**
+- `Fiscal_Week` — **BIGINT** · `Week_Ending` — **DATE**
+- **Dimensions (NVARCHAR):** Region, SubRegion, Country, Forecast_name, Forecaster, Offering, Projection_plan_name, channel, business_org, Volume_Category
+- **Measures (FLOAT):** Actual_Offered, Actual_Handled, fcst_offered, fcst_handled, Planned_ASU, Actual_ASU, Final_Units, Final_Y5…Final_Y1, Final_upp_units, Holiday_Count, Monday…Sunday
+
+Blank cells load as **NULL**. The two metrics only need `Actual_Offered` and `fcst_offered`; the rest are dimensions/context for filtering and volumetrics. Column typing lives in `upload_excel_to_sql.py` (`NUMERIC` / `INT_COLS` / `DATE_COLS` sets); unknown columns default to `NVARCHAR(255)`.
 
 ## Timeline / Gantt
 The build Gantt lives both **in the app** (Timeline tab, scoped under `#tab-timeline`) and as a **standalone** `rca_timeline.html` (theme-aware light/dark). Keep the two in sync when phase status changes. Today marker and KPIs are currently hard-set to **22 Jul** — update them as the project moves.

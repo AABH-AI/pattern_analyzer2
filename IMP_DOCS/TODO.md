@@ -3,11 +3,11 @@
 Deploy **30 Jul 2026** · last dev day **29 Jul**. Ordered by priority.
 
 ## P0 — critical path to the mockup
-- [ ] **P6 · Connect to SQL Server (AA)** — live data ingestion + server-side compute of the two metrics; the bridge from the file-upload mockup to production. (Now a phase on the Timeline, Jul 24–29.)
+- [x] **P6 · Connect to SQL Server (AA)** — **DONE.** Live ingestion via FastAPI + pyODBC backend (`GET /api/data`); 138,775 rows loaded into `Playground.dbo.Input_To_ML`; console button wired; hosting packaged (Docker/Windows-service/systemd). See `IMP_DOCS/installation-and-connection.md`.
 - [ ] **P4 · Phase-1 digest** — one-click export of *all* flagged queues (multi-queue scan → top-N → printable/report page). Main remaining build.
-- [ ] **P6 · Validation with Prashant / SME** on the full real dataset — must land by **28 Jul** to keep a buffer day.
-- [ ] **Confirm the adherence band** — ±10% vs ±15%, and whether it tiers by `Volume_Category`. Blocks P6 tuning.
-- [ ] **P7 · Demo packaging + dry run** (28–29 Jul) — walkthrough script, rehearsal, digest export sanity check.
+- [ ] **P7 · Validation with Prashant / SME** on the full real dataset — must land by **28 Jul** to keep a buffer day.
+- [ ] **Confirm the adherence band** — ±10% vs ±15%, and whether it tiers by `Volume_Category`. Blocks tuning.
+- [ ] **P8 · Demo packaging + dry run** (28–29 Jul) — walkthrough script, rehearsal, digest export sanity check.
 
 ## P1 — correctness / data questions to close (probing layer)
 - [ ] Source of truth for adherence — **Offered vs Handled**?
@@ -27,6 +27,14 @@ Deploy **30 Jul 2026** · last dev day **29 Jul**. Ordered by priority.
 - [ ] Wire the two metrics as **MCP tools** + SQL metric views.
 - [ ] RAG over the probing KB to auto-surface known causes on matching queues.
 - [ ] Let confirmed KB rules feed back into flag suppression / re-flagging.
+
+## Done ✓ (2026-07-23, session 5 — SQL Server (AA) live)
+- [x] FastAPI + pyODBC backend (`backend/sql_backend.py`): `/api/health`, `/api/data` (`SELECT * FROM <table>`), also serves the UI
+- [x] Excel→SQL loader (`upload_excel_to_sql.py`, `--dry-run` / `--schema-only`) — loaded **138,775 rows** into `Playground.dbo.Input_To_ML`
+- [x] Console "Connect to SQL Server (AA)" wired to `/api/data` (was a file-picker mock); modal shows real server/db/table
+- [x] Deployment package: `Dockerfile` (bundles msodbcsql18) + `docker-compose.yml` + env-var secrets + `DEPLOY.md`
+- [x] Timeline renames: P2 → "Accuracy & Error Computation (100-MAPE)", P5 → "Data Volumetrics"; P6 marked Done
+- [x] `IMP_DOCS/installation-and-connection.md` added
 
 ## Done ✓ (2026-07-22, session 4 — RCA analytics bundle)
 - [x] Actual-vs-Forecast weekly overlay (two-series, one y-scale)
