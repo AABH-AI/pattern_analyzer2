@@ -407,17 +407,17 @@
   <!-- ============ TIMELINE (deadline Gantt) ============ -->
   <div class="tab" id="tab-timeline">
     <h1>Build Timeline — to 30 July</h1>
-    <div class="sub">A simple week-by-week view of what we're building and when — goal: by <b>Thu 30 July 2026</b>, demo a tool that reads the weekly demand data, finds the off-forecast queues, and explains why. <b>Today is Wed 22 July.</b></div>
+    <div class="sub">A simple week-by-week view of what we're building and when — goal: by <b>Thu 30 July 2026</b>, demo a tool that reads the weekly demand data, finds the off-forecast queues, and explains why. <b>Today is <span id="todayTxt">—</span>.</b></div>
 
     <div class="top">
-      <div class="kpi"><div class="v">5 of 9</div><div class="l">Steps finished</div></div>
+      <div class="kpi"><div class="v">6 of 10</div><div class="l">Steps finished</div></div>
       <div class="kpi"><div class="v">1</div><div class="l">In progress now</div></div>
-      <div class="kpi hot"><div class="v">8 days</div><div class="l">Until the demo</div></div>
+      <div class="kpi hot"><div class="v" id="kpiDays">—</div><div class="l" id="kpiDaysLbl">Until the demo</div></div>
       <div class="kpi"><div class="v">30 Jul</div><div class="l">Demo day</div></div>
     </div>
     <div style="background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:13px 16px;margin:0 0 16px;">
-      <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);flex-wrap:wrap;gap:6px;"><span><b style="color:var(--text)">Overall progress</b></span><span><b style="color:var(--text)">5 of 9</b> steps done · <b style="color:var(--text)">1</b> in progress · <b style="color:var(--text)">3</b> to go</span></div>
-      <div style="height:16px;background:var(--panel-2);border:1px solid var(--border);border-radius:9px;overflow:hidden;margin-top:9px;position:relative;"><i style="display:block;height:100%;width:55.5%;background:linear-gradient(90deg,var(--done,#12986f),var(--accent));"></i><b style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;color:var(--text);">≈ 56% complete</b></div>
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);flex-wrap:wrap;gap:6px;"><span><b style="color:var(--text)">Overall progress</b></span><span><b style="color:var(--text)">6 of 10</b> steps done · <b style="color:var(--text)">1</b> in progress · <b style="color:var(--text)">3</b> to go</span></div>
+      <div style="height:16px;background:var(--panel-2);border:1px solid var(--border);border-radius:9px;overflow:hidden;margin-top:9px;position:relative;"><i style="display:block;height:100%;width:60%;background:linear-gradient(90deg,var(--done,#12986f),var(--accent));"></i><b style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;color:var(--text);">≈ 60% complete</b></div>
     </div>
 
     <div style="background:var(--panel-2);border:1px dashed var(--border);border-radius:10px;padding:10px 14px;font-size:12.5px;color:var(--muted);margin-bottom:12px;"><b style="color:var(--text)">How to read this:</b> each row is one build step; the coloured bar shows which days it runs (20–30 Jul across the top); the blue vertical line is <b>today</b>; grey columns are the weekend.</div>
@@ -431,12 +431,12 @@
 
     <div class="gantt">
       <div class="grid-head">
-        <div class="lbl">Phase</div>
-        <div class="dh"><b>20</b>Mon</div><div class="dh"><b>21</b>Tue</div>
-        <div class="dh today"><b>22</b>Wed</div><div class="dh"><b>23</b>Thu</div><div class="dh"><b>24</b>Fri</div>
-        <div class="dh wknd"><b>25</b>Sat</div><div class="dh wknd"><b>26</b>Sun</div>
-        <div class="dh"><b>27</b>Mon</div><div class="dh"><b>28</b>Tue</div><div class="dh"><b>29</b>Wed</div>
-        <div class="dh deadline"><b>30</b>Thu</div>
+        <div class="lbl">Step</div>
+        <div class="dh" data-day="20"><b>20</b>Mon</div><div class="dh" data-day="21"><b>21</b>Tue</div>
+        <div class="dh" data-day="22"><b>22</b>Wed</div><div class="dh" data-day="23"><b>23</b>Thu</div><div class="dh" data-day="24"><b>24</b>Fri</div>
+        <div class="dh wknd" data-day="25"><b>25</b>Sat</div><div class="dh wknd" data-day="26"><b>26</b>Sun</div>
+        <div class="dh" data-day="27"><b>27</b>Mon</div><div class="dh" data-day="28"><b>28</b>Tue</div><div class="dh" data-day="29"><b>29</b>Wed</div>
+        <div class="dh deadline" data-day="30"><b>30</b>Thu</div>
       </div>
 
       <div class="grow">
@@ -465,15 +465,23 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">4 · Scan every queue &amp; build reports<span class="gchip prog">In progress</span></span><div class="d">Check all ~100 queues, list the biggest misses, and make a one-page report for each. (Main task left.)</div></div>
+        <div class="gname"><span class="t">4 · Scan every queue &amp; flag the misses<span class="gchip done">Done</span></span><div class="d">Go through all ~100 queues and mark the weeks where the forecast was off beyond the ±band.</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
-          <div class="bar prog" style="grid-column:4 / 8;">Jul 23–26</div>
+          <div class="bar done" style="grid-column:1 / 5;">✓ done</div>
         </div>
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">5 · Charts &amp; volume views<span class="gchip done">Done</span></span><div class="d">A dashboard of graphs showing volumes and accuracy, sliceable by region, channel, country, etc.</div></div>
+        <div class="gname"><span class="t">5 · RCA output — report per queue<span class="gchip prog">Working on it now</span></span><div class="d">The core deliverable: for each flagged queue, a clear report of <b>why</b> the forecast missed, plus a one-click summary of all flagged queues.</div></div>
+        <div class="track">
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          <div class="bar prog" style="grid-column:4 / 8;">now → 26 Jul</div>
+        </div>
+      </div>
+
+      <div class="grow">
+        <div class="gname"><span class="t">6 · Charts &amp; volume views<span class="gchip done">Done</span></span><div class="d">A dashboard of graphs showing volumes and accuracy, sliceable by region, channel, country, etc.</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar done" style="grid-column:3 / 6;">✓ dashboard</div>
@@ -481,7 +489,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">6 · Connect to the live database<span class="gchip done">Done</span></span><div class="d">Pull the data straight from the company SQL Server database — no more uploading a file by hand.</div></div>
+        <div class="gname"><span class="t">7 · Connect to the live database<span class="gchip done">Done</span></span><div class="d">Pull the data straight from the company SQL Server database — no more uploading a file by hand.</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar done" style="grid-column:3 / 6;">✓ live</div>
@@ -489,7 +497,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">7 · Check with the expert &amp; set the tolerance<span class="gchip todo">Not started</span></span><div class="d">Run it on the full real data with the business expert (Prashant) and confirm the right ±% cut-off.</div></div>
+        <div class="gname"><span class="t">8 · Check with the expert &amp; set the tolerance<span class="gchip todo">Not started</span></span><div class="d">Run it on the full real data with the business expert (Prashant) and confirm the right ±% cut-off.</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar todo" style="grid-column:7 / 10;">Jul 26–28</div>
@@ -497,7 +505,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">8 · Get the demo ready<span class="gchip todo">Not started</span></span><div class="d">Prepare the walkthrough, the summary export, and rehearse it once.</div></div>
+        <div class="gname"><span class="t">9 · Get the demo ready<span class="gchip todo">Not started</span></span><div class="d">Prepare the walkthrough, the summary export, and rehearse it once.</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar todo" style="grid-column:9 / 11;">Jul 28–29</div>
@@ -505,13 +513,39 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">9 · Show the working tool 🎯<span class="gchip todo">Demo day</span></span><div class="d">Present the finished tool running on real data — the 30 July deliverable.</div></div>
+        <div class="gname"><span class="t">10 · Show the working tool 🎯<span class="gchip todo">Demo day</span></span><div class="d">Present the finished tool running on real data — the 30 July deliverable.</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="msq" style="grid-column:11;" title="30 July — Demo"></div>
         </div>
       </div>
     </div>
+
+    <script>
+    (function(){
+      try{
+        var now=new Date(), deadline=new Date(2026,6,30);
+        var t0=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+        var days=Math.round((deadline-t0)/86400000);
+        var DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        var tt=document.getElementById('todayTxt'); if(tt) tt.textContent=DN[now.getDay()]+' '+now.getDate()+' '+MN[now.getMonth()]+' '+now.getFullYear();
+        var dk=document.getElementById('kpiDays'), dl=document.getElementById('kpiDaysLbl');
+        if(dk){ if(days>0){ dk.textContent=days; if(dl) dl.textContent=(days===1?'day until the demo':'days until the demo'); }
+                else if(days===0){ dk.textContent='Today'; if(dl) dl.textContent='is demo day'; }
+                else { dk.textContent=Math.abs(days); if(dl) dl.textContent='days since the demo'; } }
+        var inJul=(now.getFullYear()===2026 && now.getMonth()===6);
+        var col=inJul?(now.getDate()<20?1:(now.getDate()>30?11:now.getDate()-19)):(t0<deadline?1:11);
+        document.querySelectorAll('#tab-timeline .dh[data-day]').forEach(function(h){
+          h.classList.toggle('today', inJul && parseInt(h.getAttribute('data-day'),10)===now.getDate());
+        });
+        document.querySelectorAll('#tab-timeline .todayline').forEach(function(e){e.remove();});
+        document.querySelectorAll('#tab-timeline .track').forEach(function(tr){
+          var line=document.createElement('div'); line.className='todayline'; line.style.gridColumn=String(col);
+          tr.insertBefore(line, tr.firstChild);
+        });
+      }catch(e){}
+    })();
+    </script>
 
     <div class="gnotes">
       <div class="card">
