@@ -407,21 +407,26 @@
   <!-- ============ TIMELINE (deadline Gantt) ============ -->
   <div class="tab" id="tab-timeline">
     <h1>Build Timeline — to 30 July</h1>
-    <div class="sub">Phase pipeline from Mon 20 Jul 2026 to the mockup deadline (Thu 30 Jul 2026). Scope = Phase 1: scheduled scan → page-per-queue RCA reports (no chat). <b>Today = Wed 22 Jul.</b></div>
+    <div class="sub">A simple week-by-week view of what we're building and when — goal: by <b>Thu 30 July 2026</b>, demo a tool that reads the weekly demand data, finds the off-forecast queues, and explains why. <b>Today is Wed 22 July.</b></div>
 
     <div class="top">
-      <div class="kpi hot"><div class="v">8 days</div><div class="l">To 30 July deadline</div></div>
-      <div class="kpi"><div class="v">9</div><div class="l">Phases</div></div>
-      <div class="kpi"><div class="v">4 ✓</div><div class="l">Built &amp; verified</div></div>
-      <div class="kpi"><div class="v">Mockup</div><div class="l">30 Jul deliverable</div></div>
+      <div class="kpi"><div class="v">5 of 9</div><div class="l">Steps finished</div></div>
+      <div class="kpi"><div class="v">1</div><div class="l">In progress now</div></div>
+      <div class="kpi hot"><div class="v">8 days</div><div class="l">Until the demo</div></div>
+      <div class="kpi"><div class="v">30 Jul</div><div class="l">Demo day</div></div>
+    </div>
+    <div style="background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:13px 16px;margin:0 0 16px;">
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);flex-wrap:wrap;gap:6px;"><span><b style="color:var(--text)">Overall progress</b></span><span><b style="color:var(--text)">5 of 9</b> steps done · <b style="color:var(--text)">1</b> in progress · <b style="color:var(--text)">3</b> to go</span></div>
+      <div style="height:16px;background:var(--panel-2);border:1px solid var(--border);border-radius:9px;overflow:hidden;margin-top:9px;position:relative;"><i style="display:block;height:100%;width:55.5%;background:linear-gradient(90deg,var(--done,#12986f),var(--accent));"></i><b style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;color:var(--text);">≈ 56% complete</b></div>
     </div>
 
+    <div style="background:var(--panel-2);border:1px dashed var(--border);border-radius:10px;padding:10px 14px;font-size:12.5px;color:var(--muted);margin-bottom:12px;"><b style="color:var(--text)">How to read this:</b> each row is one build step; the coloured bar shows which days it runs (20–30 Jul across the top); the blue vertical line is <b>today</b>; grey columns are the weekend.</div>
     <div class="glegend">
-      <span><span class="gsw done"></span> Done (prototype ready)</span>
-      <span><span class="gsw prog"></span> In progress</span>
-      <span><span class="gsw todo"></span> To do</span>
-      <span><span class="gsw ms"></span> Milestone</span>
-      <span style="color:var(--accent);">▏ = today (22 Jul)</span>
+      <span><span class="gsw done"></span> Done</span>
+      <span><span class="gsw prog"></span> Working on it now</span>
+      <span><span class="gsw todo"></span> Not started yet</span>
+      <span><span class="gsw ms"></span> The demo (finish line)</span>
+      <span style="color:var(--accent);">▏ = today (Wed 22 Jul)</span>
     </div>
 
     <div class="gantt">
@@ -435,7 +440,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">1 · Data foundation &amp; schema lock<span class="gchip done">Done</span></span><div class="d">33-col schema, 10 filter dims, adherence rule (±10%), CQN key confirmed</div></div>
+        <div class="gname"><span class="t">1 · Set up the data foundation<span class="gchip done">Done</span></span><div class="d">Agreed what the data looks like (33 columns) and the rule for a "missed" week (more than ±10% off).</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="todayline" style="grid-column:3;"></div>
@@ -444,7 +449,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">2 · Accuracy &amp; Error Computation (100-MAPE)<span class="gchip done">Done</span></span><div class="d">Two-metric engine fixed — accuracy now 100−MAPE (bidirectional), formulas verified</div></div>
+        <div class="gname"><span class="t">2 · Make the accuracy number honest<span class="gchip done">Done</span></span><div class="d">A poor forecast now shows a low score. (Before, over/under misses cancelled out and it wrongly read ~99%.)</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar done" style="grid-column:1 / 4;">✓ calc fixed</div>
@@ -452,7 +457,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">3 · File ingestion + big-file handling<span class="gchip done">Done</span></span><div class="d">CSV / Excel upload, in-browser parse, 100k+ rows</div></div>
+        <div class="gname"><span class="t">3 · Open the weekly file in the browser<span class="gchip done">Done</span></span><div class="d">Load a CSV/Excel with 100,000+ rows right in the browser — nothing to install.</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar done" style="grid-column:1 / 4;">✓ built</div>
@@ -460,7 +465,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">4 · Multi-queue scan + Phase-1 digest<span class="gchip prog">In prog</span></span><div class="d">~100 queues → top-N flagged → page-per-queue report</div></div>
+        <div class="gname"><span class="t">4 · Scan every queue &amp; build reports<span class="gchip prog">In progress</span></span><div class="d">Check all ~100 queues, list the biggest misses, and make a one-page report for each. (Main task left.)</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar prog" style="grid-column:4 / 8;">Jul 23–26</div>
@@ -468,7 +473,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">5 · Data Volumetrics<span class="gchip done">Done</span></span><div class="d">EPIC volumetrics + Dashboard graphs + ⓘ formula math</div></div>
+        <div class="gname"><span class="t">5 · Charts &amp; volume views<span class="gchip done">Done</span></span><div class="d">A dashboard of graphs showing volumes and accuracy, sliceable by region, channel, country, etc.</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar done" style="grid-column:3 / 6;">✓ dashboard</div>
@@ -476,15 +481,15 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">6 · Connect to SQL Server (AA)<span class="gchip done">Done</span></span><div class="d">Live ingestion from SQL Server → server-side compute of the two metrics (replaces manual upload)</div></div>
+        <div class="gname"><span class="t">6 · Connect to the live database<span class="gchip done">Done</span></span><div class="d">Pull the data straight from the company SQL Server database — no more uploading a file by hand.</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
-          <div class="bar todo" style="grid-column:3 / 6;">Jul 22–24</div>
+          <div class="bar done" style="grid-column:3 / 6;">✓ live</div>
         </div>
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">7 · Validation + threshold tuning<span class="gchip todo">To do</span></span><div class="d">Run on full real dataset with Prashant / SME; tune band</div></div>
+        <div class="gname"><span class="t">7 · Check with the expert &amp; set the tolerance<span class="gchip todo">Not started</span></span><div class="d">Run it on the full real data with the business expert (Prashant) and confirm the right ±% cut-off.</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar todo" style="grid-column:7 / 10;">Jul 26–28</div>
@@ -492,7 +497,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">8 · Demo packaging + dry run<span class="gchip todo">To do</span></span><div class="d">Digest export, walkthrough script, rehearsal</div></div>
+        <div class="gname"><span class="t">8 · Get the demo ready<span class="gchip todo">Not started</span></span><div class="d">Prepare the walkthrough, the summary export, and rehearse it once.</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar todo" style="grid-column:9 / 11;">Jul 28–29</div>
@@ -500,7 +505,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">9 · Mockup presentation<span class="gchip todo">Milestone</span></span><div class="d">Present working single-agent RCA on real data</div></div>
+        <div class="gname"><span class="t">9 · Show the working tool 🎯<span class="gchip todo">Demo day</span></span><div class="d">Present the finished tool running on real data — the 30 July deliverable.</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="msq" style="grid-column:11;" title="30 July — Demo"></div>
