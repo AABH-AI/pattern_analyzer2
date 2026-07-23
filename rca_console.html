@@ -472,7 +472,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">2 · RCA engine core<span class="gchip done">Done</span></span><div class="d">Two-metric engine fixed — accuracy now 100−MAPE (bidirectional), formulas verified</div></div>
+        <div class="gname"><span class="t">2 · Accuracy &amp; Error Computation (100-MAPE)<span class="gchip done">Done</span></span><div class="d">Two-metric engine fixed — accuracy now 100−MAPE (bidirectional), formulas verified</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar done" style="grid-column:1 / 4;">✓ calc fixed</div>
@@ -496,7 +496,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">5 · Volume metrics + evidence trail<span class="gchip done">Done</span></span><div class="d">EPIC volumetrics + Dashboard graphs + ⓘ formula math</div></div>
+        <div class="gname"><span class="t">5 · Data Volumetrics<span class="gchip done">Done</span></span><div class="d">EPIC volumetrics + Dashboard graphs + ⓘ formula math</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar done" style="grid-column:3 / 6;">✓ dashboard</div>
@@ -504,7 +504,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">6 · Connect to SQL Server (AA)<span class="gchip todo">To do</span></span><div class="d">Live ingestion from SQL Server → server-side compute of the two metrics (replaces manual upload)</div></div>
+        <div class="gname"><span class="t">6 · Connect to SQL Server (AA)<span class="gchip done">Done</span></span><div class="d">Live ingestion from SQL Server → server-side compute of the two metrics (replaces manual upload)</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar todo" style="grid-column:3 / 6;">Jul 22–24</div>
@@ -721,10 +721,10 @@
   <div class="modal">
     <h3>🗄 Connect to SQL Server (AA)</h3>
     <div class="msub">Pull the weekly demand table straight from the AA data layer — the same pipeline the deployed agent uses. Metrics are computed on the ingested table, not invented.</div>
-    <div class="sqlf"><label>Server</label><input id="sqlSrv" value="sqlsrv-aa-prod.internal"></div>
-    <div class="sqlf"><label>Database</label><input id="sqlDb" value="AI_Ready_Data"></div>
-    <div class="sqlf"><label>Table / view</label><input id="sqlTbl" value="dbo.demand_facts"></div>
-    <div class="sqlnote">🔌 <b>Mockup:</b> click <b>Fetch table</b> and pick the exported <code>Input_To_ML_*.xlsx/.csv</code> — it stands in for the live query result. In production this runs the query directly (no upload) and the pipeline below is identical.</div>
+    <div class="sqlf"><label>Server</label><input id="sqlSrv" value="10.10.9.75"></div>
+    <div class="sqlf"><label>Database</label><input id="sqlDb" value="Playground"></div>
+    <div class="sqlf"><label>Table / view</label><input id="sqlTbl" value="dbo.Input_To_ML"></div>
+    <div class="sqlnote">🔌 <b>Live:</b> click <b>Fetch table</b> to query SQL Server through the local backend (<code>/api/data</code>) and run the pipeline — no upload. Connection is set in <code>backend/config.json</code>; start it with <code>uvicorn sql_backend:app --port 8000</code>.</div>
     <button class="mclose" style="float:none" onclick="sqlFetch()">⇩ Fetch table &amp; run pipeline</button>
     <button class="filebtn ghost" style="margin-left:8px" onclick="closeSQL()">Cancel</button>
   </div>
@@ -800,8 +800,30 @@ function cqn(r){ return [r.Forecast_name,r.Region,r.SubRegion,r.Country,r.channe
 /* ---------------- SQL Server (AA) connect + ingestion pipeline ---------------- */
 function openSQL(){ document.getElementById('sqlModal').classList.add('show'); }
 function closeSQL(){ document.getElementById('sqlModal').classList.remove('show'); }
-// Mockup: the exported table stands in for the live query. Fetch = ingest the file, tagged as a SQL source.
-function sqlFetch(){ window._pendingSrc='sql'; closeSQL(); document.getElementById('fileWeekly').click(); }
+// Live: pull the weekly table from the local FastAPI backend (/api/data), which queries SQL Server.
+async function sqlFetch(){
+  closeSQL();
+  const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:8000':'';
+  window.SRC='sql';
+  const fs=document.getElementById('fileStatus');
+  if(fs) fs.textContent='Querying SQL Server (AA) …';
+  renderPipe({source:'sql'});
+  try{
+    const r=await fetch(API_BASE+'/api/data');
+    if(!r.ok){ let d; try{ d=(await r.json()).detail; }catch(_){ d=r.statusText; } throw new Error(d||('HTTP '+r.status)); }
+    const j=await r.json(); const rows=j.rows||[];
+    if(!rows.length) throw new Error('query returned 0 rows');
+    ROWS=rows;
+    if(fs) fs.innerHTML='🗄 <b>SQL Server (AA)</b> · '+((j.table)||'dbo.Input_To_ML')+' — '+rows.length.toLocaleString()+' rows';
+    document.getElementById('emptyState').style.display='none';
+    document.getElementById('consoleArea').style.display='block';
+    renderPipe({source:'sql', rows:rows.length});
+    buildFilters(); applyAndScan();
+  }catch(e){
+    if(fs) fs.textContent='SQL error: '+e.message; renderPipe({source:'sql'});
+    alert('Connect to SQL Server failed: '+e.message+'\n\nStart the local backend first:\n  cd backend\n  uvicorn sql_backend:app --port 8000\n\n(connection is configured in backend/config.json)');
+  }
+}
 function pstage(cls,icon,title,val){ return `<div class="pstage ${cls}"><div class="pi">${icon}</div><div class="pt">${title}</div><div class="pv">${val}</div></div>`; }
 // Visualises the full path: source → ingest → compute (2 metrics) → flag (±band) → RCA. Fills as data flows.
 function renderPipe(st){

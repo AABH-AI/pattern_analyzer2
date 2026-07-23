@@ -1,0 +1,16 @@
+{
+  "_comment": "Copy this file to config.json and fill in your SQL Server details. config.json is gitignored so credentials never get committed.",
+  "sql": {
+    "server": "YOUR_SERVER\\INSTANCE   or   host,1433",
+    "database": "YOUR_DATABASE",
+    "table": "dbo.Input_To_ML",
+    "auth": "windows",
+    "username": "",
+    "password": "",
+    "driver": "ODBC Driver 17 for SQL Server",
+    "encrypt": true,
+    "trust_server_certificate": true,
+    "timeout": 30
+  },
+  "excel_path": "C:\\Users\\arnav.bhargava\\Downloads\\Input_To_ML_20260706110242.csv.xlsx"
+}
