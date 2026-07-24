@@ -42,7 +42,9 @@ Connection lives in `backend/config.json` (gitignored) or `SQL_*` env vars. Fiel
 `server, database, table, auth ("sql"|"windows"), username, password, driver, encrypt, trust_server_certificate`.
 
 **Data source used in this project:** SQL Server `10.10.9.75` → database **`Playground`** → table
-**`dbo.Input_To_ML`** (138,775 rows, 33 columns). Load it once from the Excel with:
+**`dbo.Input_To_ML`** (**66,612 rows, 33 columns** — truncated to FY2025–2027). The loader keeps only
+Fiscal_Week 202500–202799 via config `min_fiscal_week`/`max_fiscal_week` (or `--min-week`/`--max-week`);
+remove them to load all years. Load it from the Excel with:
 ```
 python backend/upload_excel_to_sql.py --dry-run    # verify parsing, no DB
 python backend/upload_excel_to_sql.py              # create table + load all rows

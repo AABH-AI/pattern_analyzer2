@@ -107,3 +107,10 @@ Requested → delivered:
 2. **Persisted the cut in the loader** — added a Fiscal_Week range filter to `upload_excel_to_sql.py` (`--min-week`/`--max-week` + config `min_fiscal_week`/`max_fiscal_week`). `config.json` set to 202500–202799 (password untouched); `config.example.json` documents it. So re-running the loader stays truncated.
 
 Verification: SQL `COUNT(*)` after = 66,612; loader `py_compile` OK; dry-run filter kept 66,612 of 138,775.
+
+---
+
+## Session 12 — 2026-07-24 · Confirm + IMP_DOCS refresh
+Requested → delivered:
+1. **Confirmed everything**: SQL = **66,612 rows, Fiscal_Week 202501–202752 (FY2025–2027)**; backend `/api/health` returns `configured:true`.
+2. **Refreshed IMP_DOCS** to the current state: `design-choice.md` (data scope 66,612 + loader filter + a "Sessions 7–11" summary), `handoff.md` (state of play, files table incl. run scripts + AI runbook, row count), `TODO.md` (sessions 7–11 Done block), `AGENTS.md` (row count/scope + loader filter).

@@ -73,8 +73,17 @@ Merged clean (merge commit `babf5a1`); both feature sets kept. Shivam's addition
 - **Definitions & Formulas tab** updated to the signed formula + deviation-spread bands.
 > Note: a couple of legacy "Plan Adherence" strings remain in the UI (a notes-card line and a code comment) — cosmetic; the computed metric and its ⓘ modal are "Forecast Adherence".
 
+## Sessions 7–11 — dashboard filters, Fiscal-Week popup, run tooling, data scope
+- **Dashboard dropdown filters** (Region, Sub-Region, Country, Channel, Offering, Forecaster, Projection plan) drive the same scan engine, so the graphs recompute the affected/flagged queues for the selection.
+- **Fiscal Week — typeable (Excel-style)**: a datalist type-ahead over all weeks; accepts exact / partial (`2024`) / comma list / range (`202401-202410`).
+- **Affected-queues popup**: selecting a Fiscal Week (Enter / pick) opens a modal listing the **real flagged forecast names** for that week (name · week · signed adherence · band · direction), straight from `FLAGS` — no fabrication. An **ⓘ** button explains it.
+- **"Forecast names by adherence band" chart**: every name bucketed by its worst week's |Forecast Adherence| into ≤±5 / ±5–10 / ±10–15 / ±15–20 / ±20–25 / >±25 (companion to the all-weeks spread).
+- **Data-ingestion loading screen**: a 6-step overlay (read → parse → build → compute → flag → render) on both the file and SQL paths.
+- **Run tooling**: `run.ps1` / `run.sh` one-command setup+run; `AGENTS.md` + `CLAUDE.md` so any AI/human can install and run (SQL included).
+- **Data scope**: truncated to **FY2025–2027 (66,612 rows)**; the loader keeps it truncated on reload.
+
 ## SQL table & data types (`Playground.dbo.Input_To_ML`)
-Loaded from the weekly Excel by `backend/upload_excel_to_sql.py`. **33 columns · 138,775 rows.**
+Loaded from the weekly Excel by `backend/upload_excel_to_sql.py`. **33 columns · 66,612 rows** (Fiscal_Week **202501–202752 = FY2025–2027**; 2022–2024 and 2028–2029 were truncated). The loader persists this cut via a Fiscal_Week range filter — config `min_fiscal_week`/`max_fiscal_week` (202500–202799) or `--min-week`/`--max-week`; remove them to load all years.
 - `Fiscal_Week` — **BIGINT** · `Week_Ending` — **DATE**
 - **Dimensions (NVARCHAR):** Region, SubRegion, Country, Forecast_name, Forecaster, Offering, Projection_plan_name, channel, business_org, Volume_Category
 - **Measures (FLOAT):** Actual_Offered, Actual_Handled, fcst_offered, fcst_handled, Planned_ASU, Actual_ASU, Final_Units, Final_Y5…Final_Y1, Final_upp_units, Holiday_Count, Monday…Sunday

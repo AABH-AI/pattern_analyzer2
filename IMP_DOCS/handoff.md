@@ -13,6 +13,8 @@ A single-file, dependency-free HTML tool ("Demand Pattern RCA Agent — Console"
 | `IMP_DOCS/` | This documentation set. |
 | `backend/` | FastAPI + pyODBC SQL connector (`sql_backend.py`) + Excel→SQL loader (`upload_excel_to_sql.py`). Powers the live "Connect to SQL Server (AA)". |
 | `DEPLOY.md` · `docker-compose.yml` · `backend/Dockerfile` | Always-on internal-server hosting (Docker / Windows-service / systemd). |
+| `run.ps1` · `run.sh` | One-command setup + run (installs deps, seeds config, starts backend). |
+| `AGENTS.md` · `CLAUDE.md` | Runbook for any AI/human — what it is, run paths, SQL setup, guardrails. |
 
 > The Excel input (`Input_To_ML_*.xlsx`) is intentionally **not** in this folder. Point the tool at your own copy via the upload button.
 
@@ -42,8 +44,11 @@ A single-file, dependency-free HTML tool ("Demand Pattern RCA Agent — Console"
 ## State of play (2026-07-24)
 - **Merged `shivam-updates` into main** (clean, merge `babf5a1`): **"Plan Adherence" → "Forecast Adherence"** (now signed), dashboard deviation colour-bands, flagged-% KPI, right-side **Insights drawer**, and an **agentic deep-dive / exploration-trace** panel. His dashboard work + our SQL/timeline work are both in main; his branch left untouched (0 ahead of main).
 - **Timeline** is now **10 steps** (added "RCA output — report per queue"); the build Gantt **auto-sets "today" from the PC clock** and is light-only.
+- **Dashboard** gained: dropdown filters + a **typeable Excel-style Fiscal Week** field; an **affected-queues popup** (real flagged names for the selected week) with an **ⓘ** hint; a **"Forecast names by adherence band"** chart (≤±5…>±25); and a **6-step data-ingestion loading screen** (file + SQL).
+- **Data scope truncated to FY2025–2027 (66,612 rows)**; the loader keeps it truncated via a Fiscal_Week range filter.
+- **Run tooling added**: `run.ps1` / `run.sh` (one-command setup+run) and `AGENTS.md` + `CLAUDE.md` (AI/human runbook, SQL included).
 - **Done & verified:** schema lock, two-metric engine (calc fixed), file ingestion, Data Volumetrics + Dashboard, and **live SQL Server (AA) connection** (P6).
-- **SQL is live:** a FastAPI + pyODBC backend (`backend/`) queries SQL Server; the console's "Connect to SQL Server (AA)" button pulls it via `GET /api/data`. Full **138,775-row** table loaded into `Playground.dbo.Input_To_ML`. Hosting is packaged (Docker / Windows-service / systemd) — see `DEPLOY.md` and `IMP_DOCS/installation-and-connection.md`.
+- **SQL is live:** a FastAPI + pyODBC backend (`backend/`) queries SQL Server; the console's "Connect to SQL Server (AA)" button pulls it via `GET /api/data`. Table loaded into `Playground.dbo.Input_To_ML` (**66,612 rows, FY2025–2027** after truncation). Hosting is packaged (Docker / Windows-service / systemd) — see `DEPLOY.md` and `IMP_DOCS/installation-and-connection.md`.
 - **In progress:** P4 — multi-queue scan → top-N → **printable Phase-1 digest** (main remaining build).
 - **To do:** P7 validation with Prashant/SME + band tuning; P8 demo packaging + dry run; P9 presentation (30 Jul).
 

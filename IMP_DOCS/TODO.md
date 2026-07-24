@@ -28,6 +28,15 @@ Deploy **30 Jul 2026** · last dev day **29 Jul**. Ordered by priority.
 - [ ] RAG over the probing KB to auto-surface known causes on matching queues.
 - [ ] Let confirmed KB rules feed back into flag suppression / re-flagging.
 
+## Done ✓ (2026-07-24, sessions 7–11 — dashboard filters, popup, run tooling, data scope)
+- [x] Dashboard **dropdown filters** (Region…Projection plan) driving the scan engine → affected/flagged queues per selection
+- [x] **Fiscal Week — typeable (Excel-style)** (exact / partial / comma / range) with datalist type-ahead
+- [x] **Affected-queues popup** on Fiscal Week select — real flagged names (name·week·signed adherence·band·direction), no fabrication; **ⓘ** hint button
+- [x] **"Forecast names by adherence band"** chart (≤±5 / ±5–10 / ±10–15 / ±15–20 / ±20–25 / >±25); renamed the all-weeks spread
+- [x] **Data-ingestion loading screen** (6-step overlay, file + SQL paths)
+- [x] **run.ps1 / run.sh** one-command runner; **AGENTS.md / CLAUDE.md** AI runbook
+- [x] **Truncated data to FY2025–2027** (138,775 → 66,612 rows) + loader Fiscal_Week filter so reloads stay truncated
+
 ## Done ✓ (2026-07-24, session 6 — merge Shivam's dashboard + timeline polish)
 - [x] Merged `origin/shivam-updates` into main (clean, merge `babf5a1`) — both feature sets intact; his branch left untouched (0 ahead of main)
 - [x] **"Plan Adherence" → "Forecast Adherence"**, now **signed** (− = actual above forecast, + = below); flag on **|Forecast Adherence| > band**
