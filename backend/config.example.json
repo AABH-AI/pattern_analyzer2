@@ -12,5 +12,18 @@
     "trust_server_certificate": true,
     "timeout": 30
   },
-  "excel_path": "C:\\Users\\arnav.bhargava\\Downloads\\Input_To_ML_20260706110242.csv.xlsx"
+  "excel_path": "C:\\Users\\arnav.bhargava\\Downloads\\Input_To_ML_20260706110242.csv.xlsx",
+  "llm": {
+    "_comment": "LLM Investigation Engine. Leave api_key blank on both slots to get an honest placeholder (no fabricated conclusions). primary is tried first (NVIDIA); secondary is the fallback (Groq) used only if primary isn't configured or its call fails. model is optional — a sensible default is used if blank. Swap the two objects below (or the provider names) to change priority.",
+    "primary": {
+      "provider": "nvidia",
+      "api_key": "",
+      "model": "meta/llama-3.1-70b-instruct"
+    },
+    "secondary": {
+      "provider": "groq",
+      "api_key": "",
+      "model": "llama-3.3-70b-versatile"
+    }
+  }
 }

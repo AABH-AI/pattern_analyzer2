@@ -311,20 +311,39 @@
   .pill{font-size:11px;background:var(--panel-2);border:1px solid var(--border);border-radius:999px;padding:3px 9px;cursor:pointer;color:var(--muted);}
   .pill:hover{border-color:var(--accent);color:var(--accent);}
 
-  /* ===== RCA deep-dive: agentic exploration trace ===== */
-  .rca-cap{font-size:11.5px;color:var(--muted);margin:2px 0 10px;line-height:1.5;}
-  .rca-trace{margin-top:6px;display:flex;flex-direction:column;gap:10px;}
-  .trace-step{opacity:0;transform:translateY(6px);transition:opacity .25s ease,transform .25s ease;background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;}
-  .trace-step.show{opacity:1;transform:translateY(0);}
-  .ts-h{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;}
-  .ts-i{font-size:14px;}
-  .ts-spin{margin-left:auto;color:var(--muted);font-weight:600;animation:tsPulse 1s infinite;}
-  @keyframes tsPulse{0%,100%{opacity:.3;}50%{opacity:1;}}
-  .ts-b{font-size:12.5px;color:var(--text);margin-top:6px;line-height:1.55;}
-  .disc-item{padding:4px 0;border-top:1px dashed var(--border);}
-  .disc-item:first-child{border-top:none;}
-  .mem-hit{background:rgba(18,152,111,.08);border:1px solid rgba(18,152,111,.25);border-radius:8px;padding:8px 10px;margin-bottom:6px;}
-  .rca-confirm{background:var(--panel-2);border:1px dashed var(--border);border-radius:10px;padding:12px;margin-top:2px;}
+  /* ===== Root-Cause Investigation report ===== */
+  .inv-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;}
+  .inv-kv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;}
+  @media (max-width:600px){.inv-kv-grid{grid-template-columns:repeat(2,1fr);}}
+  .inv-kv-grid .kvi{background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;}
+  .inv-kv-grid .kvi .l{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;}
+  .inv-kv-grid .kvi .v{font-size:13.5px;font-weight:800;margin-top:2px;}
+  .inv-sec{background:var(--panel);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden;}
+  .inv-sec summary{cursor:pointer;padding:10px 14px;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--text);list-style:none;display:flex;justify-content:space-between;align-items:center;}
+  .inv-sec summary::-webkit-details-marker{display:none;}
+  .inv-sec summary::after{content:'▾';color:var(--muted);font-size:11px;transition:transform .15s;}
+  .inv-sec[open] summary::after{transform:rotate(180deg);}
+  .inv-sec .body{padding:2px 14px 14px;font-size:12.5px;color:var(--text);}
+  .inv-findings{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;}
+  .inv-findings li{padding:8px 10px;background:var(--panel-2);border-left:3px solid var(--accent);border-radius:6px;}
+  .rc-card{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--panel-2);}
+  .rc-card.primary{border-left:4px solid var(--accent-2);}
+  .rc-card.secondary{border-left:4px solid var(--accent);}
+  .rc-conf{height:6px;background:var(--border);border-radius:99px;overflow:hidden;margin:8px 0 3px;}
+  .rc-conf-fill{height:100%;background:var(--accent-2);}
+  .ev-chip{display:inline-block;font-size:11px;background:rgba(45,108,223,.09);border:1px solid rgba(45,108,223,.25);color:var(--accent);border-radius:999px;padding:3px 9px;margin:6px 4px 0 0;}
+  .rej-item{padding:8px 0;border-top:1px dashed var(--border);}
+  .rej-item:first-child{border-top:none;}
+  .rej-item .h{font-weight:700;color:var(--text);}
+  .rej-item .r{color:var(--muted);font-size:11.5px;margin-top:2px;}
+  .inv-empty{color:var(--muted);font-size:12px;font-style:italic;padding:6px 0;}
+  .inv-conf-meter{display:flex;align-items:center;gap:10px;}
+  .inv-conf-meter .bar{flex:1;height:10px;background:var(--panel-2);border:1px solid var(--border);border-radius:99px;overflow:hidden;}
+  .inv-conf-meter .fill{height:100%;background:var(--accent-2);}
+  .inv-meta{font-size:10.5px;color:var(--muted);margin-top:2px;padding-top:10px;border-top:1px dashed var(--border);}
+  .inv-badge{font-size:9.5px;font-weight:800;padding:3px 8px;border-radius:5px;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;}
+  .inv-badge.placeholder{background:rgba(201,106,16,.12);color:var(--warn);border:1px solid rgba(201,106,16,.3);}
+  .inv-badge.llm{background:rgba(18,152,111,.12);color:var(--accent-2);border:1px solid rgba(18,152,111,.3);}
 
   table.def{width:100%;border-collapse:collapse;font-size:12.5px;}
   table.def th,table.def td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
@@ -366,8 +385,10 @@
       <button class="filebtn map" onclick="document.getElementById('fileMap').click()">⬆ Upload CQN mapping</button>
       <span class="status" id="fileStatus">No file loaded.</span>
       <span id="mapBadge"></span>
-      <input id="focusInput" style="flex:1;min-width:220px;max-width:420px;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--text);background:var(--panel-2)" placeholder="Test specific Forecast_name(s) — comma-separated" onkeydown="if(event.key==='Enter')applyFocus()">
+      <input id="focusInput" list="fnList" style="flex:1;min-width:220px;max-width:420px;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--text);background:var(--panel-2)" placeholder="Test specific Forecast_name(s) — comma-separated, or start typing to browse" onkeydown="if(event.key==='Enter')applyFocus()">
+      <datalist id="fnList"></datalist>
       <button class="filebtn ghost" onclick="applyFocus()">Test these</button>
+      <button class="filebtn ghost" onclick="pickRandomQueue()" title="Jump to a random Forecast_name from the loaded data — no need to know its name">🎲 Random queue</button>
       <button class="filebtn ghost" onclick="clearFocus()" title="Clear the Forecast_name test box">✕ Clear</button>
       <label class="band">Accuracy band ±<input type="number" id="band" value="10" min="1" max="50" onchange="if(ROWS.length)applyAndScan()">%</label>
     </div>
@@ -793,6 +814,15 @@ function applyFocus(){
   if(ROWS.length) applyAndScan();
 }
 function clearFocus(){ document.getElementById('focusInput').value=''; FOCUS=new Set(); if(ROWS.length) applyAndScan(); }
+// One click to any queue in the loaded data — no need to know or type an exact Forecast_name.
+function pickRandomQueue(){
+  if(!ROWS.length){ alert('Load data first.'); return; }
+  const names=[...new Set(ROWS.map(r=>r.Forecast_name).filter(Boolean))];
+  if(!names.length) return;
+  const pick=names[Math.floor(Math.random()*names.length)];
+  document.getElementById('focusInput').value=pick;
+  applyFocus();
+}
 const FILTER_FIELDS=[
   ['Fiscal_Week','Fiscal Week'],
   ['Region','Region'],
@@ -933,6 +963,10 @@ function buildFilters(){
         </div>
       </div>`;
     host.appendChild(g);
+    if(field==='Forecast_name'){
+      const dl=document.getElementById('fnList');
+      if(dl) dl.innerHTML=vals.map(v=>`<option value="${v.replace(/"/g,'&quot;')}">`).join('');
+    }
   });
 }
 function filterSearch(field,q){ q=q.toLowerCase(); document.querySelectorAll('#fopts-'+field+' .fopt').forEach(el=>{ el.style.display=el.getAttribute('data-v').toLowerCase().includes(q)?'flex':'none'; }); }
@@ -1357,7 +1391,7 @@ function buildFindings(r){
     s:(r._padh!=null&&Math.abs(r._padh)<=band)?'info':'hit',
     b:noActual?`<b>Forecast adherence — blank.</b> No Actual_Offered for this week (formula returns "").`
        :r._noF?`<b>Forecast adherence — N/A.</b> fcst_offered is zero/blank → division undefined.`
-       :`<b>Forecast adherence = ${r._padh.toFixed(1)}%</b> deviation from forecast (0% = perfect; negative = actual ran above forecast, positive = actual ran below forecast).`,
+       :`<b>Forecast adherence = ${r._padh.toFixed(1)}%</b> deviation from forecast (0% = perfect; negative = actual ran above forecast/under-forecast, positive = actual ran below forecast/over-forecast).`,
     m:{title:'Forecast Adherence',
        formula:'Forecast Adherence = (1 − (Actual offered / forecast offered (Simple))) × 100',
        values:[`Actual_Offered = ${noActual?'(blank)':A}`,`forecast offered (Simple) = ${r._noF?'0 / blank':fmt2(F)}`],
@@ -1386,9 +1420,9 @@ function selectFlag(i){
     <div class="subhead">Inputs used (from file)</div>
     <div class="kv"><span class="k">Actual_Offered</span><span class="val">${r.Actual_Offered===''?'(blank)':(r._ao!=null?r._ao.toLocaleString():r.Actual_Offered)}</span></div>
     <div class="kv"><span class="k">forecast offered (Simple)</span><span class="val">${r._fo!=null?fmt2(r._fo):(r.fcst_offered||'(blank)')}</span></div>
-    <div class="subhead">Root-Cause Analysis <span style="text-transform:none;font-weight:500;color:var(--muted)">(agentic exploration — beta)</span></div>
-    <div class="rca-cap">Explores <b>this queue's own numbers</b> — trend, sibling queues in the same CQN, cross-dimension patterns, and prior confirmed causes. The two metrics above never change; anything found here is either a re-sum of Actual_Offered/fcst_offered (traceable) or a <b>discovery-tier</b> statistical pattern, clearly marked <span class="chip amber" style="vertical-align:1px;">unconfirmed</span> until a human confirms it.</div>
-    <div id="rcaPanel"><button class="filebtn" onclick="runRCA(${i})">🔬 Run RCA Analysis</button></div>
+    <div class="subhead">Root-Cause Investigation</div>
+    <div class="rca-cap">Gathers every available field for this queue — target week, history, and CQN peers — and hands it to the LLM Investigation Engine to reason freely: generate hypotheses, weigh evidence, reject what isn't supported, and rank what's left. Nothing here is a fixed rule checklist.</div>
+    <div id="investigationPanel"><button class="filebtn" onclick="triggerRCA(${i})">🔎 Investigate Root Cause</button></div>
   `;
 }
 
@@ -1405,176 +1439,326 @@ function showMath(idx){
 }
 function closeMath(){ document.getElementById('mathModal').classList.remove('show'); }
 
-/* ---------------- RCA deep-dive: agentic exploration + discovery + memory ----------------
-   Everything below is either (a) a re-sum/comparison of the SAME two confirmed inputs
-   (Actual_Offered, fcst_offered) already used by the two sanctioned metrics, traceable to
-   real rows — or (b) explicitly labeled "discovery / unconfirmed": a plain statistical
-   observation (flagged-rate lift) shown with its raw supporting counts, never presented as
-   a scored cause, never blended into the two confirmed metrics above. Memory only re-uses a
-   past confirmed cause after re-checking it against the CURRENT queue's own data. */
-const rcaEsc=s=>String(s==null?'':s).replace(/</g,'&lt;');
-const rcaAttr=s=>String(s==null?'':s).replace(/"/g,'&quot;');
-function siblingKeyOf(r){ return [r.Region,r.SubRegion,r.Country,r.channel].map(x=>x||'').join('|'); }
+/* ================================================================================
+   ROOT-CAUSE INVESTIGATION — modular per the spec: RCA Trigger, Data Aggregator,
+   Context Builder, LLM Investigation Engine (client-side caller; the engine itself
+   lives server-side in backend/rca_investigate.py), RCA Formatter, UI Renderer.
+   None of these modules decide a cause — that is the LLM's job alone, done from the
+   generic bundle below. Nothing here hardcodes which columns matter; every field the
+   source file happens to have is picked up automatically. ================================ */
 
-// WHEN — is this queue's flagged week an isolated spike, or part of a run? Reads the
-// per-week series already computed in applyAndScan (r._group), nothing new is computed.
-function computeWhen(r){
+/* ---- Data Aggregator — collects target/history/peers with ALL raw columns, generically ---- */
+const RCA_HISTORY_CAP=12;   // token-budget cap on how many prior weeks are sent, not a business rule about what counts as evidence
+const RCA_PEERS_CAP=15;     // same — a technical cap on payload size, not a judgment about which peers matter
+function rawFields(r){ const o={}; Object.keys(r).forEach(k=>{ if(!k.startsWith('_')) o[k]=r[k]; }); return o; }
+// Peer-grouping key = the client's own CONFIRMED CQN definition (Forecast_name + Region +
+// SubRegion + Country + Channel — Forecast_name held fixed, these four vary). This is a
+// named business concept the client signed off on, not an invented rule — but it IS a
+// fixed set of column names, so a different client/dataset without these exact columns
+// would need this constant adjusted (the field-CONTENT gathering above has no such limit).
+function cqnDimsKey(r){ return [r.Region,r.SubRegion,r.Country,r.channel].map(x=>x||'').join('|'); }
+function rcaComputedBlock(r){
   const band=num(document.getElementById('band').value)||10;
-  const grp=(r._group||[r]).filter(x=>x._padh!=null);
-  const idx=Math.max(0,grp.findIndex(x=>x===r));
-  const dir=x=>(x._ao>x._fo?'under':'over');
-  const recent=grp.slice(Math.max(0,idx-4), idx+1);
-  const sameDirFlagged=recent.filter(x=>dir(x)===dir(r) && Math.abs(+x._padh.toFixed(1))>band);
-  const isPersistent=recent.length>2 && sameDirFlagged.length>=3;
-  const label = recent.length<=1
-    ? `Only one computable week is available for this queue in the current scope — no trend to compare yet.`
-    : isPersistent
-      ? `<b>Persistent ${dir(r)}-forecast.</b> ${sameDirFlagged.length} of the last ${recent.length} computable weeks for this queue ran ${dir(r)} and outside the ±${band}% band — looks like a trend, not a one-off.`
-      : `<b>Isolated week.</b> This is the only flagged week for this queue in its last ${recent.length} computable weeks — not part of a run.`;
-  return {weeks:recent, isPersistent, direction:dir(r), label};
-}
-
-// WHERE (sibling-shift) — the documented primary pattern: does a sibling Forecast_name
-// sharing Region+SubRegion+Country+Channel move the opposite direction the same week?
-function computeSiblingShift(r, scopeRows){
-  const sk=siblingKeyOf(r);
-  const gapOf=x=>x._ao-x._fo;
-  const rGap=gapOf(r);
-  const siblings=scopeRows.filter(x=>x!==r && x._wk===r._wk && x._fo!=null && x._fo>0 && x._ao!=null
-    && x.Forecast_name!==r.Forecast_name && siblingKeyOf(x)===sk);
-  const candidates=siblings.map(x=>({name:x.Forecast_name, gap:gapOf(x), acc:x._acc, padh:x._padh}))
-    .filter(x=>x.gap!==0 && Math.sign(x.gap)!==Math.sign(rGap))
-    .sort((a,b)=>Math.abs(b.gap)-Math.abs(a.gap));
-  const top=candidates[0];
-  const label = top
-    ? `<b>Candidate sibling: ${rcaEsc(top.name)}.</b> Same Region/SubRegion/Country/Channel, same fiscal week, ran ${top.gap>0?'over':'under'} forecast — the opposite direction to this queue. Consistent with the documented volume-shift pattern between sibling queues (not yet confirmed).`
-    : siblings.length
-      ? `${siblings.length} sibling(s) share this queue's Region/SubRegion/Country/Channel this week, but none moved in the opposite direction — doesn't look like a routing shift.`
-      : `No sibling Forecast_name found sharing Region/SubRegion/Country/Channel in this fiscal week within the current scope.`;
-  return {found:!!top, top, siblingCount:siblings.length, label};
-}
-
-// Discovery tier — plain flagged-rate lift across every candidate column, computed
-// transparently with raw counts. No score/threshold is asserted as a "cause"; each result
-// is shown for human review only, per the client's no-invented-formula rule.
-function computeDiscovery(r, scopeRows){
-  const band=num(document.getElementById('band').value)||10;
-  const computable=scopeRows.filter(x=>x._padh!=null);
-  if(computable.length<40) return [];
-  const isFlagged=x=>Math.abs(+x._padh.toFixed(1))>band;
-  const candidates=[];
-  const MIN_GROUP=8;
-  const pushCandidate=(dim,value,groupA,groupB)=>{
-    if(groupA.length<MIN_GROUP||groupB.length<MIN_GROUP) return;
-    const rateA=groupA.filter(isFlagged).length/groupA.length, rateB=groupB.filter(isFlagged).length/groupB.length;
-    if(rateB<=0 && rateA<=0) return;
-    const lift=rateB>0?rateA/rateB:Infinity;
-    if(!isFinite(lift)) return;
-    candidates.push({dim,value,nA:groupA.length,rateA,rateB,lift});
+  const padh=r._padh;
+  const direction = padh==null ? null : (padh<0?'under':'over');   // negative = actual ran above forecast (under-forecast)
+  // Severity is expressed purely as a multiple of the ONE client-confirmed threshold
+  // (band) — deliberately not a second, unconfirmed cutoff (e.g. a hand-picked "25% =
+  // critical"). No new number is invented; this is exactly |deviation| ÷ band.
+  const severity = (padh==null||!band) ? null : +(Math.abs(padh)/band).toFixed(1);
+  return {
+    forecast:r._fo, actual:r._ao,
+    error:(r._ao!=null&&r._fo!=null)?(r._ao-r._fo):null,
+    adherence_pct:padh, accuracy_pct:r._acc,
+    direction, severity   // e.g. 2.2 = the miss is 2.2x the configured band
   };
-  [['Offering','Offering'],['business_org','Business org'],['Forecaster','Forecaster'],['channel','Channel'],
-   ['Region','Region'],['SubRegion','Sub-Region'],['Country','Country'],['Volume_Category','Volume category']]
-    .forEach(([f,label])=>{
-      const rv=r[f]; if(rv==null||rv==='') return;
-      pushCandidate(label, rv, computable.filter(x=>String(x[f])===String(rv)), computable.filter(x=>String(x[f])!==String(rv)));
-    });
-  if(r.Holiday_Count!=null && r.Holiday_Count!==''){
-    // Binary condition, so (unlike the categorical dims above) show whichever side actually
-    // has the higher flagged rate as the headline value — reads more intuitively than always
-    // anchoring on r's own side even when the OTHER side is where the pattern really is.
-    const isHol=x=>(num(x.Holiday_Count)||0)>0;
-    const holG=computable.filter(isHol), nonHolG=computable.filter(x=>!isHol(x));
-    if(holG.length>=MIN_GROUP && nonHolG.length>=MIN_GROUP){
-      const holRate=holG.filter(isFlagged).length/holG.length, nonRate=nonHolG.filter(isFlagged).length/nonHolG.length;
-      if(holRate>=nonRate) pushCandidate('Calendar','Holiday week (Holiday_Count>0)',holG,nonHolG);
-      else pushCandidate('Calendar','Non-holiday week',nonHolG,holG);
+}
+function rcaEntry(r){ return {key:{Forecast_name:r.Forecast_name,Fiscal_Week:r._wk}, fields:rawFields(r), computed:rcaComputedBlock(r)}; }
+// A row fetched fresh from SQL (via /api/queue-context) doesn't have the _ao/_fo/_padh/etc.
+// fields applyAndScan() computes for in-browser rows — derive the same few here so
+// SQL-fetched rows and already-scanned rows produce identical rcaEntry() shapes.
+function hydrateSqlRow(raw){
+  const ao=num(raw.Actual_Offered), fo=num(raw.fcst_offered);
+  const padh=(raw.Actual_Offered===''||ao==null)? null : ((fo!=null&&fo>0)? (1-(ao/fo))*100 : null);
+  return Object.assign({}, raw, {
+    _ao:ao, _fo:fo, _acc:(ao!=null&&fo!=null&&fo>0)?ao/fo*100:null, _padh:padh,
+    _wk:String(raw.Fiscal_Week||''), _noF:(ao!=null&&(fo==null||fo<=0))
+  });
+}
+// Data Aggregator — SQL mode queries the server directly for just this queue's own row +
+// history + CQN peers (the "only that queue's data" ask, now a real scoped query, not a
+// client-side filter over the whole preloaded table). File-upload mode has no SQL
+// connection to query and falls back to filtering the in-browser rows, as before; the SQL
+// path also falls back to that if the scoped query fails for any reason.
+async function aggregateData(r){
+  if(window.SRC==='sql'){
+    try{
+      const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:8000':'';
+      const qs=new URLSearchParams({forecast_name:r.Forecast_name||'', fiscal_week:r._wk||'',
+        region:r.Region||'', subregion:r.SubRegion||'', country:r.Country||'', channel:r.channel||'',
+        history_cap:RCA_HISTORY_CAP, peers_cap:RCA_PEERS_CAP});
+      const resp=await fetch(API_BASE+'/api/queue-context?'+qs.toString());
+      if(!resp.ok){ let d; try{ d=(await resp.json()).detail; }catch(_){ d=resp.statusText; } throw new Error(d||('HTTP '+resp.status)); }
+      const data=await resp.json();
+      const target=data.target_row? hydrateSqlRow(data.target_row) : r;
+      const history=(data.history_rows||[]).map(hydrateSqlRow);
+      const peers=(data.peer_rows||[]).map(hydrateSqlRow);
+      return { target:rcaEntry(target), history:history.map(rcaEntry), peers:peers.map(rcaEntry) };
+    }catch(e){
+      console.warn('queue-context SQL fetch failed, falling back to in-browser filtering:', e.message);
     }
   }
-  return candidates.sort((a,b)=>Math.abs(b.lift-1)-Math.abs(a.lift-1)).slice(0,4);
-}
-
-// Memory / KB — extends the existing localStorage KB with confirmed-cause records keyed by
-// a signature (real dimension values + pattern label). Re-used only as a PRIOR: the caller
-// still re-checks the pattern against the current queue's live data before trusting it.
-function rcaSignature(r,patternLabel){ return {Region:r.Region||'',SubRegion:r.SubRegion||'',Country:r.Country||'',channel:r.channel||'',Offering:r.Offering||'',pattern:patternLabel||''}; }
-function sigScore(a,b){ if(!a||!b) return 0; let s=0; ['Region','SubRegion','Country','channel','Offering','pattern'].forEach(k=>{ if(a[k]&&b[k]&&a[k]===b[k]) s++; }); return s; }
-function searchMemory(sig){
-  return KB.filter(k=>k.confirmed&&k.sig).map(k=>({entry:k,score:sigScore(sig,k.sig)})).filter(h=>h.score>=2).sort((a,b)=>b.score-a.score).slice(0,2);
-}
-function confirmRCACause(i,patternLabel){
-  const r=FLAGS[i]; if(!r) return;
-  const box=document.getElementById('rcaCauseInput');
-  const cause=(box?box.value.trim():'');
-  if(!cause){ alert('Describe the confirmed cause first.'); return; }
-  KB.push({q:'(confirmed RCA cause)',a:cause,cat:'Confirmed cause',ctx:window.CUR_CTX||'',ts:new Date().toISOString(),sig:rcaSignature(r,patternLabel),confirmed:true});
-  localStorage.setItem('rca_kb',JSON.stringify(KB));
-  renderProbe();
-  const btn=box&&box.closest('.rca-confirm')&&box.closest('.rca-confirm').querySelector('button');
-  if(btn){ btn.textContent='✅ Saved to memory'; btn.disabled=true; }
-}
-
-// Narration — stitches the deterministic + discovery + memory results into prose. Every
-// figure quoted here traces to a value computed above; this is the stand-in for the future
-// on-prem LLaMA narration layer (same non-computing role the design already specifies).
-function narrateRCA(r,when,shift,discovery,memHits){
-  const band=num(document.getElementById('band').value)||10;
-  let p=`This queue's plan-adherence deviation is <b>${r._padh.toFixed(1)}%</b> (outside the ±${band}% band). ${when.label} ${shift.label}`;
-  if(discovery.length){
-    const d=discovery[0];
-    p+=` Discovery scan: rows where <b>${rcaEsc(d.dim)} = ${rcaEsc(d.value)}</b> are flagged <b>${(d.rateA*100).toFixed(0)}%</b> of the time vs ${(d.rateB*100).toFixed(0)}% otherwise (n=${d.nA}) — an unconfirmed statistical pattern, not a scored cause.`;
-  }
-  p+= memHits.length
-    ? ` Memory: matches a previously confirmed pattern — “${rcaEsc(memHits[0].entry.a)}” (confirmed ${new Date(memHits[0].entry.ts).toLocaleDateString()}).`
-    : ` Memory: no previously confirmed cause matches this signature yet — this would be a new pattern to confirm.`;
-  return p;
-}
-
-// Orchestrator — reveals each exploration step in sequence (simulates the agent's own
-// tool-calling trace). The PATH is identical in code for every queue, but which steps find
-// something — and what they find — comes from that queue's own numbers, so the output
-// differs per queue. Ends with a "confirm cause" action that feeds the memory loop.
-function runRCA(i){
-  const r=FLAGS[i]; if(!r) return;
+  const grp=(r._group||[r]);
+  const idx=Math.max(0, grp.indexOf(r));
+  const priorWeeks=grp.slice(Math.max(0,idx-RCA_HISTORY_CAP), idx);   // strictly before target, chronological
   const scope=window._lastRows||ROWS;
-  const host=document.getElementById('rcaPanel'); if(!host) return;
-  host.innerHTML=`<div class="rca-trace" id="rcaTrace"></div>`;
-  const traceEl=document.getElementById('rcaTrace');
-  const addStep=(icon,title,bodyFn)=>{
-    const div=document.createElement('div'); div.className='trace-step';
-    div.innerHTML=`<div class="ts-h"><span class="ts-i">${icon}</span><span class="ts-t">${title}</span><span class="ts-spin">thinking…</span></div><div class="ts-b"></div>`;
-    traceEl.appendChild(div);
-    requestAnimationFrame(()=>div.classList.add('show'));
-    return new Promise(res=>setTimeout(()=>{
-      const body=bodyFn();
-      const spin=div.querySelector('.ts-spin'); if(spin) spin.remove();
-      div.querySelector('.ts-b').innerHTML=body;
-      res();
-    },420));
+  const sk=cqnDimsKey(r);
+  const peers=scope.filter(x=>x!==r && x._wk===r._wk && x.Forecast_name!==r.Forecast_name && cqnDimsKey(x)===sk)
+    .map(rcaEntry).sort((a,b)=>Math.abs(b.computed.error||0)-Math.abs(a.computed.error||0)).slice(0,RCA_PEERS_CAP);
+  return { target:rcaEntry(r), history:priorWeeks.map(rcaEntry), peers };
+}
+
+/* ---- Context Builder — generic statistical summary over EVERY field discovered in
+   target ∪ history (auto-detects numeric vs categorical per field; no field list).
+   "Pattern deviations" (per the spec's Data Understanding list) is not a separate field
+   here — it's what `is_outlier` + `trend_slope` + `changed` TOGETHER let an LLM discover
+   on its own once connected. Materializing a hand-picked "pattern deviation" score would
+   mean deciding what counts as a pattern ourselves, which is exactly the kind of judgment
+   this feature hands to the model instead. ---- */
+function buildStatSummary(target, history){
+  const allKeys=new Set(Object.keys(target.fields));
+  history.forEach(h=>Object.keys(h.fields).forEach(k=>allKeys.add(k)));
+  const numeric={}, categorical={};
+  allKeys.forEach(k=>{
+    const histVals=history.map(h=>h.fields[k]).filter(v=>v!=null&&v!=='');
+    const targetRaw=target.fields[k];
+    const allVals=histVals.concat((targetRaw!=null&&targetRaw!=='')?[targetRaw]:[]);
+    const isNumeric=allVals.length>0 && allVals.every(v=>num(v)!=null);
+    if(isNumeric){
+      const histParsed=histVals.map(v=>num(v)).filter(v=>v!=null);
+      const n=histParsed.length;
+      const mean=n?histParsed.reduce((a,b)=>a+b,0)/n:null;
+      const variance=n>1?histParsed.reduce((a,b)=>a+(b-mean)*(b-mean),0)/(n-1):null;
+      const stdev=variance!=null?Math.sqrt(variance):null;
+      const tv=num(targetRaw);
+      const z=(tv!=null&&stdev!=null&&stdev>0)?(tv-mean)/stdev:null;
+      let slope=null;
+      if(n>=2){
+        const xm=(n-1)/2; let num_=0,den=0;
+        for(let i=0;i<n;i++){ num_+=(i-xm)*(histParsed[i]-mean); den+=(i-xm)*(i-xm); }
+        slope=den?num_/den:null;
+      }
+      numeric[k]={history_mean:mean,history_stdev:stdev,target_value:tv,z_score:z,is_outlier:z!=null?Math.abs(z)>2:null,trend_slope:slope,n};
+    } else if(allVals.length>0){
+      const priorVal=histVals.length?histVals[histVals.length-1]:null;
+      categorical[k]={target_value:(targetRaw!=null&&targetRaw!=='')?targetRaw:null, prior_value:priorVal,
+        changed:(targetRaw!=null&&priorVal!=null)?String(targetRaw)!==String(priorVal):null,
+        distinct_recent_values:[...new Set(histVals.map(String))].slice(0,10)};
+    }
+  });
+  return {numeric, categorical};
+}
+// History/peer rows keep only key+computed in the bundle actually sent to the model —
+// their full raw fields would just repeat, up to RCA_HISTORY_CAP+RCA_PEERS_CAP times, data
+// that buildStatSummary has already distilled generically (mean/stdev/z/trend/changed for
+// every field). Sending both blew past provider token limits (Groq: 413, "tokens per minute
+// limit exceeded") on real data. The TARGET row still gets its full raw fields — it's the
+// one row actually being explained, and nothing generic is lost since statistical_summary
+// still covers every field discovered across target ∪ history, not a curated subset.
+function slimEntry(e){ return {key:e.key, computed:e.computed}; }
+async function buildContext(r){
+  const band=num(document.getElementById('band').value)||10;
+  const agg=await aggregateData(r);
+  const stat=buildStatSummary(agg.target, agg.history);   // computed from FULL-fidelity history, before slimming
+  return {
+    meta:{band_threshold:band, generated_at:new Date().toISOString(),
+      schema_note:'Generic bundle — every column present in the source file is included automatically; nothing is hand-picked.'},
+    target:agg.target, history:agg.history.map(slimEntry), peers:agg.peers.map(slimEntry), statistical_summary:stat
   };
-  let when,shift,discovery,memHits,patternLabel;
-  (async()=>{
-    await addStep('📈','Check trend (WHEN) — this queue across recent weeks', ()=>{ when=computeWhen(r); return when.label; });
-    await addStep('🔀','Check siblings in the CQN (WHERE — volume-shift pattern)', ()=>{ shift=computeSiblingShift(r,scope); return shift.label; });
-    await addStep('🧬','Scan every dimension for correlated patterns (discovery)', ()=>{
-      discovery=computeDiscovery(r,scope);
-      return discovery.length
-        ? discovery.map(d=>`<div class="disc-item">${rcaEsc(d.dim)} = <b>${rcaEsc(d.value)}</b> → flagged <b>${(d.rateA*100).toFixed(0)}%</b> of the time vs ${(d.rateB*100).toFixed(0)}% baseline (n=${d.nA}) <span class="chip amber">unconfirmed</span></div>`).join('')
-        : '<i>Not enough rows in the current scope for a reliable pattern.</i>';
-    });
-    await addStep('🧠','Check memory for a previously confirmed cause', ()=>{
-      patternLabel = shift.found?'Intra-CQN volume shift':(when.isPersistent?'Persistent forecast miss':'Isolated miss');
-      memHits=searchMemory(rcaSignature(r,patternLabel));
-      return memHits.length
-        ? memHits.map(h=>`<div class="mem-hit">Matches a confirmed cause (score ${h.score}/6): <b>${rcaEsc(h.entry.a)}</b><div class="qmeta">confirmed ${new Date(h.entry.ts).toLocaleDateString()}</div></div>`).join('')
-        : 'No matching confirmed cause in memory yet.';
-    });
-    await addStep('📝','Synthesize', ()=>narrateRCA(r,when,shift,discovery,memHits));
-    const confirm=document.createElement('div'); confirm.className='rca-confirm';
-    confirm.innerHTML=`<div class="subhead" style="margin-top:0;">Confirm the cause <span style="text-transform:none;font-weight:500;color:var(--muted)">(saves to memory for future matching)</span></div>
-      <input id="rcaCauseInput" class="fsearch" style="margin:8px 0 8px;" placeholder="Describe the confirmed cause…" value="${shift.found?rcaAttr('Volume shifted to '+shift.top.name):''}">
-      <button class="filebtn" onclick="confirmRCACause(${i},'${patternLabel.replace(/'/g,"\\'")}')">✅ Confirm this cause → save to memory</button>`;
-    traceEl.appendChild(confirm);
-  })();
+}
+
+/* ---- LLM Investigation Engine — client-side caller only. The engine itself (the thing
+   that actually reasons — generates hypotheses, weighs evidence, rejects, ranks, scores
+   confidence) runs server-side in backend/rca_investigate.py, so a real provider key never
+   has to sit in this file. Until a provider is configured there, the backend returns an
+   honest placeholder — this caller does not fabricate anything if the call fails either. ---- */
+async function callInvestigationEngine(contextBundle){
+  const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:8000':'';
+  const resp=await fetch(API_BASE+'/api/rca-investigate', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(contextBundle)});
+  if(!resp.ok){ let d; try{ d=(await resp.json()).detail; }catch(_){ d=resp.statusText; } throw new Error(d||('HTTP '+resp.status)); }
+  return await resp.json();
+}
+
+/* ---- RCA Formatter — display formatting + safe fallbacks only; invents no content. ---- */
+function formatInvestigation(resp, ctx){
+  resp=resp||{};
+  const fsr=resp.forecast_summary||{};
+  return {
+    forecast_summary:{
+      forecast: fsr.forecast!=null? fmt2(fsr.forecast) : '—',
+      actual: fsr.actual!=null? Number(fsr.actual).toLocaleString() : '—',
+      error: fsr.error!=null? ((fsr.error>=0?'+':'')+Math.round(fsr.error).toLocaleString()) : '—',
+      adherence_pct: fsr.adherence_pct!=null? fsr.adherence_pct.toFixed(1)+'%' : '—',
+      miss_type: fsr.miss_type||'—',
+      severity: fsr.severity!=null? fsr.severity.toFixed(1)+'× band' : '—'   // e.g. "2.2× band" — a ratio of the two confirmed numbers, never a new invented cutoff
+    },
+    primary_root_cause: resp.primary_root_cause||null,
+    supporting_evidence: resp.supporting_evidence||[],
+    secondary_contributors: resp.secondary_contributors||[],
+    rejected_hypotheses: resp.rejected_hypotheses||[],
+    historical_comparison: resp.historical_comparison||{narrative:'',data_points:[]},
+    reasoning_narrative: resp.reasoning_narrative||'',
+    forecast_improvement_recommendations: resp.forecast_improvement_recommendations||[],
+    confidence_score: resp.confidence_score!=null? resp.confidence_score : null,
+    missing_information: resp.missing_information||[],
+    investigation_meta: resp.investigation_meta||{}
+  };
+}
+
+/* ---- UI Renderer — investigation-report layout, collapsible sections, evidence highlighting. ---- */
+function invEsc(s){ return String(s==null?'':s).replace(/</g,'&lt;'); }
+function invAttr(s){ return String(s==null?'':s).replace(/"/g,'&quot;'); }
+function invSleep(ms){ return new Promise(res=>setTimeout(res,ms)); }
+function invTimelineHtml(stages){ return `<div class="pipe">${stages.map(s=>pstage(s.state,s.icon,s.label,s.val||'')).join('')}</div>`; }
+function invConfMeter(score){
+  if(score==null) return '<span class="inv-badge placeholder">No confidence score available</span>';
+  const pct=Math.max(0,Math.min(100,Math.round(score*100)));
+  return `<div class="inv-conf-meter"><div class="bar"><div class="fill" style="width:${pct}%"></div></div><b>${pct}%</b></div>`;
+}
+function invRcCard(rc, cls){
+  if(!rc) return '';
+  const conf=rc.confidence!=null? `<div class="rc-conf"><div class="rc-conf-fill" style="width:${Math.max(0,Math.min(100,Math.round(rc.confidence*100)))}%"></div></div><div style="font-size:11px;color:var(--muted);">${Math.round(rc.confidence*100)}% confidence</div>` : '';
+  const chips=(rc.supporting_evidence||[]).map(e=>`<span class="ev-chip" title="${invAttr(e.source_field||'')}">${invEsc(e.text||e)}</span>`).join('');
+  return `<div class="rc-card ${cls}"><div>${invEsc(rc.statement)}</div>${conf}${chips}</div>`;
+}
+function renderInvestigationReport(f, ctx){
+  const meta=f.investigation_meta||{};
+  // Fail CLOSED toward "uncertain," never toward "real AI" — only an explicit engine:'llm'
+  // earns the confident badge, so a malformed/missing meta can't be mistaken for a live model.
+  const engineBadge = meta.engine==='llm'
+    ? `<span class="inv-badge llm">🤖 ${invEsc(meta.model||meta.provider||'LLM')}</span>`
+    : '<span class="inv-badge placeholder">⚠ no LLM connected — placeholder</span>';
+  const fsr=f.forecast_summary;
+
+  const key=ctx.target.key||{};
+  const summaryHtml=`<div class="inv-card">
+    <div class="rhead" style="margin-bottom:2px;"><div class="rtitle" style="font-size:13px;">Forecast Summary</div>${engineBadge}</div>
+    <div class="rmeta" style="margin-bottom:10px;">${invEsc(key.Forecast_name||'—')} · Fiscal Week ${invEsc(key.Fiscal_Week||'—')}</div>
+    <div class="inv-kv-grid">
+      <div class="kvi"><div class="l">Forecast</div><div class="v">${invEsc(fsr.forecast)}</div></div>
+      <div class="kvi"><div class="l">Actual</div><div class="v">${invEsc(fsr.actual)}</div></div>
+      <div class="kvi"><div class="l">Forecast error</div><div class="v">${invEsc(fsr.error)}</div></div>
+      <div class="kvi"><div class="l">Forecast adherence</div><div class="v">${invEsc(fsr.adherence_pct)}</div></div>
+      <div class="kvi"><div class="l">Miss type</div><div class="v" style="text-transform:capitalize">${invEsc(fsr.miss_type)}-forecast</div></div>
+      <div class="kvi"><div class="l">Severity</div><div class="v">${invEsc(fsr.severity)}</div></div>
+    </div>
+  </div>`;
+
+  const keyFindings=[f.primary_root_cause&&f.primary_root_cause.statement, ...(f.secondary_contributors||[]).map(c=>c.statement)].filter(Boolean);
+  const findingsHtml=`<details class="inv-sec" open><summary>Key Findings</summary><div class="body">
+    ${keyFindings.length?`<ul class="inv-findings">${keyFindings.map(k=>`<li>${invEsc(k)}</li>`).join('')}</ul>`:'<div class="inv-empty">No findings yet — see Missing Information.</div>'}
+  </div></details>`;
+
+  const rootCausesHtml=`<details class="inv-sec" open><summary>Root Causes</summary><div class="body">
+    ${f.primary_root_cause?invRcCard(f.primary_root_cause,'primary'):'<div class="inv-empty">No primary root cause identified yet.</div>'}
+    ${(f.secondary_contributors||[]).map(c=>invRcCard(c,'secondary')).join('')}
+  </div></details>`;
+
+  const evidenceHtml=`<details class="inv-sec"><summary>Supporting Evidence</summary><div class="body">
+    ${f.supporting_evidence.length?f.supporting_evidence.map(e=>`<div class="kv"><span class="k">${invEsc(e.source_field||'—')}</span><span class="val">${invEsc(e.value!=null?e.value:'')} — ${invEsc(e.text||'')}</span></div>`).join(''):'<div class="inv-empty">No supporting evidence recorded.</div>'}
+  </div></details>`;
+
+  const rejectedHtml=`<details class="inv-sec"><summary>Rejected Hypotheses</summary><div class="body">
+    ${f.rejected_hypotheses.length?f.rejected_hypotheses.map(h=>`<div class="rej-item"><div class="h">✕ ${invEsc(h.hypothesis)}</div><div class="r">${invEsc(h.reason_rejected)}</div></div>`).join(''):'<div class="inv-empty">No hypotheses recorded as rejected (or none were tested yet — see Missing Information).</div>'}
+  </div></details>`;
+
+  const hist=f.historical_comparison||{};
+  const historyHtml=`<details class="inv-sec"><summary>Historical Comparison</summary><div class="body">
+    ${hist.narrative?`<p style="margin:0 0 8px;">${invEsc(hist.narrative)}</p>`:'<div class="inv-empty">No historical comparison available.</div>'}
+    ${(hist.data_points||[]).map(d=>`<div class="kv"><span class="k">${invEsc(d.label)}</span><span class="val">${invEsc(d.value)}</span></div>`).join('')}
+  </div></details>`;
+
+  const narrativeHtml=`<details class="inv-sec"><summary>Reasoning Narrative</summary><div class="body">${f.reasoning_narrative?`<p style="margin:0;">${invEsc(f.reasoning_narrative)}</p>`:'<div class="inv-empty">No narrative produced.</div>'}</div></details>`;
+
+  const recsHtml=`<details class="inv-sec" open><summary>Forecast Improvement Recommendations</summary><div class="body">
+    ${f.forecast_improvement_recommendations.length?`<ul class="inv-findings">${f.forecast_improvement_recommendations.map(x=>`<li>${invEsc(x)}</li>`).join('')}</ul>`:'<div class="inv-empty">No recommendations yet.</div>'}
+  </div></details>`;
+
+  const confHtml=`<div class="inv-card"><div class="subhead" style="margin:0 0 8px;">Confidence</div>${invConfMeter(f.confidence_score)}</div>`;
+
+  const missingHtml=`<details class="inv-sec" open><summary>Missing Information</summary><div class="body">
+    ${f.missing_information.length?`<ul class="inv-findings">${f.missing_information.map(x=>`<li>${invEsc(x)}</li>`).join('')}</ul>`:'<div class="inv-empty">Nothing flagged as missing.</div>'}
+  </div></details>`;
+
+  const metaHtml=`<div class="inv-meta">Engine: ${invEsc(meta.engine||'—')}${meta.model?' · '+invEsc(meta.model):''} · generated ${meta.generated_at?new Date(meta.generated_at).toLocaleString():'—'} · based on ${(meta.based_on_fields||[]).length} field(s) gathered generically from the source file</div>`;
+
+  return summaryHtml+findingsHtml+rootCausesHtml+evidenceHtml+rejectedHtml+historyHtml+narrativeHtml+recsHtml+confHtml+missingHtml+metaHtml;
+}
+
+/* ---- RCA Trigger — orchestrates the pipeline above; owns nothing except sequencing.
+   The AUTOMATIC path (a queue reaching FLAGS at all) always requires a real miss beyond
+   band, per spec step 1. A HUMAN manually browsing to a specific/random queue via the
+   focus box is a different, deliberate action — force=true lets them investigate a
+   non-flagged week anyway rather than being refused outright. ---- */
+async function triggerRCA(i, force){
+  const r=FLAGS[i]; if(!r) return;
+  const band=num(document.getElementById('band').value)||10;
+  const host=document.getElementById('investigationPanel'); if(!host) return;
+  host.innerHTML='<div id="invTimelineHost"></div><div id="invBody"></div>';
+  const timelineHost=document.getElementById('invTimelineHost'), body=document.getElementById('invBody');
+
+  const STAGES=[
+    {key:'trigger',label:'Trigger',icon:'🚩'},
+    {key:'aggregate',label:'Aggregate',icon:'📥'},
+    {key:'context',label:'Context',icon:'🧩'},
+    {key:'investigate',label:'Investigate',icon:'🔎'},
+    {key:'format',label:'Format',icon:'🧮'},
+    {key:'render',label:'Render',icon:'🖥️'}
+  ];
+  const state={}; STAGES.forEach(s=>state[s.key]='pending');
+  const paint=()=>{ timelineHost.innerHTML=invTimelineHtml(STAGES.map(s=>({...s,state:state[s.key]}))); };
+  paint();
+
+  // 1) Detect Forecast Miss — re-validate against the configured threshold.
+  const isMiss=(r._padh!=null && Math.abs(r._padh)>band);
+  state.trigger=(isMiss||force)?'done':'error'; paint();
+  if(state.trigger==='error'){
+    body.innerHTML=`<div class="inv-empty">This week is inside the configured ±${band}% band — not an automatic miss.<br>
+      <button class="filebtn ghost" style="margin-top:8px;" onclick="triggerRCA(${i},true)">🔎 Investigate anyway</button></div>`;
+    return;
+  }
+  await invSleep(250);
+
+  // 2) Data Aggregator + 3) Context Builder — buildContext() calls aggregateData() itself
+  // (SQL-scoped query when window.SRC==='sql', else in-browser filtering as a fallback).
+  state.aggregate='active'; paint();
+  await invSleep(200);
+  state.aggregate='done'; paint();
+  state.context='active'; paint();
+  const ctx=await buildContext(r);
+  state.context='done'; paint();
+
+  // 4) LLM Investigation Engine (server-side call — see backend/rca_investigate.py)
+  state.investigate='active'; paint();
+  let resp;
+  try{
+    resp=await callInvestigationEngine(ctx);
+    state.investigate='done'; paint();
+  }catch(e){
+    state.investigate='error'; paint();
+    body.innerHTML=`<div class="inv-empty">Investigation call failed: ${invEsc(e.message)}<br>Start the local backend first:<br><code>cd backend &amp;&amp; uvicorn sql_backend:app --port 8000</code></div>`;
+    return;
+  }
+
+  // 5) RCA Formatter
+  state.format='active'; paint();
+  const formatted=formatInvestigation(resp, ctx);
+  await invSleep(200);
+  state.format='done'; paint();
+
+  // 6) UI Renderer
+  state.render='active'; paint();
+  body.innerHTML=renderInvestigationReport(formatted, ctx);
+  state.render='done'; paint();
 }
 
 /* ---------------- Probing → Markdown knowledge base ---------------- */

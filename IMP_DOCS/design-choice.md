@@ -10,9 +10,10 @@ Why the tool is built the way it is. Read this before changing metrics, charts, 
 | Metric | Formula | Notes |
 |---|---|---|
 | **Forecast Accuracy** | `Actual_Offered ÷ fcst_offered × 100` | Forecast = `fcst_offered` (ML). |
-| **Plan Adherence (ML/Manual)** | `ABS(1 − Actual_Offered ÷ fcst_offered) × 100` | Blank if no actual; the current Excel-system formula. |
-- Flag rule: Plan-Adherence deviation **> band %** (default ±10). Equivalent to accuracy outside ±band.
+| **Plan Adherence (ML/Manual)** | `(1 − Actual_Offered ÷ fcst_offered) × 100` | **Signed** (negative = actual ran above forecast/under-forecast, positive = actual ran below forecast/over-forecast) — direction was requested explicitly; ABS was removed. Blank if no actual. |
+- Flag rule: **\|Plan-Adherence deviation\| > band %** (default ±10) — the ±band test is a magnitude comparison even though the displayed number is signed. Equivalent to accuracy outside ±band.
 - Rows with **no/zero forecast** are data gaps — never scored, never shown as results, counted separately.
+- Severity/sort/MAPE (100−MAPE accuracy) all compare on `Math.abs(deviation)` — only the *displayed* number is signed; see `applyAndScan`/`setAccuracy` comments in `rca_console.html`.
 
 ## "Avg Accuracy" — the important fix
 The old tile averaged `Actual÷Fcst` across rows. Because over- and under-forecasts scatter around 100% and **cancel**, it read ~99% even on genuinely poor data — misleading.
@@ -62,7 +63,18 @@ The old tile averaged `Actual÷Fcst` across rows. Because over- and under-foreca
 - A **pipeline strip** at the top of the RCA Console visualises the end-to-end path and fills as data flows: **Source → Ingest (rows) → Compute · 2 metrics (scored) → Flag · ±band (flagged) → RCA (ready)**. It's always visible (pending state before load) so the demo tells the whole story at a glance.
 - **"🗄 Connect to SQL Server (AA)"** button + modal (Server / Database / Table = `sqlsrv-aa-prod.internal` · `AI_Ready_Data` · `dbo.demand_facts`). Since the mockup has no backend, **Fetch table** ingests the exported file as a stand-in for the live query and tags the source as SQL, so the pipeline's Source stage reads "SQL Server (AA)". In production the same pipeline runs the query directly (no upload) and computes the two metrics server-side — this is Timeline phase 6.
 - Source tracking: `window._pendingSrc` ('sql' via the modal, 'file' via Upload) → `window.SRC`, read in `onWeekly`; `renderPipe()` is called on load (pending), on ingest, and after each scan.
-- **Evidence trail removed** from the RCA report (was redundant with the Findings bullets + the ⓘ formula/number modal, which remain the source of the math). The report is now: Findings (with ⓘ) → Inputs used.
+- **Evidence trail removed** from the RCA report (was redundant with the Findings bullets + the ⓘ formula/number modal, which remain the source of the math). The report is now: Findings (with ⓘ) → Inputs used → **Root-Cause Investigation** (below).
+
+## Root-Cause Investigation — LLM-driven, replaces the earlier rule-based RCA panel
+A prior session built a rule-based "agentic exploration" RCA panel (trend/sibling/discovery-lift/memory, all deterministic JS). **That panel was removed entirely** per client instruction — the client's spec requires the LLM to genuinely reason over the data (generate hypotheses, weigh evidence for/against, reject the unsupported, rank what's left, state confidence and missing information) rather than follow any fixed checklist, deterministic or otherwise. Faking that with rule-based JS presented as "AI reasoning" would violate the client's own design principle: *never fabricate evidence, explicitly state uncertainty.*
+
+**Architecture (matches the client's spec section 7 verbatim), each piece independently testable:**
+1. **RCA Trigger** (`triggerRCA`, client-side) — re-validates the row is outside the configured band, then sequences the rest.
+2. **Data Aggregator** (`aggregateData`, client-side) — captures the target row's **entire raw field set** generically (`Object.keys(r)` minus our internal `_`-prefixed computed fields — no hardcoded column list), plus prior weeks for the same `Forecast_name` (capped at `RCA_HISTORY_CAP=12` — a token-budget cap, not a business rule) and same-week peers sharing the CQN dims (Region/SubRegion/Country/Channel), different `Forecast_name`.
+3. **Context Builder** (`buildStatSummary`/`buildContext`, client-side) — for **every field discovered** across target ∪ history (again, no hardcoded list — verified in testing that a column never referenced by name, `Final_upp_units`, was auto-included), computes generic stats: numeric fields get history mean/stdev/z-score/outlier flag (\|z\|>2, a standard statistical convention, not an invented business threshold)/trend slope; categorical fields get changed-vs-prior + distinct recent values.
+4. **LLM Investigation Engine** — the only module allowed to decide a cause. Lives **server-side** in `backend/rca_investigate.py` (proxied via `POST /api/rca-investigate` in `sql_backend.py`) so a real provider key never has to sit in the publicly-hosted `rca_console.html`. **No provider is wired yet** — `investigate()` returns an honest placeholder (empty root-cause/hypotheses, not a fabricated one) until `llm.provider` is configured and `call_model()` is implemented. See `IMP_DOCS/rca-investigation-contract.md` for the exact request/response shape.
+5. **RCA Formatter** (`formatInvestigation`, client-side) — display formatting + safe fallbacks only; invents no content.
+6. **UI Renderer** (`renderInvestigationReport`, client-side) — the investigation-report layout: Forecast Summary, Key Findings, Root Causes (with confidence bar + evidence chips), Supporting Evidence, Rejected Hypotheses, Historical Comparison, Reasoning Narrative, Forecast Improvement Recommendations, Confidence, Missing Information. Collapsible via native `<details>/<summary>` (no library). The **Investigation Timeline** (Trigger→Aggregate→Context→Investigate→Format→Render) reuses the same `.pipe`/`pstage()` visual language as the data-ingestion pipeline strip, for consistency.
 
 ## Timeline / Gantt
 The build Gantt lives both **in the app** (Timeline tab, scoped under `#tab-timeline`) and as a **standalone** `rca_timeline.html` (theme-aware light/dark). Keep the two in sync when phase status changes. Today marker and KPIs are currently hard-set to **22 Jul** — update them as the project moves.

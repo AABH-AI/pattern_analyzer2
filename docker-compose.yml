@@ -18,4 +18,8 @@ services:
       SQL_DRIVER: "ODBC Driver 18 for SQL Server"
       SQL_ENCRYPT: "false"
       SQL_TRUST_CERT: "true"
+      # LLM Investigation Engine — leave blank to keep the honest placeholder response.
+      # Priority (primary/secondary) is set in backend/config.json, not by the order here.
+      NVIDIA_API_KEY: "${NVIDIA_API_KEY:-}"
+      GROQ_API_KEY: "${GROQ_API_KEY:-}"
     restart: unless-stopped
