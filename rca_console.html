@@ -311,6 +311,21 @@
   .pill{font-size:11px;background:var(--panel-2);border:1px solid var(--border);border-radius:999px;padding:3px 9px;cursor:pointer;color:var(--muted);}
   .pill:hover{border-color:var(--accent);color:var(--accent);}
 
+  /* ===== RCA deep-dive: agentic exploration trace ===== */
+  .rca-cap{font-size:11.5px;color:var(--muted);margin:2px 0 10px;line-height:1.5;}
+  .rca-trace{margin-top:6px;display:flex;flex-direction:column;gap:10px;}
+  .trace-step{opacity:0;transform:translateY(6px);transition:opacity .25s ease,transform .25s ease;background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;}
+  .trace-step.show{opacity:1;transform:translateY(0);}
+  .ts-h{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;}
+  .ts-i{font-size:14px;}
+  .ts-spin{margin-left:auto;color:var(--muted);font-weight:600;animation:tsPulse 1s infinite;}
+  @keyframes tsPulse{0%,100%{opacity:.3;}50%{opacity:1;}}
+  .ts-b{font-size:12.5px;color:var(--text);margin-top:6px;line-height:1.55;}
+  .disc-item{padding:4px 0;border-top:1px dashed var(--border);}
+  .disc-item:first-child{border-top:none;}
+  .mem-hit{background:rgba(18,152,111,.08);border:1px solid rgba(18,152,111,.25);border-radius:8px;padding:8px 10px;margin-bottom:6px;}
+  .rca-confirm{background:var(--panel-2);border:1px dashed var(--border);border-radius:10px;padding:12px;margin-top:2px;}
+
   table.def{width:100%;border-collapse:collapse;font-size:12.5px;}
   table.def th,table.def td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
   table.def th{color:var(--muted);text-transform:uppercase;font-size:10.5px;letter-spacing:.5px;}
@@ -645,7 +660,7 @@
       <div class="card"><h4>Scale</h4><ul><li>~100 queues scanned weekly</li><li>Handles 100k+ rows with chunked parsing</li><li>Top-N affected queues surfaced</li></ul></div>
       <div class="card"><h4>Domain knowledge</h4><ul><li><b>Final_Y1–Y5</b> = installed units under warranty year 1–5 (demand driver, <i>not</i> prior-year actuals)</li><li><b>ASU</b> = Planned/Actual service driver (exact acronym to confirm)</li><li><b>Mon–Sun</b> = day-level holiday/weekend flags</li></ul></div>
       <div class="card"><h4>Scope</h4><ul><li>Keyed on <b>Forecast_name</b> — forecasting is per forecast_name</li><li>Priority: <b>2–3 forecast_names</b>, not the whole file</li><li>Filter to the target forecast_names, then read RCA</li></ul></div>
-      <div class="card"><h4>Metrics (only these two)</h4><ul><li><b>Forecast Accuracy</b> = (Actual_Offered ÷ fcst_offered) × 100</li><li><b>Plan Adherence</b> = ABS(1 − Actual_Offered ÷ fcst_offered) × 100</li><li>Flag when Plan Adherence deviation &gt; band %</li></ul></div>
+      <div class="card"><h4>Metrics (only these two)</h4><ul><li><b>Forecast Accuracy</b> = (Actual_Offered ÷ fcst_offered) × 100</li><li><b>Plan Adherence</b> = (1 − Actual_Offered ÷ fcst_offered) × 100 — signed (negative = under-forecast, positive = over-forecast)</li><li>Flag when |Plan Adherence deviation| &gt; band %</li></ul></div>
     </div>
   </div>
 
@@ -657,9 +672,9 @@
     <table class="def">
       <tr><th>Metric</th><th>Excel</th><th>Python (rule-based tool)</th></tr>
       <tr><td><b>Forecast Accuracy</b></td><td><code>=(Actual_Offered / fcst_offered) * 100</code></td><td><code>(actual_offered / fcst_offered) * 100</code></td></tr>
-      <tr><td><b>Forecast Adherence</b></td><td><code>=IF(Actual_Offered="","",ABS(1-(Actual_Offered/fcst_offered))*100)</code></td><td><code>"" if actual_offered=="" else abs(1-(actual_offered/fcst_offered))*100</code></td></tr>
+      <tr><td><b>Forecast Adherence</b></td><td><code>=IF(Actual_Offered="","",(1-(Actual_Offered/fcst_offered))*100)</code></td><td><code>"" if actual_offered=="" else (1-(actual_offered/fcst_offered))*100</code></td></tr>
     </table>
-    <div class="sub" style="margin-top:10px;">Forecast = <code>fcst_offered</code> (ML). Keyed on <code>Forecast_name</code>. Both shown as %. <b>Forecast Accuracy</b> is the traditional formula; <b>Forecast Adherence</b> is the formula used in the current Excel system. Flag = accuracy outside <b>±10%</b> (≡ forecast-adherence &gt; 10%). <b>No other formulas are computed</b> — nothing is inferred or invented.</div>
+    <div class="sub" style="margin-top:10px;">Forecast = <code>fcst_offered</code> (ML). Keyed on <code>Forecast_name</code>. Both shown as %. <b>Forecast Accuracy</b> is the traditional formula; <b>Forecast Adherence</b> is the formula used in the current Excel system — <b>signed</b> (negative = actual ran above forecast / under-forecast, positive = actual ran below forecast / over-forecast). Flag = accuracy outside <b>±10%</b> (≡ |forecast-adherence| &gt; 10%). <b>No other formulas are computed</b> — nothing is inferred or invented.</div>
     <h2 class="sec">Field definitions</h2>
     <table class="def" id="defTable">
       <tr><th>Field</th><th>Meaning</th></tr>
@@ -953,8 +968,10 @@ function applyAndScan(){
     r._ao=num(r.Actual_Offered); r._fo=num(r.fcst_offered);
     // Forecast Accuracy = Actual_Offered / fcst_offered * 100   (Forecast = fcst_offered, ML)
     r._acc=(r._ao!=null&&r._fo!=null&&r._fo>0)? r._ao/r._fo*100 : null;
-    // Plan Adherence (ML/Manual) = ABS(1 - Actual_Offered/fcst_offered) * 100 ; blank if no actual
-    r._padh=(r.Actual_Offered===''||r._ao==null)? null : ((r._fo!=null&&r._fo>0)? Math.abs(1-(r._ao/r._fo))*100 : null);
+    // Plan Adherence (ML/Manual) = (1 - Actual_Offered/fcst_offered) * 100 ; blank if no actual
+    // Signed: negative = actual ran ABOVE forecast (under-forecast); positive = actual ran BELOW forecast (over-forecast).
+    // Flagging/severity/MAPE below compare on Math.abs(r._padh) — the ±band test is about MAGNITUDE, the displayed number stays signed so direction is visible.
+    r._padh=(r.Actual_Offered===''||r._ao==null)? null : ((r._fo!=null&&r._fo>0)? (1-(r._ao/r._fo))*100 : null);
     r._noF=(r._ao!=null&&(r._fo==null||r._fo<=0));   // actual present but no/zero forecast → undefined
     r._key=String(r.Forecast_name||''); r._wk=String(r.Fiscal_Week||'');
     r._mapped = MAP ? (MAP[r.Forecast_name]!=null) : false;
@@ -965,13 +982,13 @@ function applyAndScan(){
   // Only computable rows (valid actual + forecast). Zero/blank forecast rows are data gaps — never shown as results.
   const computable=rows.filter(r=>!r._noF && r._padh!=null);
   window._noFCount=rows.length-computable.length;
-  const flaggedCount=computable.filter(r=> +r._padh.toFixed(1) > band).length;   // ±band% on accuracy ≡ plan-adh > band%
+  const flaggedCount=computable.filter(r=> Math.abs(+r._padh.toFixed(1)) > band).length;   // ±band% on accuracy ≡ |plan-adh| > band%
   if(FOCUS.size){
     // Testing mode: show EVERY computable week for the focused Forecast_name(s), chronological.
     FLAGS=computable.slice().sort((a,b)=> a._key.localeCompare(b._key) || a._wk.localeCompare(b._wk));
   } else {
-    // Default: only weeks outside the ±band (worst first), on the displayed 1-dp value.
-    FLAGS=computable.filter(r=> +r._padh.toFixed(1) > band).sort((a,b)=> b._padh - a._padh);
+    // Default: only weeks outside the ±band (worst first, by magnitude — the signed value can be negative), on the displayed 1-dp value.
+    FLAGS=computable.filter(r=> Math.abs(+r._padh.toFixed(1)) > band).sort((a,b)=> Math.abs(b._padh) - Math.abs(a._padh));
   }
   const avgAcc=setAccuracy(rows);
   renderMetrics(groups,rows,flaggedCount,avgAcc);
@@ -984,12 +1001,13 @@ function applyAndScan(){
   document.getElementById('report').innerHTML='<div class="empty" style="border:none;padding:40px 10px;">Select a flagged item to see its RCA.</div>';
   if(FLAGS.length) selectFlag(0);
 }
-// Forecast accuracy of the set = 100 − MAPE (mean absolute % error), where the
-// per-row absolute % error is exactly the Plan-Adherence deviation (_padh).
-// A plain mean of Actual÷Fcst lets over/under-forecasts cancel and reads ~100%
-// even on badly-off data — this reflects the real error instead.
+// Forecast accuracy of the set = 100 − MAPE (mean ABSOLUTE % error), where the
+// per-row absolute % error is |Plan-Adherence deviation| (_padh is now signed,
+// so MAPE explicitly takes Math.abs() here — otherwise over/under-forecasts
+// would cancel again and reintroduce the ~100%-even-when-badly-off bug this was
+// built to fix; the DISPLAYED _padh stays signed, only this aggregate uses abs).
 function setAccuracy(rows){
-  const errs=rows.filter(r=>r._padh!=null).map(r=>r._padh);
+  const errs=rows.filter(r=>r._padh!=null).map(r=>Math.abs(r._padh));
   if(!errs.length) return null;
   const mape=errs.reduce((a,b)=>a+b,0)/errs.length;
   return Math.max(0,100-mape);
@@ -1152,8 +1170,8 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
   if(DRILL.length) rows=rows.filter(r=>DRILL.every(d=>drillMatch(r,d)));
   if(!rows.length){ host.innerHTML=`<div class="vol"><div class="vtop"><div class="vtitle"><span class="spark">📊</span> Data Volumetrics</div></div>${drillCrumbs()}<div class="empty" style="border:none;color:#c2d0ee;">No rows for this drill path.</div></div>`; document.getElementById('insDrawerBody').innerHTML=''; updateInsDrawer(); return; }
   const gset=new Set(); rows.forEach(r=>gset.add(String(r.Forecast_name||''))); const nForecast=gset.size;
-  flaggedCount=rows.filter(r=>r._padh!=null && +r._padh.toFixed(1)>band).length;
-  { const e=rows.filter(r=>r._padh!=null).map(r=>r._padh); avgAcc=e.length?Math.max(0,100-e.reduce((a,b)=>a+b,0)/e.length):null; }
+  flaggedCount=rows.filter(r=>r._padh!=null && Math.abs(+r._padh.toFixed(1))>band).length;
+  { const e=rows.filter(r=>r._padh!=null).map(r=>Math.abs(r._padh)); avgAcc=e.length?Math.max(0,100-e.reduce((a,b)=>a+b,0)/e.length):null; }
 
   // ---- single-pass aggregation ----
   let totOff=0,totHand=0,haveOff=0;
@@ -1176,7 +1194,7 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
     if(r._noF) noFscope++;
     if(ao!=null && r._fo!=null && r._fo>0){ cA+=ao; cF+=r._fo; biasAdd(sumReg,r.Region,ao,r._fo); biasAdd(sumName,r.Forecast_name,ao,r._fo); }
     if(r._padh!=null){ (weekPadh.get(wk)||weekPadh.set(wk,[]).get(wk)).push(r._padh);
-      const d=r._padh; if(d<=5)dev[0]++; else if(d<=10)dev[1]++; else if(d<=20)dev[2]++; else if(d<=25)dev[3]++; else dev[4]++;
+      const d=Math.abs(r._padh); if(d<=5)dev[0]++; else if(d<=10)dev[1]++; else if(d<=20)dev[2]++; else if(d<=25)dev[3]++; else dev[4]++;
       if(d>band){ const nm=r.Forecast_name||'(blank)'; flagByName.set(nm,(flagByName.get(nm)||0)+1); }
     }
   });
@@ -1218,7 +1236,7 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
   // ---- trend series (chronological) ----
   const offPts=fw.map(w=>({label:w.slice(-2)?w:w,disp:'FW '+w,value:weekOff.get(w)||0}));
   offPts.forEach(p=>p.label=p.disp.replace('FW ',''));
-  const accPts=fw.filter(w=>weekPadh.get(w)).map(w=>{ const a=weekPadh.get(w); const m=a.reduce((x,y)=>x+y,0)/a.length; return {label:w.slice(2),disp:'FW '+w,value:Math.max(0,100-m)}; });
+  const accPts=fw.filter(w=>weekPadh.get(w)).map(w=>{ const a=weekPadh.get(w); const m=a.reduce((x,y)=>x+Math.abs(y),0)/a.length; return {label:w.slice(2),disp:'FW '+w,value:Math.max(0,100-m)}; });
 
   // ---- bar datasets ----
   const flagTot=[...flagByName.values()].reduce((a,b)=>a+b,0)||1;   // total flagged weeks across ALL queues
@@ -1305,8 +1323,8 @@ function renderList(){
   const CAP=250, shown=FLAGS.slice(0,CAP);
   const band=num(document.getElementById('band').value)||10;
   let h=shown.map((r,i)=>{
-    const dev=+r._padh.toFixed(1);
-    const sev=dev>25?'red':(dev>band?'amber':'green');
+    const dev=+r._padh.toFixed(1), devAbs=Math.abs(dev);
+    const sev=devAbs>25?'red':(devAbs>band?'amber':'green');
     return `<div class="qitem" id="q${i}" onclick="selectFlag(${i})">
       <div class="qn">${r.Forecast_name} ${r._mapped?'':'<span class="badge unm" style="font-size:8.5px">unmapped</span>'}</div>
       <div class="qmeta">${r.Region||''} · ${r.Country||''} · ${r.channel||''} · FW ${r._wk}</div>
@@ -1332,15 +1350,16 @@ function buildFindings(r){
        values:[`Actual_Offered = ${A}`,`forecast offered (Simple) = ${r._noF?'0 / blank':fmt2(F)}`],
        result:r._noF?'N/A (fcst_offered ≤ 0)':r._acc.toFixed(1)+'%'}
   });
-  // 2) Plan Adherence (ML/Manual) = ABS(1 - Actual_Offered/fcst_offered) * 100 ; blank if no actual
+  // 2) Plan Adherence (ML/Manual) = (1 - Actual_Offered/fcst_offered) * 100 ; blank if no actual
+  // Signed: negative = actual ran above forecast (under-forecast), positive = actual ran below forecast (over-forecast).
   const noActual=(r.Actual_Offered===''||r._ao==null);
   d.push({
-    s:(r._padh!=null&&r._padh<=band)?'info':'hit',
+    s:(r._padh!=null&&Math.abs(r._padh)<=band)?'info':'hit',
     b:noActual?`<b>Forecast adherence — blank.</b> No Actual_Offered for this week (formula returns "").`
        :r._noF?`<b>Forecast adherence — N/A.</b> fcst_offered is zero/blank → division undefined.`
-       :`<b>Forecast adherence = ${r._padh.toFixed(1)}%</b> deviation from forecast (0% = perfect).`,
+       :`<b>Forecast adherence = ${r._padh.toFixed(1)}%</b> deviation from forecast (0% = perfect; negative = actual ran above forecast, positive = actual ran below forecast).`,
     m:{title:'Forecast Adherence',
-       formula:'Forecast Adherence = ABS(1- ((Actual offered / forecast offered (Simple))*100 ))',
+       formula:'Forecast Adherence = (1 − (Actual offered / forecast offered (Simple))) × 100',
        values:[`Actual_Offered = ${noActual?'(blank)':A}`,`forecast offered (Simple) = ${r._noF?'0 / blank':fmt2(F)}`],
        result:noActual?'"" (blank, no actual)':(r._noF?'N/A (÷ by zero)':r._padh.toFixed(1)+'%')}
   });
@@ -1352,7 +1371,7 @@ function selectFlag(i){
   const qi=document.getElementById('q'+i); if(qi)qi.classList.add('active');
   const r=FLAGS[i]; const d=buildFindings(r); CUR_MATH=d.map(x=>x.m);
   window.CUR_CTX=`${r.Forecast_name||'—'} · FW ${r._wk} · ${r.Region||''}/${r.Country||''} · ${r.channel||''} · Plan ${r.Projection_plan_name||'—'} · Forecaster ${r.Forecaster||'—'}`;
-  const accCol=(r._acc==null)?'var(--muted)':((r._padh!=null&&r._padh>25)?'var(--danger)':(r._padh!=null&&r._padh>10)?'var(--warn)':'var(--accent-2)');
+  const accCol=(r._acc==null)?'var(--muted)':((r._padh!=null&&Math.abs(r._padh)>25)?'var(--danger)':(r._padh!=null&&Math.abs(r._padh)>10)?'var(--warn)':'var(--accent-2)');
   const bullets=d.map((x,idx)=>`<li><span class="bdot ${x.s}"></span><div class="btext">${x.b}</div><button class="ibtn" title="Show the formula & numbers" onclick="showMath(${idx})">i</button></li>`).join('');
   document.getElementById('report').innerHTML=`
     <div class="rhead">
@@ -1367,6 +1386,9 @@ function selectFlag(i){
     <div class="subhead">Inputs used (from file)</div>
     <div class="kv"><span class="k">Actual_Offered</span><span class="val">${r.Actual_Offered===''?'(blank)':(r._ao!=null?r._ao.toLocaleString():r.Actual_Offered)}</span></div>
     <div class="kv"><span class="k">forecast offered (Simple)</span><span class="val">${r._fo!=null?fmt2(r._fo):(r.fcst_offered||'(blank)')}</span></div>
+    <div class="subhead">Root-Cause Analysis <span style="text-transform:none;font-weight:500;color:var(--muted)">(agentic exploration — beta)</span></div>
+    <div class="rca-cap">Explores <b>this queue's own numbers</b> — trend, sibling queues in the same CQN, cross-dimension patterns, and prior confirmed causes. The two metrics above never change; anything found here is either a re-sum of Actual_Offered/fcst_offered (traceable) or a <b>discovery-tier</b> statistical pattern, clearly marked <span class="chip amber" style="vertical-align:1px;">unconfirmed</span> until a human confirms it.</div>
+    <div id="rcaPanel"><button class="filebtn" onclick="runRCA(${i})">🔬 Run RCA Analysis</button></div>
   `;
 }
 
@@ -1382,6 +1404,178 @@ function showMath(idx){
   document.getElementById('mathModal').classList.add('show');
 }
 function closeMath(){ document.getElementById('mathModal').classList.remove('show'); }
+
+/* ---------------- RCA deep-dive: agentic exploration + discovery + memory ----------------
+   Everything below is either (a) a re-sum/comparison of the SAME two confirmed inputs
+   (Actual_Offered, fcst_offered) already used by the two sanctioned metrics, traceable to
+   real rows — or (b) explicitly labeled "discovery / unconfirmed": a plain statistical
+   observation (flagged-rate lift) shown with its raw supporting counts, never presented as
+   a scored cause, never blended into the two confirmed metrics above. Memory only re-uses a
+   past confirmed cause after re-checking it against the CURRENT queue's own data. */
+const rcaEsc=s=>String(s==null?'':s).replace(/</g,'&lt;');
+const rcaAttr=s=>String(s==null?'':s).replace(/"/g,'&quot;');
+function siblingKeyOf(r){ return [r.Region,r.SubRegion,r.Country,r.channel].map(x=>x||'').join('|'); }
+
+// WHEN — is this queue's flagged week an isolated spike, or part of a run? Reads the
+// per-week series already computed in applyAndScan (r._group), nothing new is computed.
+function computeWhen(r){
+  const band=num(document.getElementById('band').value)||10;
+  const grp=(r._group||[r]).filter(x=>x._padh!=null);
+  const idx=Math.max(0,grp.findIndex(x=>x===r));
+  const dir=x=>(x._ao>x._fo?'under':'over');
+  const recent=grp.slice(Math.max(0,idx-4), idx+1);
+  const sameDirFlagged=recent.filter(x=>dir(x)===dir(r) && Math.abs(+x._padh.toFixed(1))>band);
+  const isPersistent=recent.length>2 && sameDirFlagged.length>=3;
+  const label = recent.length<=1
+    ? `Only one computable week is available for this queue in the current scope — no trend to compare yet.`
+    : isPersistent
+      ? `<b>Persistent ${dir(r)}-forecast.</b> ${sameDirFlagged.length} of the last ${recent.length} computable weeks for this queue ran ${dir(r)} and outside the ±${band}% band — looks like a trend, not a one-off.`
+      : `<b>Isolated week.</b> This is the only flagged week for this queue in its last ${recent.length} computable weeks — not part of a run.`;
+  return {weeks:recent, isPersistent, direction:dir(r), label};
+}
+
+// WHERE (sibling-shift) — the documented primary pattern: does a sibling Forecast_name
+// sharing Region+SubRegion+Country+Channel move the opposite direction the same week?
+function computeSiblingShift(r, scopeRows){
+  const sk=siblingKeyOf(r);
+  const gapOf=x=>x._ao-x._fo;
+  const rGap=gapOf(r);
+  const siblings=scopeRows.filter(x=>x!==r && x._wk===r._wk && x._fo!=null && x._fo>0 && x._ao!=null
+    && x.Forecast_name!==r.Forecast_name && siblingKeyOf(x)===sk);
+  const candidates=siblings.map(x=>({name:x.Forecast_name, gap:gapOf(x), acc:x._acc, padh:x._padh}))
+    .filter(x=>x.gap!==0 && Math.sign(x.gap)!==Math.sign(rGap))
+    .sort((a,b)=>Math.abs(b.gap)-Math.abs(a.gap));
+  const top=candidates[0];
+  const label = top
+    ? `<b>Candidate sibling: ${rcaEsc(top.name)}.</b> Same Region/SubRegion/Country/Channel, same fiscal week, ran ${top.gap>0?'over':'under'} forecast — the opposite direction to this queue. Consistent with the documented volume-shift pattern between sibling queues (not yet confirmed).`
+    : siblings.length
+      ? `${siblings.length} sibling(s) share this queue's Region/SubRegion/Country/Channel this week, but none moved in the opposite direction — doesn't look like a routing shift.`
+      : `No sibling Forecast_name found sharing Region/SubRegion/Country/Channel in this fiscal week within the current scope.`;
+  return {found:!!top, top, siblingCount:siblings.length, label};
+}
+
+// Discovery tier — plain flagged-rate lift across every candidate column, computed
+// transparently with raw counts. No score/threshold is asserted as a "cause"; each result
+// is shown for human review only, per the client's no-invented-formula rule.
+function computeDiscovery(r, scopeRows){
+  const band=num(document.getElementById('band').value)||10;
+  const computable=scopeRows.filter(x=>x._padh!=null);
+  if(computable.length<40) return [];
+  const isFlagged=x=>Math.abs(+x._padh.toFixed(1))>band;
+  const candidates=[];
+  const MIN_GROUP=8;
+  const pushCandidate=(dim,value,groupA,groupB)=>{
+    if(groupA.length<MIN_GROUP||groupB.length<MIN_GROUP) return;
+    const rateA=groupA.filter(isFlagged).length/groupA.length, rateB=groupB.filter(isFlagged).length/groupB.length;
+    if(rateB<=0 && rateA<=0) return;
+    const lift=rateB>0?rateA/rateB:Infinity;
+    if(!isFinite(lift)) return;
+    candidates.push({dim,value,nA:groupA.length,rateA,rateB,lift});
+  };
+  [['Offering','Offering'],['business_org','Business org'],['Forecaster','Forecaster'],['channel','Channel'],
+   ['Region','Region'],['SubRegion','Sub-Region'],['Country','Country'],['Volume_Category','Volume category']]
+    .forEach(([f,label])=>{
+      const rv=r[f]; if(rv==null||rv==='') return;
+      pushCandidate(label, rv, computable.filter(x=>String(x[f])===String(rv)), computable.filter(x=>String(x[f])!==String(rv)));
+    });
+  if(r.Holiday_Count!=null && r.Holiday_Count!==''){
+    // Binary condition, so (unlike the categorical dims above) show whichever side actually
+    // has the higher flagged rate as the headline value — reads more intuitively than always
+    // anchoring on r's own side even when the OTHER side is where the pattern really is.
+    const isHol=x=>(num(x.Holiday_Count)||0)>0;
+    const holG=computable.filter(isHol), nonHolG=computable.filter(x=>!isHol(x));
+    if(holG.length>=MIN_GROUP && nonHolG.length>=MIN_GROUP){
+      const holRate=holG.filter(isFlagged).length/holG.length, nonRate=nonHolG.filter(isFlagged).length/nonHolG.length;
+      if(holRate>=nonRate) pushCandidate('Calendar','Holiday week (Holiday_Count>0)',holG,nonHolG);
+      else pushCandidate('Calendar','Non-holiday week',nonHolG,holG);
+    }
+  }
+  return candidates.sort((a,b)=>Math.abs(b.lift-1)-Math.abs(a.lift-1)).slice(0,4);
+}
+
+// Memory / KB — extends the existing localStorage KB with confirmed-cause records keyed by
+// a signature (real dimension values + pattern label). Re-used only as a PRIOR: the caller
+// still re-checks the pattern against the current queue's live data before trusting it.
+function rcaSignature(r,patternLabel){ return {Region:r.Region||'',SubRegion:r.SubRegion||'',Country:r.Country||'',channel:r.channel||'',Offering:r.Offering||'',pattern:patternLabel||''}; }
+function sigScore(a,b){ if(!a||!b) return 0; let s=0; ['Region','SubRegion','Country','channel','Offering','pattern'].forEach(k=>{ if(a[k]&&b[k]&&a[k]===b[k]) s++; }); return s; }
+function searchMemory(sig){
+  return KB.filter(k=>k.confirmed&&k.sig).map(k=>({entry:k,score:sigScore(sig,k.sig)})).filter(h=>h.score>=2).sort((a,b)=>b.score-a.score).slice(0,2);
+}
+function confirmRCACause(i,patternLabel){
+  const r=FLAGS[i]; if(!r) return;
+  const box=document.getElementById('rcaCauseInput');
+  const cause=(box?box.value.trim():'');
+  if(!cause){ alert('Describe the confirmed cause first.'); return; }
+  KB.push({q:'(confirmed RCA cause)',a:cause,cat:'Confirmed cause',ctx:window.CUR_CTX||'',ts:new Date().toISOString(),sig:rcaSignature(r,patternLabel),confirmed:true});
+  localStorage.setItem('rca_kb',JSON.stringify(KB));
+  renderProbe();
+  const btn=box&&box.closest('.rca-confirm')&&box.closest('.rca-confirm').querySelector('button');
+  if(btn){ btn.textContent='✅ Saved to memory'; btn.disabled=true; }
+}
+
+// Narration — stitches the deterministic + discovery + memory results into prose. Every
+// figure quoted here traces to a value computed above; this is the stand-in for the future
+// on-prem LLaMA narration layer (same non-computing role the design already specifies).
+function narrateRCA(r,when,shift,discovery,memHits){
+  const band=num(document.getElementById('band').value)||10;
+  let p=`This queue's plan-adherence deviation is <b>${r._padh.toFixed(1)}%</b> (outside the ±${band}% band). ${when.label} ${shift.label}`;
+  if(discovery.length){
+    const d=discovery[0];
+    p+=` Discovery scan: rows where <b>${rcaEsc(d.dim)} = ${rcaEsc(d.value)}</b> are flagged <b>${(d.rateA*100).toFixed(0)}%</b> of the time vs ${(d.rateB*100).toFixed(0)}% otherwise (n=${d.nA}) — an unconfirmed statistical pattern, not a scored cause.`;
+  }
+  p+= memHits.length
+    ? ` Memory: matches a previously confirmed pattern — “${rcaEsc(memHits[0].entry.a)}” (confirmed ${new Date(memHits[0].entry.ts).toLocaleDateString()}).`
+    : ` Memory: no previously confirmed cause matches this signature yet — this would be a new pattern to confirm.`;
+  return p;
+}
+
+// Orchestrator — reveals each exploration step in sequence (simulates the agent's own
+// tool-calling trace). The PATH is identical in code for every queue, but which steps find
+// something — and what they find — comes from that queue's own numbers, so the output
+// differs per queue. Ends with a "confirm cause" action that feeds the memory loop.
+function runRCA(i){
+  const r=FLAGS[i]; if(!r) return;
+  const scope=window._lastRows||ROWS;
+  const host=document.getElementById('rcaPanel'); if(!host) return;
+  host.innerHTML=`<div class="rca-trace" id="rcaTrace"></div>`;
+  const traceEl=document.getElementById('rcaTrace');
+  const addStep=(icon,title,bodyFn)=>{
+    const div=document.createElement('div'); div.className='trace-step';
+    div.innerHTML=`<div class="ts-h"><span class="ts-i">${icon}</span><span class="ts-t">${title}</span><span class="ts-spin">thinking…</span></div><div class="ts-b"></div>`;
+    traceEl.appendChild(div);
+    requestAnimationFrame(()=>div.classList.add('show'));
+    return new Promise(res=>setTimeout(()=>{
+      const body=bodyFn();
+      const spin=div.querySelector('.ts-spin'); if(spin) spin.remove();
+      div.querySelector('.ts-b').innerHTML=body;
+      res();
+    },420));
+  };
+  let when,shift,discovery,memHits,patternLabel;
+  (async()=>{
+    await addStep('📈','Check trend (WHEN) — this queue across recent weeks', ()=>{ when=computeWhen(r); return when.label; });
+    await addStep('🔀','Check siblings in the CQN (WHERE — volume-shift pattern)', ()=>{ shift=computeSiblingShift(r,scope); return shift.label; });
+    await addStep('🧬','Scan every dimension for correlated patterns (discovery)', ()=>{
+      discovery=computeDiscovery(r,scope);
+      return discovery.length
+        ? discovery.map(d=>`<div class="disc-item">${rcaEsc(d.dim)} = <b>${rcaEsc(d.value)}</b> → flagged <b>${(d.rateA*100).toFixed(0)}%</b> of the time vs ${(d.rateB*100).toFixed(0)}% baseline (n=${d.nA}) <span class="chip amber">unconfirmed</span></div>`).join('')
+        : '<i>Not enough rows in the current scope for a reliable pattern.</i>';
+    });
+    await addStep('🧠','Check memory for a previously confirmed cause', ()=>{
+      patternLabel = shift.found?'Intra-CQN volume shift':(when.isPersistent?'Persistent forecast miss':'Isolated miss');
+      memHits=searchMemory(rcaSignature(r,patternLabel));
+      return memHits.length
+        ? memHits.map(h=>`<div class="mem-hit">Matches a confirmed cause (score ${h.score}/6): <b>${rcaEsc(h.entry.a)}</b><div class="qmeta">confirmed ${new Date(h.entry.ts).toLocaleDateString()}</div></div>`).join('')
+        : 'No matching confirmed cause in memory yet.';
+    });
+    await addStep('📝','Synthesize', ()=>narrateRCA(r,when,shift,discovery,memHits));
+    const confirm=document.createElement('div'); confirm.className='rca-confirm';
+    confirm.innerHTML=`<div class="subhead" style="margin-top:0;">Confirm the cause <span style="text-transform:none;font-weight:500;color:var(--muted)">(saves to memory for future matching)</span></div>
+      <input id="rcaCauseInput" class="fsearch" style="margin:8px 0 8px;" placeholder="Describe the confirmed cause…" value="${shift.found?rcaAttr('Volume shifted to '+shift.top.name):''}">
+      <button class="filebtn" onclick="confirmRCACause(${i},'${patternLabel.replace(/'/g,"\\'")}')">✅ Confirm this cause → save to memory</button>`;
+    traceEl.appendChild(confirm);
+  })();
+}
 
 /* ---------------- Probing → Markdown knowledge base ---------------- */
 // Static domain probes — expanded to cover the newly-filterable dimensions.
@@ -1417,7 +1611,7 @@ function renderContextProbes(rows,groups){
   // 3) Forecaster carrying the most flagged weeks.
   const band=num(document.getElementById('band').value)||10;
   const byF={};
-  rows.forEach(r=>{ if(r._padh!=null && +r._padh.toFixed(1)>band){ const f=r.Forecaster||'(unknown)'; byF[f]=(byF[f]||0)+1; } });
+  rows.forEach(r=>{ if(r._padh!=null && Math.abs(+r._padh.toFixed(1))>band){ const f=r.Forecaster||'(unknown)'; byF[f]=(byF[f]||0)+1; } });
   const topF=Object.entries(byF).sort((a,b)=>b[1]-a[1])[0];
   if(topF && topF[1]>0) CTX_PROBES.push(`Forecaster ${topF[0]} owns ${topF[1]} flagged week(s) — is that expected for their book?`);
   // 4) Data-gap volume.
