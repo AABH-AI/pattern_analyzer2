@@ -61,3 +61,12 @@ Verification: every `<script>` block validated via `new Function(...)` — all O
 Known limitations: 2 legacy "Plan Adherence" strings still in the UI (cosmetic); the Console checkbox filters and Dashboard dropdowns both write the shared FILTERS state, so they can visually desync (last action wins).
 
 > Process note: from here on, each prompt's work is appended to this trail.
+
+---
+
+## Session 7 — 2026-07-24 · Affected-queues-by-band chart
+Requested → delivered:
+1. New Dashboard chart **"Affected queues by Forecast-Adherence band"** — only flagged queues (|Forecast Adherence| > band), each bucketed by its **worst** week into **≤±15% / ±15–25% / ±25–50% / ±50–100% / >±100%**; value = distinct queues, note = % of affected queues + flagged weeks in the band. Reacts to the drill path and the console/dashboard filters.
+2. Renamed the existing spread to **"Forecast Adherence spread — all weeks"** (was "Forecast-accuracy deviation spread") and reframed the copy around Forecast Adherence.
+
+Verification: all `<script>` blocks validated via `new Function(...)` — OK.

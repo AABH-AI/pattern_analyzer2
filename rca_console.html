@@ -1370,6 +1370,19 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
     {label:'>±25% · critical',value:dev[4],color:'var(--danger)'},  // red
   ].map(d=>({...d,note:(d.value/devTot*100).toFixed(0)+'%'}));
 
+  // ---- Affected queues by Forecast-Adherence band (only flagged queues; each bucketed by its WORST week) ----
+  const worstByQueue=new Map();
+  rows.forEach(r=>{ if(r._padh!=null){ const d=Math.abs(r._padh); if(d>band){ const nm=(r.Forecast_name==null||r.Forecast_name==='')?'(blank)':String(r.Forecast_name); worstByQueue.set(nm,Math.max(worstByQueue.get(nm)||0,d)); } } });
+  const adhDefs=[[0,15,'≤ ±15%'],[15,25,'±15–25%'],[25,50,'±25–50%'],[50,100,'±50–100%'],[100,Infinity,'> ±100%']];
+  const adhBucket=d=>{ for(let i=0;i<adhDefs.length;i++){ if(d>adhDefs[i][0] && d<=adhDefs[i][1]) return i; } return adhDefs.length-1; };
+  const adhCnt=adhDefs.map(()=>0), adhWk=adhDefs.map(()=>0);
+  worstByQueue.forEach(d=>{ adhCnt[adhBucket(d)]++; });
+  rows.forEach(r=>{ if(r._padh!=null){ const d=Math.abs(r._padh); if(d>band) adhWk[adhBucket(d)]++; } });
+  const affTot=adhCnt.reduce((a,b)=>a+b,0)||1;
+  const affColors=['var(--accent-2)','#e8770f','#f2b01e','var(--danger)','#7a1020'];
+  const affNames=['minor','elevated','serious','severe','extreme'];
+  const affBars=adhDefs.map((d,i)=>({label:d[2]+' · '+affNames[i],value:adhCnt[i],color:affColors[i],note:(adhCnt[i]/affTot*100).toFixed(0)+'% · '+adhWk[i].toLocaleString()+' wks'}));
+
   // ---- Actual vs Forecast overlay (same unit → one y-scale) ----
   const sActual={name:'Actual offered',color:'var(--accent-2)',vals:fw.map(w=>weekOff.get(w)||0)};
   const sFcst  ={name:'Forecast offered',color:'var(--accent)', vals:fw.map(w=>Math.round(weekFcst.get(w)||0))};
@@ -1419,9 +1432,10 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
       <div class="chart"><h4>Most over/under-forecast queues</h4><div class="cs">Largest signed bias among material queues (≥0.3% of forecast volume). The RCA shortlist.</div>${divergingBars(movers)}</div>
     </div>
     <div class="dgrid">
-      <div class="chart"><h4>Forecast-accuracy deviation spread</h4><div class="cs">Computable weeks bucketed by |1 − Actual÷Fcst|. Bands carry a status label, not colour alone.</div>${htmlBars(devBars,{fmt:v=>v.toLocaleString()+' wks'})}</div>
+      <div class="chart"><h4>Forecast Adherence spread — all weeks</h4><div class="cs">Every computable week bucketed by |Forecast Adherence| (= |1 − Actual÷Fcst|). Full distribution incl. on-plan; bands carry a status label, not colour alone.</div>${htmlBars(devBars,{fmt:v=>v.toLocaleString()+' wks'})}</div>
       <div class="chart"><h4 style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">Top flagged forecast names <span style="font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap;">${flagTot.toLocaleString()} wks flagged</span></h4><div class="cs">Forecast names with the most weeks outside the ±${band}% band. % = share of all flagged weeks.</div>${htmlBars(topFlag,{fmt:v=>v.toLocaleString()+' wks'})}</div>
     </div>
+    <div class="chart"><h4>Affected queues by Forecast-Adherence band</h4><div class="cs">Only queues flagged beyond ±${band}%, each bucketed by its <b>worst</b> week's |Forecast Adherence| — how severe the misses get. Value = distinct queues; note = share of affected queues · flagged weeks in the band.</div>${htmlBars(affBars,{fmt:v=>v.toLocaleString()+' queues'})}</div>
     <div class="dgrid">
       <div class="chart"><h4>Actual offered by Region</h4><div class="cs">Σ Actual_Offered per region.</div>${htmlBars(regBars,{fmt:compactN})}</div>
       <div class="chart"><h4>Actual offered by Channel</h4><div class="cs">Σ Actual_Offered per channel.</div>${htmlBars(chBars,{fmt:compactN})}</div>
