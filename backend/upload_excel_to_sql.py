@@ -90,6 +90,8 @@ def main():
     ap.add_argument("--excel", default=None)
     ap.add_argument("--dry-run", action="store_true", help="Parse + print schema only; no database.")
     ap.add_argument("--schema-only", action="store_true", help="Create the table (schema) in SQL only; do not insert any rows.")
+    ap.add_argument("--min-week", type=int, default=None, help="Only load rows with Fiscal_Week >= this (e.g. 202500). Overrides config min_fiscal_week.")
+    ap.add_argument("--max-week", type=int, default=None, help="Only load rows with Fiscal_Week <= this (e.g. 202799). Overrides config max_fiscal_week.")
     args = ap.parse_args()
 
     excel_path = args.excel
@@ -107,6 +109,26 @@ def main():
         sys.exit("No Excel path. Pass --excel PATH or set excel_path in config.json.")
 
     headers, rows = read_excel(excel_path)
+
+    # Optional Fiscal_Week range filter (persists the truncation: e.g. keep only 2025-2027).
+    min_wk = args.min_week if args.min_week is not None else cfg.get("min_fiscal_week")
+    max_wk = args.max_week if args.max_week is not None else cfg.get("max_fiscal_week")
+    if min_wk is not None or max_wk is not None:
+        fw_idx = next((i for i, h in enumerate(headers) if str(h).strip().lower() == "fiscal_week"), None)
+        if fw_idx is None:
+            print("WARNING: --min/max-week set but no 'Fiscal_Week' column found; skipping filter.")
+        else:
+            lo = int(min_wk) if min_wk is not None else -10**18
+            hi = int(max_wk) if max_wk is not None else 10**18
+            def _wk(r):
+                try:
+                    return int(float(r[fw_idx]))
+                except (TypeError, ValueError, IndexError):
+                    return None
+            before = len(rows)
+            rows = [r for r in rows if (_wk(r) is not None and lo <= _wk(r) <= hi)]
+            print(f"Fiscal-week filter [{lo}..{hi}]: kept {len(rows):,} of {before:,} rows.")
+
     create_sql = build_create(table, headers)
     print("\n--- CREATE TABLE ---")
     print(create_sql)

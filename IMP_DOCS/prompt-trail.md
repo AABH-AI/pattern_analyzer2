@@ -98,3 +98,12 @@ Requested → delivered:
 2. Reinforced the affordance: the field hint now reads "Enter → affected queues". Typing/picking a week and pressing **Enter** (or selecting from the datalist) opens the affected-queues popup — behaviour confirmed.
 
 Verification: all `<script>` blocks validated via `new Function(...)` — OK.
+
+---
+
+## Session 11 — 2026-07-24 · Truncate data to 2025-2027
+Requested → delivered:
+1. **Deleted 2022–2024 and 2028–2029** from `Playground.dbo.Input_To_ML` — kept **strictly 2025–2027** (`Fiscal_Week` 202500–202799). **138,775 → 66,612 rows** (verified: range now 202501..202752; years 2025/2026/2027). Reversible — the Excel still holds all years.
+2. **Persisted the cut in the loader** — added a Fiscal_Week range filter to `upload_excel_to_sql.py` (`--min-week`/`--max-week` + config `min_fiscal_week`/`max_fiscal_week`). `config.json` set to 202500–202799 (password untouched); `config.example.json` documents it. So re-running the loader stays truncated.
+
+Verification: SQL `COUNT(*)` after = 66,612; loader `py_compile` OK; dry-run filter kept 66,612 of 138,775.
