@@ -89,3 +89,12 @@ Requested → delivered:
 3. **AI runbook** — `AGENTS.md` (full: what it is, run paths, SQL setup, endpoints, guardrails, "if you are an AI agent" steps) + `CLAUDE.md` (auto-loaded pointer + quick start).
 
 Verification: `rca_console.html` scripts validated via `new Function(...)`; `run.ps1` parsed clean (kept ASCII-only for PowerShell 5.1).
+
+---
+
+## Session 10 — 2026-07-24 · ⓘ hint on the Fiscal Week filter
+Requested → delivered:
+1. Added an **ⓘ button** next to the Fiscal Week filter — hover shows a tooltip ("type/pick a week and press Enter → popup of affected queues"); clicking it opens the affected-queues popup when a week is already selected, otherwise shows the tip.
+2. Reinforced the affordance: the field hint now reads "Enter → affected queues". Typing/picking a week and pressing **Enter** (or selecting from the datalist) opens the affected-queues popup — behaviour confirmed.
+
+Verification: all `<script>` blocks validated via `new Function(...)` — OK.

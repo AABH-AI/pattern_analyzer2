@@ -954,7 +954,7 @@ function buildDashFilters(){
   const host=document.getElementById('dashFilters'); if(!host) return;
   const fws=distinctValues('Fiscal_Week');
   // Fiscal Week — typeable (Excel-style): type a week, a partial (2024 → all FY24 weeks), a comma list, or a range 202401-202410.
-  const fwHtml=`<label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted);">Fiscal Week <span style="opacity:.65">type / range e.g. 202401-202410 · comma-separate</span>
+  const fwHtml=`<label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted);"><span style="display:inline-flex;align-items:center;gap:5px;">Fiscal Week <span onclick="fwInfo()" title="Type or pick a Fiscal Week and press Enter — a popup lists the affected (flagged) queues for that week: names, adherence %, band and direction." style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;border:1px solid var(--muted);color:var(--muted);font-size:10px;font-weight:800;flex:0 0 auto;">i</span></span> <span style="opacity:.65">type / range e.g. 202401-202410 · Enter → affected queues</span>
       <input list="dashFwList" id="dashFwInput" placeholder="All weeks — type to filter" onchange="dashFwApply(this)" onkeydown="if(event.key==='Enter'){dashFwApply(this);}" style="min-width:230px;background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:6px 8px;font-size:12px;">
       <datalist id="dashFwList">${fws.map(w=>`<option value="${w}"></option>`).join('')}</datalist></label>`;
   const sels=DASH_FILTER_FIELDS.map(([f,l])=>{
@@ -1011,6 +1011,11 @@ function openAffPopup(){
   const pop=document.getElementById('affPopup'); if(pop) pop.style.display='flex';
 }
 function closeAffPopup(){ const p=document.getElementById('affPopup'); if(p) p.style.display='none'; }
+function fwInfo(){
+  const fwi=document.getElementById('dashFwInput');
+  if(fwi && fwi.value.trim()){ openAffPopup(); return; }   // a week is picked → just show the affected queues
+  alert('Fiscal Week → Affected queues\n\nType or pick a Fiscal Week and press Enter. A popup then lists the affected (flagged) queues for that week — their names, Forecast Adherence %, severity band and direction (over/under-forecast). All names come straight from the data.');
+}
 if(typeof document!=='undefined' && !window.__affEsc){ window.__affEsc=true; document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeAffPopup(); }); }
 
 /* ---------------- Parsing (CSV / TSV / XLSX) ---------------- */
