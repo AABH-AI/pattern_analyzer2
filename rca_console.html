@@ -436,6 +436,16 @@
     </div>
   </div>
 
+  <!-- ============ INGESTION LOADING SCREEN ============ -->
+  <div id="ingestOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(6,12,26,.72);align-items:center;justify-content:center;">
+    <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:22px 26px;width:min(460px,92vw);box-shadow:0 24px 70px -24px rgba(0,0,0,.65);">
+      <div style="font-size:15px;font-weight:800;">Ingesting demand data…</div>
+      <div id="ingSub" style="font-size:12px;color:var(--muted);margin:3px 0 13px;">Starting…</div>
+      <div style="height:10px;background:var(--panel-2);border:1px solid var(--border);border-radius:6px;overflow:hidden;"><i id="ingBar" style="display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-2,#12986f));transition:width .3s;"></i></div>
+      <div id="ingSteps" style="margin-top:15px;display:grid;gap:8px;"></div>
+    </div>
+  </div>
+
   <!-- ============ DASHBOARD ============ -->
   <div class="tab" id="tab-dashboard">
     <h1>Dashboard</h1>
@@ -443,6 +453,10 @@
     <div id="dashEmpty" class="empty">
       <div style="font-size:34px;margin-bottom:8px;">📊</div>
       <b>No data loaded.</b><br>Upload the weekly demand file in the <b>RCA Console</b> tab — this dashboard populates automatically and follows your filters.
+    </div>
+    <div id="dashFilterWrap" style="display:none;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700;margin-bottom:9px;">Filter the dashboard — pick values and the graphs below show the affected (flagged) queues for that selection</div>
+      <div id="dashFilters" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;"></div>
     </div>
     <div id="dashboardArea" style="display:none;"></div>
   </div>
@@ -861,19 +875,28 @@ async function sqlFetch(){
   window.SRC='sql';
   const fs=document.getElementById('fileStatus');
   if(fs) fs.textContent='Querying SQL Server (AA) …';
+  showIngest('Querying SQL Server (AA)…'); ingStep(0,10);
   renderPipe({source:'sql'});
   try{
+    ingStep(1,35,'Running query & downloading rows…'); await _tick();
     const r=await fetch(API_BASE+'/api/data');
     if(!r.ok){ let d; try{ d=(await r.json()).detail; }catch(_){ d=r.statusText; } throw new Error(d||('HTTP '+r.status)); }
     const j=await r.json(); const rows=j.rows||[];
     if(!rows.length) throw new Error('query returned 0 rows');
+    ingStep(2,58,'Building records…'); await _tick();
     ROWS=rows;
     if(fs) fs.innerHTML='🗄 <b>SQL Server (AA)</b> · '+((j.table)||'dbo.Input_To_ML')+' — '+rows.length.toLocaleString()+' rows';
     document.getElementById('emptyState').style.display='none';
     document.getElementById('consoleArea').style.display='block';
     renderPipe({source:'sql', rows:rows.length});
-    buildFilters(); applyAndScan();
+    ingStep(3,74,'Computing the two metrics…'); await _tick();
+    buildFilters(); buildDashFilters();
+    ingStep(4,90,'Flagging misses…'); await _tick();
+    applyAndScan();
+    ingStep(6,100,'Done'); await _tick();
+    hideIngest();
   }catch(e){
+    hideIngest();
     if(fs) fs.textContent='SQL error: '+e.message; renderPipe({source:'sql'});
     alert('Connect to SQL Server failed: '+e.message+'\n\nStart the local backend first:\n  cd backend\n  uvicorn sql_backend:app --port 8000\n\n(connection is configured in backend/config.json)');
   }
@@ -889,6 +912,53 @@ function renderPipe(st){
     pstage(comp!=null?'done':'pending', '🧮', 'Compute · 2 metrics', comp!=null?comp.toLocaleString()+' scored':'—')+
     pstage(rows?'done':'pending', '🚩', 'Flag · ±band', flg!=null?flg.toLocaleString()+' flagged':'—')+
     pstage(ready?'done':(rows?'active':'pending'), '🔍', 'RCA', ready?'ready':(rows?'scanning…':'—'));
+}
+
+/* ---------------- Ingestion loading screen ---------------- */
+const INGEST_STEPS=['Read source (file / SQL Server)','Parse rows','Build records','Compute the two metrics','Flag misses (±band)','Render dashboard & report'];
+const _tick=()=>new Promise(r=>setTimeout(r,45));
+function showIngest(sub){
+  const host=document.getElementById('ingSteps'); if(!host) return;
+  host.innerHTML=INGEST_STEPS.map((s,i)=>`<div id="ings-${i}" style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted);"><span class="ingdot" style="width:17px;height:17px;border-radius:50%;border:2px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:9px;flex:0 0 auto;">${i+1}</span><span>${s}</span></div>`).join('');
+  const sb=document.getElementById('ingSub'); if(sb) sb.textContent=sub||'Starting…';
+  const bar=document.getElementById('ingBar'); if(bar) bar.style.width='0';
+  const ov=document.getElementById('ingestOverlay'); if(ov) ov.style.display='flex';
+}
+function ingStep(active,pct,note){
+  for(let k=0;k<INGEST_STEPS.length;k++){
+    const row=document.getElementById('ings-'+k); if(!row) continue;
+    const dot=row.querySelector('.ingdot');
+    if(k<active){ dot.style.background='var(--accent-2,#12986f)'; dot.style.borderColor='var(--accent-2,#12986f)'; dot.style.color='#fff'; dot.textContent='✓'; row.style.color='var(--text)'; row.style.fontWeight='400'; }
+    else if(k===active){ dot.style.borderColor='var(--accent)'; dot.style.color='var(--accent)'; dot.textContent=String(k+1); row.style.color='var(--text)'; row.style.fontWeight='700'; }
+    else { dot.style.background='transparent'; dot.style.borderColor='var(--border)'; dot.style.color='var(--muted)'; dot.textContent=String(k+1); row.style.color='var(--muted)'; row.style.fontWeight='400'; }
+  }
+  if(pct!=null){ const bar=document.getElementById('ingBar'); if(bar) bar.style.width=pct+'%'; }
+  if(note){ const sb=document.getElementById('ingSub'); if(sb) sb.textContent=note; }
+}
+function hideIngest(){ const ov=document.getElementById('ingestOverlay'); if(ov) ov.style.display='none'; }
+
+/* ---------------- Dashboard dropdown filters (drive the same scan engine) ---------------- */
+const DASH_FILTER_FIELDS=[['Region','Region'],['SubRegion','Sub-Region'],['Country','Country'],['channel','Channel'],['Offering','Offering'],['Forecaster','Forecaster'],['Projection_plan_name','Projection plan']];
+function buildDashFilters(){
+  const host=document.getElementById('dashFilters'); if(!host) return;
+  host.innerHTML=DASH_FILTER_FIELDS.map(([f,l])=>{
+    const vals=distinctValues(f);
+    return `<label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted);">${l}
+      <select data-f="${f}" onchange="dashFilterChange(this)" style="min-width:132px;background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:6px 8px;font-size:12px;">
+        <option value="">(All)</option>${vals.map(v=>`<option value="${String(v).replace(/"/g,'&quot;')}">${v}</option>`).join('')}
+      </select></label>`;
+  }).join('')+`<button class="filebtn ghost" style="align-self:flex-end;" onclick="dashFiltersReset()">↻ Reset</button>`;
+  const wrap=document.getElementById('dashFilterWrap'); if(wrap) wrap.style.display='block';
+}
+function dashFilterChange(sel){
+  const f=sel.getAttribute('data-f'), v=sel.value;
+  FILTERS[f]= v ? new Set([v]) : null;
+  applyAndScan();               // recomputes flagged/affected queues within the new scope, re-renders the dashboard graphs
+}
+function dashFiltersReset(){
+  DASH_FILTER_FIELDS.forEach(([f])=>{ FILTERS[f]=null; });
+  document.querySelectorAll('#dashFilters select').forEach(s=>s.value='');
+  applyAndScan();
 }
 
 /* ---------------- Parsing (CSV / TSV / XLSX) ---------------- */
@@ -926,19 +996,27 @@ async function fileToArrays(file){const nm=(file.name||'').toLowerCase();if(nm.e
 async function onWeekly(file){
   if(!file)return;
   const src=window._pendingSrc||'file'; window.SRC=src; window._pendingSrc=null;
+  showIngest(src==='sql'?'Querying SQL Server (AA)…':'Reading '+file.name+'…'); ingStep(0,8);
   document.getElementById('fileStatus').textContent=(src==='sql'?'Querying SQL Server (AA) → ':'Reading ')+file.name+' …';
   renderPipe({source:src});
   try{
-    const rows=buildRows(await fileToArrays(file));
+    ingStep(1,28,'Parsing rows…'); await _tick();
+    const arrays=await fileToArrays(file);
+    ingStep(2,52,'Building records…'); await _tick();
+    const rows=buildRows(arrays);
     if(!rows.length)throw new Error('no rows');
     ROWS=rows;
     document.getElementById('fileStatus').innerHTML=(src==='sql'?'🗄 <b>SQL Server (AA)</b> · dbo.demand_facts — ':'<b>'+file.name+'</b> — ')+rows.length.toLocaleString()+' rows';
     document.getElementById('emptyState').style.display='none';
     document.getElementById('consoleArea').style.display='block';
     renderPipe({source:src, rows:rows.length});
-    buildFilters();
+    ingStep(3,72,'Computing the two metrics…'); await _tick();
+    buildFilters(); buildDashFilters();
+    ingStep(4,88,'Flagging misses…'); await _tick();
     applyAndScan();
-  }catch(e){ document.getElementById('fileStatus').textContent='Error: '+e.message; renderPipe({source:src}); alert('Could not read weekly file: '+e.message); }
+    ingStep(6,100,'Done'); await _tick();
+    hideIngest();
+  }catch(e){ hideIngest(); document.getElementById('fileStatus').textContent='Error: '+e.message; renderPipe({source:src}); alert('Could not read weekly file: '+e.message); }
 }
 async function onMapping(file){
   if(!file)return;
