@@ -941,13 +941,19 @@ function hideIngest(){ const ov=document.getElementById('ingestOverlay'); if(ov)
 const DASH_FILTER_FIELDS=[['Region','Region'],['SubRegion','Sub-Region'],['Country','Country'],['channel','Channel'],['Offering','Offering'],['Forecaster','Forecaster'],['Projection_plan_name','Projection plan']];
 function buildDashFilters(){
   const host=document.getElementById('dashFilters'); if(!host) return;
-  host.innerHTML=DASH_FILTER_FIELDS.map(([f,l])=>{
+  const fws=distinctValues('Fiscal_Week');
+  // Fiscal Week — typeable (Excel-style): type a week, a partial (2024 → all FY24 weeks), a comma list, or a range 202401-202410.
+  const fwHtml=`<label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted);">Fiscal Week <span style="opacity:.65">type / range e.g. 202401-202410 · comma-separate</span>
+      <input list="dashFwList" id="dashFwInput" placeholder="All weeks — type to filter" onchange="dashFwApply(this)" onkeydown="if(event.key==='Enter'){dashFwApply(this);}" style="min-width:230px;background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:6px 8px;font-size:12px;">
+      <datalist id="dashFwList">${fws.map(w=>`<option value="${w}"></option>`).join('')}</datalist></label>`;
+  const sels=DASH_FILTER_FIELDS.map(([f,l])=>{
     const vals=distinctValues(f);
     return `<label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted);">${l}
       <select data-f="${f}" onchange="dashFilterChange(this)" style="min-width:132px;background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:6px 8px;font-size:12px;">
         <option value="">(All)</option>${vals.map(v=>`<option value="${String(v).replace(/"/g,'&quot;')}">${v}</option>`).join('')}
       </select></label>`;
-  }).join('')+`<button class="filebtn ghost" style="align-self:flex-end;" onclick="dashFiltersReset()">↻ Reset</button>`;
+  }).join('');
+  host.innerHTML=fwHtml+sels+`<button class="filebtn ghost" style="align-self:flex-end;" onclick="dashFiltersReset()">↻ Reset</button>`;
   const wrap=document.getElementById('dashFilterWrap'); if(wrap) wrap.style.display='block';
 }
 function dashFilterChange(sel){
@@ -955,9 +961,23 @@ function dashFilterChange(sel){
   FILTERS[f]= v ? new Set([v]) : null;
   applyAndScan();               // recomputes flagged/affected queues within the new scope, re-renders the dashboard graphs
 }
+function dashFwApply(inp){
+  const raw=(inp.value||'').trim();
+  if(!raw){ FILTERS['Fiscal_Week']=null; applyAndScan(); return; }
+  const all=distinctValues('Fiscal_Week'); const sel=new Set();
+  raw.split(',').map(s=>s.trim()).filter(Boolean).forEach(tok=>{
+    const rng=tok.match(/^(\d+)\s*[-–]\s*(\d+)$/);           // range: 202401-202410 (fixed-width YYYYWW → lexicographic = numeric)
+    if(rng){ const lo=rng[1], hi=rng[2]; all.forEach(w=>{ if(w>=lo && w<=hi) sel.add(w); }); }
+    else { all.forEach(w=>{ if(w===tok || w.indexOf(tok)>=0) sel.add(w); }); }   // exact or partial (type-ahead)
+  });
+  FILTERS['Fiscal_Week']=sel;   // matched weeks; if nothing matched the set is empty → no rows (Excel behaviour)
+  applyAndScan();
+}
 function dashFiltersReset(){
   DASH_FILTER_FIELDS.forEach(([f])=>{ FILTERS[f]=null; });
+  FILTERS['Fiscal_Week']=null;
   document.querySelectorAll('#dashFilters select').forEach(s=>s.value='');
+  const fwi=document.getElementById('dashFwInput'); if(fwi) fwi.value='';
   applyAndScan();
 }
 
@@ -1370,18 +1390,19 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
     {label:'>±25% · critical',value:dev[4],color:'var(--danger)'},  // red
   ].map(d=>({...d,note:(d.value/devTot*100).toFixed(0)+'%'}));
 
-  // ---- Affected queues by Forecast-Adherence band (only flagged queues; each bucketed by its WORST week) ----
+  // ---- Forecast names by Forecast-Adherence band (ALL names in scope; each bucketed by its WORST week) ----
+  // Fine bands starting at ±5. Pick a Fiscal Week → each name has one value that week, so this shows
+  // exactly which names sat at ±5%, ±10%, ±15–20%, … that week.
   const worstByQueue=new Map();
-  rows.forEach(r=>{ if(r._padh!=null){ const d=Math.abs(r._padh); if(d>band){ const nm=(r.Forecast_name==null||r.Forecast_name==='')?'(blank)':String(r.Forecast_name); worstByQueue.set(nm,Math.max(worstByQueue.get(nm)||0,d)); } } });
-  const adhDefs=[[0,15,'≤ ±15%'],[15,25,'±15–25%'],[25,50,'±25–50%'],[50,100,'±50–100%'],[100,Infinity,'> ±100%']];
+  rows.forEach(r=>{ if(r._padh!=null){ const nm=(r.Forecast_name==null||r.Forecast_name==='')?'(blank)':String(r.Forecast_name); worstByQueue.set(nm,Math.max(worstByQueue.get(nm)||0,Math.abs(r._padh))); } });
+  const adhDefs=[[0,5,'≤ ±5%'],[5,10,'±5–10%'],[10,15,'±10–15%'],[15,20,'±15–20%'],[20,25,'±20–25%'],[25,Infinity,'> ±25%']];
   const adhBucket=d=>{ for(let i=0;i<adhDefs.length;i++){ if(d>adhDefs[i][0] && d<=adhDefs[i][1]) return i; } return adhDefs.length-1; };
   const adhCnt=adhDefs.map(()=>0), adhWk=adhDefs.map(()=>0);
   worstByQueue.forEach(d=>{ adhCnt[adhBucket(d)]++; });
-  rows.forEach(r=>{ if(r._padh!=null){ const d=Math.abs(r._padh); if(d>band) adhWk[adhBucket(d)]++; } });
+  rows.forEach(r=>{ if(r._padh!=null) adhWk[adhBucket(Math.abs(r._padh))]++; });
   const affTot=adhCnt.reduce((a,b)=>a+b,0)||1;
-  const affColors=['var(--accent-2)','#e8770f','#f2b01e','var(--danger)','#7a1020'];
-  const affNames=['minor','elevated','serious','severe','extreme'];
-  const affBars=adhDefs.map((d,i)=>({label:d[2]+' · '+affNames[i],value:adhCnt[i],color:affColors[i],note:(adhCnt[i]/affTot*100).toFixed(0)+'% · '+adhWk[i].toLocaleString()+' wks'}));
+  const affColors=['var(--accent-2)','var(--accent)','#f2b01e','#e8770f','#d1451f','var(--danger)'];
+  const affBars=adhDefs.map((d,i)=>({label:d[2],value:adhCnt[i],color:affColors[i],note:(adhCnt[i]/affTot*100).toFixed(0)+'% · '+adhWk[i].toLocaleString()+' wks'}));
 
   // ---- Actual vs Forecast overlay (same unit → one y-scale) ----
   const sActual={name:'Actual offered',color:'var(--accent-2)',vals:fw.map(w=>weekOff.get(w)||0)};
@@ -1435,7 +1456,7 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
       <div class="chart"><h4>Forecast Adherence spread — all weeks</h4><div class="cs">Every computable week bucketed by |Forecast Adherence| (= |1 − Actual÷Fcst|). Full distribution incl. on-plan; bands carry a status label, not colour alone.</div>${htmlBars(devBars,{fmt:v=>v.toLocaleString()+' wks'})}</div>
       <div class="chart"><h4 style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">Top flagged forecast names <span style="font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap;">${flagTot.toLocaleString()} wks flagged</span></h4><div class="cs">Forecast names with the most weeks outside the ±${band}% band. % = share of all flagged weeks.</div>${htmlBars(topFlag,{fmt:v=>v.toLocaleString()+' wks'})}</div>
     </div>
-    <div class="chart"><h4>Affected queues by Forecast-Adherence band</h4><div class="cs">Only queues flagged beyond ±${band}%, each bucketed by its <b>worst</b> week's |Forecast Adherence| — how severe the misses get. Value = distinct queues; note = share of affected queues · flagged weeks in the band.</div>${htmlBars(affBars,{fmt:v=>v.toLocaleString()+' queues'})}</div>
+    <div class="chart"><h4>Forecast names by adherence band</h4><div class="cs">Every forecast name in scope, bucketed by its <b>worst</b> week's |Forecast Adherence| into ±5 / ±10 / ±15–20 / ±20–25 / &gt;±25. <b>Pick a Fiscal Week above</b> to see which names sat in each band that week. Value = distinct forecast names; note = share · weeks in band.</div>${htmlBars(affBars,{fmt:v=>v.toLocaleString()+' names'})}</div>
     <div class="dgrid">
       <div class="chart"><h4>Actual offered by Region</h4><div class="cs">Σ Actual_Offered per region.</div>${htmlBars(regBars,{fmt:compactN})}</div>
       <div class="chart"><h4>Actual offered by Channel</h4><div class="cs">Σ Actual_Offered per channel.</div>${htmlBars(chBars,{fmt:compactN})}</div>
