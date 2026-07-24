@@ -446,6 +446,17 @@
     </div>
   </div>
 
+  <!-- ============ AFFECTED-QUEUES POPUP (opens on Fiscal Week select) ============ -->
+  <div id="affPopup" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(6,12,26,.72);align-items:center;justify-content:center;" onclick="if(event.target===this)closeAffPopup()">
+    <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:18px 20px;width:min(780px,94vw);max-height:82vh;display:flex;flex-direction:column;box-shadow:0 24px 70px -24px rgba(0,0,0,.65);">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;">
+        <div id="affPopupHead" style="font-size:14.5px;font-weight:800;"></div>
+        <button class="filebtn ghost" onclick="closeAffPopup()">✕ Close</button>
+      </div>
+      <div id="affPopupBody" style="overflow:auto;"></div>
+    </div>
+  </div>
+
   <!-- ============ DASHBOARD ============ -->
   <div class="tab" id="tab-dashboard">
     <h1>Dashboard</h1>
@@ -972,6 +983,7 @@ function dashFwApply(inp){
   });
   FILTERS['Fiscal_Week']=sel;   // matched weeks; if nothing matched the set is empty → no rows (Excel behaviour)
   applyAndScan();
+  openAffPopup();               // show the affected queues (real names) for the selected week(s)
 }
 function dashFiltersReset(){
   DASH_FILTER_FIELDS.forEach(([f])=>{ FILTERS[f]=null; });
@@ -980,6 +992,26 @@ function dashFiltersReset(){
   const fwi=document.getElementById('dashFwInput'); if(fwi) fwi.value='';
   applyAndScan();
 }
+/* Affected-queues popup — lists the real flagged forecast names for the current scope.
+   Every value comes straight from the computed rows (FLAGS); nothing is inferred or invented. */
+function bandLabel(v){ const d=Math.abs(v); if(d<=5)return'±5%'; if(d<=10)return'±5–10%'; if(d<=15)return'±10–15%'; if(d<=20)return'±15–20%'; if(d<=25)return'±20–25%'; return'>±25%'; }
+function escHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function openAffPopup(){
+  const band=num(document.getElementById('band').value)||10;
+  const list=(FLAGS||[]).filter(r=>r&&r._padh!=null&&Math.abs(+r._padh.toFixed(1))>band).slice().sort((a,b)=>Math.abs(b._padh)-Math.abs(a._padh));
+  const fwi=document.getElementById('dashFwInput'); const fwTxt=(fwi&&fwi.value)?fwi.value:'(current filter)';
+  const head=document.getElementById('affPopupHead'), body=document.getElementById('affPopupBody'); if(!head||!body) return;
+  head.innerHTML=`Affected queues — Fiscal Week <b>${escHtml(fwTxt)}</b> <span style="color:var(--muted);font-weight:600;font-size:12px;">· ${list.length} beyond ±${band}%</span>`;
+  if(!list.length){ body.innerHTML=`<div class="empty" style="border:none;">No affected queues — every forecast name is within ±${band}% for this selection.</div>`; }
+  else {
+    body.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12.5px;"><thead><tr style="text-align:left;color:var(--muted);"><th style="padding:6px 8px;">#</th><th style="padding:6px 8px;">Forecast name (queue)</th><th style="padding:6px 8px;">Fiscal Week</th><th style="padding:6px 8px;text-align:right;">Forecast Adherence</th><th style="padding:6px 8px;">Band</th><th style="padding:6px 8px;">Direction</th></tr></thead><tbody>`+
+      list.map((r,i)=>{ const p=r._padh; const dir=p<0?'under-forecast (actual ran above)':(p>0?'over-forecast (actual ran below)':'on plan'); const col=Math.abs(p)>25?'var(--danger)':'#c96a10'; return `<tr style="border-top:1px solid var(--border);"><td style="padding:6px 8px;color:var(--muted);">${i+1}</td><td style="padding:6px 8px;font-weight:600;">${escHtml(r.Forecast_name||'(blank)')}</td><td style="padding:6px 8px;">${escHtml(r._wk)}</td><td style="padding:6px 8px;text-align:right;font-variant-numeric:tabular-nums;color:${col};">${p>0?'+':''}${p.toFixed(1)}%</td><td style="padding:6px 8px;">${bandLabel(p)}</td><td style="padding:6px 8px;color:var(--muted);">${dir}</td></tr>`; }).join('')+
+      `</tbody></table>`;
+  }
+  const pop=document.getElementById('affPopup'); if(pop) pop.style.display='flex';
+}
+function closeAffPopup(){ const p=document.getElementById('affPopup'); if(p) p.style.display='none'; }
+if(typeof document!=='undefined' && !window.__affEsc){ window.__affEsc=true; document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeAffPopup(); }); }
 
 /* ---------------- Parsing (CSV / TSV / XLSX) ---------------- */
 function detectDelim(t){const fl=(t.split(/\r?\n/)[0]||'');const a=(fl.match(/\t/g)||[]).length,c=(fl.match(/,/g)||[]).length,s=(fl.match(/;/g)||[]).length;if(a>=c&&a>=s&&a>0)return '\t';if(s>c)return ';';return ',';}

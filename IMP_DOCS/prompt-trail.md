@@ -79,3 +79,13 @@ Requested → delivered:
 2. **Reworked the affected chart → "Forecast names by adherence band"**: every forecast name in scope bucketed by its worst week's |Forecast Adherence| into **≤±5 / ±5–10 / ±10–15 / ±15–20 / ±20–25 / >±25**. With a Fiscal Week selected, each name has one value that week, so it shows exactly which names sat at ±5, ±10, ±15–20… that week. Value = distinct names; note = share · weeks in band.
 
 Verification: all `<script>` blocks validated via `new Function(...)` — OK.
+
+---
+
+## Session 9 — 2026-07-24 · Affected-queues popup + one-command runner + AI runbook
+Requested → delivered:
+1. **Affected-queues popup** — selecting a Fiscal Week opens a modal listing the **real flagged forecast names** for that scope: name, Fiscal Week, signed Forecast Adherence, band, direction. Sourced straight from `FLAGS` (computed rows) — nothing fabricated. Dismiss via ✕ / click-outside / Esc.
+2. **One-command runner** — `run.ps1` (Windows) / `run.sh` (POSIX): installs deps, seeds `backend/config.json`, starts the backend and opens the app.
+3. **AI runbook** — `AGENTS.md` (full: what it is, run paths, SQL setup, endpoints, guardrails, "if you are an AI agent" steps) + `CLAUDE.md` (auto-loaded pointer + quick start).
+
+Verification: `rca_console.html` scripts validated via `new Function(...)`; `run.ps1` parsed clean (kept ASCII-only for PowerShell 5.1).
