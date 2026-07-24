@@ -28,6 +28,13 @@ Deploy **30 Jul 2026** · last dev day **29 Jul**. Ordered by priority.
 - [ ] RAG over the probing KB to auto-surface known causes on matching queues.
 - [ ] Let confirmed KB rules feed back into flag suppression / re-flagging.
 
+## Done ✓ (2026-07-24, session 6 — merge Shivam's dashboard + timeline polish)
+- [x] Merged `origin/shivam-updates` into main (clean, merge `babf5a1`) — both feature sets intact; his branch left untouched (0 ahead of main)
+- [x] **"Plan Adherence" → "Forecast Adherence"**, now **signed** (− = actual above forecast, + = below); flag on **|Forecast Adherence| > band**
+- [x] Dashboard: deviation colour-bands, flagged-% KPI, right-side **Insights drawer**, signed adherence, **agentic deep-dive / exploration-trace** UI (Shivam)
+- [x] Timeline: added **"RCA output — report per queue"** (now 10 steps); **auto-date from the PC clock**; plain-English step names; light-only
+- [ ] Cosmetic: clean up the last 2 legacy "Plan Adherence" strings in the UI (notes card + code comment)
+
 ## Done ✓ (2026-07-23, session 5 — SQL Server (AA) live)
 - [x] FastAPI + pyODBC backend (`backend/sql_backend.py`): `/api/health`, `/api/data` (`SELECT * FROM <table>`), also serves the UI
 - [x] Excel→SQL loader (`upload_excel_to_sql.py`, `--dry-run` / `--schema-only`) — loaded **138,775 rows** into `Playground.dbo.Input_To_ML`

@@ -39,7 +39,9 @@ A single-file, dependency-free HTML tool ("Demand Pattern RCA Agent — Console"
 2. Logic: a DOM-stub Node harness can `eval` the script, set `ROWS`, call `buildFilters()`+`applyAndScan()` and assert on the produced HTML — see `prompt-trail.md` for the pattern.
 3. Visual: `chrome --headless=new --screenshot` against a temp HTML that injects sample rows and activates the target tab.
 
-## State of play (2026-07-23)
+## State of play (2026-07-24)
+- **Merged `shivam-updates` into main** (clean, merge `babf5a1`): **"Plan Adherence" → "Forecast Adherence"** (now signed), dashboard deviation colour-bands, flagged-% KPI, right-side **Insights drawer**, and an **agentic deep-dive / exploration-trace** panel. His dashboard work + our SQL/timeline work are both in main; his branch left untouched (0 ahead of main).
+- **Timeline** is now **10 steps** (added "RCA output — report per queue"); the build Gantt **auto-sets "today" from the PC clock** and is light-only.
 - **Done & verified:** schema lock, two-metric engine (calc fixed), file ingestion, Data Volumetrics + Dashboard, and **live SQL Server (AA) connection** (P6).
 - **SQL is live:** a FastAPI + pyODBC backend (`backend/`) queries SQL Server; the console's "Connect to SQL Server (AA)" button pulls it via `GET /api/data`. Full **138,775-row** table loaded into `Playground.dbo.Input_To_ML`. Hosting is packaged (Docker / Windows-service / systemd) — see `DEPLOY.md` and `IMP_DOCS/installation-and-connection.md`.
 - **In progress:** P4 — multi-queue scan → top-N → **printable Phase-1 digest** (main remaining build).

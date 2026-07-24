@@ -10,13 +10,13 @@ Why the tool is built the way it is. Read this before changing metrics, charts, 
 | Metric | Formula | Notes |
 |---|---|---|
 | **Forecast Accuracy** | `Actual_Offered ÷ fcst_offered × 100` | Forecast = `fcst_offered` (ML). |
-| **Plan Adherence (ML/Manual)** | `ABS(1 − Actual_Offered ÷ fcst_offered) × 100` | Blank if no actual; the current Excel-system formula. |
-- Flag rule: Plan-Adherence deviation **> band %** (default ±10). Equivalent to accuracy outside ±band.
+| **Forecast Adherence** | `(1 − Actual_Offered ÷ fcst_offered) × 100` — **signed** | **Renamed from "Plan Adherence" and made signed** (session 6): **negative = actual ran above forecast (under-forecast); positive = actual ran below forecast (over-forecast)**. Blank if no actual; the current Excel-system formula. |
+- Flag rule: **|Forecast Adherence| > band %** (default ±10). Equivalent to accuracy outside ±band.
 - Rows with **no/zero forecast** are data gaps — never scored, never shown as results, counted separately.
 
 ## "Avg Accuracy" — the important fix
 The old tile averaged `Actual÷Fcst` across rows. Because over- and under-forecasts scatter around 100% and **cancel**, it read ~99% even on genuinely poor data — misleading.
-**New definition:** `Avg accuracy = 100 − MAPE`, where MAPE = mean of the per-row absolute % error, which is **exactly the Plan-Adherence deviation** already computed. Clamped at ≥ 0.
+**New definition:** `Avg accuracy = 100 − MAPE`, where MAPE = mean of the per-row absolute % error, which is **exactly |Forecast Adherence|** already computed. Clamped at ≥ 0.
 - Ties directly to a metric the business already trusts.
 - On the full 138,775-row file this is **77.1%** (vs the bogus ~99%).
 - Same logic drives the Dashboard's weekly-accuracy line: `100 − mean(deviation)` per fiscal week.
@@ -63,6 +63,15 @@ The old tile averaged `Actual÷Fcst` across rows. Because over- and under-foreca
 - **"🗄 Connect to SQL Server (AA)"** button + modal (Server / Database / Table = `10.10.9.75` · `Playground` · `dbo.Input_To_ML`). **Now live** (Timeline P6 done): **Fetch table** calls the local **FastAPI + pyODBC** backend (`backend/sql_backend.py`, `GET /api/data`) which runs `SELECT * FROM <table>` and returns JSON; `sqlFetch` loads it straight into the pipeline — no upload. Connection details live in `backend/config.json` or `SQL_*` env vars (both gitignored). The full **138,775-row** table is loaded into `Playground.dbo.Input_To_ML` by `backend/upload_excel_to_sql.py`. Always-on hosting (internal server) is packaged in `DEPLOY.md` (Docker/service). Setup + troubleshooting: `IMP_DOCS/installation-and-connection.md`. Browsers can't reach SQL directly — the backend is the bridge; a public static host (GitHub Pages) therefore can't use SQL, by design.
 - Source tracking: `window._pendingSrc` ('sql' via the modal, 'file' via Upload) → `window.SRC`, read in `onWeekly`; `renderPipe()` is called on load (pending), on ingest, and after each scan.
 - **Evidence trail removed** from the RCA report (was redundant with the Findings bullets + the ⓘ formula/number modal, which remain the source of the math). The report is now: Findings (with ⓘ) → Inputs used.
+
+## Session-6 merge (`shivam-updates` → main) — dashboard refinements
+Merged clean (merge commit `babf5a1`); both feature sets kept. Shivam's additions:
+- **"Plan Adherence" renamed to "Forecast Adherence"** and made **signed** (was `ABS(...)`). Sign shows direction: **− = actual above forecast (under-forecast), + = actual below forecast (over-forecast)**. Flag is now on the **absolute** value, `|Forecast Adherence| > band` — same threshold behaviour as before.
+- **Deviation colour-bands** on the dashboard (good/warn/serious/critical) + a **flagged-% KPI**.
+- **Right-side Insights drawer** — the scope-aware rule-based callouts moved into a slide-in panel.
+- **Agentic deep-dive / exploration-trace UI** — a step-by-step "how the agent would explore this miss" trace (presentation of reasoning; still rule-based, computes nothing new).
+- **Definitions & Formulas tab** updated to the signed formula + deviation-spread bands.
+> Note: a couple of legacy "Plan Adherence" strings remain in the UI (a notes-card line and a code comment) — cosmetic; the computed metric and its ⓘ modal are "Forecast Adherence".
 
 ## SQL table & data types (`Playground.dbo.Input_To_ML`)
 Loaded from the weekly Excel by `backend/upload_excel_to_sql.py`. **33 columns · 138,775 rows.**
