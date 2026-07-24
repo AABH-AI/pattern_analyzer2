@@ -9,9 +9,11 @@
     --bg:#f4f7fc; --panel:#ffffff; --panel-2:#f5f8fc; --border:#e1e7f0; --nav:#0d1b3e;
     --text:#14203a; --muted:#586179; --accent:#2d6cdf; --accent-2:#12986f;
     --warn:#c96a10; --danger:#d13a58; --purple:#7952d1; --pink:#c43e86;
+    --insW:360px;
   }
   *{box-sizing:border-box;}
-  body{background:var(--bg);color:var(--text);margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;line-height:1.5;}
+  body{background:var(--bg);color:var(--text);margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;line-height:1.5;transition:padding-right .24s ease;}
+  body.ins-open{padding-right:var(--insW);}
 
   /* NAV BAR */
   .nav{background:var(--nav);color:#fff;position:sticky;top:0;z-index:50;box-shadow:0 2px 10px rgba(0,0,0,.15);}
@@ -79,6 +81,10 @@
   /* Excel-style filters */
   .filters{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;position:sticky;top:64px;}
   .filters .fh{padding:10px 13px;border-bottom:1px solid var(--border);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;}
+  .filters .fh .fh-t{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;flex:1;}
+  .filters .fh .fchev{display:inline-block;font-size:9px;transition:transform .15s;}
+  .filters.collapsed .fh{border-bottom:none;}
+  .filters.collapsed #filterBody{display:none;}
   .fgroup{border-bottom:1px solid var(--border);}
   .fgroup > .ft{padding:9px 13px;font-size:12.5px;font-weight:700;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;}
   .fgroup .fbody{padding:0 13px 10px;display:block;}
@@ -140,11 +146,12 @@
   .vol .vsub{font-size:12px;color:#c2d0ee;margin-top:4px;max-width:660px;line-height:1.5;}
   .vol .vscope{font-size:11px;color:#aebfe4;text-align:right;white-space:nowrap;}
   .vol .vscope b{color:#fff;}
-  .vhero{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:24px;}
-  .vhcell{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:15px 16px;transition:transform .12s,background .12s;}
+  .vhero{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;margin-bottom:24px;}
+  .vhcell{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:12px 13px;transition:transform .12s,background .12s;min-width:0;}
   .vhcell:hover{background:rgba(255,255,255,.1);transform:translateY(-2px);}
-  .vhcell .n{font-size:29px;font-weight:800;letter-spacing:-.8px;line-height:1;}
-  .vhcell .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.6px;color:#aebfe4;margin-top:8px;}
+  .vhcell .n{font-size:21px;font-weight:800;letter-spacing:-.5px;line-height:1.05;overflow-wrap:break-word;}
+  .vhcell .k{font-size:8.5px;text-transform:uppercase;letter-spacing:.5px;color:#aebfe4;margin-top:7px;}
+  @media (max-width:1100px){.vhero{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));} .vhcell .n{font-size:24px;}}
   .vhcell.accent .n{color:#5fe0b0;} .vhcell.warn .n{color:#ffb968;} .vhcell.flag .n{color:#ff8199;}
   .vgrid-h{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#9fb2d8;margin:0 0 12px;display:flex;align-items:center;gap:10px;}
   .vgrid-h::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(255,255,255,.18),transparent);}
@@ -200,7 +207,7 @@
   .dlegend .sw{width:12px;height:9px;border-radius:3px;display:inline-block;}
 
   /* insights callout */
-  .insights{background:linear-gradient(135deg,rgba(45,108,223,.09),rgba(18,152,111,.07));border:1px solid var(--border);border-left:3px solid var(--accent);}
+  .insights{background:linear-gradient(135deg,rgba(45,108,223,.09),rgba(18,152,111,.07));border:1px solid var(--border);border-left:3px solid var(--accent);margin-bottom:16px;}
   .insights h4{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:13.5px;}
   .insights h4 .isc{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:none;}
   .insights ul{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:9px 18px;}
@@ -209,6 +216,25 @@
   .insights li .ic{flex-shrink:0;font-size:14px;line-height:1.3;}
   .insights b{color:var(--text);font-weight:700;}
   .ins-up{color:var(--accent-2);font-weight:800;} .ins-down{color:var(--danger);font-weight:800;}
+  /* right-side slidable + resizable Insights drawer */
+  .ins-drawer{position:fixed;top:48px;right:0;height:calc(100vh - 48px);width:0;z-index:48;display:none;}
+  .ins-drawer.avail{display:block;}
+  .ins-panel{position:absolute;top:0;right:0;height:100%;width:var(--insW);background:var(--panel);border-left:1px solid var(--border);box-shadow:-14px 0 36px -20px rgba(8,16,36,.55);transform:translateX(100%);transition:transform .24s ease;display:flex;flex-direction:column;}
+  .ins-drawer.open .ins-panel{transform:translateX(0);}
+  .ins-resize{position:absolute;left:0;top:0;height:100%;width:7px;cursor:ew-resize;z-index:3;}
+  .ins-resize:hover{background:linear-gradient(90deg,var(--accent),transparent);}
+  .ins-handle{position:absolute;top:96px;right:100%;background:var(--accent);color:#fff;writing-mode:vertical-rl;text-orientation:mixed;padding:16px 9px;border-radius:10px 0 0 10px;cursor:pointer;font-weight:800;font-size:12px;letter-spacing:.6px;box-shadow:-6px 0 18px -10px rgba(8,16,36,.5);user-select:none;}
+  .ins-handle span{transform:rotate(180deg);}
+  .ins-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border);font-weight:800;font-size:14px;color:var(--text);flex-shrink:0;}
+  .ins-head .ins-x{background:none;border:none;font-size:16px;cursor:pointer;color:var(--muted);line-height:1;padding:2px 6px;border-radius:6px;}
+  .ins-head .ins-x:hover{color:var(--text);background:var(--panel-2);}
+  .ins-body{padding:16px;overflow:auto;flex:1;}
+  .ins-scope{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;}
+  .ins-ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:14px;}
+  .ins-ul li{font-size:12.5px;color:var(--text);display:flex;gap:9px;align-items:flex-start;line-height:1.5;}
+  .ins-ul li .ic{flex-shrink:0;font-size:15px;line-height:1.3;}
+  .ins-ul b{color:var(--text);font-weight:700;}
+  @media (max-width:820px){.ins-ul{gap:12px;}}
   /* diverging (signed bias) bars */
   .dvg{display:flex;flex-direction:column;gap:11px;}
   .dvg-row .dvg-t{display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px;gap:8px;}
@@ -285,6 +311,21 @@
   .pill{font-size:11px;background:var(--panel-2);border:1px solid var(--border);border-radius:999px;padding:3px 9px;cursor:pointer;color:var(--muted);}
   .pill:hover{border-color:var(--accent);color:var(--accent);}
 
+  /* ===== RCA deep-dive: agentic exploration trace ===== */
+  .rca-cap{font-size:11.5px;color:var(--muted);margin:2px 0 10px;line-height:1.5;}
+  .rca-trace{margin-top:6px;display:flex;flex-direction:column;gap:10px;}
+  .trace-step{opacity:0;transform:translateY(6px);transition:opacity .25s ease,transform .25s ease;background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;}
+  .trace-step.show{opacity:1;transform:translateY(0);}
+  .ts-h{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;}
+  .ts-i{font-size:14px;}
+  .ts-spin{margin-left:auto;color:var(--muted);font-weight:600;animation:tsPulse 1s infinite;}
+  @keyframes tsPulse{0%,100%{opacity:.3;}50%{opacity:1;}}
+  .ts-b{font-size:12.5px;color:var(--text);margin-top:6px;line-height:1.55;}
+  .disc-item{padding:4px 0;border-top:1px dashed var(--border);}
+  .disc-item:first-child{border-top:none;}
+  .mem-hit{background:rgba(18,152,111,.08);border:1px solid rgba(18,152,111,.25);border-radius:8px;padding:8px 10px;margin-bottom:6px;}
+  .rca-confirm{background:var(--panel-2);border:1px dashed var(--border);border-radius:10px;padding:12px;margin-top:2px;}
+
   table.def{width:100%;border-collapse:collapse;font-size:12.5px;}
   table.def th,table.def td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
   table.def th{color:var(--muted);text-transform:uppercase;font-size:10.5px;letter-spacing:.5px;}
@@ -315,7 +356,7 @@
   <!-- ============ RCA CONSOLE ============ -->
   <div class="tab active" id="tab-console">
     <h1>RCA Console</h1>
-    <div class="sub">Upload the weekly file, then type your 2–3 target <b>Forecast_name</b>s in the test box (or filter like Excel). Only two metrics are computed — <b>Forecast Accuracy</b> and <b>Plan Adherence</b>; each has an <b>ⓘ</b> showing the exact formula and the numbers used. Rows with no/zero forecast are skipped (can't compute).</div>
+    <div class="sub">Upload the weekly file, then type your 2–3 target <b>Forecast_name</b>s in the test box (or filter like Excel). Only two metrics are computed — <b>Forecast Accuracy</b> and <b>Forecast Adherence</b>; each has an <b>ⓘ</b> showing the exact formula and the numbers used. Rows with no/zero forecast are skipped (can't compute).</div>
 
     <div class="toolbar">
       <input type="file" id="fileWeekly" accept=".csv,.tsv,.txt,.xlsx" style="display:none" onchange="onWeekly(this.files&&this.files[0])">
@@ -327,7 +368,7 @@
       <span id="mapBadge"></span>
       <input id="focusInput" style="flex:1;min-width:220px;max-width:420px;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--text);background:var(--panel-2)" placeholder="Test specific Forecast_name(s) — comma-separated" onkeydown="if(event.key==='Enter')applyFocus()">
       <button class="filebtn ghost" onclick="applyFocus()">Test these</button>
-      <button class="filebtn ghost" onclick="clearFocus()" title="Clear the focus box">✕</button>
+      <button class="filebtn ghost" onclick="clearFocus()" title="Clear the Forecast_name test box">✕ Clear</button>
       <label class="band">Accuracy band ±<input type="number" id="band" value="10" min="1" max="50" onchange="if(ROWS.length)applyAndScan()">%</label>
     </div>
 
@@ -345,9 +386,11 @@
       <div class="console">
         <!-- FILTERS -->
         <div class="filters" id="filters">
-          <div class="fh">Filters <span class="pill" onclick="resetFilters()">Reset</span></div>
-          <div id="filterGroups"></div>
-          <div style="padding:0 13px 12px;"><button class="reset" onclick="resetFilters()">↻ Reset All Filters</button></div>
+          <div class="fh"><span class="fh-t" onclick="toggleFilters()"><span class="fchev" id="filtChev">▾</span> Filters</span><span class="pill" onclick="resetFilters()">Reset</span></div>
+          <div id="filterBody">
+            <div id="filterGroups"></div>
+            <div style="padding:0 13px 12px;"><button class="reset" onclick="resetFilters()">↻ Reset All Filters</button></div>
+          </div>
         </div>
 
         <!-- FLAGGED LIST -->
@@ -656,7 +699,7 @@
       <div class="card"><h4>Scale</h4><ul><li>~100 queues scanned weekly</li><li>Handles 100k+ rows with chunked parsing</li><li>Top-N affected queues surfaced</li></ul></div>
       <div class="card"><h4>Domain knowledge</h4><ul><li><b>Final_Y1–Y5</b> = installed units under warranty year 1–5 (demand driver, <i>not</i> prior-year actuals)</li><li><b>ASU</b> = Planned/Actual service driver (exact acronym to confirm)</li><li><b>Mon–Sun</b> = day-level holiday/weekend flags</li></ul></div>
       <div class="card"><h4>Scope</h4><ul><li>Keyed on <b>Forecast_name</b> — forecasting is per forecast_name</li><li>Priority: <b>2–3 forecast_names</b>, not the whole file</li><li>Filter to the target forecast_names, then read RCA</li></ul></div>
-      <div class="card"><h4>Metrics (only these two)</h4><ul><li><b>Forecast Accuracy</b> = (Actual_Offered ÷ fcst_offered) × 100</li><li><b>Plan Adherence</b> = ABS(1 − Actual_Offered ÷ fcst_offered) × 100</li><li>Flag when Plan Adherence deviation &gt; band %</li></ul></div>
+      <div class="card"><h4>Metrics (only these two)</h4><ul><li><b>Forecast Accuracy</b> = (Actual_Offered ÷ fcst_offered) × 100</li><li><b>Plan Adherence</b> = (1 − Actual_Offered ÷ fcst_offered) × 100 — signed (negative = under-forecast, positive = over-forecast)</li><li>Flag when |Plan Adherence deviation| &gt; band %</li></ul></div>
     </div>
   </div>
 
@@ -667,26 +710,54 @@
     <h2 class="sec">Formulas — the only two computed</h2>
     <table class="def">
       <tr><th>Metric</th><th>Excel</th><th>Python (rule-based tool)</th></tr>
-      <tr><td><b>Forecast Accuracy</b></td><td><code>=Actual_Offered / fcst_offered * 100</code></td><td><code>actual_offered / fcst_offered * 100</code></td></tr>
-      <tr><td><b>Plan Adherence (ML/Manual)</b></td><td><code>=IF(Actual_Offered="","",ABS(1-(Actual_Offered/fcst_offered))*100)</code></td><td><code>"" if actual_offered=="" else abs(1-(actual_offered/fcst_offered))*100</code></td></tr>
+      <tr><td><b>Forecast Accuracy</b></td><td><code>=(Actual_Offered / fcst_offered) * 100</code></td><td><code>(actual_offered / fcst_offered) * 100</code></td></tr>
+      <tr><td><b>Forecast Adherence</b></td><td><code>=IF(Actual_Offered="","",(1-(Actual_Offered/fcst_offered))*100)</code></td><td><code>"" if actual_offered=="" else (1-(actual_offered/fcst_offered))*100</code></td></tr>
     </table>
-    <div class="sub" style="margin-top:10px;">Forecast = <code>fcst_offered</code> (ML). Keyed on <code>Forecast_name</code>. Both shown as %. <b>Forecast Accuracy</b> is the traditional formula; <b>Plan Adherence</b> is the formula used in the current Excel system. Flag = accuracy outside <b>±10%</b> (≡ plan-adherence &gt; 10%). <b>No other formulas are computed</b> — nothing is inferred or invented.</div>
+    <div class="sub" style="margin-top:10px;">Forecast = <code>fcst_offered</code> (ML). Keyed on <code>Forecast_name</code>. Both shown as %. <b>Forecast Accuracy</b> is the traditional formula; <b>Forecast Adherence</b> is the formula used in the current Excel system — <b>signed</b> (negative = actual ran above forecast / under-forecast, positive = actual ran below forecast / over-forecast). Flag = accuracy outside <b>±10%</b> (≡ |forecast-adherence| &gt; 10%). <b>No other formulas are computed</b> — nothing is inferred or invented.</div>
     <h2 class="sec">Field definitions</h2>
     <table class="def" id="defTable">
       <tr><th>Field</th><th>Meaning</th></tr>
-      <tr><td><code>Forecast_name</code></td><td>Queue label; part of the CQN key</td></tr>
-      <tr><td><code>CQN</code></td><td>Combined Queue Name = Forecast_name + Region + SubRegion + Country + Channel</td></tr>
-      <tr><td><code>Actual_Offered / Actual_Handled</code></td><td>Actual demand offered to / handled by the queue</td></tr>
-      <tr><td><code>fcst_offered / fcst_handled</code></td><td>Forecast for offered / handled</td></tr>
-      <tr><td><code>Projection_plan_name</code></td><td>Forecast plan version (e.g. FY22 Jan, FY23 Feb) — restatement = a driver</td></tr>
-      <tr><td><code>Planned_ASU / Actual_ASU</code></td><td>Service driver (exact acronym to confirm with business)</td></tr>
-      <tr><td><code>Final_Units</code></td><td>Installed base (warranty units) — a demand driver</td></tr>
-      <tr><td><code>Final_Y1..Y5</code></td><td>Installed units under warranty years 1–5 (not prior-year actuals)</td></tr>
-      <tr><td><code>Holiday_Count / Mon..Sun</code></td><td>Calendar: holiday count and day-level holiday/weekend flags</td></tr>
-      <tr><td><code>Volume_Category</code></td><td>Volume band (e.g. 501–1000)</td></tr>
+      <tr><td><code>Fiscal_Week</code></td><td>Fiscal calendar week the row belongs to (e.g. 202249) — the primary time key.</td></tr>
+      <tr><td><code>Week_Ending</code></td><td>Calendar date on which that fiscal week ends.</td></tr>
+      <tr><td><code>Region</code></td><td>Top-level geographic region of the queue.</td></tr>
+      <tr><td><code>SubRegion</code></td><td>Sub-region within the region.</td></tr>
+      <tr><td><code>Country</code></td><td>Country of the queue.</td></tr>
+      <tr><td><code>Forecast_name</code></td><td>Queue label; part of the CQN key.</td></tr>
+      <tr><td><code>Forecaster</code></td><td>Person / team that owns the forecast for the queue.</td></tr>
+      <tr><td><code>Offering</code></td><td>Product or service offering the demand belongs to.</td></tr>
+      <tr><td><code>Projection_plan_name</code></td><td>Forecast plan version (e.g. FY22 Jan, FY23 Feb) — restatement = a driver.</td></tr>
+      <tr><td><code>channel</code></td><td>Contact / demand channel (e.g. phone, chat, email).</td></tr>
+      <tr><td><code>business_org</code></td><td>Business organisation the queue rolls up to.</td></tr>
+      <tr><td><code>Actual_Offered</code></td><td>Actual demand offered to the queue — numerator of Forecast Accuracy.</td></tr>
+      <tr><td><code>Actual_Handled</code></td><td>Actual demand handled by the queue.</td></tr>
+      <tr><td><code>fcst_offered</code></td><td>Forecast of offered demand (ML) — denominator of Forecast Accuracy.</td></tr>
+      <tr><td><code>fcst_handled</code></td><td>Forecast of handled demand.</td></tr>
+      <tr><td><code>Planned_ASU</code></td><td>Planned service driver (ASU — exact acronym to confirm with business).</td></tr>
+      <tr><td><code>formula</code></td><td>Source / plan formula tag used to derive the forecast.</td></tr>
+      <tr><td><code>Actual_ASU</code></td><td>Actual service driver (ASU — exact acronym to confirm with business).</td></tr>
+      <tr><td><code>Final_Units</code></td><td>Installed base (warranty units) — a demand driver.</td></tr>
+      <tr><td><code>Final_Y5</code></td><td>Installed units under warranty in year 5.</td></tr>
+      <tr><td><code>Final_Y4</code></td><td>Installed units under warranty in year 4.</td></tr>
+      <tr><td><code>Final_Y3</code></td><td>Installed units under warranty in year 3.</td></tr>
+      <tr><td><code>Final_Y2</code></td><td>Installed units under warranty in year 2.</td></tr>
+      <tr><td><code>Final_Y1</code></td><td>Installed units under warranty in year 1.</td></tr>
+      <tr><td><code>Final_upp_units</code></td><td>Additional installed units under an upgrade / extended-protection plan (&ldquo;upp&rdquo; — confirm with business).</td></tr>
+      <tr><td><code>Holiday_Count</code></td><td>Number of holidays falling in the fiscal week.</td></tr>
+      <tr><td><code>Monday–Sunday</code></td><td>Day-level flag for each day of the week (holiday / non-working-day / weekend indicator).</td></tr>
+      <tr><td><code>Volume_Category</code></td><td>Volume band the queue falls into (e.g. 501–1000).</td></tr>
     </table>
   </div>
 
+</div>
+
+<!-- INSIGHTS DRAWER (right-side, slidable + resizable) -->
+<div id="insDrawer" class="ins-drawer open">
+  <div class="ins-panel">
+    <div class="ins-resize" id="insResize" title="Drag to resize"></div>
+    <div class="ins-handle" onclick="toggleInsights()" title="Show / hide insights"><span>💡 Insights</span></div>
+    <div class="ins-head"><span>💡 Insights</span><button class="ins-x" onclick="toggleInsights()" title="Close">✕</button></div>
+    <div class="ins-body" id="insDrawerBody"></div>
+  </div>
 </div>
 
 <!-- MATH MODAL -->
@@ -722,8 +793,36 @@ document.querySelectorAll('.nav a[data-tab]').forEach(a=>{
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
     document.getElementById('tab-'+a.dataset.tab).classList.add('active');
     window.scrollTo(0,0);
+    updateInsDrawer();
   };
 });
+
+/* ---------------- Insights drawer (right-side, slidable + resizable, reserves layout space) ---------------- */
+function toggleInsights(){ document.getElementById('insDrawer').classList.toggle('open'); syncInsLayout(); }
+function updateInsDrawer(){
+  const onDash=document.querySelector('.nav a[data-tab="dashboard"]').classList.contains('active');
+  const hasData=document.getElementById('insDrawerBody').innerHTML.trim().length>0;
+  document.getElementById('insDrawer').classList.toggle('avail', onDash && hasData);
+  syncInsLayout();
+}
+// body reserves right padding only while the panel is both available AND open, so the
+// dashboard reflows into the remaining width instead of being covered by the fixed panel.
+function syncInsLayout(){
+  const d=document.getElementById('insDrawer');
+  document.body.classList.toggle('ins-open', d.classList.contains('avail') && d.classList.contains('open'));
+}
+(function wireInsResize(){
+  const grip=document.getElementById('insResize'); if(!grip) return;
+  grip.addEventListener('mousedown',e=>{
+    e.preventDefault();
+    const startX=e.clientX;
+    const startW=parseFloat(getComputedStyle(document.querySelector('.ins-panel')).width)||360;
+    const move=ev=>{ let w=startW+(startX-ev.clientX); w=Math.max(300,Math.min(w,Math.min(680,window.innerWidth*0.5))); document.documentElement.style.setProperty('--insW',w+'px'); };
+    const up=()=>{ document.removeEventListener('mousemove',move); document.removeEventListener('mouseup',up); document.body.style.userSelect=''; };
+    document.body.style.userSelect='none';
+    document.addEventListener('mousemove',move); document.addEventListener('mouseup',up);
+  });
+})();
 
 /* ---------------- State ---------------- */
 let ROWS=[], FLAGS=[], MAP=null, FILTERS={}, FOCUS=new Set();
@@ -890,6 +989,7 @@ function toggleOpt(field,val,on){
   applyAndScan();
 }
 function resetFilters(){ buildFilters(); applyAndScan(); }
+function toggleFilters(){ const f=document.getElementById('filters'); const c=f.classList.toggle('collapsed'); document.getElementById('filtChev').textContent=c?'▸':'▾'; }
 function passFilters(r){
   if(FOCUS.size && !FOCUS.has(String(r.Forecast_name||'').toLowerCase())) return false;
   for(const [field] of FILTER_FIELDS){
@@ -907,8 +1007,10 @@ function applyAndScan(){
     r._ao=num(r.Actual_Offered); r._fo=num(r.fcst_offered);
     // Forecast Accuracy = Actual_Offered / fcst_offered * 100   (Forecast = fcst_offered, ML)
     r._acc=(r._ao!=null&&r._fo!=null&&r._fo>0)? r._ao/r._fo*100 : null;
-    // Plan Adherence (ML/Manual) = ABS(1 - Actual_Offered/fcst_offered) * 100 ; blank if no actual
-    r._padh=(r.Actual_Offered===''||r._ao==null)? null : ((r._fo!=null&&r._fo>0)? Math.abs(1-(r._ao/r._fo))*100 : null);
+    // Plan Adherence (ML/Manual) = (1 - Actual_Offered/fcst_offered) * 100 ; blank if no actual
+    // Signed: negative = actual ran ABOVE forecast (under-forecast); positive = actual ran BELOW forecast (over-forecast).
+    // Flagging/severity/MAPE below compare on Math.abs(r._padh) — the ±band test is about MAGNITUDE, the displayed number stays signed so direction is visible.
+    r._padh=(r.Actual_Offered===''||r._ao==null)? null : ((r._fo!=null&&r._fo>0)? (1-(r._ao/r._fo))*100 : null);
     r._noF=(r._ao!=null&&(r._fo==null||r._fo<=0));   // actual present but no/zero forecast → undefined
     r._key=String(r.Forecast_name||''); r._wk=String(r.Fiscal_Week||'');
     r._mapped = MAP ? (MAP[r.Forecast_name]!=null) : false;
@@ -919,13 +1021,13 @@ function applyAndScan(){
   // Only computable rows (valid actual + forecast). Zero/blank forecast rows are data gaps — never shown as results.
   const computable=rows.filter(r=>!r._noF && r._padh!=null);
   window._noFCount=rows.length-computable.length;
-  const flaggedCount=computable.filter(r=> +r._padh.toFixed(1) > band).length;   // ±band% on accuracy ≡ plan-adh > band%
+  const flaggedCount=computable.filter(r=> Math.abs(+r._padh.toFixed(1)) > band).length;   // ±band% on accuracy ≡ |plan-adh| > band%
   if(FOCUS.size){
     // Testing mode: show EVERY computable week for the focused Forecast_name(s), chronological.
     FLAGS=computable.slice().sort((a,b)=> a._key.localeCompare(b._key) || a._wk.localeCompare(b._wk));
   } else {
-    // Default: only weeks outside the ±band (worst first), on the displayed 1-dp value.
-    FLAGS=computable.filter(r=> +r._padh.toFixed(1) > band).sort((a,b)=> b._padh - a._padh);
+    // Default: only weeks outside the ±band (worst first, by magnitude — the signed value can be negative), on the displayed 1-dp value.
+    FLAGS=computable.filter(r=> Math.abs(+r._padh.toFixed(1)) > band).sort((a,b)=> Math.abs(b._padh) - Math.abs(a._padh));
   }
   const avgAcc=setAccuracy(rows);
   renderMetrics(groups,rows,flaggedCount,avgAcc);
@@ -938,12 +1040,13 @@ function applyAndScan(){
   document.getElementById('report').innerHTML='<div class="empty" style="border:none;padding:40px 10px;">Select a flagged item to see its RCA.</div>';
   if(FLAGS.length) selectFlag(0);
 }
-// Forecast accuracy of the set = 100 − MAPE (mean absolute % error), where the
-// per-row absolute % error is exactly the Plan-Adherence deviation (_padh).
-// A plain mean of Actual÷Fcst lets over/under-forecasts cancel and reads ~100%
-// even on badly-off data — this reflects the real error instead.
+// Forecast accuracy of the set = 100 − MAPE (mean ABSOLUTE % error), where the
+// per-row absolute % error is |Plan-Adherence deviation| (_padh is now signed,
+// so MAPE explicitly takes Math.abs() here — otherwise over/under-forecasts
+// would cancel again and reintroduce the ~100%-even-when-badly-off bug this was
+// built to fix; the DISPLAYED _padh stays signed, only this aggregate uses abs).
 function setAccuracy(rows){
-  const errs=rows.filter(r=>r._padh!=null).map(r=>r._padh);
+  const errs=rows.filter(r=>r._padh!=null).map(r=>Math.abs(r._padh));
   if(!errs.length) return null;
   const mape=errs.reduce((a,b)=>a+b,0)/errs.length;
   return Math.max(0,100-mape);
@@ -1104,10 +1207,10 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
   const band=num(document.getElementById('band').value)||10;
   // scope to the active drill path, then recompute the headline numbers from the scoped set
   if(DRILL.length) rows=rows.filter(r=>DRILL.every(d=>drillMatch(r,d)));
-  if(!rows.length){ host.innerHTML=`<div class="vol"><div class="vtop"><div class="vtitle"><span class="spark">📊</span> Data Volumetrics</div></div>${drillCrumbs()}<div class="empty" style="border:none;color:#c2d0ee;">No rows for this drill path.</div></div>`; return; }
+  if(!rows.length){ host.innerHTML=`<div class="vol"><div class="vtop"><div class="vtitle"><span class="spark">📊</span> Data Volumetrics</div></div>${drillCrumbs()}<div class="empty" style="border:none;color:#c2d0ee;">No rows for this drill path.</div></div>`; document.getElementById('insDrawerBody').innerHTML=''; updateInsDrawer(); return; }
   const gset=new Set(); rows.forEach(r=>gset.add(String(r.Forecast_name||''))); const nForecast=gset.size;
-  flaggedCount=rows.filter(r=>r._padh!=null && +r._padh.toFixed(1)>band).length;
-  { const e=rows.filter(r=>r._padh!=null).map(r=>r._padh); avgAcc=e.length?Math.max(0,100-e.reduce((a,b)=>a+b,0)/e.length):null; }
+  flaggedCount=rows.filter(r=>r._padh!=null && Math.abs(+r._padh.toFixed(1))>band).length;
+  { const e=rows.filter(r=>r._padh!=null).map(r=>Math.abs(r._padh)); avgAcc=e.length?Math.max(0,100-e.reduce((a,b)=>a+b,0)/e.length):null; }
 
   // ---- single-pass aggregation ----
   let totOff=0,totHand=0,haveOff=0;
@@ -1117,7 +1220,7 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
   const flagByName=new Map();                       // forecast_name -> flagged count
   const sumReg=new Map(), sumName=new Map();        // signed-bias sums: key -> [Σactual, Σforecast]
   let cA=0,cF=0,noFscope=0;                          // computable Σactual/Σforecast ; unscoreable rows
-  const dev=[0,0,0,0];                              // ≤band, band–25, 25–50, >50
+  const dev=[0,0,0,0,0];                            // ≤5, 5–10, 10–20, 20–25, >25 (abs deviation %)
   const biasAdd=(m,k,a,f)=>{ k=(k==null||k==='')?'(blank)':String(k); const o=m.get(k)||[0,0]; o[0]+=a; o[1]+=f; m.set(k,o); };
   rows.forEach(r=>{
     const ao=r._ao; if(ao!=null){ totOff+=ao; haveOff++; }
@@ -1130,7 +1233,7 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
     if(r._noF) noFscope++;
     if(ao!=null && r._fo!=null && r._fo>0){ cA+=ao; cF+=r._fo; biasAdd(sumReg,r.Region,ao,r._fo); biasAdd(sumName,r.Forecast_name,ao,r._fo); }
     if(r._padh!=null){ (weekPadh.get(wk)||weekPadh.set(wk,[]).get(wk)).push(r._padh);
-      const d=r._padh; if(d<=band)dev[0]++; else if(d<=25)dev[1]++; else if(d<=50)dev[2]++; else dev[3]++;
+      const d=Math.abs(r._padh); if(d<=5)dev[0]++; else if(d<=10)dev[1]++; else if(d<=20)dev[2]++; else if(d<=25)dev[3]++; else dev[4]++;
       if(d>band){ const nm=r.Forecast_name||'(blank)'; flagByName.set(nm,(flagByName.get(nm)||0)+1); }
     }
   });
@@ -1172,19 +1275,21 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
   // ---- trend series (chronological) ----
   const offPts=fw.map(w=>({label:w.slice(-2)?w:w,disp:'FW '+w,value:weekOff.get(w)||0}));
   offPts.forEach(p=>p.label=p.disp.replace('FW ',''));
-  const accPts=fw.filter(w=>weekPadh.get(w)).map(w=>{ const a=weekPadh.get(w); const m=a.reduce((x,y)=>x+y,0)/a.length; return {label:w.slice(2),disp:'FW '+w,value:Math.max(0,100-m)}; });
+  const accPts=fw.filter(w=>weekPadh.get(w)).map(w=>{ const a=weekPadh.get(w); const m=a.reduce((x,y)=>x+Math.abs(y),0)/a.length; return {label:w.slice(2),disp:'FW '+w,value:Math.max(0,100-m)}; });
 
   // ---- bar datasets ----
-  const topFlag=[...flagByName.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8).map(([l,v])=>({label:l,value:v,color:'var(--danger)'}));
+  const flagTot=[...flagByName.values()].reduce((a,b)=>a+b,0)||1;   // total flagged weeks across ALL queues
+  const topFlag=[...flagByName.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8).map(([l,v])=>({label:l,value:v,color:'var(--danger)',note:(v/flagTot*100).toFixed(1)+'%'}));
   const regBars=[...volBy.Region.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8).map(([l,v])=>({label:l,value:v}));
   const chBars=[...volBy.channel.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8).map(([l,v])=>({label:l,value:v}));
   const offBars=[...volBy.Offering.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8).map(([l,v])=>({label:l,value:v}));
-  const devTot=dev[0]+dev[1]+dev[2]+dev[3]||1;
+  const devTot=dev[0]+dev[1]+dev[2]+dev[3]+dev[4]||1;
   const devBars=[
-    {label:`≤${band}% · on-plan`,value:dev[0],color:'var(--accent-2)'},
-    {label:`${band}–25% · warning`,value:dev[1],color:'var(--warn)'},
-    {label:'25–50% · serious',value:dev[2],color:'#dd7a3a'},
-    {label:'>50% · critical',value:dev[3],color:'var(--danger)'},
+    {label:'±5% · on-plan',value:dev[0],color:'var(--accent)'},     // blue
+    {label:'±10% · warning',value:dev[1],color:'var(--accent-2)'},  // green
+    {label:'±15–20% · elevated',value:dev[2],color:'#e8770f'},      // orange
+    {label:'±20–25% · serious',value:dev[3],color:'#f2b01e'},       // amber
+    {label:'>±25% · critical',value:dev[4],color:'var(--danger)'},  // red
   ].map(d=>({...d,note:(d.value/devTot*100).toFixed(0)+'%'}));
 
   // ---- Actual vs Forecast overlay (same unit → one y-scale) ----
@@ -1209,7 +1314,7 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
   { const ch=[...volBy.channel.entries()].sort((a,b)=>b[1]-a[1])[0]; if(ch) ins.push({i:'📊',t:`<b>${ch[0]}</b> is the largest channel — <b>${(ch[1]/(totOff||1)*100).toFixed(0)}%</b> of offered volume.`}); }
   { const tot=[...flagByName.values()].reduce((a,b)=>a+b,0); if(tot){ const t3=[...flagByName.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3); const s3=t3.reduce((a,[,v])=>a+v,0); ins.push({i:'⚠️',t:`Top 3 queues drive <b>${(s3/tot*100).toFixed(0)}%</b> of flagged weeks (${t3.map(x=>x[0]).join(', ')}).`}); } }
   if(noFscope>0) ins.push({i:'🧩',t:`<b>${noFscope.toLocaleString()}</b> row(s) can't be scored (no/zero forecast) — data gap, excluded from accuracy.`});
-  const insHtml=`<div class="chart insights"><h4>💡 Insights <span class="isc">${DRILL.length?'scoped to '+DRILL.map(d=>d.v).join(' › '):'whole '+(filtered?'filtered set':'file')}</span></h4><ul>${ins.map(x=>`<li><span class="ic">${x.i}</span><span>${x.t}</span></li>`).join('')}</ul></div>`;
+  const insBody=`<div class="ins-scope">${DRILL.length?'Scoped to '+DRILL.map(d=>d.v).join(' › '):'Whole '+(filtered?'filtered set':'file')}</div><ul class="ins-ul">${ins.map(x=>`<li><span class="ic">${x.i}</span><span>${x.t}</span></li>`).join('')}</ul>`;
 
   host.innerHTML=`
   <div class="vol">
@@ -1227,7 +1332,6 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
   </div>
 
   <div class="dash">
-    ${insHtml}
     <div class="dgrid">
       <div class="chart"><h4>Actual vs Forecast — offered by week</h4><div class="cs">Green = actual, dashed blue = forecast (fcst_offered). The gap between the lines <b>is</b> the miss.</div>${buildTrend2(fw.map(w=>w),sActual,sFcst,{yfmt:v=>compactN(v),fmt:v=>compactN(v)})}</div>
       <div class="chart"><h4>Forecast accuracy by fiscal week</h4><div class="cs">Weekly accuracy = 100 − mean plan-adherence deviation. Higher is better.</div>${buildTrend(accPts,{color:'var(--accent-2)',yfmt:v=>v.toFixed(0)+'%',tip:v=>v.toFixed(1)+'% accuracy'})}</div>
@@ -1238,7 +1342,7 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
     </div>
     <div class="dgrid">
       <div class="chart"><h4>Forecast-accuracy deviation spread</h4><div class="cs">Computable weeks bucketed by |1 − Actual÷Fcst|. Bands carry a status label, not colour alone.</div>${htmlBars(devBars,{fmt:v=>v.toLocaleString()+' wks'})}</div>
-      <div class="chart"><h4>Top flagged forecast names</h4><div class="cs">Forecast names with the most weeks outside the ±${band}% band.</div>${htmlBars(topFlag,{fmt:v=>v.toLocaleString()+' wks'})}</div>
+      <div class="chart"><h4 style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">Top flagged forecast names <span style="font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap;">${flagTot.toLocaleString()} wks flagged</span></h4><div class="cs">Forecast names with the most weeks outside the ±${band}% band. % = share of all flagged weeks.</div>${htmlBars(topFlag,{fmt:v=>v.toLocaleString()+' wks'})}</div>
     </div>
     <div class="dgrid">
       <div class="chart"><h4>Actual offered by Region</h4><div class="cs">Σ Actual_Offered per region.</div>${htmlBars(regBars,{fmt:compactN})}</div>
@@ -1246,6 +1350,8 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
     </div>
     <div class="chart"><h4>Actual offered by Offering</h4><div class="cs">Σ Actual_Offered per offering tier.</div>${htmlBars(offBars,{fmt:compactN})}</div>
   </div>`;
+  document.getElementById('insDrawerBody').innerHTML=insBody;
+  updateInsDrawer();
   wireTrends();
 }
 function renderList(){
@@ -1256,8 +1362,8 @@ function renderList(){
   const CAP=250, shown=FLAGS.slice(0,CAP);
   const band=num(document.getElementById('band').value)||10;
   let h=shown.map((r,i)=>{
-    const dev=+r._padh.toFixed(1);
-    const sev=dev>25?'red':(dev>band?'amber':'green');
+    const dev=+r._padh.toFixed(1), devAbs=Math.abs(dev);
+    const sev=devAbs>25?'red':(devAbs>band?'amber':'green');
     return `<div class="qitem" id="q${i}" onclick="selectFlag(${i})">
       <div class="qn">${r.Forecast_name} ${r._mapped?'':'<span class="badge unm" style="font-size:8.5px">unmapped</span>'}</div>
       <div class="qmeta">${r.Region||''} · ${r.Country||''} · ${r.channel||''} · FW ${r._wk}</div>
@@ -1283,15 +1389,16 @@ function buildFindings(r){
        values:[`Actual_Offered = ${A}`,`forecast offered (Simple) = ${r._noF?'0 / blank':fmt2(F)}`],
        result:r._noF?'N/A (fcst_offered ≤ 0)':r._acc.toFixed(1)+'%'}
   });
-  // 2) Plan Adherence (ML/Manual) = ABS(1 - Actual_Offered/fcst_offered) * 100 ; blank if no actual
+  // 2) Plan Adherence (ML/Manual) = (1 - Actual_Offered/fcst_offered) * 100 ; blank if no actual
+  // Signed: negative = actual ran above forecast (under-forecast), positive = actual ran below forecast (over-forecast).
   const noActual=(r.Actual_Offered===''||r._ao==null);
   d.push({
-    s:(r._padh!=null&&r._padh<=band)?'info':'hit',
-    b:noActual?`<b>Plan adherence — blank.</b> No Actual_Offered for this week (formula returns "").`
-       :r._noF?`<b>Plan adherence — N/A.</b> fcst_offered is zero/blank → division undefined.`
-       :`<b>Plan adherence (ML/Manual) = ${r._padh.toFixed(1)}%</b> deviation from forecast (0% = perfect).`,
-    m:{title:'Plan Adherence (ML/Manual)',
-       formula:'Plan Adherence = ABS(1- ((Actual offered / forecast offered (Simple))*100 ))',
+    s:(r._padh!=null&&Math.abs(r._padh)<=band)?'info':'hit',
+    b:noActual?`<b>Forecast adherence — blank.</b> No Actual_Offered for this week (formula returns "").`
+       :r._noF?`<b>Forecast adherence — N/A.</b> fcst_offered is zero/blank → division undefined.`
+       :`<b>Forecast adherence = ${r._padh.toFixed(1)}%</b> deviation from forecast (0% = perfect; negative = actual ran above forecast, positive = actual ran below forecast).`,
+    m:{title:'Forecast Adherence',
+       formula:'Forecast Adherence = (1 − (Actual offered / forecast offered (Simple))) × 100',
        values:[`Actual_Offered = ${noActual?'(blank)':A}`,`forecast offered (Simple) = ${r._noF?'0 / blank':fmt2(F)}`],
        result:noActual?'"" (blank, no actual)':(r._noF?'N/A (÷ by zero)':r._padh.toFixed(1)+'%')}
   });
@@ -1303,7 +1410,7 @@ function selectFlag(i){
   const qi=document.getElementById('q'+i); if(qi)qi.classList.add('active');
   const r=FLAGS[i]; const d=buildFindings(r); CUR_MATH=d.map(x=>x.m);
   window.CUR_CTX=`${r.Forecast_name||'—'} · FW ${r._wk} · ${r.Region||''}/${r.Country||''} · ${r.channel||''} · Plan ${r.Projection_plan_name||'—'} · Forecaster ${r.Forecaster||'—'}`;
-  const accCol=(r._acc==null)?'var(--muted)':((r._padh!=null&&r._padh>25)?'var(--danger)':(r._padh!=null&&r._padh>10)?'var(--warn)':'var(--accent-2)');
+  const accCol=(r._acc==null)?'var(--muted)':((r._padh!=null&&Math.abs(r._padh)>25)?'var(--danger)':(r._padh!=null&&Math.abs(r._padh)>10)?'var(--warn)':'var(--accent-2)');
   const bullets=d.map((x,idx)=>`<li><span class="bdot ${x.s}"></span><div class="btext">${x.b}</div><button class="ibtn" title="Show the formula & numbers" onclick="showMath(${idx})">i</button></li>`).join('');
   document.getElementById('report').innerHTML=`
     <div class="rhead">
@@ -1318,6 +1425,9 @@ function selectFlag(i){
     <div class="subhead">Inputs used (from file)</div>
     <div class="kv"><span class="k">Actual_Offered</span><span class="val">${r.Actual_Offered===''?'(blank)':(r._ao!=null?r._ao.toLocaleString():r.Actual_Offered)}</span></div>
     <div class="kv"><span class="k">forecast offered (Simple)</span><span class="val">${r._fo!=null?fmt2(r._fo):(r.fcst_offered||'(blank)')}</span></div>
+    <div class="subhead">Root-Cause Analysis <span style="text-transform:none;font-weight:500;color:var(--muted)">(agentic exploration — beta)</span></div>
+    <div class="rca-cap">Explores <b>this queue's own numbers</b> — trend, sibling queues in the same CQN, cross-dimension patterns, and prior confirmed causes. The two metrics above never change; anything found here is either a re-sum of Actual_Offered/fcst_offered (traceable) or a <b>discovery-tier</b> statistical pattern, clearly marked <span class="chip amber" style="vertical-align:1px;">unconfirmed</span> until a human confirms it.</div>
+    <div id="rcaPanel"><button class="filebtn" onclick="runRCA(${i})">🔬 Run RCA Analysis</button></div>
   `;
 }
 
@@ -1333,6 +1443,178 @@ function showMath(idx){
   document.getElementById('mathModal').classList.add('show');
 }
 function closeMath(){ document.getElementById('mathModal').classList.remove('show'); }
+
+/* ---------------- RCA deep-dive: agentic exploration + discovery + memory ----------------
+   Everything below is either (a) a re-sum/comparison of the SAME two confirmed inputs
+   (Actual_Offered, fcst_offered) already used by the two sanctioned metrics, traceable to
+   real rows — or (b) explicitly labeled "discovery / unconfirmed": a plain statistical
+   observation (flagged-rate lift) shown with its raw supporting counts, never presented as
+   a scored cause, never blended into the two confirmed metrics above. Memory only re-uses a
+   past confirmed cause after re-checking it against the CURRENT queue's own data. */
+const rcaEsc=s=>String(s==null?'':s).replace(/</g,'&lt;');
+const rcaAttr=s=>String(s==null?'':s).replace(/"/g,'&quot;');
+function siblingKeyOf(r){ return [r.Region,r.SubRegion,r.Country,r.channel].map(x=>x||'').join('|'); }
+
+// WHEN — is this queue's flagged week an isolated spike, or part of a run? Reads the
+// per-week series already computed in applyAndScan (r._group), nothing new is computed.
+function computeWhen(r){
+  const band=num(document.getElementById('band').value)||10;
+  const grp=(r._group||[r]).filter(x=>x._padh!=null);
+  const idx=Math.max(0,grp.findIndex(x=>x===r));
+  const dir=x=>(x._ao>x._fo?'under':'over');
+  const recent=grp.slice(Math.max(0,idx-4), idx+1);
+  const sameDirFlagged=recent.filter(x=>dir(x)===dir(r) && Math.abs(+x._padh.toFixed(1))>band);
+  const isPersistent=recent.length>2 && sameDirFlagged.length>=3;
+  const label = recent.length<=1
+    ? `Only one computable week is available for this queue in the current scope — no trend to compare yet.`
+    : isPersistent
+      ? `<b>Persistent ${dir(r)}-forecast.</b> ${sameDirFlagged.length} of the last ${recent.length} computable weeks for this queue ran ${dir(r)} and outside the ±${band}% band — looks like a trend, not a one-off.`
+      : `<b>Isolated week.</b> This is the only flagged week for this queue in its last ${recent.length} computable weeks — not part of a run.`;
+  return {weeks:recent, isPersistent, direction:dir(r), label};
+}
+
+// WHERE (sibling-shift) — the documented primary pattern: does a sibling Forecast_name
+// sharing Region+SubRegion+Country+Channel move the opposite direction the same week?
+function computeSiblingShift(r, scopeRows){
+  const sk=siblingKeyOf(r);
+  const gapOf=x=>x._ao-x._fo;
+  const rGap=gapOf(r);
+  const siblings=scopeRows.filter(x=>x!==r && x._wk===r._wk && x._fo!=null && x._fo>0 && x._ao!=null
+    && x.Forecast_name!==r.Forecast_name && siblingKeyOf(x)===sk);
+  const candidates=siblings.map(x=>({name:x.Forecast_name, gap:gapOf(x), acc:x._acc, padh:x._padh}))
+    .filter(x=>x.gap!==0 && Math.sign(x.gap)!==Math.sign(rGap))
+    .sort((a,b)=>Math.abs(b.gap)-Math.abs(a.gap));
+  const top=candidates[0];
+  const label = top
+    ? `<b>Candidate sibling: ${rcaEsc(top.name)}.</b> Same Region/SubRegion/Country/Channel, same fiscal week, ran ${top.gap>0?'over':'under'} forecast — the opposite direction to this queue. Consistent with the documented volume-shift pattern between sibling queues (not yet confirmed).`
+    : siblings.length
+      ? `${siblings.length} sibling(s) share this queue's Region/SubRegion/Country/Channel this week, but none moved in the opposite direction — doesn't look like a routing shift.`
+      : `No sibling Forecast_name found sharing Region/SubRegion/Country/Channel in this fiscal week within the current scope.`;
+  return {found:!!top, top, siblingCount:siblings.length, label};
+}
+
+// Discovery tier — plain flagged-rate lift across every candidate column, computed
+// transparently with raw counts. No score/threshold is asserted as a "cause"; each result
+// is shown for human review only, per the client's no-invented-formula rule.
+function computeDiscovery(r, scopeRows){
+  const band=num(document.getElementById('band').value)||10;
+  const computable=scopeRows.filter(x=>x._padh!=null);
+  if(computable.length<40) return [];
+  const isFlagged=x=>Math.abs(+x._padh.toFixed(1))>band;
+  const candidates=[];
+  const MIN_GROUP=8;
+  const pushCandidate=(dim,value,groupA,groupB)=>{
+    if(groupA.length<MIN_GROUP||groupB.length<MIN_GROUP) return;
+    const rateA=groupA.filter(isFlagged).length/groupA.length, rateB=groupB.filter(isFlagged).length/groupB.length;
+    if(rateB<=0 && rateA<=0) return;
+    const lift=rateB>0?rateA/rateB:Infinity;
+    if(!isFinite(lift)) return;
+    candidates.push({dim,value,nA:groupA.length,rateA,rateB,lift});
+  };
+  [['Offering','Offering'],['business_org','Business org'],['Forecaster','Forecaster'],['channel','Channel'],
+   ['Region','Region'],['SubRegion','Sub-Region'],['Country','Country'],['Volume_Category','Volume category']]
+    .forEach(([f,label])=>{
+      const rv=r[f]; if(rv==null||rv==='') return;
+      pushCandidate(label, rv, computable.filter(x=>String(x[f])===String(rv)), computable.filter(x=>String(x[f])!==String(rv)));
+    });
+  if(r.Holiday_Count!=null && r.Holiday_Count!==''){
+    // Binary condition, so (unlike the categorical dims above) show whichever side actually
+    // has the higher flagged rate as the headline value — reads more intuitively than always
+    // anchoring on r's own side even when the OTHER side is where the pattern really is.
+    const isHol=x=>(num(x.Holiday_Count)||0)>0;
+    const holG=computable.filter(isHol), nonHolG=computable.filter(x=>!isHol(x));
+    if(holG.length>=MIN_GROUP && nonHolG.length>=MIN_GROUP){
+      const holRate=holG.filter(isFlagged).length/holG.length, nonRate=nonHolG.filter(isFlagged).length/nonHolG.length;
+      if(holRate>=nonRate) pushCandidate('Calendar','Holiday week (Holiday_Count>0)',holG,nonHolG);
+      else pushCandidate('Calendar','Non-holiday week',nonHolG,holG);
+    }
+  }
+  return candidates.sort((a,b)=>Math.abs(b.lift-1)-Math.abs(a.lift-1)).slice(0,4);
+}
+
+// Memory / KB — extends the existing localStorage KB with confirmed-cause records keyed by
+// a signature (real dimension values + pattern label). Re-used only as a PRIOR: the caller
+// still re-checks the pattern against the current queue's live data before trusting it.
+function rcaSignature(r,patternLabel){ return {Region:r.Region||'',SubRegion:r.SubRegion||'',Country:r.Country||'',channel:r.channel||'',Offering:r.Offering||'',pattern:patternLabel||''}; }
+function sigScore(a,b){ if(!a||!b) return 0; let s=0; ['Region','SubRegion','Country','channel','Offering','pattern'].forEach(k=>{ if(a[k]&&b[k]&&a[k]===b[k]) s++; }); return s; }
+function searchMemory(sig){
+  return KB.filter(k=>k.confirmed&&k.sig).map(k=>({entry:k,score:sigScore(sig,k.sig)})).filter(h=>h.score>=2).sort((a,b)=>b.score-a.score).slice(0,2);
+}
+function confirmRCACause(i,patternLabel){
+  const r=FLAGS[i]; if(!r) return;
+  const box=document.getElementById('rcaCauseInput');
+  const cause=(box?box.value.trim():'');
+  if(!cause){ alert('Describe the confirmed cause first.'); return; }
+  KB.push({q:'(confirmed RCA cause)',a:cause,cat:'Confirmed cause',ctx:window.CUR_CTX||'',ts:new Date().toISOString(),sig:rcaSignature(r,patternLabel),confirmed:true});
+  localStorage.setItem('rca_kb',JSON.stringify(KB));
+  renderProbe();
+  const btn=box&&box.closest('.rca-confirm')&&box.closest('.rca-confirm').querySelector('button');
+  if(btn){ btn.textContent='✅ Saved to memory'; btn.disabled=true; }
+}
+
+// Narration — stitches the deterministic + discovery + memory results into prose. Every
+// figure quoted here traces to a value computed above; this is the stand-in for the future
+// on-prem LLaMA narration layer (same non-computing role the design already specifies).
+function narrateRCA(r,when,shift,discovery,memHits){
+  const band=num(document.getElementById('band').value)||10;
+  let p=`This queue's plan-adherence deviation is <b>${r._padh.toFixed(1)}%</b> (outside the ±${band}% band). ${when.label} ${shift.label}`;
+  if(discovery.length){
+    const d=discovery[0];
+    p+=` Discovery scan: rows where <b>${rcaEsc(d.dim)} = ${rcaEsc(d.value)}</b> are flagged <b>${(d.rateA*100).toFixed(0)}%</b> of the time vs ${(d.rateB*100).toFixed(0)}% otherwise (n=${d.nA}) — an unconfirmed statistical pattern, not a scored cause.`;
+  }
+  p+= memHits.length
+    ? ` Memory: matches a previously confirmed pattern — “${rcaEsc(memHits[0].entry.a)}” (confirmed ${new Date(memHits[0].entry.ts).toLocaleDateString()}).`
+    : ` Memory: no previously confirmed cause matches this signature yet — this would be a new pattern to confirm.`;
+  return p;
+}
+
+// Orchestrator — reveals each exploration step in sequence (simulates the agent's own
+// tool-calling trace). The PATH is identical in code for every queue, but which steps find
+// something — and what they find — comes from that queue's own numbers, so the output
+// differs per queue. Ends with a "confirm cause" action that feeds the memory loop.
+function runRCA(i){
+  const r=FLAGS[i]; if(!r) return;
+  const scope=window._lastRows||ROWS;
+  const host=document.getElementById('rcaPanel'); if(!host) return;
+  host.innerHTML=`<div class="rca-trace" id="rcaTrace"></div>`;
+  const traceEl=document.getElementById('rcaTrace');
+  const addStep=(icon,title,bodyFn)=>{
+    const div=document.createElement('div'); div.className='trace-step';
+    div.innerHTML=`<div class="ts-h"><span class="ts-i">${icon}</span><span class="ts-t">${title}</span><span class="ts-spin">thinking…</span></div><div class="ts-b"></div>`;
+    traceEl.appendChild(div);
+    requestAnimationFrame(()=>div.classList.add('show'));
+    return new Promise(res=>setTimeout(()=>{
+      const body=bodyFn();
+      const spin=div.querySelector('.ts-spin'); if(spin) spin.remove();
+      div.querySelector('.ts-b').innerHTML=body;
+      res();
+    },420));
+  };
+  let when,shift,discovery,memHits,patternLabel;
+  (async()=>{
+    await addStep('📈','Check trend (WHEN) — this queue across recent weeks', ()=>{ when=computeWhen(r); return when.label; });
+    await addStep('🔀','Check siblings in the CQN (WHERE — volume-shift pattern)', ()=>{ shift=computeSiblingShift(r,scope); return shift.label; });
+    await addStep('🧬','Scan every dimension for correlated patterns (discovery)', ()=>{
+      discovery=computeDiscovery(r,scope);
+      return discovery.length
+        ? discovery.map(d=>`<div class="disc-item">${rcaEsc(d.dim)} = <b>${rcaEsc(d.value)}</b> → flagged <b>${(d.rateA*100).toFixed(0)}%</b> of the time vs ${(d.rateB*100).toFixed(0)}% baseline (n=${d.nA}) <span class="chip amber">unconfirmed</span></div>`).join('')
+        : '<i>Not enough rows in the current scope for a reliable pattern.</i>';
+    });
+    await addStep('🧠','Check memory for a previously confirmed cause', ()=>{
+      patternLabel = shift.found?'Intra-CQN volume shift':(when.isPersistent?'Persistent forecast miss':'Isolated miss');
+      memHits=searchMemory(rcaSignature(r,patternLabel));
+      return memHits.length
+        ? memHits.map(h=>`<div class="mem-hit">Matches a confirmed cause (score ${h.score}/6): <b>${rcaEsc(h.entry.a)}</b><div class="qmeta">confirmed ${new Date(h.entry.ts).toLocaleDateString()}</div></div>`).join('')
+        : 'No matching confirmed cause in memory yet.';
+    });
+    await addStep('📝','Synthesize', ()=>narrateRCA(r,when,shift,discovery,memHits));
+    const confirm=document.createElement('div'); confirm.className='rca-confirm';
+    confirm.innerHTML=`<div class="subhead" style="margin-top:0;">Confirm the cause <span style="text-transform:none;font-weight:500;color:var(--muted)">(saves to memory for future matching)</span></div>
+      <input id="rcaCauseInput" class="fsearch" style="margin:8px 0 8px;" placeholder="Describe the confirmed cause…" value="${shift.found?rcaAttr('Volume shifted to '+shift.top.name):''}">
+      <button class="filebtn" onclick="confirmRCACause(${i},'${patternLabel.replace(/'/g,"\\'")}')">✅ Confirm this cause → save to memory</button>`;
+    traceEl.appendChild(confirm);
+  })();
+}
 
 /* ---------------- Probing → Markdown knowledge base ---------------- */
 // Static domain probes — expanded to cover the newly-filterable dimensions.
@@ -1368,7 +1650,7 @@ function renderContextProbes(rows,groups){
   // 3) Forecaster carrying the most flagged weeks.
   const band=num(document.getElementById('band').value)||10;
   const byF={};
-  rows.forEach(r=>{ if(r._padh!=null && +r._padh.toFixed(1)>band){ const f=r.Forecaster||'(unknown)'; byF[f]=(byF[f]||0)+1; } });
+  rows.forEach(r=>{ if(r._padh!=null && Math.abs(+r._padh.toFixed(1))>band){ const f=r.Forecaster||'(unknown)'; byF[f]=(byF[f]||0)+1; } });
   const topF=Object.entries(byF).sort((a,b)=>b[1]-a[1])[0];
   if(topF && topF[1]>0) CTX_PROBES.push(`Forecaster ${topF[0]} owns ${topF[1]} flagged week(s) — is that expected for their book?`);
   // 4) Data-gap volume.
