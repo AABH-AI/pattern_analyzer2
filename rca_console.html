@@ -425,7 +425,10 @@
         <div>
           <div class="reportcol" id="report"><div class="empty" style="border:none;padding:40px 10px;">Select a flagged item to see its RCA.</div></div>
 
-          <!-- PROBING -->
+          <!-- PROBING — HIDDEN for now (Phase 2: knowledge-base / RAG over confirmed causes).
+               Kept in source intentionally; the JS (renderContextProbes/saveKnowledge/downloadKB) still
+               exists and no-ops safely because these elements are absent. See IMP_DOCS/TODO.md P3. -->
+          <!--
           <div class="probe">
             <div class="q">🧠 Probing layer — knowledge gathering</div>
             <div style="font-size:11.5px;color:var(--muted);margin-bottom:8px;">The agent asks to clarify domain rules. Answers are saved to a Markdown knowledge base you can download and reuse.</div>
@@ -452,6 +455,7 @@
             </div>
             <div id="kbList" style="margin-top:8px;"></div>
           </div>
+          -->
         </div>
       </div>
     </div>
@@ -2047,6 +2051,7 @@ const PROBES=[
 // asks about the specific anomalies present, not just generic domain rules.
 let CTX_PROBES=[];
 function renderContextProbes(rows,groups){
+  if(!document.getElementById('probePills')) return;   // probing UI hidden (Phase 2) — no-op safely
   CTX_PROBES=[];
   // 1) Plan restatements: a Forecast_name carrying >1 Projection_plan_name.
   let restated=0, restatedEx='';
