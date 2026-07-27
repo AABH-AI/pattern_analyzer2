@@ -227,22 +227,57 @@ def queue_context(forecast_name: str, fiscal_week: str, region: str = "", subreg
         conn.close()
 
 
+# Curated model picker list — only models verified reachable on the current NVIDIA/Groq
+# accounts and fast enough for an interactive request. Override in config.json via
+# "llm".selectable_models (same {provider, model, label, default?} shape) if the catalog
+# changes. /api/models filters this to providers that actually have a key configured.
+DEFAULT_SELECTABLE_MODELS = [
+    {"provider": "nvidia", "model": "nvidia/nemotron-3-super-120b-a12b",
+     "label": "Nemotron 3 Super 120B — fast, strong reasoning", "default": True},
+    {"provider": "nvidia", "model": "deepseek-ai/deepseek-v4-flash",
+     "label": "DeepSeek V4 Flash — reasoning"},
+    {"provider": "nvidia", "model": "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+     "label": "Nemotron Super 49B — reasoning, fast"},
+    {"provider": "nvidia", "model": "nvidia/nemotron-3-ultra-550b-a55b",
+     "label": "Nemotron 3 Ultra 550B — flagship (may be busy)"},
+    {"provider": "groq", "model": "llama-3.3-70b-versatile",
+     "label": "Llama 3.3 70B (Groq) — fast baseline"},
+]
+
+
+@app.get("/api/models")
+def models():
+    """Models the console's per-queue picker can offer, filtered to providers that
+    actually have an API key configured (so the UI never lists an unusable model)."""
+    cfg = load_config()
+    llm = cfg.get("llm", {})
+    provider_has_key = set()
+    for slot in llm.values():
+        if isinstance(slot, dict) and slot.get("provider") and slot.get("api_key"):
+            provider_has_key.add(slot["provider"])
+    catalog = llm.get("selectable_models") or DEFAULT_SELECTABLE_MODELS
+    available = [m for m in catalog if m.get("provider") in provider_has_key]
+    return {"models": available, "providers_configured": sorted(provider_has_key)}
+
+
 @app.post("/api/rca-investigate")
-def rca_investigate(context_bundle: dict):
+def rca_investigate(context_bundle: dict, provider: str = Query("", description="Optional model-picker provider"),
+                    model: str = Query("", description="Optional model-picker model id")):
     """
     LLM Investigation Engine proxy. Body = the generic ContextBundle the console
     builds client-side (target row + history + peers + auto-discovered statistical
-    summary — every field the source file happens to have, nothing hand-picked).
-    Returns an InvestigationResponse (see rca_investigate.py for the exact contract).
+    summary). Optional ?provider=&model= route the investigation to a specific model
+    the user picked for this queue (used to compare which model gives business-acceptable
+    output); if that model fails, the engine returns the deterministic best-supported
+    finding — it does NOT silently answer with a different model.
 
     Runs server-side ONLY so a real provider key never has to live in the
-    (publicly hosted) rca_console.html. Until a provider is configured in
-    backend/config.json's "llm" section (or LLM_* env vars), this returns an
-    honest placeholder — it does not fabricate a root cause.
+    (publicly hosted) rca_console.html.
     """
     cfg = load_config()
+    model_choice = {"provider": provider, "model": model} if model else None
     try:
-        return investigate(context_bundle, cfg.get("llm", {}))
+        return investigate(context_bundle, cfg.get("llm", {}), model_choice=model_choice)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Investigation failed: {e}")
 

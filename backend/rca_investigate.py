@@ -2,22 +2,36 @@
 """
 LLM Investigation Engine — the one module that is allowed to "reason" about a
 forecast miss. Everything else in this backend (and in rca_console.html) is
-plain deterministic code that gathers and structures data; NOTHING upstream of
-this file decides what caused a miss.
+plain deterministic code that gathers and structures data.
 
-Providers: NVIDIA (primary) and Groq (secondary/fallback), both OpenAI-compatible
-chat-completion APIs, so one HTTP helper (`_call_openai_compatible`) serves both.
-Which one is "primary" vs "secondary" is decided entirely by backend/config.json's
-"llm" section (gitignored — see config.example.json) — swap the two slot objects
-there to reorder; GROQ_API_KEY / NVIDIA_API_KEY env vars apply to whichever slot
-currently names that provider, not a fixed position. If neither slot is configured,
-or both calls fail, `investigate()` returns the HONEST placeholder below — it never
-fabricates a root cause, a confidence number, or "evidence" no model actually produced.
+Two deterministic passes bracket the model so its answer can't be generic or
+circular:
 
-The `forecast_summary` figures in every response (real or placeholder) are ALWAYS
-taken from our own deterministic `context_bundle.target.computed` — never from
-what the model echoes back — so the one part of the output that's supposed to be
-plain fact can't drift or be hallucinated even slightly.
+  1. derive_features() — BEFORE the model runs. It cleans the raw statistical
+     summary (drops noise columns that are outliers for meaningless reasons —
+     Fiscal_Week, Week_Ending, the Monday..Sunday day flags — and collapses the
+     correlated installed-base columns into one signal) and computes genuinely
+     discriminating, per-queue causal features: chronic forecast bias/level,
+     whether THIS week is worse than the queue's usual miss, a forecast-sanity
+     check (is the forecast itself the anomaly?), plan restatement, installed-base
+     change, holiday effect, and peer divergence. This is what makes the output
+     differ per queue instead of always restating "the actual is an outlier".
+
+  2. _verify_and_fix() — AFTER the model runs. Rejects a primary root cause whose
+     ONLY evidence restates the miss (the offered/handled/adherence fields that are
+     outliers for every flagged queue by definition) or cites a dropped noise field;
+     promotes a clean secondary if one exists, else synthesises an honest,
+     fully-cited finding from the strongest derived feature. The engine therefore
+     never returns "not enough data" and never invents a cause — the weakest case
+     still gets the best *data-backed* finding, phrased with an honest confidence.
+
+Providers: NVIDIA and Groq (both OpenAI-compatible chat APIs), chosen per call.
+A specific model can be requested per queue (model picker in the UI) via
+`model_choice`; otherwise the configured primary->secondary chain is used. If no
+provider is reachable, investigate() returns an honest placeholder.
+
+forecast_summary figures are ALWAYS taken from our own deterministic
+context_bundle.target.computed — never from what the model echoes back.
 """
 import json
 import re
@@ -31,69 +45,73 @@ PROVIDER_ENDPOINTS = {
 }
 DEFAULT_MODELS = {
     "groq": "llama-3.3-70b-versatile",
-    "nvidia": "meta/llama-3.1-70b-instruct",
+    "nvidia": "nvidia/nemotron-3-super-120b-a12b",
 }
+
+# Columns whose "outlier" / "changed" flags are meaningless and were driving generic
+# root causes: Fiscal_Week is monotonic (always ~z 1.9), Week_Ending changes every
+# single week (always a "categorical change"), and the day-of-week flags are 0/1 that
+# spike to z>3 on any holiday week. Excluded from the stats sent to the model.
+NOISE_FIELDS = {"Fiscal_Week", "Week_Ending", "Monday", "Tuesday", "Wednesday",
+                "Thursday", "Friday", "Saturday", "Sunday"}
+# Near-identical installed-base columns — one real signal counted many times (a fake
+# z that dominated). Collapsed to a single "installed_base" signal (max |z|).
+INSTALLED_BASE_FIELDS = ["Final_Units", "Final_Y1", "Final_Y2", "Final_Y3",
+                         "Final_Y4", "Final_Y5", "Final_upp_units"]
+# Fields that are outliers for EVERY flagged queue by definition — citing them as the
+# primary cause just restates that a miss happened. Used by the verifier.
+DEFINITIONAL_FIELDS = {"Actual_Offered", "Actual_Handled", "fcst_offered", "fcst_handled",
+                       "adherence_pct", "accuracy_pct", "error", "forecast", "actual", "severity"}
 
 SYSTEM_PROMPT = """You are an investigative root-cause analyst for a demand-forecasting system.
 
-You will be given a JSON "context bundle" describing one forecast miss: the target week's
-full raw data, its recent history for the same queue, peer queues sharing the same
-Region/SubRegion/Country/Channel the same week, and an auto-computed statistical summary
-(history mean/stdev/z-score/outlier flag/trend slope per numeric field, changed-flag per
-categorical field) covering EVERY field present in the data — this is not a curated list of
-what matters, it is everything available; you decide what's relevant.
+You are given a JSON "context bundle" for ONE forecast miss (target week's raw data,
+its recent history and same-week peer queues, an auto-computed statistical_summary), plus
+a DERIVED_FEATURES block we computed for you — chronic bias/level, whether this week is
+worse than the queue's usual miss, a forecast-sanity check, plan restatement, installed-base
+change, holiday effect, peer divergence, and CLEANED_SIGNALS (the real per-field outliers
+with meaningless columns already removed). Reason primarily from DERIVED_FEATURES and
+CLEANED_SIGNALS — they are the discriminating evidence.
 
-Investigate this miss the way a skilled human analyst would — NOT by applying a fixed
-checklist or known business rule:
-1. Understand the forecast miss (magnitude/direction are already computed for you in
-   context.target.computed — do not recompute or contradict these numbers).
-2. Examine every available variable in the context bundle, not just an assumed few.
-3. Detect unusual changes — use the statistical_summary's z-scores, outlier flags, trend
-   slopes, and categorical change flags, but also read the raw values and peers yourself.
-4. Compare against historical behaviour for this queue and against peer queues.
-5. Generate MULTIPLE distinct hypotheses that could explain the miss, drawn from DIFFERENT
-   parts of the context bundle — do not stop at the first plausible-looking signal.
-6. For each hypothesis, evaluate the evidence in the data that SUPPORTS it and the evidence
-   that CONTRADICTS it.
-7. Reject hypotheses that lack sufficient supporting evidence — explain exactly why in
-   rejected_hypotheses.
-8. Rank the surviving hypotheses by likelihood; the most likely becomes primary_root_cause,
-   the rest become secondary_contributors.
-9. Estimate a confidence score (0.0-1.0) based on how much of the actual data supports your
-   conclusion — do not default to a fixed number.
-10. Identify what additional information, if it existed, would improve your confidence —
-    list it in missing_information.
+Classify the miss into ONE primary cause_type from this taxonomy, then explain it:
+- "forecast_baseline_error"      : the forecast itself is anomalous vs the queue's own history
+                                    (see forecast_sanity) — a broken/placeholder baseline, not a demand change.
+- "systematic_forecast_bias"     : the queue is chronically off in the same direction (see chronic_bias) —
+                                    a calibration problem, this week is just another instance of it.
+- "genuine_demand_event"         : a real one-week demand move (this week is materially worse than the
+                                    queue's usual miss AND the forecast looks normal).
+- "volume_routing_shift"         : a sibling/peer queue moved the opposite way the same week
+                                    (see peer_divergence) — volume shifted between queues, not total demand.
+- "plan_restatement"             : Projection_plan_name changed this week (see plan_restatement).
+- "installed_base_change"        : installed base (Final_* / units) shifted materially and plausibly drives demand.
+- "calendar_holiday_effect"      : a holiday/short week plausibly explains the magnitude (see holiday).
 
-Critical trap to avoid — generic evidence that looks specific but isn't:
-The field(s) driving context.target.computed (typically the offered/handled or equivalent
-demand figures) will ALWAYS show up as an outlier vs. their own history for ANY flagged
-miss — that is what "flagged" means, definitionally, for every single case you will ever be
-asked to investigate. Citing "this field is an outlier vs. its own history" as your PRIMARY
-evidence is true but empty — it restates that a miss happened, it does not explain WHY this
-specific case happened rather than any other. Only lean on it if you truly find nothing more
-specific; prefer hypotheses built from evidence that would NOT be true of every other flagged
-queue: a specific peer moving the opposite direction the same week, a specific categorical
-field that changed and plausibly explains this magnitude, a specific other numeric field's
-outlier/trend that co-occurs with the miss, or a specific historical pattern unique to this
-queue. Explicitly check `peers` — do any of them move in the opposite direction the same
-week (a volume/routing shift between sibling queues), which is a materially different
-explanation from genuine total-demand change and should be distinguished, not skipped.
+How to reason:
+1. The miss magnitude/direction are already in context.target.computed — never recompute or contradict them.
+2. Prefer the cause_type whose DERIVED_FEATURES evidence is strongest and most SPECIFIC to this queue.
+3. Generate multiple hypotheses from DIFFERENT features; for each, weigh supporting vs contradicting evidence;
+   reject the weak ones in rejected_hypotheses with the reason.
+4. Rank survivors: the strongest becomes primary_root_cause, the rest secondary_contributors.
 
 Hard rules:
-- Never invent a cause not traceable to the supplied data. Every entry in supporting_evidence
-  must cite a specific field name (source_field) and the value you actually observed.
-- Never apply a fixed business rule or IF-THEN checklist (e.g. "if Holiday_Count>0 then
-  holiday caused it") — reason freely from what THIS case's data actually shows.
-- forecast_improvement_recommendations must contain ONLY suggestions for improving the
-  forecasting model/process (e.g. re-baselining, adding a variable, revisiting a seasonality
-  assumption) — NEVER workforce, staffing, or operational recommendations.
-- If the data doesn't clearly support any conclusion, say so plainly: set primary_root_cause
-  to null and explain why in missing_information rather than guessing.
-- Respond with ONLY a single JSON object, no prose outside it, matching EXACTLY this shape
-  (types shown, use null/[] where you have nothing to report — never omit a key):
+- NEVER make "Actual_Offered / Actual_Handled / fcst_* is an outlier vs its own history" your PRIMARY
+  cause — that is true of every flagged queue by definition and explains nothing. It may appear only as
+  background context, never as the primary supporting_evidence.
+- Every supporting_evidence item MUST cite a specific source_field from DERIVED_FEATURES/CLEANED_SIGNALS and
+  the value you observed. Never invent a cause not traceable to the supplied data.
+- ALWAYS produce a primary_root_cause. If no single signal is strong, choose the cause_type best supported by
+  DERIVED_FEATURES (usually forecast_baseline_error or systematic_forecast_bias), give it a HONEST LOWER
+  confidence, and phrase it as "the data is most consistent with ...". NEVER say "not enough data" and NEVER
+  return a null primary — state the best data-backed finding and put what would raise confidence in
+  missing_information.
+- forecast_improvement_recommendations: ONLY forecasting model/process suggestions (re-baselining, adding a
+  variable, revisiting seasonality) — NEVER workforce/staffing/operational advice.
+- Respond with ONLY a single JSON object, no prose outside it, matching EXACTLY this shape (use null/[] only
+  where truly empty; never omit a key):
 
 {
-  "primary_root_cause": {"statement": "string", "confidence": 0.0, "supporting_evidence": [{"text": "string", "source_field": "string", "value": "any"}]} or null,
+  "cause_type": "string (one of the taxonomy keys above)",
+  "primary_root_cause": {"statement": "string", "confidence": 0.0, "supporting_evidence": [{"text": "string", "source_field": "string", "value": "any"}]},
   "supporting_evidence": [{"text": "string", "source_field": "string", "value": "any"}],
   "secondary_contributors": [{"statement": "string", "confidence": 0.0, "supporting_evidence": [{"text": "string", "source_field": "string", "value": "any"}]}],
   "rejected_hypotheses": [{"hypothesis": "string", "reason_rejected": "string"}],
@@ -106,6 +124,7 @@ Hard rules:
 """
 
 _RESPONSE_DEFAULTS = {
+    "cause_type": None,
     "primary_root_cause": None,
     "supporting_evidence": [],
     "secondary_contributors": [],
@@ -122,57 +141,313 @@ def _now():
     return datetime.now(timezone.utc).isoformat()
 
 
-def _placeholder_response(context_bundle, extra_missing=None):
-    """No live provider available — say so honestly. Every list is empty rather
-    than invented; missing_information explains exactly what to do next."""
-    target = (context_bundle or {}).get("target", {})
-    computed = target.get("computed", {})
-    fields_seen = sorted(set((target.get("fields") or {}).keys()))
-    missing = [
-        "Live LLM connection is not configured or unavailable (backend/config.json → "
-        "\"llm\".primary/secondary, or GROQ_API_KEY/NVIDIA_API_KEY env vars).",
-        f"{len(fields_seen)} field(s) were gathered generically from the source file "
-        "and are ready to send to a model once one is reachable.",
-    ] + list(extra_missing or [])
-    narrative = (
-        "No LLM is connected. This is a placeholder response showing the exact shape a "
-        "real investigation will return — it is not an analysis, and no conclusion has "
-        "been drawn."
-    )
-    if extra_missing:
-        narrative = "No live investigation could be completed. " + " ".join(extra_missing)
+def _mean(xs):
+    xs = [x for x in xs if isinstance(x, (int, float))]
+    return sum(xs) / len(xs) if xs else None
+
+
+# ---------------------------------------------------------------------------
+# PASS 1 — deterministic feature engineering (runs BEFORE the model)
+# ---------------------------------------------------------------------------
+def derive_features(context_bundle):
+    """Compute discriminating, per-queue causal features + a cleaned signal list
+    from the bundle the console already sends. Pure data, cites field names."""
+    b = context_bundle or {}
+    target = b.get("target") or {}
+    computed = target.get("computed") or {}
+    stat = b.get("statistical_summary") or {}
+    numeric = dict(stat.get("numeric") or {})
+    categorical = dict(stat.get("categorical") or {})
+    history = b.get("history") or []
+    peers = b.get("peers") or []
+    band = ((b.get("meta") or {}).get("band_threshold")) or 10
+
+    hcomp = [h.get("computed") or {} for h in history]
+    hist_adh = [c.get("adherence_pct") for c in hcomp if isinstance(c.get("adherence_pct"), (int, float))]
+    t_adh = computed.get("adherence_pct")
+    t_actual = computed.get("actual")
+    t_forecast = computed.get("forecast")
+
+    feats = {}
+
+    # -- chronic bias / level: is this queue ALWAYS off, same direction? --
+    mean_adh = _mean(hist_adh)
+    typical_abs = _mean([abs(a) for a in hist_adh])
+    chronic = None
+    if mean_adh is not None and typical_abs is not None:
+        # sign convention (frontend): negative adherence = under-forecast (actual ran hot)
+        direction = "under" if mean_adh < 0 else "over"
+        share_same = (sum(1 for a in hist_adh if (a < 0) == (mean_adh < 0)) / len(hist_adh)) if hist_adh else 0
+        chronic = {
+            "history_mean_adherence_pct": round(mean_adh, 1),
+            "typical_abs_deviation_pct": round(typical_abs, 1),
+            "history_weeks": len(hist_adh),
+            "consistent_direction": direction if share_same >= 0.7 and typical_abs > band else None,
+            "share_same_direction": round(share_same, 2),
+            "verdict": ("chronic_" + direction) if (share_same >= 0.7 and typical_abs > band) else "mixed",
+        }
+    feats["chronic_bias"] = chronic
+
+    # -- this week vs the queue's usual miss --
+    if isinstance(t_adh, (int, float)) and typical_abs:
+        times = abs(t_adh) / typical_abs if typical_abs else None
+        feats["this_week_vs_usual"] = {
+            "target_adherence_pct": round(t_adh, 1),
+            "typical_abs_deviation_pct": round(typical_abs, 1),
+            "times_usual": round(times, 1) if times is not None else None,
+            "worse_than_usual": bool(times and times >= 1.5),
+        }
+    else:
+        feats["this_week_vs_usual"] = None
+
+    # -- forecast sanity: is the FORECAST itself the anomaly? --
+    fo_stat = numeric.get("fcst_offered") or {}
+    fo_z = fo_stat.get("z_score")
+    ratio = None
+    if isinstance(t_forecast, (int, float)) and isinstance(t_actual, (int, float)) and t_actual not in (0, None):
+        ratio = t_forecast / t_actual if t_actual else None
+    verdict = "normal"
+    if isinstance(fo_z, (int, float)) and abs(fo_z) > 2:
+        verdict = "forecast_anomalously_low" if fo_z < 0 else "forecast_anomalously_high"
+    elif ratio is not None and (ratio < 0.34 or ratio > 3):
+        verdict = "forecast_scale_mismatch"  # forecast an order of magnitude off the actual
+    feats["forecast_sanity"] = {
+        "forecast": round(t_forecast, 2) if isinstance(t_forecast, (int, float)) else t_forecast,
+        "forecast_z_vs_own_history": round(fo_z, 2) if isinstance(fo_z, (int, float)) else None,
+        "forecast_over_actual_ratio": round(ratio, 3) if ratio is not None else None,
+        "verdict": verdict,
+    }
+
+    # -- installed base (collapse correlated Final_* columns to one signal) --
+    ib = None
+    best = None
+    for f in INSTALLED_BASE_FIELDS:
+        s = numeric.get(f)
+        if s and isinstance(s.get("z_score"), (int, float)):
+            if best is None or abs(s["z_score"]) > abs(best[1]):
+                best = (f, s["z_score"], s.get("target_value"), s.get("history_mean"))
+    if best:
+        ib = {"field": best[0], "z_score": round(best[1], 2), "target_value": best[2],
+              "history_mean": round(best[3], 2) if isinstance(best[3], (int, float)) else best[3],
+              "material": abs(best[1]) > 2}
+    feats["installed_base"] = ib
+
+    # -- holiday / calendar (Holiday_Count is meaningful; day flags are not) --
+    hc = numeric.get("Holiday_Count") or {}
+    feats["holiday"] = {
+        "holiday_count": hc.get("target_value"),
+        "z_score": round(hc["z_score"], 2) if isinstance(hc.get("z_score"), (int, float)) else None,
+        "unusual": bool(isinstance(hc.get("z_score"), (int, float)) and abs(hc["z_score"]) > 2),
+    } if hc else None
+
+    # -- plan restatement + other categorical changes (Week_Ending excluded) --
+    def _cat_change(field):
+        c = categorical.get(field)
+        if c and c.get("changed"):
+            return {"changed": True, "prior": c.get("prior_value"), "current": c.get("target_value")}
+        return {"changed": False} if c else None
+    feats["plan_restatement"] = _cat_change("Projection_plan_name")
+    feats["forecaster_change"] = _cat_change("Forecaster")
+    feats["offering_change"] = _cat_change("Offering")
+
+    # -- peer divergence: did sibling queues move the opposite way this week? --
+    t_dir = computed.get("direction")
+    opp = []
+    same = 0
+    for p in peers:
+        pc = p.get("computed") or {}
+        pd = pc.get("direction")
+        if pd is None:
+            continue
+        if t_dir is not None and pd != t_dir:
+            opp.append({"forecast_name": (p.get("key") or {}).get("Forecast_name"),
+                        "adherence_pct": round(pc["adherence_pct"], 1) if isinstance(pc.get("adherence_pct"), (int, float)) else None})
+        elif pd == t_dir:
+            same += 1
+    feats["peer_divergence"] = {
+        "peers_total": len(peers),
+        "peers_opposite_direction": len(opp),
+        "peers_same_direction": same,
+        "examples_opposite": opp[:5],
+        "signal": bool(opp),
+    }
+
+    # -- population context (if the console supplied it) --
+    feats["population_context"] = (b.get("meta") or {}).get("population")
+
+    # -- cleaned signals: real outliers, noise removed, installed-base collapsed --
+    cleaned = []
+    for f, s in numeric.items():
+        if f in NOISE_FIELDS or f in INSTALLED_BASE_FIELDS or f in DEFINITIONAL_FIELDS:
+            continue
+        z = s.get("z_score")
+        if isinstance(z, (int, float)) and abs(z) > 2:
+            cleaned.append({"field": f, "z_score": round(z, 2), "target_value": s.get("target_value"),
+                            "history_mean": round(s["history_mean"], 2) if isinstance(s.get("history_mean"), (int, float)) else s.get("history_mean")})
+    if ib and ib["material"]:
+        cleaned.append({"field": "installed_base(" + ib["field"] + ")", "z_score": ib["z_score"],
+                        "target_value": ib["target_value"], "history_mean": ib["history_mean"]})
+    cleaned.sort(key=lambda d: abs(d["z_score"]), reverse=True)
+    feats["cleaned_signals"] = cleaned
+
+    return feats
+
+
+def _bundle_for_model(context_bundle, features):
+    """A copy of the bundle with derived_features attached and the noise columns
+    stripped from statistical_summary, so the model literally cannot cite them."""
+    b = dict(context_bundle or {})
+    stat = dict(b.get("statistical_summary") or {})
+    stat["numeric"] = {k: v for k, v in (stat.get("numeric") or {}).items() if k not in NOISE_FIELDS}
+    stat["categorical"] = {k: v for k, v in (stat.get("categorical") or {}).items()
+                           if k not in NOISE_FIELDS and k != "Week_Ending"}
+    b["statistical_summary"] = stat
+    b["derived_features"] = features
+    return b
+
+
+# ---------------------------------------------------------------------------
+# PASS 2 — deterministic verifier (runs AFTER the model)
+# ---------------------------------------------------------------------------
+def _evidence_fields(item):
+    ev = (item or {}).get("supporting_evidence") or []
+    return [str((e or {}).get("source_field") or "") for e in ev]
+
+
+def _is_circular(item):
+    """True if the finding's ONLY evidence restates the miss (definitional fields)
+    or cites a dropped noise column — i.e. it explains nothing specific."""
+    flds = [f for f in _evidence_fields(item) if f]
+    if not flds:
+        return True
+    return all((f in DEFINITIONAL_FIELDS) or (f in NOISE_FIELDS) for f in flds)
+
+
+def _finding_from_features(features):
+    """Build an honest, fully-cited primary finding from the strongest derived
+    feature — the fallback that guarantees we never say 'not enough data'."""
+    fs = features.get("forecast_sanity") or {}
+    chronic = features.get("chronic_bias") or {}
+    peer = features.get("peer_divergence") or {}
+    ev = []
+    if fs.get("verdict", "normal") != "normal":
+        stmt = ("The data is most consistent with a forecast-baseline problem: the forecast itself is "
+                "anomalous for this queue, not a genuine demand change.")
+        ctype = "forecast_baseline_error"
+        conf = 0.55
+        ev.append({"text": f"forecast-sanity verdict: {fs['verdict']}", "source_field": "forecast_sanity",
+                   "value": fs.get("forecast_z_vs_own_history") or fs.get("forecast_over_actual_ratio")})
+    elif chronic.get("verdict", "mixed").startswith("chronic"):
+        stmt = (f"The data is most consistent with systematic {chronic.get('consistent_direction')}-forecast bias: "
+                f"this queue misses in the same direction almost every week, so this week is another instance of a "
+                f"calibration problem, not a one-off event.")
+        ctype = "systematic_forecast_bias"
+        conf = 0.5
+        ev.append({"text": f"chronic bias verdict: {chronic.get('verdict')} over {chronic.get('history_weeks')} weeks",
+                   "source_field": "chronic_bias", "value": chronic.get("history_mean_adherence_pct")})
+    elif peer.get("signal"):
+        ex = (peer.get("examples_opposite") or [{}])[0]
+        stmt = ("The data is most consistent with a volume/routing shift between sibling queues rather than a total "
+                "demand change — at least one peer moved the opposite direction the same week.")
+        ctype = "volume_routing_shift"
+        conf = 0.45
+        ev.append({"text": f"peer {ex.get('forecast_name')} moved opposite (adherence {ex.get('adherence_pct')}%)",
+                   "source_field": "peer_divergence", "value": peer.get("peers_opposite_direction")})
+    else:
+        stmt = ("The data is most consistent with a forecast calibration issue for this queue; no single exogenous "
+                "signal in the available fields explains the magnitude on its own.")
+        ctype = "systematic_forecast_bias"
+        conf = 0.35
+        ev.append({"text": "no exogenous driver in the available fields dominates", "source_field": "cleaned_signals",
+                   "value": len(features.get("cleaned_signals") or [])})
+    return ctype, {"statement": stmt, "confidence": conf, "supporting_evidence": ev}
+
+
+def _verify_and_fix(result, context_bundle, features):
+    """Reject circular primaries; promote a clean secondary or synthesise a
+    feature-based finding. Guarantees a non-circular, data-backed primary."""
+    computed = ((context_bundle or {}).get("target") or {}).get("computed") or {}
+    note = None
+    primary = result.get("primary_root_cause")
+    if not primary or _is_circular(primary):
+        # try a clean secondary
+        promoted = None
+        for sec in (result.get("secondary_contributors") or []):
+            if not _is_circular(sec):
+                promoted = sec
+                break
+        if promoted:
+            result["secondary_contributors"] = [s for s in result["secondary_contributors"] if s is not promoted]
+            if primary:
+                result["secondary_contributors"].append(primary)
+            result["primary_root_cause"] = promoted
+            note = ("Primary was reselected by the verifier: the model's first choice only restated the miss "
+                    "(offered/handled outlier), so the strongest specific finding was promoted.")
+        else:
+            ctype, synth = _finding_from_features(features)
+            if primary:
+                result.setdefault("secondary_contributors", []).append(primary)
+            result["primary_root_cause"] = synth
+            result["cause_type"] = ctype
+            if result.get("confidence_score") is None:
+                result["confidence_score"] = synth["confidence"]
+            note = ("The model did not produce a specific, non-circular cause, so the verifier built the primary "
+                    "finding directly from the strongest derived feature (fully data-backed).")
+    if note:
+        result["verifier_note"] = note
+        rn = result.get("reasoning_narrative") or ""
+        result["reasoning_narrative"] = (rn + ("\n\n" if rn else "") + note).strip()
+    # confidence from primary if the model left it blank
+    if result.get("confidence_score") is None and result.get("primary_root_cause"):
+        c = result["primary_root_cause"].get("confidence")
+        if isinstance(c, (int, float)):
+            result["confidence_score"] = c
+    return result
+
+
+def _placeholder_response(context_bundle, features, extra_missing=None):
+    """No live provider — still return the best DATA-BACKED finding from our own
+    derived features (never a blank 'not enough data'), just flagged as offline."""
+    computed = ((context_bundle or {}).get("target") or {}).get("computed") or {}
+    fields_seen = sorted(set(((context_bundle or {}).get("target") or {}).get("fields", {}).keys()))
+    ctype, synth = _finding_from_features(features)
+    missing = list(extra_missing or []) + [
+        "Live LLM connection is not configured/available — this finding is the deterministic best-supported "
+        "cause from the derived features; connect a provider (config.json llm.* or GROQ/NVIDIA_API_KEY) for the "
+        "full multi-hypothesis investigation.",
+    ]
     return {
-        "forecast_summary": {
-            "forecast": computed.get("forecast"),
-            "actual": computed.get("actual"),
-            "error": computed.get("error"),
-            "adherence_pct": computed.get("adherence_pct"),
-            "miss_type": computed.get("direction"),
-            "severity": computed.get("severity"),
-        },
-        "primary_root_cause": None,
-        "supporting_evidence": [],
+        "cause_type": ctype,
+        "primary_root_cause": synth,
+        "supporting_evidence": synth["supporting_evidence"],
         "secondary_contributors": [],
         "rejected_hypotheses": [],
         "historical_comparison": {"narrative": "", "data_points": []},
-        "reasoning_narrative": narrative,
+        "reasoning_narrative": synth["statement"],
         "forecast_improvement_recommendations": [],
-        "confidence_score": None,
+        "confidence_score": synth["confidence"],
         "missing_information": missing,
-        "investigation_meta": {
-            "engine": "placeholder",
-            "provider": None,
-            "model": None,
-            "generated_at": _now(),
-            "based_on_fields": fields_seen,
-        },
+        "forecast_summary": _forecast_summary(computed),
+        "derived_features": features,
+        "investigation_meta": {"engine": "deterministic-fallback", "provider": None, "model": None,
+                               "generated_at": _now(), "based_on_fields": fields_seen},
+    }
+
+
+def _forecast_summary(computed):
+    return {
+        "forecast": computed.get("forecast"),
+        "actual": computed.get("actual"),
+        "error": computed.get("error"),
+        "adherence_pct": computed.get("adherence_pct"),
+        "miss_type": computed.get("direction"),
     }
 
 
 def _extract_json(text):
-    """Models occasionally wrap JSON in prose/fences despite instructions —
-    try a direct parse first, then fall back to the outermost {...} span."""
-    text = text.strip()
+    """Models occasionally wrap JSON in prose/fences (reasoning models especially) —
+    try a direct parse, then the outermost {...} span."""
+    text = (text or "").strip()
     try:
         return json.loads(text)
     except Exception:
@@ -183,22 +458,19 @@ def _extract_json(text):
     return json.loads(m.group(0))
 
 
-def _call_openai_compatible(endpoint, api_key, model, messages, timeout=60):
-    body = json.dumps({
-        "model": model,
-        "messages": messages,
-        "temperature": 0.2,
-        "response_format": {"type": "json_object"},
-    }).encode("utf-8")
+def _call_openai_compatible(endpoint, api_key, model, messages, timeout=100, use_response_format=True):
+    payload = {"model": model, "messages": messages, "temperature": 0.35}
+    # Some NVIDIA models (e.g. nemotron-3-ultra) reject response_format with a 400/503;
+    # _chat_json retries without it, and _extract_json handles loose/fenced JSON.
+    if use_response_format:
+        payload["response_format"] = {"type": "json_object"}
+    body = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(endpoint, data=body, method="POST", headers={
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}",
         "Accept": "application/json",
-        # Groq (and some other providers) sit behind Cloudflare bot-management, which
-        # blocks urllib's default "Python-urllib/3.x" User-Agent with a 403 (Cloudflare
-        # error 1010) before the request ever reaches the actual API. A normal-looking
-        # UA is enough to get past it — this isn't spoofing a browser session, just
-        # not announcing "I am a bare urllib script."
+        # A normal-looking UA gets past Cloudflare bot-management (Groq returns 403/error 1010
+        # to the default "Python-urllib/3.x" UA before the request reaches the API).
         "User-Agent": "Mozilla/5.0 (compatible; rca-investigation-engine/1.0)",
     })
     with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -206,31 +478,31 @@ def _call_openai_compatible(endpoint, api_key, model, messages, timeout=60):
     return payload["choices"][0]["message"]["content"]
 
 
-def _coerce_response(parsed, context_bundle):
-    """Fill any STRUCTURALLY missing keys with safe empty defaults so a slightly
-    malformed model reply can't crash the formatter/renderer downstream — this
-    fills gaps in shape, never invents content. forecast_summary is always
-    overwritten from our own deterministic computed values (see module docstring)."""
+def _chat_json(endpoint, api_key, model, messages):
+    """Call the model and parse JSON. Retries once without response_format for
+    models that reject it (some NVIDIA models 400/503 on response_format)."""
+    try:
+        raw = _call_openai_compatible(endpoint, api_key, model, messages, use_response_format=True)
+    except urllib.error.HTTPError as e:
+        if e.code in (400, 415, 422, 500, 503):
+            raw = _call_openai_compatible(endpoint, api_key, model, messages, use_response_format=False)
+        else:
+            raise
+    return _extract_json(raw)
+
+
+def _coerce_response(parsed, context_bundle, features):
     if not isinstance(parsed, dict):
         parsed = {}
     out = dict(_RESPONSE_DEFAULTS)
     out.update({k: v for k, v in parsed.items() if k in _RESPONSE_DEFAULTS})
-    target_computed = ((context_bundle or {}).get("target") or {}).get("computed") or {}
-    out["forecast_summary"] = {
-        "forecast": target_computed.get("forecast"),
-        "actual": target_computed.get("actual"),
-        "error": target_computed.get("error"),
-        "adherence_pct": target_computed.get("adherence_pct"),
-        "miss_type": target_computed.get("direction"),
-        "severity": target_computed.get("severity"),
-    }
+    computed = ((context_bundle or {}).get("target") or {}).get("computed") or {}
+    out["forecast_summary"] = _forecast_summary(computed)
+    out["derived_features"] = features
     return out
 
 
-def _call_provider(slot_cfg, context_bundle):
-    """Returns (response_dict, None) on success, or (None, error_string) on any
-    failure (not configured, network error, bad JSON, provider error) — never
-    raises, so the primary->secondary->placeholder fallback chain stays simple."""
+def _call_provider(slot_cfg, context_bundle, features, model_bundle):
     slot_cfg = slot_cfg or {}
     provider = slot_cfg.get("provider")
     api_key = slot_cfg.get("api_key")
@@ -242,54 +514,86 @@ def _call_provider(slot_cfg, context_bundle):
     model = slot_cfg.get("model") or DEFAULT_MODELS.get(provider)
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": json.dumps(context_bundle, default=str)},
+        {"role": "user", "content": json.dumps(model_bundle, default=str)},
     ]
     try:
-        raw = _call_openai_compatible(endpoint, api_key, model, messages)
-        parsed = _extract_json(raw)
+        parsed = _chat_json(endpoint, api_key, model, messages)
     except urllib.error.HTTPError as e:
         if e.code == 413 and (context_bundle.get("history") or context_bundle.get("peers")):
-            # Payload too large for this provider's size/rate limit. Retry ONCE with a
-            # trimmed bundle (last 3 history weeks, no peers) rather than failing outright —
-            # statistical_summary (already computed from the full, untrimmed data client-side)
-            # is unchanged, so no analytical signal is lost, only the duplicated raw rows.
-            trimmed = dict(context_bundle)
-            trimmed["history"] = (context_bundle.get("history") or [])[-3:]
+            trimmed = dict(model_bundle)
+            trimmed["history"] = (model_bundle.get("history") or [])[-3:]
             trimmed["peers"] = []
             try:
-                retry_messages = [messages[0], {"role": "user", "content": json.dumps(trimmed, default=str)}]
-                raw = _call_openai_compatible(endpoint, api_key, model, retry_messages)
-                parsed = _extract_json(raw)
+                retry = [messages[0], {"role": "user", "content": json.dumps(trimmed, default=str)}]
+                parsed = _chat_json(endpoint, api_key, model, retry)
             except Exception as e2:
-                return None, f"{provider} error (413, retry with trimmed context also failed): {e2}"
+                return None, f"{provider} error (413, trimmed retry failed): {e2}"
         else:
             detail = e.read().decode("utf-8", "replace")[:300]
             return None, f"{provider} HTTP {e.code}: {detail}"
     except Exception as e:
         return None, f"{provider} error: {e}"
-    result = _coerce_response(parsed, context_bundle)
+    result = _coerce_response(parsed, context_bundle, features)
+    result = _verify_and_fix(result, context_bundle, features)
     result["investigation_meta"] = {
-        "engine": "llm",
-        "provider": provider,
-        "model": model,
-        "generated_at": _now(),
+        "engine": "llm", "provider": provider, "model": model, "generated_at": _now(),
         "based_on_fields": sorted(set(((context_bundle or {}).get("target") or {}).get("fields", {}).keys())),
     }
     return result, None
 
 
-def investigate(context_bundle, llm_cfg):
-    """Try llm_cfg["primary"] (Groq), then llm_cfg["secondary"] (NVIDIA) as a
-    fallback, then the honest placeholder if neither is configured or both fail."""
+def _slot_for_choice(model_choice, llm_cfg):
+    """Build a provider slot for a UI-selected model. api_key comes from whichever
+    configured slot already holds that provider (so keys stay in config, not the UI)."""
+    provider = (model_choice or {}).get("provider")
+    model = (model_choice or {}).get("model")
+    if not model:
+        return None
+    if not provider:  # infer from the model id
+        provider = "groq" if model.startswith("llama-") and "/" not in model else "nvidia"
+    api_key = None
+    for slot in (llm_cfg or {}).values():
+        if isinstance(slot, dict) and slot.get("provider") == provider and slot.get("api_key"):
+            api_key = slot["api_key"]
+            break
+    if not api_key:
+        return None
+    return {"provider": provider, "api_key": api_key, "model": model,
+            "endpoint": PROVIDER_ENDPOINTS.get(provider)}
+
+
+def investigate(context_bundle, llm_cfg, model_choice=None):
+    """Derive features, then:
+      - if a specific model is chosen in the UI, run ONLY that model (no silent
+        fallback to a different model — that would make the per-queue model
+        comparison dishonest); on failure return the deterministic feature-based
+        finding, clearly flagged with the failed model + reason.
+      - otherwise run the configured primary -> secondary chain.
+    Always returns a non-circular, data-backed result."""
     llm_cfg = llm_cfg or {}
-    failures = []
-    for slot_name in ("primary", "secondary"):
-        slot = llm_cfg.get(slot_name) or {}
-        if not slot.get("provider") or not slot.get("api_key"):
-            continue
-        result, err = _call_provider(slot, context_bundle)
+    features = derive_features(context_bundle)
+    model_bundle = _bundle_for_model(context_bundle, features)
+
+    if model_choice and model_choice.get("model"):
+        chosen = _slot_for_choice(model_choice, llm_cfg)
+        if not chosen:
+            return _placeholder_response(context_bundle, features,
+                [f"Selected model '{model_choice.get('model')}' has no API key configured for its provider — "
+                 "add one in backend/config.json (llm.*) or the matching *_API_KEY env var."])
+        result, err = _call_provider(chosen, context_bundle, features, model_bundle)
         if result is not None:
             return result
-        failures.append(f"{slot.get('provider', slot_name)}: {err}")
-    extra = [f"{f}." for f in failures] if failures else None
-    return _placeholder_response(context_bundle, extra)
+        return _placeholder_response(context_bundle, features,
+            [f"Selected model '{chosen['model']}' ({chosen['provider']}) could not be reached: {err}. "
+             "Pick a different model, or this is the deterministic best-supported finding."])
+
+    failures = []
+    for name in ("primary", "secondary"):
+        slot = llm_cfg.get(name) or {}
+        if slot.get("provider") and slot.get("api_key"):
+            result, err = _call_provider(slot, context_bundle, features, model_bundle)
+            if result is not None:
+                return result
+            failures.append(f"{slot.get('provider')}/{slot.get('model') or DEFAULT_MODELS.get(slot.get('provider'))}: {err}")
+
+    return _placeholder_response(context_bundle, features, [f"{f}." for f in failures] if failures else None)

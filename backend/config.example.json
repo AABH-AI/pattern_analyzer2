@@ -14,16 +14,24 @@
   },
   "excel_path": "C:\\Users\\arnav.bhargava\\Downloads\\Input_To_ML_20260706110242.csv.xlsx",
   "llm": {
-    "_comment": "LLM Investigation Engine. Leave api_key blank on both slots to get an honest placeholder (no fabricated conclusions). primary is tried first (NVIDIA); secondary is the fallback (Groq) used only if primary isn't configured or its call fails. model is optional — a sensible default is used if blank. Swap the two objects below (or the provider names) to change priority.",
+    "_comment": "LLM Investigation Engine. Leave api_key blank on both slots to get the deterministic feature-based finding (never a fabricated conclusion). primary is tried first (NVIDIA); secondary is the Groq fallback. model is optional — DEFAULT_MODELS is used if blank. The console's per-queue model picker (selectable_models) can override the model per investigation; a specific picked model that fails is NOT silently answered by a different model — the deterministic finding is returned instead.",
     "primary": {
       "provider": "nvidia",
       "api_key": "",
-      "model": "meta/llama-3.1-70b-instruct"
+      "model": "nvidia/nemotron-3-super-120b-a12b"
     },
     "secondary": {
       "provider": "groq",
       "api_key": "",
       "model": "llama-3.3-70b-versatile"
-    }
+    },
+    "_selectable_models_comment": "Optional. Models the console's per-queue picker offers (filtered to providers with a key). Verify ids against your account — the NVIDIA catalog lists models not provisioned for every account. Omit to use the built-in default list.",
+    "selectable_models": [
+      {"provider": "nvidia", "model": "nvidia/nemotron-3-super-120b-a12b", "label": "Nemotron 3 Super 120B — fast, strong reasoning", "default": true},
+      {"provider": "nvidia", "model": "deepseek-ai/deepseek-v4-flash", "label": "DeepSeek V4 Flash — reasoning"},
+      {"provider": "nvidia", "model": "nvidia/llama-3.3-nemotron-super-49b-v1.5", "label": "Nemotron Super 49B — reasoning, fast"},
+      {"provider": "nvidia", "model": "nvidia/nemotron-3-ultra-550b-a55b", "label": "Nemotron 3 Ultra 550B — flagship (may be busy)"},
+      {"provider": "groq", "model": "llama-3.3-70b-versatile", "label": "Llama 3.3 70B (Groq) — fast baseline"}
+    ]
   }
 }

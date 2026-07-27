@@ -778,6 +778,7 @@ document.querySelectorAll('.nav a[data-tab]').forEach(a=>{
     updateInsDrawer();
   };
 });
+loadRcaModels();   // populate the per-queue AI model picker from the backend (no-op if backend is down)
 
 /* ---------------- Insights drawer (right-side, slidable + resizable, reserves layout space) ---------------- */
 function toggleInsights(){ document.getElementById('insDrawer').classList.toggle('open'); syncInsLayout(); }
@@ -1422,7 +1423,7 @@ function selectFlag(i){
     <div class="kv"><span class="k">forecast offered (Simple)</span><span class="val">${r._fo!=null?fmt2(r._fo):(r.fcst_offered||'(blank)')}</span></div>
     <div class="subhead">Root-Cause Investigation</div>
     <div class="rca-cap">Gathers every available field for this queue — target week, history, and CQN peers — and hands it to the LLM Investigation Engine to reason freely: generate hypotheses, weigh evidence, reject what isn't supported, and rank what's left. Nothing here is a fixed rule checklist.</div>
-    <div id="investigationPanel"><button class="filebtn" onclick="triggerRCA(${i})">🔎 Investigate Root Cause</button></div>
+    <div id="investigationPanel"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><button class="filebtn" onclick="triggerRCA(${i})">🔎 Investigate Root Cause</button>${rcaModelPickerHtml()}</div></div>
   `;
 }
 
@@ -1583,10 +1584,47 @@ async function buildContext(r){
    honest placeholder — this caller does not fabricate anything if the call fails either. ---- */
 async function callInvestigationEngine(contextBundle){
   const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:8000':'';
-  const resp=await fetch(API_BASE+'/api/rca-investigate', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(contextBundle)});
+  // If the user picked a model for this queue, route the investigation to it (?provider=&model=).
+  let q='';
+  if(window.RCA_MODEL && window.RCA_MODEL.model){
+    q='?provider='+encodeURIComponent(window.RCA_MODEL.provider||'')+'&model='+encodeURIComponent(window.RCA_MODEL.model);
+  }
+  const resp=await fetch(API_BASE+'/api/rca-investigate'+q, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(contextBundle)});
   if(!resp.ok){ let d; try{ d=(await resp.json()).detail; }catch(_){ d=resp.statusText; } throw new Error(d||('HTTP '+resp.status)); }
   return await resp.json();
 }
+
+/* ---- Per-queue AI model picker: lists models the backend says are reachable, lets the
+   user re-run the SAME queue through a different model to compare which gives a
+   business-acceptable root cause. Selection is passed to /api/rca-investigate above. ---- */
+window.RCA_MODELS = window.RCA_MODELS || [];
+window.RCA_MODEL = window.RCA_MODEL || null;
+async function loadRcaModels(){
+  try{
+    const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:8000':'';
+    const resp=await fetch(API_BASE+'/api/models'); if(!resp.ok) return;
+    const data=await resp.json();
+    window.RCA_MODELS=data.models||[];
+    if(!window.RCA_MODEL && window.RCA_MODELS.length){
+      window.RCA_MODEL=window.RCA_MODELS.find(m=>m.default)||window.RCA_MODELS[0];
+    }
+    document.querySelectorAll('select.rca-model-sel').forEach(s=>{ s.innerHTML=_rcaModelOpts(); });
+  }catch(_){ /* backend not up — picker shows a note, RCA button still explains how to start it */ }
+}
+function _rcaModelOpts(){
+  return window.RCA_MODELS.map((m,idx)=>`<option value="${idx}" ${m===window.RCA_MODEL?'selected':''}>${invEsc(m.label||m.model)}</option>`).join('');
+}
+function rcaModelPickerHtml(){
+  if(!window.RCA_MODELS.length) return '<span style="font-size:11px;color:var(--muted);">AI model picker loads when the backend is running.</span>';
+  return `<label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);">🤖 AI model
+    <select class="rca-model-sel" onchange="onRcaModelChange(this.value)" style="font-size:11px;padding:4px 7px;border:1px solid var(--border);border-radius:7px;background:var(--panel-2);color:var(--text);max-width:280px;">${_rcaModelOpts()}</select></label>`;
+}
+function onRcaModelChange(idx){
+  window.RCA_MODEL=window.RCA_MODELS[+idx]||null;
+  document.querySelectorAll('select.rca-model-sel').forEach(s=>{ s.value=String(idx); });
+  if(window._rcaCurrent!=null) triggerRCA(window._rcaCurrent, window._rcaForce);   // re-run this queue with the new model
+}
+const CAUSE_LABELS={forecast_baseline_error:'Forecast baseline error',systematic_forecast_bias:'Systematic forecast bias',genuine_demand_event:'Genuine demand event',volume_routing_shift:'Volume / routing shift',plan_restatement:'Plan restatement',installed_base_change:'Installed-base change',calendar_holiday_effect:'Calendar / holiday effect'};
 
 /* ---- RCA Formatter — display formatting + safe fallbacks only; invents no content. ---- */
 function formatInvestigation(resp, ctx){
@@ -1598,9 +1636,9 @@ function formatInvestigation(resp, ctx){
       actual: fsr.actual!=null? Number(fsr.actual).toLocaleString() : '—',
       error: fsr.error!=null? ((fsr.error>=0?'+':'')+Math.round(fsr.error).toLocaleString()) : '—',
       adherence_pct: fsr.adherence_pct!=null? fsr.adherence_pct.toFixed(1)+'%' : '—',
-      miss_type: fsr.miss_type||'—',
-      severity: fsr.severity!=null? fsr.severity.toFixed(1)+'× band' : '—'   // e.g. "2.2× band" — a ratio of the two confirmed numbers, never a new invented cutoff
+      miss_type: fsr.miss_type||'—'
     },
+    cause_type: resp.cause_type||null,
     primary_root_cause: resp.primary_root_cause||null,
     supporting_evidence: resp.supporting_evidence||[],
     secondary_contributors: resp.secondary_contributors||[],
@@ -1620,7 +1658,7 @@ function invAttr(s){ return String(s==null?'':s).replace(/"/g,'&quot;'); }
 function invSleep(ms){ return new Promise(res=>setTimeout(res,ms)); }
 function invTimelineHtml(stages){ return `<div class="pipe">${stages.map(s=>pstage(s.state,s.icon,s.label,s.val||'')).join('')}</div>`; }
 function invConfMeter(score){
-  if(score==null) return '<span class="inv-badge placeholder">No confidence score available</span>';
+  if(score==null) return '<span class="inv-badge placeholder">Confidence not scored</span>';
   const pct=Math.max(0,Math.min(100,Math.round(score*100)));
   return `<div class="inv-conf-meter"><div class="bar"><div class="fill" style="width:${pct}%"></div></div><b>${pct}%</b></div>`;
 }
@@ -1636,20 +1674,20 @@ function renderInvestigationReport(f, ctx){
   // earns the confident badge, so a malformed/missing meta can't be mistaken for a live model.
   const engineBadge = meta.engine==='llm'
     ? `<span class="inv-badge llm">🤖 ${invEsc(meta.model||meta.provider||'LLM')}</span>`
-    : '<span class="inv-badge placeholder">⚠ no LLM connected — placeholder</span>';
+    : '<span class="inv-badge placeholder">🧮 rule-based (data-backed) finding</span>';
+  const causeTag = f.cause_type ? `<span style="font-size:10.5px;font-weight:700;color:var(--accent);background:rgba(45,108,223,.10);padding:2px 9px;border-radius:99px;white-space:nowrap;">${invEsc(CAUSE_LABELS[f.cause_type]||f.cause_type)}</span>` : '';
   const fsr=f.forecast_summary;
 
   const key=ctx.target.key||{};
   const summaryHtml=`<div class="inv-card">
-    <div class="rhead" style="margin-bottom:2px;"><div class="rtitle" style="font-size:13px;">Forecast Summary</div>${engineBadge}</div>
-    <div class="rmeta" style="margin-bottom:10px;">${invEsc(key.Forecast_name||'—')} · Fiscal Week ${invEsc(key.Fiscal_Week||'—')}</div>
+    <div class="rhead" style="margin-bottom:2px;gap:8px;flex-wrap:wrap;"><div class="rtitle" style="font-size:13px;">Forecast Summary</div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-left:auto;">${rcaModelPickerHtml()}${engineBadge}</div></div>
+    <div class="rmeta" style="margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${invEsc(key.Forecast_name||'—')} · Fiscal Week ${invEsc(key.Fiscal_Week||'—')} ${causeTag}</div>
     <div class="inv-kv-grid">
       <div class="kvi"><div class="l">Forecast</div><div class="v">${invEsc(fsr.forecast)}</div></div>
       <div class="kvi"><div class="l">Actual</div><div class="v">${invEsc(fsr.actual)}</div></div>
       <div class="kvi"><div class="l">Forecast error</div><div class="v">${invEsc(fsr.error)}</div></div>
       <div class="kvi"><div class="l">Forecast adherence</div><div class="v">${invEsc(fsr.adherence_pct)}</div></div>
       <div class="kvi"><div class="l">Miss type</div><div class="v" style="text-transform:capitalize">${invEsc(fsr.miss_type)}-forecast</div></div>
-      <div class="kvi"><div class="l">Severity</div><div class="v">${invEsc(fsr.severity)}</div></div>
     </div>
   </div>`;
 
@@ -1701,6 +1739,8 @@ function renderInvestigationReport(f, ctx){
    non-flagged week anyway rather than being refused outright. ---- */
 async function triggerRCA(i, force){
   const r=FLAGS[i]; if(!r) return;
+  window._rcaCurrent=i; window._rcaForce=force;   // remembered so the model picker can re-run this same queue
+  if(!window.RCA_MODELS.length) await loadRcaModels();   // lazy-load models if the page opened before the backend was up
   const band=num(document.getElementById('band').value)||10;
   const host=document.getElementById('investigationPanel'); if(!host) return;
   host.innerHTML='<div id="invTimelineHost"></div><div id="invBody"></div>';
