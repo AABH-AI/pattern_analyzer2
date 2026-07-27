@@ -58,6 +58,10 @@ NOISE_FIELDS = {"Fiscal_Week", "Week_Ending", "Monday", "Tuesday", "Wednesday",
 # z that dominated). Collapsed to a single "installed_base" signal (max |z|).
 INSTALLED_BASE_FIELDS = ["Final_Units", "Final_Y1", "Final_Y2", "Final_Y3",
                          "Final_Y4", "Final_Y5", "Final_upp_units"]
+# "Handled" columns are excluded from the RCA entirely (per client) — accuracy/adherence are
+# defined on OFFERED, and handled would just muddy the analysis. Stripped from the model context,
+# the cleaned signals, the glossary and the proof panel.
+HANDLED_FIELDS = {"Actual_Handled", "fcst_handled"}
 # Fields that are outliers for EVERY flagged queue by definition — citing them as the
 # primary cause just restates that a miss happened. Used by the verifier.
 DEFINITIONAL_FIELDS = {"Actual_Offered", "Actual_Handled", "fcst_offered", "fcst_handled",
@@ -386,7 +390,7 @@ def derive_features(context_bundle):
     # -- cleaned signals: real outliers, noise removed, installed-base collapsed --
     cleaned = []
     for f, s in numeric.items():
-        if f in NOISE_FIELDS or f in INSTALLED_BASE_FIELDS or f in DEFINITIONAL_FIELDS:
+        if f in NOISE_FIELDS or f in INSTALLED_BASE_FIELDS or f in DEFINITIONAL_FIELDS or f in HANDLED_FIELDS:
             continue
         z = s.get("z_score")
         if isinstance(z, (int, float)) and abs(z) > 2:
@@ -423,8 +427,7 @@ def derive_features(context_bundle):
         _row("Actual demand (Actual_Offered)", "Actual_Offered", t_actual, (numeric.get("Actual_Offered") or {}).get("history_mean")),
     ]
     for fld, label in (("ASU", "Units under warranty (ASU)"), ("Actual_ASU", "Actual ASU"),
-                       ("Planned_ASU", "Planned ASU"), ("fcst_handled", "Forecast (fcst_handled)"),
-                       ("Actual_Handled", "Actual handled")):
+                       ("Planned_ASU", "Planned ASU")):   # handled columns intentionally excluded
         s = numeric.get(fld)
         if s and s.get("target_value") is not None:
             proof.append(_row(label, fld, s.get("target_value"), s.get("history_mean")))
@@ -441,16 +444,21 @@ def _bundle_for_model(context_bundle, features):
     """A copy of the bundle with derived_features attached and the noise columns
     stripped from statistical_summary, so the model literally cannot cite them."""
     b = dict(context_bundle or {})
+    _drop = NOISE_FIELDS | HANDLED_FIELDS
     stat = dict(b.get("statistical_summary") or {})
-    stat["numeric"] = {k: v for k, v in (stat.get("numeric") or {}).items() if k not in NOISE_FIELDS}
+    stat["numeric"] = {k: v for k, v in (stat.get("numeric") or {}).items() if k not in _drop}
     stat["categorical"] = {k: v for k, v in (stat.get("categorical") or {}).items()
-                           if k not in NOISE_FIELDS and k != "Week_Ending"}
+                           if k not in _drop and k != "Week_Ending"}
     b["statistical_summary"] = stat
+    # Strip "handled" columns from the target row the model sees too, so nothing handled-related reaches it.
+    tgt = dict(b.get("target") or {})
+    tgt["fields"] = {k: v for k, v in (tgt.get("fields") or {}).items() if k not in HANDLED_FIELDS}
+    b["target"] = tgt
     b["derived_features"] = features
     # Business glossary for the fields actually present, so the model reads them correctly.
-    present = set((b.get("target") or {}).get("fields", {}).keys())
+    present = set(tgt["fields"].keys())
     present |= set((stat.get("numeric") or {}).keys()) | set((stat.get("categorical") or {}).keys())
-    b["field_glossary"] = {k: FIELD_DEFINITIONS[k] for k in FIELD_DEFINITIONS if k in present}
+    b["field_glossary"] = {k: FIELD_DEFINITIONS[k] for k in FIELD_DEFINITIONS if k in present and k not in HANDLED_FIELDS}
     return b
 
 

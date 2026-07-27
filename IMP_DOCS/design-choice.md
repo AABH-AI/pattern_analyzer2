@@ -98,6 +98,10 @@ On the real data (Playground.dbo.Input_To_ML, 66,612 rows) the engine returned t
 
 **Forecast-anomaly vs actual-anomaly (correctness).** `forecast_sanity` must not blame the forecast merely because forecast≪actual: a normal forecast with a spiking actual is a **genuine demand event**, not a baseline error. The verdict is `forecast_anomalously_low/high` only when the forecast is off vs its OWN history (|z|>2); when the forecast is normal but the actual is off vs its own history it is `actual_anomalous` → `genuine_demand_event`. The raw forecast/actual ratio is only a fallback when neither field has history to z-test against.
 
+**History comes from the FULL data, never the filtered scan.** RCA history (the "usual" 13-week averages) and peers are gathered from all `ROWS` for the queue (file mode) or a scoped SQL query (`/api/queue-context`, SQL mode) — NOT from `ROWS.filter(passFilters)`. Otherwise an active Fiscal_Week (or any) console filter strips the queue's prior weeks and "usual" renders blank. Bug fixed in `aggregateData` 2026-07-27.
+
+**"Handled" columns are excluded from the RCA.** Accuracy/adherence are defined on OFFERED; `Actual_Handled`/`fcst_handled` (`HANDLED_FIELDS`) are stripped from the model context (statistical_summary, target fields, glossary), the cleaned signals, and the Proof panel — they'd only muddy the analysis. The Proof panel shows a single **Usual (13 wks)** column (the earlier "vs usual" change column was removed at the client's request).
+
 ## Session-6 merge (`shivam-updates` → main) — dashboard refinements
 Merged clean (merge commit `babf5a1`); both feature sets kept. Shivam's additions:
 - **"Plan Adherence" renamed to "Forecast Adherence"** and made **signed** (was `ABS(...)`). Sign shows direction: **− = actual above forecast (under-forecast), + = actual below forecast (over-forecast)**. Flag is now on the **absolute** value, `|Forecast Adherence| > band` — same threshold behaviour as before.

@@ -146,3 +146,13 @@ Requested → delivered:
 2. **Manager-readable proof** — the "Proof — values from the data" panel gains a plain **"vs usual"** column ("about 143x higher than usual" / "about the same as usual"), a **"Usual (13 wks)"** header, cleaner rounding (whole numbers for big counts), and drops the noisy "0 holidays (usual ~0.08)" row. Prompt now requires every sentence to state the number AND what it means so a manager can read it standalone.
 3. **Correctness fix — forecast anomaly vs actual anomaly.** A screenshot case (forecast ~91 ≈ usual ~98, actual 8,805 vs usual ~62) was wrongly labelled `forecast_baseline_error`. `forecast_sanity` no longer blames the forecast just because forecast≪actual: `forecast_anomalously_low/high` only when the forecast is off vs its own history; a normal forecast with a spiking actual is `actual_anomalous` → **`genuine_demand_event`**. Verified: the same case now reads "Actual demand was 8805 — far from the usual ~62 — while the forecast (90.78) was about normal … a real change in demand, not a forecasting error."
 Verification: `node --check` (frontend) + AST (backend); live deterministic + Groq runs confirmed the new proof column and the corrected classification.
+
+---
+
+## Session 16 — 2026-07-27 · Empty-"usual" fix + drop handled from RCA + proof cleanup
+Requested → delivered:
+1. **Bug: "Usual (13 wks)" showed blank.** Root cause: in file mode, history/peers were built from `ROWS.filter(passFilters)`, so an active Fiscal_Week filter stripped the queue's prior weeks → empty history → blank "usual". Fixed `aggregateData` to gather history (same Forecast_name, chronological, strictly before the target week) and peers from the **full `ROWS`**, hydrating rows so they carry `_ao/_fo/_padh/_wk`. (SQL mode already queried full data.) Confirmed the engine returns 13 weeks + populated "usual" on a real queue.
+2. **Removed the "vs usual" change column** from the Proof panel (kept the **Usual (13 wks)** column) per request.
+3. **Removed `Forecast (fcst_handled)` and `Actual handled` rows** from the Proof panel.
+4. **Excluded all "handled" fields from the RCA** (`HANDLED_FIELDS = {Actual_Handled, fcst_handled}`): stripped from the model context (statistical_summary, target fields, glossary), the cleaned signals, and the proof. Verified nothing handled-related reaches the model.
+Verification: `node --check` (frontend) + AST (backend); offline check that proof/model context carry no handled fields and "usual" still populates from history.
