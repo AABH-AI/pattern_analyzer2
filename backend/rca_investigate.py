@@ -171,8 +171,12 @@ Hard rules:
 - NEVER make "Actual_Offered / Actual_Handled / fcst_* is an outlier vs its own history" your PRIMARY
   cause — that is true of every flagged queue by definition and explains nothing. It may appear only as
   background context, never as the primary supporting_evidence.
-- Every supporting_evidence item MUST cite a specific source_field from DERIVED_FEATURES/CLEANED_SIGNALS and
-  the value you observed. Never invent a cause not traceable to the supplied data.
+- Every supporting_evidence item MUST cite a specific source_field and, in `value`, an ACTUAL NUMBER FROM THE
+  DATA — the forecast, the actual demand, a historical average, an ASU/units count, a holiday count, etc.
+  (DERIVED_FEATURES.proof lists these real values). NEVER put a z-score, standard deviation, ratio, or other
+  derived statistic in `value` or in the text — those exist only to help you reason, not to show the lead.
+  Quote the real numbers as proof (e.g. "forecast was 4.5 vs a usual ~12; actual was 44"). Never invent a cause
+  not traceable to the supplied data.
 - ALWAYS produce a primary_root_cause. If no single signal is strong, choose the cause_type best supported by
   DERIVED_FEATURES (usually forecast_baseline_error or systematic_forecast_bias), give it a HONEST LOWER
   confidence, and phrase it as "the data is most consistent with ...". NEVER say "not enough data" and NEVER
@@ -254,10 +258,14 @@ def derive_features(context_bundle):
         # sign convention (frontend): negative adherence = under-forecast (actual ran hot)
         direction = "under" if mean_adh < 0 else "over"
         share_same = (sum(1 for a in hist_adh if (a < 0) == (mean_adh < 0)) / len(hist_adh)) if hist_adh else 0
+        _fm = (numeric.get("fcst_offered") or {}).get("history_mean")
+        _am = (numeric.get("Actual_Offered") or {}).get("history_mean")
         chronic = {
             "history_mean_adherence_pct": round(mean_adh, 1),
             "typical_abs_deviation_pct": round(typical_abs, 1),
             "history_weeks": len(hist_adh),
+            "usual_forecast": round(_fm, 1) if isinstance(_fm, (int, float)) else _fm,   # real avg from data
+            "usual_actual": round(_am, 1) if isinstance(_am, (int, float)) else _am,      # real avg from data
             "consistent_direction": direction if share_same >= 0.7 and typical_abs > band else None,
             "share_same_direction": round(share_same, 2),
             "verdict": ("chronic_" + direction) if (share_same >= 0.7 and typical_abs > band) else "mixed",
@@ -287,9 +295,12 @@ def derive_features(context_bundle):
         verdict = "forecast_anomalously_low" if fo_z < 0 else "forecast_anomalously_high"
     elif ratio is not None and (ratio < 0.34 or ratio > 3):
         verdict = "forecast_scale_mismatch"  # forecast an order of magnitude off the actual
+    fo_mean = fo_stat.get("history_mean")
     feats["forecast_sanity"] = {
         "forecast": round(t_forecast, 2) if isinstance(t_forecast, (int, float)) else t_forecast,
-        "forecast_z_vs_own_history": round(fo_z, 2) if isinstance(fo_z, (int, float)) else None,
+        "actual": t_actual,
+        "forecast_usual_level": round(fo_mean, 2) if isinstance(fo_mean, (int, float)) else fo_mean,  # real avg from data
+        "forecast_z_vs_own_history": round(fo_z, 2) if isinstance(fo_z, (int, float)) else None,       # internal only, not shown
         "forecast_over_actual_ratio": round(ratio, 3) if ratio is not None else None,
         "verdict": verdict,
     }
@@ -366,6 +377,31 @@ def derive_features(context_bundle):
     cleaned.sort(key=lambda d: abs(d["z_score"]), reverse=True)
     feats["cleaned_signals"] = cleaned
 
+    # -- PROOF: real values straight from the data file (NO z-scores/deviations) so the
+    #    business lead can see the actual numbers behind the plain-English finding. --
+    def _rnd(v):
+        return round(v, 2) if isinstance(v, (int, float)) else v
+    proof = [
+        {"label": "Forecast (fcst_offered)", "field": "fcst_offered", "this_week": _rnd(t_forecast),
+         "usual": _rnd((numeric.get("fcst_offered") or {}).get("history_mean"))},
+        {"label": "Actual demand (Actual_Offered)", "field": "Actual_Offered", "this_week": _rnd(t_actual),
+         "usual": _rnd((numeric.get("Actual_Offered") or {}).get("history_mean"))},
+    ]
+    for fld, label in (("ASU", "Units under warranty (ASU)"), ("Actual_ASU", "Actual ASU"),
+                       ("Planned_ASU", "Planned ASU"), ("fcst_handled", "Forecast (fcst_handled)"),
+                       ("Actual_Handled", "Actual handled")):
+        s = numeric.get(fld)
+        if s and s.get("target_value") is not None:
+            proof.append({"label": label, "field": fld, "this_week": _rnd(s.get("target_value")),
+                          "usual": _rnd(s.get("history_mean"))})
+    if ib and ib.get("material"):
+        proof.append({"label": "Installed base (" + ib["field"] + ")", "field": ib["field"],
+                      "this_week": _rnd(ib["target_value"]), "usual": _rnd(ib["history_mean"])})
+    if hc and hc.get("target_value") is not None:
+        proof.append({"label": "Holidays in the week", "field": "Holiday_Count",
+                      "this_week": _rnd(hc.get("target_value")), "usual": _rnd(hc.get("history_mean"))})
+    feats["proof"] = proof
+
     return feats
 
 
@@ -411,21 +447,23 @@ def _finding_from_features(features):
     peer = features.get("peer_divergence") or {}
     ev = []
     if fs.get("verdict", "normal") != "normal":
-        stmt = ("The forecast for this week was set well away from what this queue normally sees, so the miss is most "
-                "likely a problem with the forecast itself rather than a real change in demand.")
+        stmt = (f"The forecast this week was {fs.get('forecast')} — well away from this queue's usual level of about "
+                f"{fs.get('forecast_usual_level')} — while actual demand was {fs.get('actual')}. So the miss is most "
+                f"likely a problem with the forecast itself rather than a real change in demand.")
         ctype = "forecast_baseline_error"
         conf = 0.55
-        ev.append({"text": "the forecast was set far from this queue's usual level", "source_field": "forecast_sanity",
-                   "value": fs.get("forecast_z_vs_own_history") or fs.get("forecast_over_actual_ratio")})
+        ev.append({"text": f"forecast was {fs.get('forecast')} this week vs a usual ~{fs.get('forecast_usual_level')}; actual demand was {fs.get('actual')}",
+                   "source_field": "fcst_offered", "value": fs.get("forecast")})
     elif chronic.get("verdict", "mixed").startswith("chronic"):
         dirn = "under" if chronic.get("consistent_direction") == "under" else "over"
         plan = "too low" if dirn == "under" else "too high"
-        stmt = (f"This queue is {dirn}-forecast almost every week, so this week's miss looks like an ongoing forecasting "
-                f"pattern — the plan is consistently set {plan} — rather than a one-off event.")
+        stmt = (f"This queue is {dirn}-forecast almost every week (recently about {chronic.get('usual_actual')} actual "
+                f"against {chronic.get('usual_forecast')} forecast), so this week's miss looks like an ongoing pattern — "
+                f"the plan is consistently set {plan} — rather than a one-off event.")
         ctype = "systematic_forecast_bias"
         conf = 0.5
-        ev.append({"text": f"this queue has been {dirn}-forecast for most of the recent weeks",
-                   "source_field": "chronic_bias", "value": chronic.get("history_mean_adherence_pct")})
+        ev.append({"text": f"recently this queue ran about {chronic.get('usual_actual')} actual against {chronic.get('usual_forecast')} forecast, {dirn}-forecast in most weeks",
+                   "source_field": "Actual_Offered", "value": chronic.get("usual_actual")})
     elif peer.get("signal"):
         ex = (peer.get("examples_opposite") or [{}])[0]
         stmt = ("At least one similar queue moved the opposite way the same week, so the work most likely shifted "
@@ -451,19 +489,20 @@ def _observations_from_features(features):
     f = features or {}
     obs = []
     fs = f.get("forecast_sanity") or {}
+    # Always lead with the two real headline numbers straight from the data.
+    if fs.get("forecast") is not None and fs.get("actual") is not None:
+        obs.append(f"The forecast this week was {fs.get('forecast')}, and actual demand was {fs.get('actual')}.")
     v = fs.get("verdict", "normal")
+    lvl = fs.get("forecast_usual_level")
     if v == "forecast_anomalously_low":
-        obs.append("The forecast this week was set well below this queue's usual level.")
+        obs.append(f"That forecast ({fs.get('forecast')}) is well below this queue's usual level of about {lvl}.")
     elif v == "forecast_anomalously_high":
-        obs.append("The forecast this week was set well above this queue's usual level.")
+        obs.append(f"That forecast ({fs.get('forecast')}) is well above this queue's usual level of about {lvl}.")
     elif v == "forecast_scale_mismatch":
-        obs.append("The forecast was far out of line with the actual volume this week.")
-    tw = f.get("this_week_vs_usual") or {}
-    if tw.get("times_usual"):
-        obs.append(f"This week's gap is about {tw['times_usual']}x the size of this queue's typical weekly gap.")
+        obs.append(f"The forecast ({fs.get('forecast')}) is far out of line with the actual volume ({fs.get('actual')}) this week.")
     ch = f.get("chronic_bias") or {}
     if str(ch.get("verdict", "")).startswith("chronic"):
-        obs.append(f"This queue is {ch.get('consistent_direction')}-forecast in most of its recent weeks.")
+        obs.append(f"This queue is {ch.get('consistent_direction')}-forecast in most recent weeks (typically about {ch.get('usual_actual')} actual against {ch.get('usual_forecast')} forecast).")
     elif ch.get("verdict") == "mixed":
         obs.append("This queue's misses have no consistent direction over recent weeks.")
     pd = f.get("peer_divergence") or {}
@@ -480,10 +519,10 @@ def _observations_from_features(features):
         obs.append("The forecast plan did not change this week.")
     ib = f.get("installed_base")
     if ib and ib.get("material"):
-        obs.append("The installed base (units under warranty) for this queue shifted noticeably this week.")
+        obs.append(f"The installed base ({ib.get('field')}) was {ib.get('target_value')} this week vs a usual ~{ib.get('history_mean')}.")
     hol = f.get("holiday")
     if hol and hol.get("unusual"):
-        obs.append("An unusual number of holidays fell in this week.")
+        obs.append(f"There were {hol.get('holiday_count')} holidays in this week — more than usual.")
     return obs[:6]
 
 

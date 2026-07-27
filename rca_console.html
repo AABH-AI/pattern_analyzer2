@@ -1839,6 +1839,7 @@ function formatInvestigation(resp, ctx){
     forecast_improvement_recommendations: resp.forecast_improvement_recommendations||[],
     confidence_score: resp.confidence_score!=null? resp.confidence_score : null,
     missing_information: resp.missing_information||[],
+    proof: ((resp.derived_features||{}).proof)||[],
     investigation_meta: resp.investigation_meta||{}
   };
 }
@@ -1898,6 +1899,21 @@ function renderInvestigationReport(f, ctx){
   </div>`;
 
   const secDesc=(t)=>`<div style="font-size:11px;color:var(--muted);margin:0 0 8px;">${t}</div>`;
+
+  // Proof — the actual values from the data file behind every finding (no z-scores/deviations).
+  const fmtVal=(v)=> v==null? '—' : (typeof v==='number'? v.toLocaleString(undefined,{maximumFractionDigits:2}) : invEsc(v));
+  const proofRows=(f.proof||[]).filter(p=>p && p.this_week!=null).map(p=>`
+    <tr><td style="padding:5px 10px;color:var(--text);">${invEsc(p.label)}</td>
+        <td style="padding:5px 10px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;">${fmtVal(p.this_week)}</td>
+        <td style="padding:5px 10px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right;">${p.usual!=null?'usual ~'+fmtVal(p.usual):''}</td></tr>`).join('');
+  const proofHtml=proofRows?`<details class="inv-sec" open><summary>Proof — values from the data</summary><div class="body">
+    ${secDesc('The actual numbers pulled from the data file that back the findings below.')}
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+      <tr style="color:var(--muted);font-size:11px;"><th style="text-align:left;padding:4px 10px;font-weight:600;">Field</th><th style="text-align:right;padding:4px 10px;font-weight:600;">This week</th><th style="text-align:right;padding:4px 10px;font-weight:600;">vs usual</th></tr>
+      ${proofRows}
+    </table>
+  </div></details>`:'';
+
   const findingsHtml=`<details class="inv-sec" open><summary>Key Findings</summary><div class="body">
     ${secDesc('Objective observations discovered in the data for this queue — the facts, not the cause.')}
     ${(f.key_findings||[]).length?`<ul class="inv-findings">${f.key_findings.map(k=>`<li>${invEsc(k)}</li>`).join('')}</ul>`:'<div class="inv-empty">No observations recorded.</div>'}
@@ -1941,7 +1957,7 @@ function renderInvestigationReport(f, ctx){
 
   const metaHtml=`<div class="inv-meta">Engine: ${invEsc(meta.engine||'—')}${meta.model?' · '+invEsc(meta.model):''} · generated ${meta.generated_at?new Date(meta.generated_at).toLocaleString():'—'} · based on ${(meta.based_on_fields||[]).length} field(s) gathered generically from the source file</div>`;
 
-  return summaryHtml+findingsHtml+rootCausesHtml+evidenceHtml+rejectedHtml+historyHtml+narrativeHtml+recsHtml+confHtml+missingHtml+metaHtml;
+  return summaryHtml+proofHtml+findingsHtml+rootCausesHtml+evidenceHtml+rejectedHtml+historyHtml+narrativeHtml+recsHtml+confHtml+missingHtml+metaHtml;
 }
 
 /* ---- RCA Trigger — orchestrates the pipeline above; owns nothing except sequencing.
