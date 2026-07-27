@@ -63,6 +63,45 @@ INSTALLED_BASE_FIELDS = ["Final_Units", "Final_Y1", "Final_Y2", "Final_Y3",
 DEFINITIONAL_FIELDS = {"Actual_Offered", "Actual_Handled", "fcst_offered", "fcst_handled",
                        "adherence_pct", "accuracy_pct", "error", "forecast", "actual", "severity"}
 
+# Business glossary — the plain-English meaning of each source field, MIRRORED FROM the
+# console's Definitions & Formulas tab (keep the two in sync). Injected into the context the
+# model sees (field_glossary) so it interprets fields correctly — e.g. that ASU = units under
+# warranty, fcst_offered is the forecast compared against Actual_Offered, and Final_Y1..Y5 are
+# NESTED/overlapping counts — rather than guessing from column names.
+FIELD_DEFINITIONS = {
+    "Fiscal_Week": "Fiscal calendar week (e.g. 202249) and the primary time key. The week starts on Saturday, Friday is the last working day, and the fiscal year starts from the 1st week of February.",
+    "Week_Ending": "Calendar date on which the fiscal week ends.",
+    "Region": "Top-level geographic region (AMER/AMERICAS includes North America (NA) and Canada; LATAM includes Brazil and the rest of Latin America).",
+    "SubRegion": "Sub-region within the region.",
+    "Country": "Country of the queue.",
+    "Forecast_name": "Name of the queue, which supports a particular business.",
+    "Forecaster": "Person or team that owns the forecast for the queue.",
+    "Offering": "Product or service offering (Basic, Premium, Pro kind of support).",
+    "Projection_plan_name": "The forecast plan considered for that period (a week or a month).",
+    "channel": "Contact/demand channel (e.g. Voice, Chat, Email, Case, Social Media).",
+    "business_org": "Business organisation the queue rolls up to.",
+    "Actual_Offered": "Actual offered volume.",
+    "Actual_Handled": "Actual volume handled.",
+    "fcst_offered": "Forecasted volume (the forecast that Actual_Offered is compared against).",
+    "fcst_handled": "Forecasted handled volume.",
+    "ASU": "Active Serviceable Units currently in the market and covered under warranty.",
+    "Planned_ASU": "Planned Active Serviceable Units (as per the ASU plan).",
+    "Actual_ASU": "Actual Active Serviceable Units.",
+    "Final_Units": "Installed base (warranty units), a demand driver. Final_Y1..Y5 OVERLAP (nested): Y2 is a subset of Y1, Y3 of Y2, and so on — so their sum is NOT Final_Units.",
+    "Final_Y5": "Installed units under warranty in year 5 (nested subset — see Final_Units).",
+    "Final_Y4": "Installed units under warranty in year 4 (nested subset — see Final_Units).",
+    "Final_Y3": "Installed units under warranty in year 3 (nested subset — see Final_Units).",
+    "Final_Y2": "Installed units under warranty in year 2 (nested subset — see Final_Units).",
+    "Final_Y1": "Installed units under warranty in year 1 (nested subset — see Final_Units).",
+    "Final_upp_units": "Additional installed units under an upgrade / extended-protection plan.",
+    "Holiday_Count": "Number of holidays in the fiscal week.",
+    "Monday": "Holiday flag for Monday.", "Tuesday": "Holiday flag for Tuesday.",
+    "Wednesday": "Holiday flag for Wednesday.", "Thursday": "Holiday flag for Thursday.",
+    "Friday": "Holiday flag for Friday.", "Saturday": "Holiday flag for Saturday.",
+    "Sunday": "Holiday flag for Sunday.",
+    "Volume_Category": "Volume band the queue falls into (e.g. 501-1000).",
+}
+
 SYSTEM_PROMPT = """You are an investigative root-cause analyst for a demand-forecasting system.
 
 You are given a JSON "context bundle" for ONE forecast miss (target week's raw data,
@@ -72,6 +111,12 @@ worse than the queue's usual miss, a forecast-sanity check, plan restatement, in
 change, holiday effect, peer divergence, and CLEANED_SIGNALS (the real per-field outliers
 with meaningless columns already removed). Reason primarily from DERIVED_FEATURES and
 CLEANED_SIGNALS — they are the discriminating evidence.
+
+A FIELD_GLOSSARY block gives the business meaning of each field — use it to interpret the data
+correctly (e.g. ASU = Active Serviceable Units under warranty; fcst_offered = the forecasted volume
+that Actual_Offered is compared against; Final_Y1..Y5 are NESTED/overlapping installed-base counts, so
+never treat them as independent). Use the glossary only to understand fields — never repeat a definition
+as a finding or a cause.
 
 AUDIENCE & LANGUAGE (very important):
 The reader is a BUSINESS LEAD, not a data scientist. Write EVERY human-facing sentence —
@@ -334,6 +379,10 @@ def _bundle_for_model(context_bundle, features):
                            if k not in NOISE_FIELDS and k != "Week_Ending"}
     b["statistical_summary"] = stat
     b["derived_features"] = features
+    # Business glossary for the fields actually present, so the model reads them correctly.
+    present = set((b.get("target") or {}).get("fields", {}).keys())
+    present |= set((stat.get("numeric") or {}).keys()) | set((stat.get("categorical") or {}).keys())
+    b["field_glossary"] = {k: FIELD_DEFINITIONS[k] for k in FIELD_DEFINITIONS if k in present}
     return b
 
 
