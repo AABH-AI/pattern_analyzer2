@@ -1639,12 +1639,14 @@ function formatInvestigation(resp, ctx){
       miss_type: fsr.miss_type||'—'
     },
     cause_type: resp.cause_type||null,
+    key_findings: resp.key_findings||[],
     primary_root_cause: resp.primary_root_cause||null,
     supporting_evidence: resp.supporting_evidence||[],
     secondary_contributors: resp.secondary_contributors||[],
     rejected_hypotheses: resp.rejected_hypotheses||[],
     historical_comparison: resp.historical_comparison||{narrative:'',data_points:[]},
     reasoning_narrative: resp.reasoning_narrative||'',
+    reasoning_points: invToPoints(resp.reasoning_narrative),
     forecast_improvement_recommendations: resp.forecast_improvement_recommendations||[],
     confidence_score: resp.confidence_score!=null? resp.confidence_score : null,
     missing_information: resp.missing_information||[],
@@ -1657,15 +1659,30 @@ function invEsc(s){ return String(s==null?'':s).replace(/</g,'&lt;'); }
 function invAttr(s){ return String(s==null?'':s).replace(/"/g,'&quot;'); }
 function invSleep(ms){ return new Promise(res=>setTimeout(res,ms)); }
 function invTimelineHtml(stages){ return `<div class="pipe">${stages.map(s=>pstage(s.state,s.icon,s.label,s.val||'')).join('')}</div>`; }
+// Confidence → colour so leads see high/medium/low at a glance (green / amber / red).
+function invConfColor(score){
+  if(score==null) return 'var(--muted)';
+  if(score>=0.7) return 'var(--accent-2)';   // high
+  if(score>=0.4) return '#e8770f';            // medium
+  return 'var(--danger)';                     // low
+}
+function invConfWord(score){ if(score==null) return ''; return score>=0.7?'high':(score>=0.4?'medium':'low'); }
+// Normalise reasoning into bullet points: accept an array (new contract) or split a paragraph into sentences.
+function invToPoints(v){
+  if(Array.isArray(v)) return v.map(x=>String(x==null?'':x).trim()).filter(Boolean);
+  const s=String(v==null?'':v).trim(); if(!s) return [];
+  return s.split(/(?<=[.!?])\s+(?=[A-Z0-9"'(])/).map(x=>x.trim()).filter(Boolean);
+}
 function invConfMeter(score){
   if(score==null) return '<span class="inv-badge placeholder">Confidence not scored</span>';
-  const pct=Math.max(0,Math.min(100,Math.round(score*100)));
-  return `<div class="inv-conf-meter"><div class="bar"><div class="fill" style="width:${pct}%"></div></div><b>${pct}%</b></div>`;
+  const pct=Math.max(0,Math.min(100,Math.round(score*100))), col=invConfColor(score);
+  return `<div class="inv-conf-meter"><div class="bar"><div class="fill" style="width:${pct}%;background:${col};"></div></div><b style="color:${col};">${pct}%</b> <span style="font-size:11px;color:var(--muted);text-transform:capitalize;">${invConfWord(score)}</span></div>`;
 }
 function invRcCard(rc, cls){
   if(!rc) return '';
-  const conf=rc.confidence!=null? `<div class="rc-conf"><div class="rc-conf-fill" style="width:${Math.max(0,Math.min(100,Math.round(rc.confidence*100)))}%"></div></div><div style="font-size:11px;color:var(--muted);">${Math.round(rc.confidence*100)}% confidence</div>` : '';
-  const chips=(rc.supporting_evidence||[]).map(e=>`<span class="ev-chip" title="${invAttr(e.source_field||'')}">${invEsc(e.text||e)}</span>`).join('');
+  const col=invConfColor(rc.confidence);
+  const conf=rc.confidence!=null? `<div class="rc-conf"><div class="rc-conf-fill" style="width:${Math.max(0,Math.min(100,Math.round(rc.confidence*100)))}%;background:${col};"></div></div><div style="font-size:11px;color:var(--muted);">${Math.round(rc.confidence*100)}% confidence · <span style="color:${col};font-weight:700;text-transform:capitalize;">${invConfWord(rc.confidence)}</span></div>` : '';
+  const chips=(rc.supporting_evidence||[]).map(e=>`<span class="ev-chip" title="${invAttr((e.source_field||'')+(e.value!=null?' = '+e.value:''))}">${invEsc(e.text||e)}</span>`).join('');
   return `<div class="rc-card ${cls}"><div>${invEsc(rc.statement)}</div>${conf}${chips}</div>`;
 }
 function renderInvestigationReport(f, ctx){
@@ -1691,18 +1708,21 @@ function renderInvestigationReport(f, ctx){
     </div>
   </div>`;
 
-  const keyFindings=[f.primary_root_cause&&f.primary_root_cause.statement, ...(f.secondary_contributors||[]).map(c=>c.statement)].filter(Boolean);
+  const secDesc=(t)=>`<div style="font-size:11px;color:var(--muted);margin:0 0 8px;">${t}</div>`;
   const findingsHtml=`<details class="inv-sec" open><summary>Key Findings</summary><div class="body">
-    ${keyFindings.length?`<ul class="inv-findings">${keyFindings.map(k=>`<li>${invEsc(k)}</li>`).join('')}</ul>`:'<div class="inv-empty">No findings yet — see Missing Information.</div>'}
+    ${secDesc('Objective observations discovered in the data for this queue — the facts, not the cause.')}
+    ${(f.key_findings||[]).length?`<ul class="inv-findings">${f.key_findings.map(k=>`<li>${invEsc(k)}</li>`).join('')}</ul>`:'<div class="inv-empty">No observations recorded.</div>'}
   </div></details>`;
 
-  const rootCausesHtml=`<details class="inv-sec" open><summary>Root Causes</summary><div class="body">
+  const rootCausesHtml=`<details class="inv-sec" open><summary>Root Cause</summary><div class="body">
+    ${secDesc('The most likely explanation for WHY the forecast missed (drawn from the findings above).')}
     ${f.primary_root_cause?invRcCard(f.primary_root_cause,'primary'):'<div class="inv-empty">No primary root cause identified yet.</div>'}
     ${(f.secondary_contributors||[]).map(c=>invRcCard(c,'secondary')).join('')}
   </div></details>`;
 
   const evidenceHtml=`<details class="inv-sec"><summary>Supporting Evidence</summary><div class="body">
-    ${f.supporting_evidence.length?f.supporting_evidence.map(e=>`<div class="kv"><span class="k">${invEsc(e.source_field||'—')}</span><span class="val">${invEsc(e.value!=null?e.value:'')} — ${invEsc(e.text||'')}</span></div>`).join(''):'<div class="inv-empty">No supporting evidence recorded.</div>'}
+    ${secDesc('The specific data points behind the finding (technical detail in brackets).')}
+    ${f.supporting_evidence.length?`<ul class="inv-findings">${f.supporting_evidence.map(e=>`<li>${invEsc(e.text||'')} <span style="color:var(--muted);font-size:11px;">(${invEsc(e.source_field||'—')}${e.value!=null?' = '+invEsc(e.value):''})</span></li>`).join('')}</ul>`:'<div class="inv-empty">No supporting evidence recorded.</div>'}
   </div></details>`;
 
   const rejectedHtml=`<details class="inv-sec"><summary>Rejected Hypotheses</summary><div class="body">
@@ -1715,7 +1735,10 @@ function renderInvestigationReport(f, ctx){
     ${(hist.data_points||[]).map(d=>`<div class="kv"><span class="k">${invEsc(d.label)}</span><span class="val">${invEsc(d.value)}</span></div>`).join('')}
   </div></details>`;
 
-  const narrativeHtml=`<details class="inv-sec"><summary>Reasoning Narrative</summary><div class="body">${f.reasoning_narrative?`<p style="margin:0;">${invEsc(f.reasoning_narrative)}</p>`:'<div class="inv-empty">No narrative produced.</div>'}</div></details>`;
+  const narrativeHtml=`<details class="inv-sec" open><summary>Reasoning Narrative</summary><div class="body">
+    ${secDesc('The story connecting the findings into one logical explanation.')}
+    ${(f.reasoning_points||[]).length?`<ul class="inv-findings">${f.reasoning_points.map(p=>`<li>${invEsc(p)}</li>`).join('')}</ul>`:'<div class="inv-empty">No narrative produced.</div>'}
+  </div></details>`;
 
   const recsHtml=`<details class="inv-sec" open><summary>Forecast Improvement Recommendations</summary><div class="body">
     ${f.forecast_improvement_recommendations.length?`<ul class="inv-findings">${f.forecast_improvement_recommendations.map(x=>`<li>${invEsc(x)}</li>`).join('')}</ul>`:'<div class="inv-empty">No recommendations yet.</div>'}

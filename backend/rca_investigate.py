@@ -75,8 +75,9 @@ CLEANED_SIGNALS — they are the discriminating evidence.
 
 AUDIENCE & LANGUAGE (very important):
 The reader is a BUSINESS LEAD, not a data scientist. Write EVERY human-facing sentence —
-primary_root_cause.statement, secondary_contributors[].statement, supporting_evidence[].text,
-historical_comparison.narrative, reasoning_narrative, forecast_improvement_recommendations,
+key_findings[], primary_root_cause.statement, secondary_contributors[].statement,
+supporting_evidence[].text, rejected_hypotheses[].hypothesis, rejected_hypotheses[].reason_rejected,
+historical_comparison.narrative, reasoning_narrative[], forecast_improvement_recommendations,
 missing_information — in plain, everyday business English that a manager can read once and act on.
 Do NOT use statistics jargon in these sentences: never write "z-score", "standard deviation",
 "outlier", "sigma", "trend slope", "MAPE", "adherence deviation", "chronic bias". Translate them
@@ -110,6 +111,17 @@ How to reason:
    reject the weak ones in rejected_hypotheses with the reason.
 4. Rank survivors: the strongest becomes primary_root_cause, the rest secondary_contributors.
 
+These three sections are DIFFERENT and must NOT repeat the same sentence:
+- key_findings: 3-6 OBJECTIVE OBSERVATIONS discovered in the data — plain facts, NOT the cause. Each states
+  something notable that is true of this queue this week (e.g. "The forecast was set about 3x this queue's
+  usual level.", "This week's gap is roughly 9x the queue's typical weekly gap.", "3 of 11 similar queues
+  moved the opposite way.", "The forecast plan did not change this week."). Do NOT say "the cause is ..." here.
+- primary_root_cause.statement: the single MOST LIKELY EXPLANATION for WHY the forecast missed (the conclusion
+  drawn FROM the findings). This is a different sentence from any single key finding.
+- reasoning_narrative: 2-4 short bullet-style sentences that tell the STORY connecting the findings to the
+  cause — what you saw, what you ruled out, and why the primary cause is the best explanation. Return it as an
+  ARRAY of short strings (one point each), NOT one long paragraph.
+
 Hard rules:
 - NEVER make "Actual_Offered / Actual_Handled / fcst_* is an outlier vs its own history" your PRIMARY
   cause — that is true of every flagged queue by definition and explains nothing. It may appear only as
@@ -128,12 +140,13 @@ Hard rules:
 
 {
   "cause_type": "string (one of the taxonomy keys above)",
+  "key_findings": ["string (objective observation from the data, NOT the cause)"],
   "primary_root_cause": {"statement": "string", "confidence": 0.0, "supporting_evidence": [{"text": "string", "source_field": "string", "value": "any"}]},
   "supporting_evidence": [{"text": "string", "source_field": "string", "value": "any"}],
   "secondary_contributors": [{"statement": "string", "confidence": 0.0, "supporting_evidence": [{"text": "string", "source_field": "string", "value": "any"}]}],
   "rejected_hypotheses": [{"hypothesis": "string", "reason_rejected": "string"}],
   "historical_comparison": {"narrative": "string", "data_points": [{"label": "string", "value": "any"}]},
-  "reasoning_narrative": "string",
+  "reasoning_narrative": ["string (one short point per item — the story, NOT one long paragraph)"],
   "forecast_improvement_recommendations": ["string"],
   "confidence_score": 0.0,
   "missing_information": ["string"]
@@ -142,6 +155,7 @@ Hard rules:
 
 _RESPONSE_DEFAULTS = {
     "cause_type": None,
+    "key_findings": [],
     "primary_root_cause": None,
     "supporting_evidence": [],
     "secondary_contributors": [],
@@ -381,6 +395,47 @@ def _finding_from_features(features):
     return ctype, {"statement": stmt, "confidence": conf, "supporting_evidence": ev}
 
 
+def _observations_from_features(features):
+    """Plain-language OBJECTIVE observations from the data — the Key Findings section
+    (facts, not the cause). Used to fill key_findings when the model omits them and for
+    the deterministic path, so Key Findings never just echoes the root cause."""
+    f = features or {}
+    obs = []
+    fs = f.get("forecast_sanity") or {}
+    v = fs.get("verdict", "normal")
+    if v == "forecast_anomalously_low":
+        obs.append("The forecast this week was set well below this queue's usual level.")
+    elif v == "forecast_anomalously_high":
+        obs.append("The forecast this week was set well above this queue's usual level.")
+    elif v == "forecast_scale_mismatch":
+        obs.append("The forecast was far out of line with the actual volume this week.")
+    tw = f.get("this_week_vs_usual") or {}
+    if tw.get("times_usual"):
+        obs.append(f"This week's gap is about {tw['times_usual']}x the size of this queue's typical weekly gap.")
+    ch = f.get("chronic_bias") or {}
+    if str(ch.get("verdict", "")).startswith("chronic"):
+        obs.append(f"This queue is {ch.get('consistent_direction')}-forecast in most of its recent weeks.")
+    elif ch.get("verdict") == "mixed":
+        obs.append("This queue's misses have no consistent direction over recent weeks.")
+    pd = f.get("peer_divergence") or {}
+    if pd.get("signal"):
+        obs.append(f"{pd.get('peers_opposite_direction')} of {pd.get('peers_total')} similar queues moved the opposite way this week.")
+    elif pd.get("peers_total"):
+        obs.append(f"The {pd.get('peers_total')} similar queues mostly moved the same way this week.")
+    pr = f.get("plan_restatement") or {}
+    if pr.get("changed"):
+        obs.append(f"The forecast plan changed this week (from {pr.get('prior')} to {pr.get('current')}).")
+    else:
+        obs.append("The forecast plan did not change this week.")
+    ib = f.get("installed_base")
+    if ib and ib.get("material"):
+        obs.append("The installed base (units under warranty) for this queue shifted noticeably this week.")
+    hol = f.get("holiday")
+    if hol and hol.get("unusual"):
+        obs.append("An unusual number of holidays fell in this week.")
+    return obs[:6]
+
+
 def _verify_and_fix(result, context_bundle, features):
     """Reject circular primaries; promote a clean secondary or synthesise a
     feature-based finding. Guarantees a non-circular, data-backed primary."""
@@ -436,6 +491,7 @@ def _placeholder_response(context_bundle, features, extra_missing=None):
     ]
     return {
         "cause_type": ctype,
+        "key_findings": _observations_from_features(features),
         "primary_root_cause": synth,
         "supporting_evidence": synth["supporting_evidence"],
         "secondary_contributors": [],
@@ -517,6 +573,10 @@ def _coerce_response(parsed, context_bundle, features):
     computed = ((context_bundle or {}).get("target") or {}).get("computed") or {}
     out["forecast_summary"] = _forecast_summary(computed)
     out["derived_features"] = features
+    # Key Findings must be objective observations, distinct from the root cause — fill from the
+    # derived features if the model omitted them (or echoed the cause back), so the section never repeats.
+    if not out.get("key_findings"):
+        out["key_findings"] = _observations_from_features(features)
     return out
 
 
