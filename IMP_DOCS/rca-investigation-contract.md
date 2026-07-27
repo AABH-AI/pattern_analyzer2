@@ -29,7 +29,7 @@ happens to have, discovered automatically.
                                // deliberately not a second invented cutoff (e.g. a hand-picked "25% = critical")
     }
   },
-  "history": [ /* { key, computed } only — NO fields — prior weeks for the same Forecast_name, chronological, capped at RCA_HISTORY_CAP (12) */ ],
+  "history": [ /* { key, computed } only — NO fields — prior weeks for the same Forecast_name, chronological, capped at RCA_HISTORY_CAP (13) */ ],
   "peers":   [ /* { key, computed } only — NO fields — same Fiscal_Week, same Region/SubRegion/Country/channel, different Forecast_name, capped at RCA_PEERS_CAP (15), sorted by |error| so the most-diverged peers survive the cap */ ],
   // history/peers deliberately drop the raw `fields` object that `target` carries: sending
   // it per-row (up to 12+15 times) duplicated exactly what statistical_summary already

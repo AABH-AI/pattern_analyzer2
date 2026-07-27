@@ -1642,7 +1642,7 @@ function closeMath(){ document.getElementById('mathModal').classList.remove('sho
    source file happens to have is picked up automatically. ================================ */
 
 /* ---- Data Aggregator — collects target/history/peers with ALL raw columns, generically ---- */
-const RCA_HISTORY_CAP=12;   // token-budget cap on how many prior weeks are sent, not a business rule about what counts as evidence
+const RCA_HISTORY_CAP=13;   // prior weeks of history used for "usual" comparisons + sent to the model
 const RCA_PEERS_CAP=15;     // same — a technical cap on payload size, not a judgment about which peers matter
 function rawFields(r){ const o={}; Object.keys(r).forEach(k=>{ if(!k.startsWith('_')) o[k]=r[k]; }); return o; }
 // Peer-grouping key = the client's own CONFIRMED CQN definition (Forecast_name + Region +
@@ -1904,16 +1904,19 @@ function renderInvestigationReport(f, ctx){
 
   const secDesc=(t)=>`<div style="font-size:11px;color:var(--muted);margin:0 0 8px;">${t}</div>`;
 
-  // Proof — the actual values from the data file behind every finding (no z-scores/deviations).
+  // Proof — the actual values from the data file behind every finding (no z-scores/deviations),
+  // each with a plain "vs usual" so a manager can see at a glance which number is the odd one out.
   const fmtVal=(v)=> v==null? '—' : (typeof v==='number'? v.toLocaleString(undefined,{maximumFractionDigits:2}) : invEsc(v));
+  const chgCell=(c)=>{ if(!c) return ''; const strong=!/about the same/.test(c); return `<span style="color:${strong?'#b45309':'var(--muted)'};font-weight:${strong?700:400};">${invEsc(c)}</span>`; };
   const proofRows=(f.proof||[]).filter(p=>p && p.this_week!=null).map(p=>`
     <tr><td style="padding:5px 10px;color:var(--text);">${invEsc(p.label)}</td>
-        <td style="padding:5px 10px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;">${fmtVal(p.this_week)}</td>
-        <td style="padding:5px 10px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right;">${p.usual!=null?'usual ~'+fmtVal(p.usual):''}</td></tr>`).join('');
+        <td style="padding:5px 10px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;">${fmtVal(p.this_week)}</td>
+        <td style="padding:5px 10px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;">${p.usual!=null?fmtVal(p.usual):'—'}</td>
+        <td style="padding:5px 10px;text-align:right;white-space:nowrap;font-size:11.5px;">${chgCell(p.change)}</td></tr>`).join('');
   const proofHtml=proofRows?`<details class="inv-sec" open><summary>Proof — values from the data</summary><div class="body">
-    ${secDesc('The actual numbers pulled from the data file that back the findings below.')}
+    ${secDesc('The actual numbers from the data file behind the findings below. “Usual” = this queue’s average over the last 13 weeks; the last column says how this week compares.')}
     <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
-      <tr style="color:var(--muted);font-size:11px;"><th style="text-align:left;padding:4px 10px;font-weight:600;">Field</th><th style="text-align:right;padding:4px 10px;font-weight:600;">This week</th><th style="text-align:right;padding:4px 10px;font-weight:600;">vs usual</th></tr>
+      <tr style="color:var(--muted);font-size:11px;"><th style="text-align:left;padding:4px 10px;font-weight:600;">Field</th><th style="text-align:right;padding:4px 10px;font-weight:600;">This week</th><th style="text-align:right;padding:4px 10px;font-weight:600;">Usual (13 wks)</th><th style="text-align:right;padding:4px 10px;font-weight:600;">vs usual</th></tr>
       ${proofRows}
     </table>
   </div></details>`:'';

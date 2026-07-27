@@ -136,6 +136,15 @@ only simplify the wording. You MAY keep exact field names and numbers in support
 and supporting_evidence[].value (those render as small technical detail chips for analysts); just make the
 .text a plain explanation. reasoning_narrative should read like a short, jargon-free paragraph.
 
+Write every sentence so a manager who reads ONLY your text understands it end to end — state the ACTUAL
+NUMBER and WHAT IT MEANS together, never a bare number or a vague phrase they must interpret. Compare each
+number to this queue's usual level in words, e.g.:
+  BAD  : "Actual_Offered was 8805, an outlier."   (number with no meaning)
+  GOOD : "Demand came in at 8,805 this week versus a usual ~62 for this queue — about 140x higher — so this
+          was a genuine demand surge, not a forecasting error."
+Spell out the takeaway in the primary cause and the reasoning: what happened, by how much vs usual, and what
+it implies. Assume the reader does not know the field names or the data.
+
 Classify the miss into ONE primary cause_type from this taxonomy, then explain it:
 - "forecast_baseline_error"      : the forecast itself is anomalous vs the queue's own history
                                     (see forecast_sanity) — a broken/placeholder baseline, not a demand change.
@@ -284,23 +293,35 @@ def derive_features(context_bundle):
     else:
         feats["this_week_vs_usual"] = None
 
-    # -- forecast sanity: is the FORECAST itself the anomaly? --
+    # -- forecast vs actual sanity: is the FORECAST off vs its own history, or did the
+    #    ACTUAL demand itself move? (forecast≪actual alone does NOT mean the forecast is broken —
+    #    a normal forecast with a spiking actual is a genuine demand event, not a baseline error). --
     fo_stat = numeric.get("fcst_offered") or {}
+    ao_stat = numeric.get("Actual_Offered") or {}
     fo_z = fo_stat.get("z_score")
+    ao_z = ao_stat.get("z_score")
     ratio = None
     if isinstance(t_forecast, (int, float)) and isinstance(t_actual, (int, float)) and t_actual not in (0, None):
         ratio = t_forecast / t_actual if t_actual else None
     verdict = "normal"
     if isinstance(fo_z, (int, float)) and abs(fo_z) > 2:
+        # the forecast itself is off vs its own recent history
         verdict = "forecast_anomalously_low" if fo_z < 0 else "forecast_anomalously_high"
-    elif ratio is not None and (ratio < 0.34 or ratio > 3):
-        verdict = "forecast_scale_mismatch"  # forecast an order of magnitude off the actual
+    elif isinstance(ao_z, (int, float)) and abs(ao_z) > 2:
+        # forecast looks normal but the actual demand is off vs its own history -> demand moved
+        verdict = "actual_anomalous"
+    elif fo_z is None and ao_z is None and ratio is not None and (ratio < 0.34 or ratio > 3):
+        # no history to z-test against — fall back to the raw forecast-vs-actual gap
+        verdict = "forecast_scale_mismatch"
     fo_mean = fo_stat.get("history_mean")
+    ao_mean = ao_stat.get("history_mean")
     feats["forecast_sanity"] = {
         "forecast": round(t_forecast, 2) if isinstance(t_forecast, (int, float)) else t_forecast,
         "actual": t_actual,
         "forecast_usual_level": round(fo_mean, 2) if isinstance(fo_mean, (int, float)) else fo_mean,  # real avg from data
+        "actual_usual_level": round(ao_mean, 2) if isinstance(ao_mean, (int, float)) else ao_mean,    # real avg from data
         "forecast_z_vs_own_history": round(fo_z, 2) if isinstance(fo_z, (int, float)) else None,       # internal only, not shown
+        "actual_z_vs_own_history": round(ao_z, 2) if isinstance(ao_z, (int, float)) else None,         # internal only, not shown
         "forecast_over_actual_ratio": round(ratio, 3) if ratio is not None else None,
         "verdict": verdict,
     }
@@ -377,29 +398,40 @@ def derive_features(context_bundle):
     cleaned.sort(key=lambda d: abs(d["z_score"]), reverse=True)
     feats["cleaned_signals"] = cleaned
 
-    # -- PROOF: real values straight from the data file (NO z-scores/deviations) so the
-    #    business lead can see the actual numbers behind the plain-English finding. --
-    def _rnd(v):
+    # -- PROOF: real values straight from the data file (NO z-scores/deviations), each with a
+    #    plain "change vs usual" so a manager instantly sees which number is the odd one out.
+    #    "usual" = this queue's average over the prior weeks in history (RCA_HISTORY_CAP). --
+    def _tw(v):
         return round(v, 2) if isinstance(v, (int, float)) else v
+    def _usual(v):
+        if not isinstance(v, (int, float)):
+            return v
+        return round(v) if abs(v) >= 1000 else round(v, 1)   # whole numbers for big counts, 1dp otherwise
+    def _change(tw, us):
+        if not isinstance(tw, (int, float)) or not isinstance(us, (int, float)) or us == 0:
+            return None
+        r = tw / us
+        if 0.8 <= r <= 1.25:
+            return "about the same as usual"
+        if r > 1.25:
+            return f"about {round(r)}x higher than usual" if r >= 2 else f"about {round((r - 1) * 100)}% higher than usual"
+        return f"about {round(1 / r)}x lower than usual" if r <= 0.5 else f"about {round((1 - r) * 100)}% lower than usual"
+    def _row(label, field, tw, us):
+        return {"label": label, "field": field, "this_week": _tw(tw), "usual": _usual(us), "change": _change(tw, us)}
     proof = [
-        {"label": "Forecast (fcst_offered)", "field": "fcst_offered", "this_week": _rnd(t_forecast),
-         "usual": _rnd((numeric.get("fcst_offered") or {}).get("history_mean"))},
-        {"label": "Actual demand (Actual_Offered)", "field": "Actual_Offered", "this_week": _rnd(t_actual),
-         "usual": _rnd((numeric.get("Actual_Offered") or {}).get("history_mean"))},
+        _row("Forecast (fcst_offered)", "fcst_offered", t_forecast, (numeric.get("fcst_offered") or {}).get("history_mean")),
+        _row("Actual demand (Actual_Offered)", "Actual_Offered", t_actual, (numeric.get("Actual_Offered") or {}).get("history_mean")),
     ]
     for fld, label in (("ASU", "Units under warranty (ASU)"), ("Actual_ASU", "Actual ASU"),
                        ("Planned_ASU", "Planned ASU"), ("fcst_handled", "Forecast (fcst_handled)"),
                        ("Actual_Handled", "Actual handled")):
         s = numeric.get(fld)
         if s and s.get("target_value") is not None:
-            proof.append({"label": label, "field": fld, "this_week": _rnd(s.get("target_value")),
-                          "usual": _rnd(s.get("history_mean"))})
+            proof.append(_row(label, fld, s.get("target_value"), s.get("history_mean")))
     if ib and ib.get("material"):
-        proof.append({"label": "Installed base (" + ib["field"] + ")", "field": ib["field"],
-                      "this_week": _rnd(ib["target_value"]), "usual": _rnd(ib["history_mean"])})
-    if hc and hc.get("target_value") is not None:
-        proof.append({"label": "Holidays in the week", "field": "Holiday_Count",
-                      "this_week": _rnd(hc.get("target_value")), "usual": _rnd(hc.get("history_mean"))})
+        proof.append(_row("Installed base (" + ib["field"] + ")", ib["field"], ib["target_value"], ib["history_mean"]))
+    if hc and (hc.get("target_value") or hc.get("unusual")):   # skip the noisy "0 holidays (usual ~0.08)" row
+        proof.append(_row("Holidays in the week", "Holiday_Count", hc.get("target_value"), hc.get("history_mean")))
     feats["proof"] = proof
 
     return feats
@@ -446,7 +478,8 @@ def _finding_from_features(features):
     chronic = features.get("chronic_bias") or {}
     peer = features.get("peer_divergence") or {}
     ev = []
-    if fs.get("verdict", "normal") != "normal":
+    fsv = fs.get("verdict", "normal")
+    if fsv in ("forecast_anomalously_low", "forecast_anomalously_high", "forecast_scale_mismatch"):
         stmt = (f"The forecast this week was {fs.get('forecast')} — well away from this queue's usual level of about "
                 f"{fs.get('forecast_usual_level')} — while actual demand was {fs.get('actual')}. So the miss is most "
                 f"likely a problem with the forecast itself rather than a real change in demand.")
@@ -454,6 +487,14 @@ def _finding_from_features(features):
         conf = 0.55
         ev.append({"text": f"forecast was {fs.get('forecast')} this week vs a usual ~{fs.get('forecast_usual_level')}; actual demand was {fs.get('actual')}",
                    "source_field": "fcst_offered", "value": fs.get("forecast")})
+    elif fsv == "actual_anomalous":
+        stmt = (f"Actual demand this week was {fs.get('actual')} — far from this queue's usual level of about "
+                f"{fs.get('actual_usual_level')} — while the forecast ({fs.get('forecast')}) was about normal. This "
+                f"looks like a real change in demand this week, not a forecasting error.")
+        ctype = "genuine_demand_event"
+        conf = 0.6
+        ev.append({"text": f"actual demand was {fs.get('actual')} vs a usual ~{fs.get('actual_usual_level')}, while the forecast ({fs.get('forecast')}) was about normal",
+                   "source_field": "Actual_Offered", "value": fs.get("actual")})
     elif chronic.get("verdict", "mixed").startswith("chronic"):
         dirn = "under" if chronic.get("consistent_direction") == "under" else "over"
         plan = "too low" if dirn == "under" else "too high"
@@ -498,6 +539,8 @@ def _observations_from_features(features):
         obs.append(f"That forecast ({fs.get('forecast')}) is well below this queue's usual level of about {lvl}.")
     elif v == "forecast_anomalously_high":
         obs.append(f"That forecast ({fs.get('forecast')}) is well above this queue's usual level of about {lvl}.")
+    elif v == "actual_anomalous":
+        obs.append(f"Actual demand ({fs.get('actual')}) was far from this queue's usual level of about {fs.get('actual_usual_level')}, while the forecast ({fs.get('forecast')}) was about normal.")
     elif v == "forecast_scale_mismatch":
         obs.append(f"The forecast ({fs.get('forecast')}) is far out of line with the actual volume ({fs.get('actual')}) this week.")
     ch = f.get("chronic_bias") or {}

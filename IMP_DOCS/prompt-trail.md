@@ -137,3 +137,12 @@ Requested → delivered:
 4. **Readability** — evidence chips switched to dark-blue text (`#123a7a`, bolder, stronger border) — the light-blue text was hard to read.
 5. **Process** — user asked that **IMP_DOCS be updated after every approved change**; `design-choice.md` ("RCA engine v2" section) and this trail brought current, and the standing instruction recorded.
 Verification: `node --check` (frontend) + AST (backend); offline check that proof/evidence carry real values; live Groq call confirmed real-number evidence + ASU expansion + no z-score/deviation leakage.
+
+---
+
+## Session 15 — 2026-07-27 · 13-week window + manager-readable proof + forecast-vs-actual fix
+Requested → delivered:
+1. **History window 12 → 13 weeks** — `RCA_HISTORY_CAP=13` (frontend) and `/api/queue-context` `history_cap=13`; "usual" comparisons now use 13 weeks. Docs updated.
+2. **Manager-readable proof** — the "Proof — values from the data" panel gains a plain **"vs usual"** column ("about 143x higher than usual" / "about the same as usual"), a **"Usual (13 wks)"** header, cleaner rounding (whole numbers for big counts), and drops the noisy "0 holidays (usual ~0.08)" row. Prompt now requires every sentence to state the number AND what it means so a manager can read it standalone.
+3. **Correctness fix — forecast anomaly vs actual anomaly.** A screenshot case (forecast ~91 ≈ usual ~98, actual 8,805 vs usual ~62) was wrongly labelled `forecast_baseline_error`. `forecast_sanity` no longer blames the forecast just because forecast≪actual: `forecast_anomalously_low/high` only when the forecast is off vs its own history; a normal forecast with a spiking actual is `actual_anomalous` → **`genuine_demand_event`**. Verified: the same case now reads "Actual demand was 8805 — far from the usual ~62 — while the forecast (90.78) was about normal … a real change in demand, not a forecasting error."
+Verification: `node --check` (frontend) + AST (backend); live deterministic + Groq runs confirmed the new proof column and the corrected classification.

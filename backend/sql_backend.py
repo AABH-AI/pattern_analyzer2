@@ -174,7 +174,7 @@ def data(limit: int = Query(0, ge=0, description="Optional TOP N; 0 = all rows")
 
 @app.get("/api/queue-context")
 def queue_context(forecast_name: str, fiscal_week: str, region: str = "", subregion: str = "",
-                   country: str = "", channel: str = "", history_cap: int = 12, peers_cap: int = 15):
+                   country: str = "", channel: str = "", history_cap: int = 13, peers_cap: int = 15):
     """
     Scoped fetch for the RCA Investigation feature: queries SQL Server directly for
     ONLY the rows relevant to one queue — its own row, its prior-week history (same
