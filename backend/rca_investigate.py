@@ -73,6 +73,23 @@ change, holiday effect, peer divergence, and CLEANED_SIGNALS (the real per-field
 with meaningless columns already removed). Reason primarily from DERIVED_FEATURES and
 CLEANED_SIGNALS — they are the discriminating evidence.
 
+AUDIENCE & LANGUAGE (very important):
+The reader is a BUSINESS LEAD, not a data scientist. Write EVERY human-facing sentence —
+primary_root_cause.statement, secondary_contributors[].statement, supporting_evidence[].text,
+historical_comparison.narrative, reasoning_narrative, forecast_improvement_recommendations,
+missing_information — in plain, everyday business English that a manager can read once and act on.
+Do NOT use statistics jargon in these sentences: never write "z-score", "standard deviation",
+"outlier", "sigma", "trend slope", "MAPE", "adherence deviation", "chronic bias". Translate them
+into ordinary language, for example:
+  - "Actual_Offered z-score 4.5 / is an outlier"  ->  "demand came in far higher than this queue normally runs"
+  - "fcst_offered z of -2.3"                       ->  "the forecast was set well below this queue's usual level"
+  - "positive trend slope"                          ->  "demand has been climbing for several weeks"
+  - "chronic under-forecast bias"                   ->  "this queue is under-forecast almost every week"
+Keep the CAUSE itself specific, genuine and correct — do NOT water down or generalise the conclusion,
+only simplify the wording. You MAY keep exact field names and numbers in supporting_evidence[].source_field
+and supporting_evidence[].value (those render as small technical detail chips for analysts); just make the
+.text a plain explanation. reasoning_narrative should read like a short, jargon-free paragraph.
+
 Classify the miss into ONE primary cause_type from this taxonomy, then explain it:
 - "forecast_baseline_error"      : the forecast itself is anomalous vs the queue's own history
                                     (see forecast_sanity) — a broken/placeholder baseline, not a demand change.
@@ -331,34 +348,35 @@ def _finding_from_features(features):
     peer = features.get("peer_divergence") or {}
     ev = []
     if fs.get("verdict", "normal") != "normal":
-        stmt = ("The data is most consistent with a forecast-baseline problem: the forecast itself is "
-                "anomalous for this queue, not a genuine demand change.")
+        stmt = ("The forecast for this week was set well away from what this queue normally sees, so the miss is most "
+                "likely a problem with the forecast itself rather than a real change in demand.")
         ctype = "forecast_baseline_error"
         conf = 0.55
-        ev.append({"text": f"forecast-sanity verdict: {fs['verdict']}", "source_field": "forecast_sanity",
+        ev.append({"text": "the forecast was set far from this queue's usual level", "source_field": "forecast_sanity",
                    "value": fs.get("forecast_z_vs_own_history") or fs.get("forecast_over_actual_ratio")})
     elif chronic.get("verdict", "mixed").startswith("chronic"):
-        stmt = (f"The data is most consistent with systematic {chronic.get('consistent_direction')}-forecast bias: "
-                f"this queue misses in the same direction almost every week, so this week is another instance of a "
-                f"calibration problem, not a one-off event.")
+        dirn = "under" if chronic.get("consistent_direction") == "under" else "over"
+        plan = "too low" if dirn == "under" else "too high"
+        stmt = (f"This queue is {dirn}-forecast almost every week, so this week's miss looks like an ongoing forecasting "
+                f"pattern — the plan is consistently set {plan} — rather than a one-off event.")
         ctype = "systematic_forecast_bias"
         conf = 0.5
-        ev.append({"text": f"chronic bias verdict: {chronic.get('verdict')} over {chronic.get('history_weeks')} weeks",
+        ev.append({"text": f"this queue has been {dirn}-forecast for most of the recent weeks",
                    "source_field": "chronic_bias", "value": chronic.get("history_mean_adherence_pct")})
     elif peer.get("signal"):
         ex = (peer.get("examples_opposite") or [{}])[0]
-        stmt = ("The data is most consistent with a volume/routing shift between sibling queues rather than a total "
-                "demand change — at least one peer moved the opposite direction the same week.")
+        stmt = ("At least one similar queue moved the opposite way the same week, so the work most likely shifted "
+                "between queues rather than total demand going up or down.")
         ctype = "volume_routing_shift"
         conf = 0.45
-        ev.append({"text": f"peer {ex.get('forecast_name')} moved opposite (adherence {ex.get('adherence_pct')}%)",
+        ev.append({"text": f"a similar queue ({ex.get('forecast_name')}) moved the opposite way the same week",
                    "source_field": "peer_divergence", "value": peer.get("peers_opposite_direction")})
     else:
-        stmt = ("The data is most consistent with a forecast calibration issue for this queue; no single exogenous "
-                "signal in the available fields explains the magnitude on its own.")
+        stmt = ("The numbers point to a forecasting-accuracy issue for this queue; nothing else in the available data "
+                "stands out strongly enough to be the single cause on its own.")
         ctype = "systematic_forecast_bias"
         conf = 0.35
-        ev.append({"text": "no exogenous driver in the available fields dominates", "source_field": "cleaned_signals",
+        ev.append({"text": "no other single factor in the available data stands out", "source_field": "cleaned_signals",
                    "value": len(features.get("cleaned_signals") or [])})
     return ctype, {"statement": stmt, "confidence": conf, "supporting_evidence": ev}
 
@@ -381,22 +399,22 @@ def _verify_and_fix(result, context_bundle, features):
             if primary:
                 result["secondary_contributors"].append(primary)
             result["primary_root_cause"] = promoted
-            note = ("Primary was reselected by the verifier: the model's first choice only restated the miss "
-                    "(offered/handled outlier), so the strongest specific finding was promoted.")
+            note = ("Adjusted automatically: the first explanation simply restated that a miss happened, so the "
+                    "clearest specific finding in the data was used as the main cause instead.")
         else:
             ctype, synth = _finding_from_features(features)
             if primary:
                 result.setdefault("secondary_contributors", []).append(primary)
             result["primary_root_cause"] = synth
             result["cause_type"] = ctype
+            result["reasoning_narrative"] = synth["statement"]   # keep the narrative coherent and jargon-free
             if result.get("confidence_score") is None:
                 result["confidence_score"] = synth["confidence"]
-            note = ("The model did not produce a specific, non-circular cause, so the verifier built the primary "
-                    "finding directly from the strongest derived feature (fully data-backed).")
+            note = ("Built automatically from the data: the model did not give a specific cause, so the clearest "
+                    "data-backed finding was used.")
+    # verifier_note is internal QA context — kept off the business-facing reasoning_narrative on purpose.
     if note:
         result["verifier_note"] = note
-        rn = result.get("reasoning_narrative") or ""
-        result["reasoning_narrative"] = (rn + ("\n\n" if rn else "") + note).strip()
     # confidence from primary if the model left it blank
     if result.get("confidence_score") is None and result.get("primary_root_cause"):
         c = result["primary_root_cause"].get("confidence")
