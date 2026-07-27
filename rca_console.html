@@ -695,29 +695,28 @@
       <tr><td><b>Forecast Accuracy</b></td><td><code>=(Actual_Offered / fcst_offered) * 100</code></td><td><code>(actual_offered / fcst_offered) * 100</code></td></tr>
       <tr><td><b>Forecast Adherence</b></td><td><code>=IF(Actual_Offered="","",(1-(Actual_Offered/fcst_offered))*100)</code></td><td><code>"" if actual_offered=="" else (1-(actual_offered/fcst_offered))*100</code></td></tr>
     </table>
-    <div class="sub" style="margin-top:10px;">Forecast = <code>fcst_offered</code> (ML). Keyed on <code>Forecast_name</code>. Both shown as %. <b>Forecast Accuracy</b> is the traditional formula; <b>Forecast Adherence</b> is the formula used in the current Excel system — <b>signed</b> (negative = actual ran above forecast / under-forecast, positive = actual ran below forecast / over-forecast). Flag = accuracy outside <b>±10%</b> (≡ |forecast-adherence| &gt; 10%). <b>No other formulas are computed</b> — nothing is inferred or invented.</div>
+    <div class="sub" style="margin-top:10px;">Forecast = <code>fcst_offered</code>. Keyed on <code>Forecast_name</code>. Both shown as %. <b>Forecast Accuracy</b> is the traditional formula; <b>Forecast Adherence</b> is the formula used in the current Excel system — <b>signed</b> (negative = actual ran above forecast / under-forecast, positive = actual ran below forecast / over-forecast). Flag = accuracy outside <b>±10%</b> (≡ |forecast-adherence| &gt; 10%). <b>No other formulas are computed</b> — nothing is inferred or invented.</div>
     <h2 class="sec">Field definitions</h2>
     <table class="def" id="defTable">
       <tr><th>Field</th><th>Meaning</th></tr>
-      <tr><td><code>Fiscal_Week</code></td><td>Fiscal calendar week the row belongs to (e.g. 202249) — the primary time key.</td></tr>
+      <tr><td><code>Fiscal_Week</code></td><td>Fiscal calendar week the row belongs to (e.g. 202249) — the primary time key. The week starts on Saturday and Friday is the last working day; the fiscal year starts from the 1st week of February.</td></tr>
       <tr><td><code>Week_Ending</code></td><td>Calendar date on which that fiscal week ends.</td></tr>
-      <tr><td><code>Region</code></td><td>Top-level geographic region of the queue.</td></tr>
+      <tr><td><code>Region</code></td><td>Top-level geographic region of the queue (regions divided into AMER / AMERICAS — includes North America (NA) and Canada — and LATAM — includes Brazil and the rest of Latin America).</td></tr>
       <tr><td><code>SubRegion</code></td><td>Sub-region within the region.</td></tr>
       <tr><td><code>Country</code></td><td>Country of the queue.</td></tr>
-      <tr><td><code>Forecast_name</code></td><td>Queue label; part of the CQN key.</td></tr>
+      <tr><td><code>Forecast_name</code></td><td>Name of the queue which supports a particular business.</td></tr>
       <tr><td><code>Forecaster</code></td><td>Person / team that owns the forecast for the queue.</td></tr>
-      <tr><td><code>Offering</code></td><td>Product or service offering the demand belongs to.</td></tr>
-      <tr><td><code>Projection_plan_name</code></td><td>Forecast plan version (e.g. FY22 Jan, FY23 Feb) — restatement = a driver.</td></tr>
-      <tr><td><code>channel</code></td><td>Contact / demand channel (e.g. phone, chat, email).</td></tr>
+      <tr><td><code>Offering</code></td><td>Product or service offering the demand belongs to (Basic, Premium, Pro kind of support).</td></tr>
+      <tr><td><code>Projection_plan_name</code></td><td>Forecast plan which is being considered for that particular period, which could be a week or a month.</td></tr>
+      <tr><td><code>channel</code></td><td>Contact / demand channel (e.g. Voice, Chat, Email, Case, Social Media).</td></tr>
       <tr><td><code>business_org</code></td><td>Business organisation the queue rolls up to.</td></tr>
       <tr><td><code>Actual_Offered</code></td><td>Actual demand offered to the queue — numerator of Forecast Accuracy.</td></tr>
       <tr><td><code>Actual_Handled</code></td><td>Actual demand handled by the queue.</td></tr>
-      <tr><td><code>fcst_offered</code></td><td>Forecast of offered demand (ML) — denominator of Forecast Accuracy.</td></tr>
+      <tr><td><code>fcst_offered</code></td><td>Forecast of offered demand — denominator of Forecast Accuracy.</td></tr>
       <tr><td><code>fcst_handled</code></td><td>Forecast of handled demand.</td></tr>
-      <tr><td><code>Planned_ASU</code></td><td>Planned service driver (ASU — exact acronym to confirm with business).</td></tr>
-      <tr><td><code>formula</code></td><td>Source / plan formula tag used to derive the forecast.</td></tr>
-      <tr><td><code>Actual_ASU</code></td><td>Actual service driver (ASU — exact acronym to confirm with business).</td></tr>
-      <tr><td><code>Final_Units</code></td><td>Installed base (warranty units) — a demand driver.</td></tr>
+      <tr><td><code>Planned_ASU</code></td><td>Planned ASU — Active Serviceable Units: the number of units currently present in the market and under warranty.</td></tr>
+      <tr><td><code>Actual_ASU</code></td><td>Actual ASU — how many units are actually available.</td></tr>
+      <tr><td><code>Final_Units</code></td><td>Installed base (warranty units) — a demand driver. Final_Y1 to Y5 overlap, so the sum of Final_Y1..Y5 is not equal to Final_Units: Y2 is a subset of Y1, Y3 a subset of Y2, Y4 a subset of Y3, and so on through Y5.</td></tr>
       <tr><td><code>Final_Y5</code></td><td>Installed units under warranty in year 5.</td></tr>
       <tr><td><code>Final_Y4</code></td><td>Installed units under warranty in year 4.</td></tr>
       <tr><td><code>Final_Y3</code></td><td>Installed units under warranty in year 3.</td></tr>
@@ -725,7 +724,7 @@
       <tr><td><code>Final_Y1</code></td><td>Installed units under warranty in year 1.</td></tr>
       <tr><td><code>Final_upp_units</code></td><td>Additional installed units under an upgrade / extended-protection plan (&ldquo;upp&rdquo; — confirm with business).</td></tr>
       <tr><td><code>Holiday_Count</code></td><td>Number of holidays falling in the fiscal week.</td></tr>
-      <tr><td><code>Monday–Sunday</code></td><td>Day-level flag for each day of the week (holiday / non-working-day / weekend indicator).</td></tr>
+      <tr><td><code>Monday–Sunday</code></td><td>Day-level flag for each day of the week (holiday).</td></tr>
       <tr><td><code>Volume_Category</code></td><td>Volume band the queue falls into (e.g. 501–1000).</td></tr>
     </table>
   </div>
@@ -1001,9 +1000,9 @@ function applyAndScan(){
   const rows=ROWS.filter(passFilters);
   rows.forEach(r=>{
     r._ao=num(r.Actual_Offered); r._fo=num(r.fcst_offered);
-    // Forecast Accuracy = Actual_Offered / fcst_offered * 100   (Forecast = fcst_offered, ML)
+    // Forecast Accuracy = Actual_Offered / fcst_offered * 100   (Forecast = fcst_offered)
     r._acc=(r._ao!=null&&r._fo!=null&&r._fo>0)? r._ao/r._fo*100 : null;
-    // Plan Adherence (ML/Manual) = (1 - Actual_Offered/fcst_offered) * 100 ; blank if no actual
+    // Forecast Adherence = (1 - Actual_Offered/fcst_offered) * 100 ; blank if no actual
     // Signed: negative = actual ran ABOVE forecast (under-forecast); positive = actual ran BELOW forecast (over-forecast).
     // Flagging/severity/MAPE below compare on Math.abs(r._padh) — the ±band test is about MAGNITUDE, the displayed number stays signed so direction is visible.
     r._padh=(r.Actual_Offered===''||r._ao==null)? null : ((r._fo!=null&&r._fo>0)? (1-(r._ao/r._fo))*100 : null);
@@ -1375,7 +1374,7 @@ let CUR_MATH=[];
 function buildFindings(r){
   const band=num(document.getElementById('band').value)||10;
   const d=[], A=r._ao, F=r._fo;
-  // 1) Forecast Accuracy = Actual_Offered / fcst_offered * 100   (Forecast = fcst_offered, ML)
+  // 1) Forecast Accuracy = Actual_Offered / fcst_offered * 100   (Forecast = fcst_offered)
   d.push({
     s:(r._acc!=null&&Math.abs(r._acc-100)<=band)?'info':'hit',
     b:r._noF?`<b>Forecast accuracy — N/A.</b> fcst_offered is zero/blank, so Actual ÷ Forecast is undefined.`
@@ -1385,7 +1384,7 @@ function buildFindings(r){
        values:[`Actual_Offered = ${A}`,`forecast offered (Simple) = ${r._noF?'0 / blank':fmt2(F)}`],
        result:r._noF?'N/A (fcst_offered ≤ 0)':r._acc.toFixed(1)+'%'}
   });
-  // 2) Plan Adherence (ML/Manual) = (1 - Actual_Offered/fcst_offered) * 100 ; blank if no actual
+  // 2) Forecast Adherence = (1 - Actual_Offered/fcst_offered) * 100 ; blank if no actual
   // Signed: negative = actual ran above forecast (under-forecast), positive = actual ran below forecast (over-forecast).
   const noActual=(r.Actual_Offered===''||r._ao==null);
   d.push({
@@ -1809,7 +1808,7 @@ const PROBES=[
   'When Projection_plan_name changes mid-cycle, is the miss forgiven?',
   'Does each Offering (Basic/…) have a different acceptable band?',
   'Are some channels (e.g. Voice vs Chat) expected to be less predictable?',
-  'Should a Forecaster be assessed on plan-adherence, or on ML accuracy?',
+  'Should a Forecaster be assessed on plan-adherence, or on forecast accuracy?',
   'Does business_org roll-up change how misses are escalated?',
   'What defines a "peer" queue for divergence checks?',
   'What is the exact meaning of ASU (Planned/Actual)?',
