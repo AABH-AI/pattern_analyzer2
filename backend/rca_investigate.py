@@ -420,8 +420,10 @@ def _observations_from_features(features):
     pd = f.get("peer_divergence") or {}
     if pd.get("signal"):
         obs.append(f"{pd.get('peers_opposite_direction')} of {pd.get('peers_total')} similar queues moved the opposite way this week.")
+    elif pd.get("peers_total") == 1:
+        obs.append("The one similar queue moved the same way this week.")
     elif pd.get("peers_total"):
-        obs.append(f"The {pd.get('peers_total')} similar queues mostly moved the same way this week.")
+        obs.append(f"All {pd.get('peers_total')} similar queues mostly moved the same way this week.")
     pr = f.get("plan_restatement") or {}
     if pr.get("changed"):
         obs.append(f"The forecast plan changed this week (from {pr.get('prior')} to {pr.get('current')}).")
@@ -434,6 +436,124 @@ def _observations_from_features(features):
     if hol and hol.get("unusual"):
         obs.append("An unusual number of holidays fell in this week.")
     return obs[:6]
+
+
+# --- Deterministic fills so every report section has content when the data supports it,
+#     even if the model returns a sparse JSON (some models omit the softer sections). ---
+_RECS_BY_CAUSE = {
+    "forecast_baseline_error": [
+        "Re-baseline the forecast for this queue so it reflects its recent typical level.",
+        "Add a check that flags when a new forecast departs sharply from the queue's recent average.",
+    ],
+    "systematic_forecast_bias": [
+        "Correct the standing bias in this queue's forecast — it leans the same way most weeks.",
+        "Review the model inputs driving the consistent over/under-forecast for this queue.",
+    ],
+    "genuine_demand_event": [
+        "Investigate what drove the real demand change and whether it is seasonal or recurring.",
+        "Consider adding an event/seasonality signal so similar moves are anticipated.",
+    ],
+    "volume_routing_shift": [
+        "Review the routing/allocation rules between this queue and its sibling queues.",
+        "Forecast the related queues together so volume shifts between them net out.",
+    ],
+    "plan_restatement": [
+        "Compare actuals against the forecast-plan version that was in force for the week.",
+        "Track plan restatements as a known driver when reviewing accuracy.",
+    ],
+    "installed_base_change": [
+        "Feed installed-base (units under warranty) changes into the forecast for this queue.",
+        "Revisit how warranty-unit growth maps to expected demand.",
+    ],
+    "calendar_holiday_effect": [
+        "Ensure the forecast accounts for holiday and short weeks for this queue.",
+        "Add a holiday-calendar feature to the forecasting model.",
+    ],
+}
+
+
+def _deterministic_rejected(features, selected):
+    """Plain-language 'what we checked and ruled out' built from the derived features,
+    excluding the cause that was actually selected."""
+    f = features or {}
+    out = []
+    fs = f.get("forecast_sanity") or {}
+    ch = f.get("chronic_bias") or {}
+    pd = f.get("peer_divergence") or {}
+    pr = f.get("plan_restatement") or {}
+    hol = f.get("holiday") or {}
+    ib = f.get("installed_base") or {}
+    if selected != "genuine_demand_event" and fs.get("verdict", "normal") != "normal":
+        out.append({"hypothesis": "A genuine surge or drop in demand caused the miss.",
+                    "reason_rejected": "The forecast itself was set far from this queue's usual level, so the gap points to the forecast rather than a real demand change."})
+    if selected != "systematic_forecast_bias" and ch.get("verdict") == "mixed":
+        out.append({"hypothesis": "This queue has a steady one-directional forecast bias.",
+                    "reason_rejected": "Its recent misses go both ways, so there is no consistent lean to blame."})
+    if selected != "volume_routing_shift" and not pd.get("signal") and pd.get("peers_total"):
+        out.append({"hypothesis": "Work shifted between this queue and similar queues.",
+                    "reason_rejected": "Most similar queues moved the same way this week, not the opposite way."})
+    if selected != "plan_restatement" and pr and pr.get("changed") is False:
+        out.append({"hypothesis": "A change in the forecast plan caused the miss.",
+                    "reason_rejected": "The forecast plan did not change for this week."})
+    if selected != "calendar_holiday_effect" and hol and not hol.get("unusual"):
+        out.append({"hypothesis": "A holiday or short week distorted the numbers.",
+                    "reason_rejected": "This week had no unusual number of holidays."})
+    if selected != "installed_base_change" and ib and not ib.get("material"):
+        out.append({"hypothesis": "A change in the installed base (units under warranty) drove demand.",
+                    "reason_rejected": "The installed base for this queue did not change materially this week."})
+    return out[:5]
+
+
+def _deterministic_history(features):
+    ch = features.get("chronic_bias") or {}
+    tw = features.get("this_week_vs_usual") or {}
+    weeks = ch.get("history_weeks")
+    mean_adh = ch.get("history_mean_adherence_pct")
+    typ = ch.get("typical_abs_deviation_pct") or tw.get("typical_abs_deviation_pct")
+    if not weeks:
+        return {"narrative": "", "data_points": []}
+    lean = ""
+    if mean_adh is not None:
+        lean = " and usually runs " + ("above" if mean_adh < 0 else "below") + " forecast"
+    narrative = (f"Over the last {weeks} weeks this queue typically misses by about "
+                 f"{typ}%{lean}. This week's miss is {tw.get('times_usual')}x that typical size."
+                 if typ is not None and tw.get("times_usual") is not None else
+                 f"Over the last {weeks} weeks this queue's misses averaged {mean_adh}% adherence.")
+    dp = [{"label": "Weeks compared", "value": weeks}]
+    if mean_adh is not None:
+        dp.append({"label": "Average adherence (history)", "value": f"{mean_adh}%"})
+    if typ is not None:
+        dp.append({"label": "Typical weekly miss", "value": f"{typ}%"})
+    if tw.get("times_usual") is not None:
+        dp.append({"label": "This week vs typical", "value": f"{tw['times_usual']}x"})
+    return {"narrative": narrative, "data_points": dp}
+
+
+def _fill_gaps(result, features):
+    """Populate any report section the model left empty from the deterministic features,
+    so a sparse model reply never leaves a blank card when the data can say something."""
+    if not result.get("key_findings"):
+        result["key_findings"] = _observations_from_features(features)
+    ctype = result.get("cause_type")
+    primary = result.get("primary_root_cause") or {}
+    # reasoning narrative (list of points)
+    rn = result.get("reasoning_narrative")
+    rn_empty = (not rn) or (isinstance(rn, list) and not rn)
+    if rn_empty and primary.get("statement"):
+        pts = list(result.get("key_findings") or [])[:2]
+        pts.append(primary["statement"])
+        pts.append("Other possible explanations were checked against the data and did not fit as well.")
+        result["reasoning_narrative"] = pts
+    if not result.get("rejected_hypotheses"):
+        result["rejected_hypotheses"] = _deterministic_rejected(features, ctype)
+    hc = result.get("historical_comparison") or {}
+    if not hc.get("narrative") and not (hc.get("data_points")):
+        result["historical_comparison"] = _deterministic_history(features)
+    if not result.get("forecast_improvement_recommendations"):
+        result["forecast_improvement_recommendations"] = list(_RECS_BY_CAUSE.get(ctype, [
+            "Review this queue's forecast inputs and recent accuracy with the planning team.",
+        ]))
+    return result
 
 
 def _verify_and_fix(result, context_bundle, features):
@@ -475,6 +595,7 @@ def _verify_and_fix(result, context_bundle, features):
         c = result["primary_root_cause"].get("confidence")
         if isinstance(c, (int, float)):
             result["confidence_score"] = c
+    _fill_gaps(result, features)   # no blank cards when the data can say something
     return result
 
 
@@ -489,7 +610,7 @@ def _placeholder_response(context_bundle, features, extra_missing=None):
         "cause from the derived features; connect a provider (config.json llm.* or GROQ/NVIDIA_API_KEY) for the "
         "full multi-hypothesis investigation.",
     ]
-    return {
+    result = {
         "cause_type": ctype,
         "key_findings": _observations_from_features(features),
         "primary_root_cause": synth,
@@ -506,6 +627,8 @@ def _placeholder_response(context_bundle, features, extra_missing=None):
         "investigation_meta": {"engine": "deterministic-fallback", "provider": None, "model": None,
                                "generated_at": _now(), "based_on_fields": fields_seen},
     }
+    _fill_gaps(result, features)   # fill rejected / history / recommendations from the features too
+    return result
 
 
 def _forecast_summary(computed):
