@@ -156,8 +156,10 @@ Classify the miss into ONE primary cause_type from this taxonomy, then explain i
                                     a calibration problem, this week is just another instance of it.
 - "genuine_demand_event"         : a real one-week demand move (this week is materially worse than the
                                     queue's usual miss AND the forecast looks normal).
-- "volume_routing_shift"         : a sibling/peer queue moved the opposite way the same week
-                                    (see peer_divergence) — volume shifted between queues, not total demand.
+- "volume_routing_shift"         : a similar queue moved the opposite way the same week (see peer_divergence)
+                                    — volume shifted between queues, not total demand. ("Similar queues" =
+                                    other queues in the SAME region, sub-region, country and channel that week;
+                                    always call them "similar queues", not "peer queues".)
 - "plan_restatement"             : Projection_plan_name changed this week (see plan_restatement).
 - "installed_base_change"        : installed base (Final_* / units) shifted materially and plausibly drives demand.
 - "calendar_holiday_effect"      : a holiday/short week plausibly explains the magnitude (see holiday).
@@ -515,8 +517,9 @@ def _finding_from_features(features):
                    "source_field": "Actual_Offered", "value": chronic.get("usual_actual")})
     elif peer.get("signal"):
         ex = (peer.get("examples_opposite") or [{}])[0]
-        stmt = ("At least one similar queue moved the opposite way the same week, so the work most likely shifted "
-                "between queues rather than total demand going up or down.")
+        stmt = ("At least one similar queue (another queue in the same region, country and channel) moved the "
+                "opposite way the same week, so the work most likely shifted between queues rather than total "
+                "demand going up or down.")
         ctype = "volume_routing_shift"
         conf = 0.45
         ev.append({"text": f"a similar queue ({ex.get('forecast_name')}) moved the opposite way the same week",
@@ -558,7 +561,7 @@ def _observations_from_features(features):
         obs.append("This queue's misses have no consistent direction over recent weeks.")
     pd = f.get("peer_divergence") or {}
     if pd.get("signal"):
-        obs.append(f"{pd.get('peers_opposite_direction')} of {pd.get('peers_total')} similar queues moved the opposite way this week.")
+        obs.append(f"{pd.get('peers_opposite_direction')} of {pd.get('peers_total')} similar queues (same region, country and channel) moved the opposite way this week.")
     elif pd.get("peers_total") == 1:
         obs.append("The one similar queue moved the same way this week.")
     elif pd.get("peers_total"):
