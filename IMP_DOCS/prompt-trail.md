@@ -39,40 +39,90 @@ Verification: extracted the `<script>`, `node --check` passed; ran the scan+dash
 
 ---
 
-## Session 3 — 2026-07-22/23 · Dashboard RCA analytics + live SQL groundwork
+## Sessions 3–5 — 2026-07-23 · Live SQL Server (AA) + deployment
 Requested → delivered:
-1. **Drillable volumetrics** — one-to-many card-by-card drill with breadcrumb + expandable members.
-2. **Dashboard RCA bundle** — Actual-vs-Forecast weekly overlay (one y-scale), signed forecast bias, auto-insights, drill KPI delta.
-3. **"🗄 Connect to SQL Server (AA)"** groundwork — connect modal + pipeline strip (Source → Ingest → Compute → Flag → RCA); dropped the redundant evidence trail.
-4. Stopped tracking the KB export; added `.gitignore` (excludes KB + input data).
+1. **Working SQL Server connection** — added a **FastAPI + pyODBC** backend (`backend/sql_backend.py`, `/api/health`, `/api/data`), an **Excel→SQL loader** (`upload_excel_to_sql.py`), and wired the console's **"Connect to SQL Server (AA)"** button to `/api/data` (was a mockup). Loaded the full **138,775 rows** into **`Playground.dbo.Input_To_ML`** on server `10.10.9.75` (verified via `sys.tables` + `COUNT(*)`).
+2. **Deployment package** — `Dockerfile` (bundles msodbcsql18) + `docker-compose.yml` + env-var secrets + `DEPLOY.md` (Docker / Windows-service / systemd) for always-on internal hosting.
+3. **Docs** — `IMP_DOCS/installation-and-connection.md` (setup + connection + troubleshooting) and updates to handoff/TODO/design-choice.
+4. **Timeline** — plain-English step names, **auto-date from the PC clock**, added **"RCA output — report per queue"** (10 steps), light-only.
 
-## Session 4 — 2026-07-24 · Definitions/Formulas + Dashboard polish (Claude)
-**Branch:** created `shivam-updates` (personal working branch off `main`); merged `origin/main` repeatedly to stay current.
+Verification: uploader dry-run on the real 138,775-row file; backend routes tested (health/data/static); pyodbc install + live COUNT confirmed; all `<script>` blocks syntax-checked.
+
+---
+
+## Session 6 — 2026-07-24 · Merge Shivam's dashboard + dashboard filters + loading screen
 Requested → delivered:
-1. **Definitions & Formulas tab** — deviation-spread rebucketed to 5 bands (±5 / ±10 / ±15–20 / ±20–25 / >±25); round brackets added to Forecast Accuracy; **Plan Adherence (ML/Manual) renamed → Forecast Adherence**; field-definitions table replaced with all 34 source columns (Monday–Sunday collapsed to one row).
-2. **Deviation-band colours** → blue / green / orange / amber / red.
-3. **Top flagged forecast names** — total flagged weeks in the corner + per-bar % share.
-4. **Insights** moved out of the dashboard flow into a **slidable, resizable right-side drawer** (open by default on Dashboard); dashboard reserves layout space (`body` padding) so it reflows rather than being overlaid; 7 KPI hero cards fit on a single row.
-5. Labelled the mystery focus-clear button (`✕` → `✕ Clear`).
-Verification: `node --check` after every change.
+1. **Merged `origin/shivam-updates` into main** (clean, merge `babf5a1`) — kept both feature sets (his dashboard + our SQL/timeline); his branch left untouched ("on check").
+2. **IMP_DOCS reconciled** — documented his **"Plan Adherence" → "Forecast Adherence"** (now **signed**) rename, deviation colour-bands, flagged-% KPI, Insights drawer, deep-dive/exploration-trace UI.
+3. **Dashboard dropdown filters** — `Region, Sub-Region, Country, Channel, Offering, Forecaster, Projection plan` selects that drive the existing scan engine, so the graphs recompute the **affected (flagged) queues** for the selection.
+4. **Data-ingestion loading screen** — full-screen overlay with a 6-step progress list (read → parse → build → compute → flag → render) + progress bar, wired into **both** the file-upload and the SQL-fetch paths.
 
-## Session 5 — 2026-07-24 · Root-Cause Investigation rebuild (LLM-driven)
-Requested → delivered (see `TODO.md` "Done ✓ (2026-07-24…)" and `rca-investigation-contract.md` for full detail):
-1. **Removed** the earlier rule-based "agentic exploration" RCA panel per client instruction — replaced with a genuine LLM-investigation architecture (a rules engine dressed as AI reasoning would violate the client's own "never fabricate" principle).
-2. **Signed Plan Adherence** — `ABS` removed from the formula and every display; flagging/severity/sort/MAPE still compare on `Math.abs()`, only the displayed number is signed.
-3. **Six-module architecture** (client spec §7): RCA Trigger, Data Aggregator, Context Builder, LLM Investigation Engine, RCA Formatter, UI Renderer — Aggregator/Context fully generic (no hardcoded field list; auto-discovered `Final_upp_units` in testing).
-4. Backend proxy `POST /api/rca-investigate` (`backend/rca_investigate.py` + `sql_backend.py`) so provider keys stay server-side; **honest placeholder** response until a provider is wired.
-5. **Adversarial spec-compliance review** (4 reviewers + adjudication). Found & fixed a pre-existing **CRITICAL** hole: the static mount served `GET /backend/config.json` (live SQL creds in plain text) — now blocked by middleware. ⚠️ Predated this feature and was exploitable in production — flagged for credential rotation.
+Verification: every `<script>` block validated via `new Function(...)` — all OK.
+Known limitations: 2 legacy "Plan Adherence" strings still in the UI (cosmetic); the Console checkbox filters and Dashboard dropdowns both write the shared FILTERS state, so they can visually desync (last action wins).
 
-## Session 6 — 2026-07-24 · Live LLM wiring + SQL-scoped RCA
+> Process note: from here on, each prompt's work is appended to this trail.
+
+---
+
+## Session 7 — 2026-07-24 · Affected-queues-by-band chart
 Requested → delivered:
-1. **Groq + NVIDIA wired** (OpenAI-compatible), automatic fallback chain → honest placeholder; `forecast_summary` always from our own deterministic numbers, never the model's echo.
-2. Live-verified against the real internal SQL Server on real flagged queues; fixed a Cloudflare-403 (User-Agent), a real **413 token-limit** payload bug (slimmed history/peers to `{key,computed}`, caps `RCA_HISTORY_CAP=12`/`RCA_PEERS_CAP=15`, 413-retry), and a fixed-position env-var override bug during the NVIDIA-primary/Groq-secondary swap.
-3. Added `GET /api/queue-context` — scoped, parameterized SQL query (target row + history + CQN peers) instead of client-side filtering the whole table.
-4. ⚠️ Caught real API keys briefly pasted into `config.example.json` (the committed template) — removed before staging; confirmed absent from index/history. Reminder: secrets go only in `config.json`/`.env`, never `.example` files.
+1. New Dashboard chart **"Affected queues by Forecast-Adherence band"** — only flagged queues (|Forecast Adherence| > band), each bucketed by its **worst** week into **≤±15% / ±15–25% / ±25–50% / ±50–100% / >±100%**; value = distinct queues, note = % of affected queues + flagged weeks in the band. Reacts to the drill path and the console/dashboard filters.
+2. Renamed the existing spread to **"Forecast Adherence spread — all weeks"** (was "Forecast-accuracy deviation spread") and reframed the copy around Forecast Adherence.
 
-## Session 7 — 2026-07-24 · Browse-any-queue + backend setup fix (Claude)
+Verification: all `<script>` blocks validated via `new Function(...)` — OK.
+
+---
+
+## Session 8 — 2026-07-24 · Fiscal-Week typeable filter + name-by-band distribution
 Requested → delivered:
-1. **Backend setup fix** — "Connect to SQL Server" failed with `No module named 'pyodbc'` on this machine (worked on a teammate's). Diagnosed: ODBC Driver 17 present, `pyodbc` missing; installed `pyodbc-5.3.0`; live-verified a real connection returning **138,775 rows**. Per-machine setup gap, not a code bug.
-2. **Browse any queue without code changes** — `<datalist>` autocomplete of every distinct `Forecast_name`; **🎲 Random queue** button; `triggerRCA` offers **"🔎 Investigate anyway"** (`force=true`) for a deliberately-picked non-flagged queue (automatic path still gated on a real miss).
-3. Doc maintenance — brought `prompt-trail.md` up to date; `design-choice.md`/`handoff.md`/`TODO.md` updated alongside the feature work.
+1. **Fiscal Week filter — typeable (Excel-style)** in the Dashboard filter bar: a `<datalist>` type-ahead of all 325 weeks; accepts an exact week, a **partial** (`2024` → all FY24 weeks), a **comma list**, or a **range** `202401-202410`. Empty = all; no match = empty (Excel behaviour). Drives the same scan engine.
+2. **Reworked the affected chart → "Forecast names by adherence band"**: every forecast name in scope bucketed by its worst week's |Forecast Adherence| into **≤±5 / ±5–10 / ±10–15 / ±15–20 / ±20–25 / >±25**. With a Fiscal Week selected, each name has one value that week, so it shows exactly which names sat at ±5, ±10, ±15–20… that week. Value = distinct names; note = share · weeks in band.
+
+Verification: all `<script>` blocks validated via `new Function(...)` — OK.
+
+---
+
+## Session 9 — 2026-07-24 · Affected-queues popup + one-command runner + AI runbook
+Requested → delivered:
+1. **Affected-queues popup** — selecting a Fiscal Week opens a modal listing the **real flagged forecast names** for that scope: name, Fiscal Week, signed Forecast Adherence, band, direction. Sourced straight from `FLAGS` (computed rows) — nothing fabricated. Dismiss via ✕ / click-outside / Esc.
+2. **One-command runner** — `run.ps1` (Windows) / `run.sh` (POSIX): installs deps, seeds `backend/config.json`, starts the backend and opens the app.
+3. **AI runbook** — `AGENTS.md` (full: what it is, run paths, SQL setup, endpoints, guardrails, "if you are an AI agent" steps) + `CLAUDE.md` (auto-loaded pointer + quick start).
+
+Verification: `rca_console.html` scripts validated via `new Function(...)`; `run.ps1` parsed clean (kept ASCII-only for PowerShell 5.1).
+
+---
+
+## Session 10 — 2026-07-24 · ⓘ hint on the Fiscal Week filter
+Requested → delivered:
+1. Added an **ⓘ button** next to the Fiscal Week filter — hover shows a tooltip ("type/pick a week and press Enter → popup of affected queues"); clicking it opens the affected-queues popup when a week is already selected, otherwise shows the tip.
+2. Reinforced the affordance: the field hint now reads "Enter → affected queues". Typing/picking a week and pressing **Enter** (or selecting from the datalist) opens the affected-queues popup — behaviour confirmed.
+
+Verification: all `<script>` blocks validated via `new Function(...)` — OK.
+
+---
+
+## Session 11 — 2026-07-24 · Truncate data to 2025-2027
+Requested → delivered:
+1. **Deleted 2022–2024 and 2028–2029** from `Playground.dbo.Input_To_ML` — kept **strictly 2025–2027** (`Fiscal_Week` 202500–202799). **138,775 → 66,612 rows** (verified: range now 202501..202752; years 2025/2026/2027). Reversible — the Excel still holds all years.
+2. **Persisted the cut in the loader** — added a Fiscal_Week range filter to `upload_excel_to_sql.py` (`--min-week`/`--max-week` + config `min_fiscal_week`/`max_fiscal_week`). `config.json` set to 202500–202799 (password untouched); `config.example.json` documents it. So re-running the loader stays truncated.
+
+Verification: SQL `COUNT(*)` after = 66,612; loader `py_compile` OK; dry-run filter kept 66,612 of 138,775.
+
+---
+
+## Session 12 — 2026-07-24 · Confirm + IMP_DOCS refresh
+Requested → delivered:
+1. **Confirmed everything**: SQL = **66,612 rows, Fiscal_Week 202501–202752 (FY2025–2027)**; backend `/api/health` returns `configured:true`.
+2. **Refreshed IMP_DOCS** to the current state: `design-choice.md` (data scope 66,612 + loader filter + a "Sessions 7–11" summary), `handoff.md` (state of play, files table incl. run scripts + AI runbook, row count), `TODO.md` (sessions 7–11 Done block), `AGENTS.md` (row count/scope + loader filter).
+
+---
+
+## Session 13 — 2026-07-27 · RCA engine v2 + business-report polish (shivam-updates, then merged main)
+Done on branch `shivam-updates` (earlier branch work — the "Forecast Adherence" rename, deviation colour-bands, flagged-% KPI, right-side Insights drawer — already reached main via merge `babf5a1`, so it isn't re-logged here). Then `origin/main` (Sessions 3–12 above) was merged back into `shivam-updates`; conflicts in `config.example.json` and the IMP_DOCS were resolved keeping both sides.
+Requested → delivered:
+1. **Fixed "same root cause for every queue"** — grounded in the live SQL data. `backend/rca_investigate.py` now runs two deterministic passes around the LLM: `derive_features()` (field hygiene — drops noise cols `Fiscal_Week`/`Week_Ending`/`Monday–Sunday`, collapses `Final_Y*` — plus discriminating per-queue features: forecast-sanity, chronic bias, this-week-vs-usual, peer divergence, plan restatement, installed base, holiday), and `_verify_and_fix()` (rejects circular "the miss is the cause" answers). Cause is classified into a `cause_type` taxonomy.
+2. **Per-queue AI model picker** — `GET /api/models` (reachable models only) + `?provider=&model=`. Verified-reachable set: Nemotron-3-Super-120B (default), DeepSeek-V4-Flash, Nemotron-Super-49B, Nemotron-3-Ultra-550B (flaky), Groq Llama-3.3. A picked model that fails is **not** silently answered by another — the deterministic finding is returned. `_chat_json` retries without `response_format` for models that reject it. (NVIDIA `/v1/models` lists models not provisioned per account — verified ids live.)
+3. **Plain business language** — every human-facing sentence jargon-free (no z-score/stdev/outlier); technical scores kept in evidence chips / `source_field`.
+4. **Distinct report sections** — Key Findings (objective observations) ≠ Root Cause (the why) ≠ Reasoning (the story, bulleted); Rejected Hypotheses in plain "checked & ruled out" language; confidence bar coloured by level; `_fill_gaps()` guarantees no blank card even on a sparse model reply.
+5. **Definitions tab** made business-accurate — Fiscal_Week calendar (Sat start / Fri last working day / FY from 1st week of Feb), Region AMER/LATAM, Offering tiers, channels, **ASU as its own field**, `Final_Units` Y1–Y5 overlap note, Monday–Sunday = holiday; removed the `formula` field and all "ML/Manual" labelling; **Severity tile removed**.
+Verification: `node --check` (frontend) + `py_compile`/AST (backend); live end-to-end against real SQL queues across models (per-queue differentiation, model comparison, honest fallback all confirmed); deterministic gap-fill unit-checked offline.

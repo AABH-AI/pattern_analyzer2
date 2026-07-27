@@ -13,6 +13,9 @@
     "timeout": 30
   },
   "excel_path": "C:\\Users\\arnav.bhargava\\Downloads\\Input_To_ML_20260706110242.csv.xlsx",
+  "_filter_comment": "Optional. The Excel->SQL loader only inserts rows whose Fiscal_Week (YYYYWW) is within this range. Set to keep e.g. 2025-2027 only; remove both keys to load all years. CLI --min-week/--max-week override these.",
+  "min_fiscal_week": 202500,
+  "max_fiscal_week": 202799,
   "llm": {
     "_comment": "LLM Investigation Engine. Leave api_key blank on both slots to get the deterministic feature-based finding (never a fabricated conclusion). primary is tried first (NVIDIA); secondary is the Groq fallback. model is optional — DEFAULT_MODELS is used if blank. The console's per-queue model picker (selectable_models) can override the model per investigation; a specific picked model that fails is NOT silently answered by a different model — the deterministic finding is returned instead.",
     "primary": {

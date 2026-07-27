@@ -10,8 +10,11 @@ A single-file, dependency-free HTML tool ("Demand Pattern RCA Agent — Console"
 |---|---|
 | `rca_console.html` | **The app.** Open in any modern browser (Chrome/Edge). Everything is inline. |
 | `rca_timeline.html` | Standalone build Gantt to 30 Jul (theme-aware). Mirrors the in-app Timeline tab. |
-| `backend/` | FastAPI service: SQL Server connector (`/api/data`) + the Root-Cause Investigation proxy (`/api/rca-investigate`, see below). Optional for everything except live SQL and the RCA Investigation feature. |
 | `IMP_DOCS/` | This documentation set — see `rca-investigation-contract.md` for the RCA feature's exact request/response shape. |
+| `backend/` | FastAPI + pyODBC SQL connector (`sql_backend.py`, `/api/data`) + Excel→SQL loader (`upload_excel_to_sql.py`) + the Root-Cause Investigation engine + proxy (`rca_investigate.py` via `/api/rca-investigate`, `/api/models`). Powers live SQL and the RCA Investigation feature. |
+| `DEPLOY.md` · `docker-compose.yml` · `backend/Dockerfile` | Always-on internal-server hosting (Docker / Windows-service / systemd). |
+| `run.ps1` · `run.sh` | One-command setup + run (installs deps, seeds config, starts backend). |
+| `AGENTS.md` · `CLAUDE.md` | Runbook for any AI/human — what it is, run paths, SQL setup, guardrails. |
 
 > The Excel input (`Input_To_ML_*.xlsx`) is intentionally **not** in this folder. Point the tool at your own copy via the upload button.
 
@@ -20,6 +23,8 @@ A single-file, dependency-free HTML tool ("Demand Pattern RCA Agent — Console"
 2. **RCA Console** tab → *Upload weekly file* → pick the `.xlsx`/`.csv`. (Optional: *Upload CQN mapping* to resolve queue names.)
 3. Filter like Excel (10 dimensions) or type 2–3 `Forecast_name`s in the test box.
 4. Click a flagged item → RCA report with ⓘ math, then **🔎 Investigate Root Cause** → the full investigation report (needs the backend running for a real/placeholder response — see below; without it you get a clear "start the backend" error, not a crash). **Dashboard** tab → volumetrics + graphs (follows your filters). **Timeline** tab → deadline Gantt.
+
+**Live SQL (backend):** `cd backend && pip install -r requirements.txt`, create `config.json` from `config.example.json` (server `10.10.9.75`, db `Playground`, table `dbo.Input_To_ML`, your SQL login), `uvicorn sql_backend:app --port 8000`, open `http://localhost:8000/rca_console.html` → **Connect to SQL Server (AA)**. Full steps, Docker, and troubleshooting: `IMP_DOCS/installation-and-connection.md`.
 
 ## Code map (inside `rca_console.html`, one `<script>`)
 - **Parsing:** `fileToArrays` → `parseXlsx` (hand-rolled ZIP+XML reader) / `parseDelimited`; `buildRows` maps header→row objects.
@@ -30,6 +35,7 @@ A single-file, dependency-free HTML tool ("Demand Pattern RCA Agent — Console"
 - **Report:** `buildFindings`, `selectFlag`, `showMath` (modal).
 - **Root-Cause Investigation** (replaces the earlier rule-based RCA panel — removed): `triggerRCA` (Trigger) → `aggregateData`/`buildContext`/`buildStatSummary` (Data Aggregator + Context Builder, fully generic — no hardcoded field list) → `callInvestigationEngine` (POSTs to `backend/rca_investigate.py` via `sql_backend.py`'s `/api/rca-investigate`) → `formatInvestigation` (Formatter) → `renderInvestigationReport` (Renderer). See `IMP_DOCS/rca-investigation-contract.md` for the exact contract.
 - **Probing:** `PROBES` (static) + `renderContextProbes` (data-driven) + `saveKnowledge`/`downloadKB` (Markdown export, localStorage-backed).
+- **SQL connect:** `sqlFetch` now calls the backend `GET /api/data` and loads rows straight into the pipeline (was a file-picker mock); `renderPipe` marks Source = "SQL Server (AA)". Backend: `backend/sql_backend.py`.
 
 ## How to verify a change (no test runner needed)
 1. Syntax: extract the script and `node --check`.
@@ -37,10 +43,15 @@ A single-file, dependency-free HTML tool ("Demand Pattern RCA Agent — Console"
 3. Visual: `chrome --headless=new --screenshot` against a temp HTML that injects sample rows and activates the target tab.
 4. Backend: `python -c "import py_compile; py_compile.compile('sql_backend.py', doraise=True)"` (and `rca_investigate.py`), plus a direct call to `investigate({...}, {})` to confirm the placeholder response shape.
 
-## State of play (2026-07-24)
-- **Done & verified:** schema lock, two-metric engine (signed Plan Adherence), file ingestion, volume metrics + Dashboard, live SQL Server backend + Docker deployment, **Root-Cause Investigation** architecture (Trigger/Aggregator/Context Builder/Formatter/Renderer all real and tested; LLM Investigation Engine is an honest placeholder — no provider connected yet).
+## State of play (2026-07-27)
+- **Merged `main` into `shivam-updates`** (this merge): brings main's dashboard filters, typeable Fiscal-Week field + affected-queues popup, 10-step timeline, FY2025–2027 data truncation, and run tooling (`run.ps1`/`run.sh`, `AGENTS.md`/`CLAUDE.md`) together with the RCA-engine work below.
+- **RCA Investigation is now LIVE (no longer a placeholder):** `backend/rca_investigate.py` calls a real LLM (NVIDIA + Groq, OpenAI-compatible) with two deterministic passes around it — `derive_features()` (field hygiene + discriminating per-queue features) and `_verify_and_fix()` / `_fill_gaps()` (reject circular "the miss is the cause" answers, and fill every report section). Output is **plain business language**; **Key Findings / Root Cause / Reasoning** are distinct; a **per-queue model picker** (`/api/models`, default `nvidia/nemotron-3-super-120b-a12b`) lets leads compare models. Details: design-choice.md "RCA engine v2".
+- **Timeline** is now **10 steps** (added "RCA output — report per queue"); the build Gantt **auto-sets "today" from the PC clock** and is light-only.
+- **Dashboard** gained: dropdown filters + a **typeable Excel-style Fiscal Week** field; an **affected-queues popup** (real flagged names for the selected week) with an **ⓘ** hint; a **"Forecast names by adherence band"** chart (≤±5…>±25); a **6-step data-ingestion loading screen**; plus our deviation colour-bands, flagged-% KPI, and right-side **Insights drawer**.
+- **Data scope truncated to FY2025–2027 (66,612 rows)**; the loader keeps it truncated via a Fiscal_Week range filter (`min/max_fiscal_week`, CLI `--min-week/--max-week`).
+- **SQL is live:** FastAPI + pyODBC backend (`backend/`) queries SQL Server; "Connect to SQL Server (AA)" pulls via `GET /api/data`. Table `Playground.dbo.Input_To_ML` on `10.10.9.75` (**66,612 rows, FY2025–2027**). Hosting packaged (Docker / Windows-service / systemd) — see `DEPLOY.md`, `IMP_DOCS/installation-and-connection.md`.
 - **In progress:** P4 — multi-queue scan → top-N → **printable Phase-1 digest** (main remaining build).
-- **To do:** wire a real LLM provider in `backend/rca_investigate.py` (`call_model()`) when one is chosen; P6 validation with Prashant/SME + band tuning; P7 demo packaging + dry run; P8 presentation (30 Jul).
+- **To do:** SME validation with Prashant + band tuning (±10 vs ±15 — note ~66% flag rate); demo packaging + dry run; presentation.
 
 ## Watch-outs
 - Keep the **console** library-free. No CDN (must run behind Kong / offline). The backend is a separate, optional Python service — that boundary is intentional (see `IMP_DOCS/rca-investigation-contract.md`), don't blur it by adding libraries to `rca_console.html` itself.

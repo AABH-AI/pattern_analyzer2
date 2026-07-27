@@ -10,14 +10,14 @@ Why the tool is built the way it is. Read this before changing metrics, charts, 
 | Metric | Formula | Notes |
 |---|---|---|
 | **Forecast Accuracy** | `Actual_Offered ÷ fcst_offered × 100` | Forecast = `fcst_offered` (ML). |
-| **Plan Adherence (ML/Manual)** | `(1 − Actual_Offered ÷ fcst_offered) × 100` | **Signed** (negative = actual ran above forecast/under-forecast, positive = actual ran below forecast/over-forecast) — direction was requested explicitly; ABS was removed. Blank if no actual. |
-- Flag rule: **\|Plan-Adherence deviation\| > band %** (default ±10) — the ±band test is a magnitude comparison even though the displayed number is signed. Equivalent to accuracy outside ±band.
+| **Forecast Adherence** | `(1 − Actual_Offered ÷ fcst_offered) × 100` — **signed** | **Renamed from "Plan Adherence" and made signed** (session 6): **negative = actual ran above forecast (under-forecast); positive = actual ran below forecast (over-forecast)**. Blank if no actual; the current Excel-system formula. |
+- Flag rule: **|Forecast Adherence| > band %** (default ±10). Equivalent to accuracy outside ±band.
 - Rows with **no/zero forecast** are data gaps — never scored, never shown as results, counted separately.
 - Severity/sort/MAPE (100−MAPE accuracy) all compare on `Math.abs(deviation)` — only the *displayed* number is signed; see `applyAndScan`/`setAccuracy` comments in `rca_console.html`.
 
 ## "Avg Accuracy" — the important fix
 The old tile averaged `Actual÷Fcst` across rows. Because over- and under-forecasts scatter around 100% and **cancel**, it read ~99% even on genuinely poor data — misleading.
-**New definition:** `Avg accuracy = 100 − MAPE`, where MAPE = mean of the per-row absolute % error, which is **exactly the Plan-Adherence deviation** already computed. Clamped at ≥ 0.
+**New definition:** `Avg accuracy = 100 − MAPE`, where MAPE = mean of the per-row absolute % error, which is **exactly |Forecast Adherence|** already computed. Clamped at ≥ 0.
 - Ties directly to a metric the business already trusts.
 - On the full 138,775-row file this is **77.1%** (vs the bogus ~99%).
 - Same logic drives the Dashboard's weekly-accuracy line: `100 − mean(deviation)` per fiscal week.
@@ -59,9 +59,9 @@ The old tile averaged `Actual÷Fcst` across rows. Because over- and under-foreca
 - Trend charts plot every fiscal week present (up to 325 points); fine as a dense sparkline. A brush/zoom is a future nice-to-have.
 - Full crosshair is on the two trend charts only; bars rely on native tooltips. A shared hover legend is a later enhancement.
 
-## Full pipeline: data ingestion → RCA (mockup)
+## Full pipeline: data ingestion → RCA (live SQL)
 - A **pipeline strip** at the top of the RCA Console visualises the end-to-end path and fills as data flows: **Source → Ingest (rows) → Compute · 2 metrics (scored) → Flag · ±band (flagged) → RCA (ready)**. It's always visible (pending state before load) so the demo tells the whole story at a glance.
-- **"🗄 Connect to SQL Server (AA)"** button + modal (Server / Database / Table = `sqlsrv-aa-prod.internal` · `AI_Ready_Data` · `dbo.demand_facts`). Since the mockup has no backend, **Fetch table** ingests the exported file as a stand-in for the live query and tags the source as SQL, so the pipeline's Source stage reads "SQL Server (AA)". In production the same pipeline runs the query directly (no upload) and computes the two metrics server-side — this is Timeline phase 6.
+- **"🗄 Connect to SQL Server (AA)"** button + modal (Server / Database / Table = `10.10.9.75` · `Playground` · `dbo.Input_To_ML`). **Now live** (Timeline P6 done): **Fetch table** calls the local **FastAPI + pyODBC** backend (`backend/sql_backend.py`, `GET /api/data`) which runs `SELECT * FROM <table>` and returns JSON; `sqlFetch` loads it straight into the pipeline — no upload. Connection details live in `backend/config.json` or `SQL_*` env vars (both gitignored). The full **138,775-row** table is loaded into `Playground.dbo.Input_To_ML` by `backend/upload_excel_to_sql.py`. Always-on hosting (internal server) is packaged in `DEPLOY.md` (Docker/service). Setup + troubleshooting: `IMP_DOCS/installation-and-connection.md`. Browsers can't reach SQL directly — the backend is the bridge; a public static host (GitHub Pages) therefore can't use SQL, by design.
 - Source tracking: `window._pendingSrc` ('sql' via the modal, 'file' via Upload) → `window.SRC`, read in `onWeekly`; `renderPipe()` is called on load (pending), on ingest, and after each scan.
 - **Evidence trail removed** from the RCA report (was redundant with the Findings bullets + the ⓘ formula/number modal, which remain the source of the math). The report is now: Findings (with ⓘ) → Inputs used → **Root-Cause Investigation** (below).
 
@@ -89,6 +89,32 @@ On the real data (Playground.dbo.Input_To_ML, 66,612 rows) the engine returned t
 **Per-queue model picker.** `GET /api/models` lists models the backend can actually reach (filtered to providers with a key); the console dropdown re-runs the *same* queue through a chosen model to compare business-acceptability. `POST /api/rca-investigate?provider=&model=` routes to it. A picked model that fails is **not** silently answered by a different model (that would make the comparison dishonest) — the deterministic finding is returned instead, clearly flagged. Reliable set as of this session: `nemotron-3-super-120b` (default), `deepseek-v4-flash`, `llama-3.3-nemotron-super-49b-v1.5`, `nemotron-3-ultra-550b` (flaky/capacity), `llama-3.3-70b-versatile` (Groq). **The NVIDIA `/v1/models` list includes models not provisioned per account** (e.g. `nemotron-ultra-253b` → 404, `deepseek-v4-pro` → timeout) — verify ids per account. Some models reject `response_format:json_object` (nemotron-3-ultra) so `_chat_json` retries without it.
 
 **Severity removed.** The "N× band" tile (`|adherence| ÷ band`) was meaningless to non-analysts and was dropped from the Forecast Summary. Magnitude is still conveyed by Forecast error + Adherence.
+
+## Session-6 merge (`shivam-updates` → main) — dashboard refinements
+Merged clean (merge commit `babf5a1`); both feature sets kept. Shivam's additions:
+- **"Plan Adherence" renamed to "Forecast Adherence"** and made **signed** (was `ABS(...)`). Sign shows direction: **− = actual above forecast (under-forecast), + = actual below forecast (over-forecast)**. Flag is now on the **absolute** value, `|Forecast Adherence| > band` — same threshold behaviour as before.
+- **Deviation colour-bands** on the dashboard (good/warn/serious/critical) + a **flagged-% KPI**.
+- **Right-side Insights drawer** — the scope-aware rule-based callouts moved into a slide-in panel.
+- **Agentic deep-dive / exploration-trace UI** — a step-by-step "how the agent would explore this miss" trace (presentation of reasoning; still rule-based, computes nothing new).
+- **Definitions & Formulas tab** updated to the signed formula + deviation-spread bands.
+> Note: a couple of legacy "Plan Adherence" strings remain in the UI (a notes-card line and a code comment) — cosmetic; the computed metric and its ⓘ modal are "Forecast Adherence".
+
+## Sessions 7–11 — dashboard filters, Fiscal-Week popup, run tooling, data scope
+- **Dashboard dropdown filters** (Region, Sub-Region, Country, Channel, Offering, Forecaster, Projection plan) drive the same scan engine, so the graphs recompute the affected/flagged queues for the selection.
+- **Fiscal Week — typeable (Excel-style)**: a datalist type-ahead over all weeks; accepts exact / partial (`2024`) / comma list / range (`202401-202410`).
+- **Affected-queues popup**: selecting a Fiscal Week (Enter / pick) opens a modal listing the **real flagged forecast names** for that week (name · week · signed adherence · band · direction), straight from `FLAGS` — no fabrication. An **ⓘ** button explains it.
+- **"Forecast names by adherence band" chart**: every name bucketed by its worst week's |Forecast Adherence| into ≤±5 / ±5–10 / ±10–15 / ±15–20 / ±20–25 / >±25 (companion to the all-weeks spread).
+- **Data-ingestion loading screen**: a 6-step overlay (read → parse → build → compute → flag → render) on both the file and SQL paths.
+- **Run tooling**: `run.ps1` / `run.sh` one-command setup+run; `AGENTS.md` + `CLAUDE.md` so any AI/human can install and run (SQL included).
+- **Data scope**: truncated to **FY2025–2027 (66,612 rows)**; the loader keeps it truncated on reload.
+
+## SQL table & data types (`Playground.dbo.Input_To_ML`)
+Loaded from the weekly Excel by `backend/upload_excel_to_sql.py`. **33 columns · 66,612 rows** (Fiscal_Week **202501–202752 = FY2025–2027**; 2022–2024 and 2028–2029 were truncated). The loader persists this cut via a Fiscal_Week range filter — config `min_fiscal_week`/`max_fiscal_week` (202500–202799) or `--min-week`/`--max-week`; remove them to load all years.
+- `Fiscal_Week` — **BIGINT** · `Week_Ending` — **DATE**
+- **Dimensions (NVARCHAR):** Region, SubRegion, Country, Forecast_name, Forecaster, Offering, Projection_plan_name, channel, business_org, Volume_Category
+- **Measures (FLOAT):** Actual_Offered, Actual_Handled, fcst_offered, fcst_handled, Planned_ASU, Actual_ASU, Final_Units, Final_Y5…Final_Y1, Final_upp_units, Holiday_Count, Monday…Sunday
+
+Blank cells load as **NULL**. The two metrics only need `Actual_Offered` and `fcst_offered`; the rest are dimensions/context for filtering and volumetrics. Column typing lives in `upload_excel_to_sql.py` (`NUMERIC` / `INT_COLS` / `DATE_COLS` sets); unknown columns default to `NVARCHAR(255)`.
 
 ## Timeline / Gantt
 The build Gantt lives both **in the app** (Timeline tab, scoped under `#tab-timeline`) and as a **standalone** `rca_timeline.html` (theme-aware light/dark). Keep the two in sync when phase status changes. Today marker and KPIs are currently hard-set to **22 Jul** — update them as the project moves.

@@ -457,6 +457,27 @@
     </div>
   </div>
 
+  <!-- ============ INGESTION LOADING SCREEN ============ -->
+  <div id="ingestOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(6,12,26,.72);align-items:center;justify-content:center;">
+    <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:22px 26px;width:min(460px,92vw);box-shadow:0 24px 70px -24px rgba(0,0,0,.65);">
+      <div style="font-size:15px;font-weight:800;">Ingesting demand data…</div>
+      <div id="ingSub" style="font-size:12px;color:var(--muted);margin:3px 0 13px;">Starting…</div>
+      <div style="height:10px;background:var(--panel-2);border:1px solid var(--border);border-radius:6px;overflow:hidden;"><i id="ingBar" style="display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-2,#12986f));transition:width .3s;"></i></div>
+      <div id="ingSteps" style="margin-top:15px;display:grid;gap:8px;"></div>
+    </div>
+  </div>
+
+  <!-- ============ AFFECTED-QUEUES POPUP (opens on Fiscal Week select) ============ -->
+  <div id="affPopup" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(6,12,26,.72);align-items:center;justify-content:center;" onclick="if(event.target===this)closeAffPopup()">
+    <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:18px 20px;width:min(780px,94vw);max-height:82vh;display:flex;flex-direction:column;box-shadow:0 24px 70px -24px rgba(0,0,0,.65);">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;">
+        <div id="affPopupHead" style="font-size:14.5px;font-weight:800;"></div>
+        <button class="filebtn ghost" onclick="closeAffPopup()">✕ Close</button>
+      </div>
+      <div id="affPopupBody" style="overflow:auto;"></div>
+    </div>
+  </div>
+
   <!-- ============ DASHBOARD ============ -->
   <div class="tab" id="tab-dashboard">
     <h1>Dashboard</h1>
@@ -465,41 +486,50 @@
       <div style="font-size:34px;margin-bottom:8px;">📊</div>
       <b>No data loaded.</b><br>Upload the weekly demand file in the <b>RCA Console</b> tab — this dashboard populates automatically and follows your filters.
     </div>
+    <div id="dashFilterWrap" style="display:none;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700;margin-bottom:9px;">Filter the dashboard — pick values and the graphs below show the affected (flagged) queues for that selection</div>
+      <div id="dashFilters" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;"></div>
+    </div>
     <div id="dashboardArea" style="display:none;"></div>
   </div>
 
   <!-- ============ TIMELINE (deadline Gantt) ============ -->
   <div class="tab" id="tab-timeline">
     <h1>Build Timeline — to 30 July</h1>
-    <div class="sub">Phase pipeline from Mon 20 Jul 2026 to the mockup deadline (Thu 30 Jul 2026). Scope = Phase 1: scheduled scan → page-per-queue RCA reports (no chat). <b>Today = Wed 22 Jul.</b></div>
+    <div class="sub">A simple week-by-week view of what we're building and when — goal: by <b>Thu 30 July 2026</b>, demo a tool that reads the weekly demand data, finds the off-forecast queues, and explains why. <b>Today is <span id="todayTxt">—</span>.</b></div>
 
     <div class="top">
-      <div class="kpi hot"><div class="v">8 days</div><div class="l">To 30 July deadline</div></div>
-      <div class="kpi"><div class="v">9</div><div class="l">Phases</div></div>
-      <div class="kpi"><div class="v">4 ✓</div><div class="l">Built &amp; verified</div></div>
-      <div class="kpi"><div class="v">Mockup</div><div class="l">30 Jul deliverable</div></div>
+      <div class="kpi"><div class="v">6 of 10</div><div class="l">Steps finished</div></div>
+      <div class="kpi"><div class="v">1</div><div class="l">In progress now</div></div>
+      <div class="kpi hot"><div class="v" id="kpiDays">—</div><div class="l" id="kpiDaysLbl">Until the demo</div></div>
+      <div class="kpi"><div class="v">30 Jul</div><div class="l">Demo day</div></div>
+    </div>
+    <div style="background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:13px 16px;margin:0 0 16px;">
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);flex-wrap:wrap;gap:6px;"><span><b style="color:var(--text)">Overall progress</b></span><span><b style="color:var(--text)">6 of 10</b> steps done · <b style="color:var(--text)">1</b> in progress · <b style="color:var(--text)">3</b> to go</span></div>
+      <div style="height:16px;background:var(--panel-2);border:1px solid var(--border);border-radius:9px;overflow:hidden;margin-top:9px;position:relative;"><i style="display:block;height:100%;width:60%;background:linear-gradient(90deg,var(--done,#12986f),var(--accent));"></i><b style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;color:var(--text);">≈ 60% complete</b></div>
     </div>
 
+    <div style="background:var(--panel-2);border:1px dashed var(--border);border-radius:10px;padding:10px 14px;font-size:12.5px;color:var(--muted);margin-bottom:12px;"><b style="color:var(--text)">How to read this:</b> each row is one build step; the coloured bar shows which days it runs (20–30 Jul across the top); the blue vertical line is <b>today</b>; grey columns are the weekend.</div>
     <div class="glegend">
-      <span><span class="gsw done"></span> Done (prototype ready)</span>
-      <span><span class="gsw prog"></span> In progress</span>
-      <span><span class="gsw todo"></span> To do</span>
-      <span><span class="gsw ms"></span> Milestone</span>
-      <span style="color:var(--accent);">▏ = today (22 Jul)</span>
+      <span><span class="gsw done"></span> Done</span>
+      <span><span class="gsw prog"></span> Working on it now</span>
+      <span><span class="gsw todo"></span> Not started yet</span>
+      <span><span class="gsw ms"></span> The demo (finish line)</span>
+      <span style="color:var(--accent);">▏ = today (Wed 22 Jul)</span>
     </div>
 
     <div class="gantt">
       <div class="grid-head">
-        <div class="lbl">Phase</div>
-        <div class="dh"><b>20</b>Mon</div><div class="dh"><b>21</b>Tue</div>
-        <div class="dh today"><b>22</b>Wed</div><div class="dh"><b>23</b>Thu</div><div class="dh"><b>24</b>Fri</div>
-        <div class="dh wknd"><b>25</b>Sat</div><div class="dh wknd"><b>26</b>Sun</div>
-        <div class="dh"><b>27</b>Mon</div><div class="dh"><b>28</b>Tue</div><div class="dh"><b>29</b>Wed</div>
-        <div class="dh deadline"><b>30</b>Thu</div>
+        <div class="lbl">Step</div>
+        <div class="dh" data-day="20"><b>20</b>Mon</div><div class="dh" data-day="21"><b>21</b>Tue</div>
+        <div class="dh" data-day="22"><b>22</b>Wed</div><div class="dh" data-day="23"><b>23</b>Thu</div><div class="dh" data-day="24"><b>24</b>Fri</div>
+        <div class="dh wknd" data-day="25"><b>25</b>Sat</div><div class="dh wknd" data-day="26"><b>26</b>Sun</div>
+        <div class="dh" data-day="27"><b>27</b>Mon</div><div class="dh" data-day="28"><b>28</b>Tue</div><div class="dh" data-day="29"><b>29</b>Wed</div>
+        <div class="dh deadline" data-day="30"><b>30</b>Thu</div>
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">1 · Data foundation &amp; schema lock<span class="gchip done">Done</span></span><div class="d">33-col schema, 10 filter dims, adherence rule (±10%), CQN key confirmed</div></div>
+        <div class="gname"><span class="t">1 · Set up the data foundation<span class="gchip done">Done</span></span><div class="d">Agreed what the data looks like (33 columns) and the rule for a "missed" week (more than ±10% off).</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="todayline" style="grid-column:3;"></div>
@@ -508,7 +538,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">2 · Accuracy &amp; Error Computation (100-MAPE)<span class="gchip done">Done</span></span><div class="d">Two-metric engine fixed — accuracy now 100−MAPE (bidirectional), formulas verified</div></div>
+        <div class="gname"><span class="t">2 · Make the accuracy number honest<span class="gchip done">Done</span></span><div class="d">A poor forecast now shows a low score. (Before, over/under misses cancelled out and it wrongly read ~99%.)</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar done" style="grid-column:1 / 4;">✓ calc fixed</div>
@@ -516,7 +546,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">3 · File ingestion + big-file handling<span class="gchip done">Done</span></span><div class="d">CSV / Excel upload, in-browser parse, 100k+ rows</div></div>
+        <div class="gname"><span class="t">3 · Open the weekly file in the browser<span class="gchip done">Done</span></span><div class="d">Load a CSV/Excel with 100,000+ rows right in the browser — nothing to install.</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar done" style="grid-column:1 / 4;">✓ built</div>
@@ -524,15 +554,23 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">4 · Multi-queue scan + Phase-1 digest<span class="gchip prog">In prog</span></span><div class="d">~100 queues → top-N flagged → page-per-queue report</div></div>
+        <div class="gname"><span class="t">4 · Scan every queue &amp; flag the misses<span class="gchip done">Done</span></span><div class="d">Go through all ~100 queues and mark the weeks where the forecast was off beyond the ±band.</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
-          <div class="bar prog" style="grid-column:4 / 8;">Jul 23–26</div>
+          <div class="bar done" style="grid-column:1 / 5;">✓ done</div>
         </div>
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">5 · Data Volumetrics<span class="gchip done">Done</span></span><div class="d">EPIC volumetrics + Dashboard graphs + ⓘ formula math</div></div>
+        <div class="gname"><span class="t">5 · RCA output — report per queue<span class="gchip prog">Working on it now</span></span><div class="d">The core deliverable: for each flagged queue, a clear report of <b>why</b> the forecast missed, plus a one-click summary of all flagged queues.</div></div>
+        <div class="track">
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          <div class="bar prog" style="grid-column:4 / 8;">now → 26 Jul</div>
+        </div>
+      </div>
+
+      <div class="grow">
+        <div class="gname"><span class="t">6 · Charts &amp; volume views<span class="gchip done">Done</span></span><div class="d">A dashboard of graphs showing volumes and accuracy, sliceable by region, channel, country, etc.</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar done" style="grid-column:3 / 6;">✓ dashboard</div>
@@ -540,15 +578,15 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">6 · Connect to SQL Server (AA)<span class="gchip done">Done</span></span><div class="d">Live ingestion from SQL Server → server-side compute of the two metrics (replaces manual upload)</div></div>
+        <div class="gname"><span class="t">7 · Connect to the live database<span class="gchip done">Done</span></span><div class="d">Pull the data straight from the company SQL Server database — no more uploading a file by hand.</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
-          <div class="bar todo" style="grid-column:3 / 6;">Jul 22–24</div>
+          <div class="bar done" style="grid-column:3 / 6;">✓ live</div>
         </div>
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">7 · Validation + threshold tuning<span class="gchip todo">To do</span></span><div class="d">Run on full real dataset with Prashant / SME; tune band</div></div>
+        <div class="gname"><span class="t">8 · Check with the expert &amp; set the tolerance<span class="gchip todo">Not started</span></span><div class="d">Run it on the full real data with the business expert (Prashant) and confirm the right ±% cut-off.</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar todo" style="grid-column:7 / 10;">Jul 26–28</div>
@@ -556,7 +594,7 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">8 · Demo packaging + dry run<span class="gchip todo">To do</span></span><div class="d">Digest export, walkthrough script, rehearsal</div></div>
+        <div class="gname"><span class="t">9 · Get the demo ready<span class="gchip todo">Not started</span></span><div class="d">Prepare the walkthrough, the summary export, and rehearse it once.</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="bar todo" style="grid-column:9 / 11;">Jul 28–29</div>
@@ -564,13 +602,39 @@
       </div>
 
       <div class="grow">
-        <div class="gname"><span class="t">9 · Mockup presentation<span class="gchip todo">Milestone</span></span><div class="d">Present working single-agent RCA on real data</div></div>
+        <div class="gname"><span class="t">10 · Show the working tool 🎯<span class="gchip todo">Demo day</span></span><div class="d">Present the finished tool running on real data — the 30 July deliverable.</div></div>
         <div class="track">
           <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell wknd"></div><div class="cell wknd"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
           <div class="msq" style="grid-column:11;" title="30 July — Demo"></div>
         </div>
       </div>
     </div>
+
+    <script>
+    (function(){
+      try{
+        var now=new Date(), deadline=new Date(2026,6,30);
+        var t0=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+        var days=Math.round((deadline-t0)/86400000);
+        var DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        var tt=document.getElementById('todayTxt'); if(tt) tt.textContent=DN[now.getDay()]+' '+now.getDate()+' '+MN[now.getMonth()]+' '+now.getFullYear();
+        var dk=document.getElementById('kpiDays'), dl=document.getElementById('kpiDaysLbl');
+        if(dk){ if(days>0){ dk.textContent=days; if(dl) dl.textContent=(days===1?'day until the demo':'days until the demo'); }
+                else if(days===0){ dk.textContent='Today'; if(dl) dl.textContent='is demo day'; }
+                else { dk.textContent=Math.abs(days); if(dl) dl.textContent='days since the demo'; } }
+        var inJul=(now.getFullYear()===2026 && now.getMonth()===6);
+        var col=inJul?(now.getDate()<20?1:(now.getDate()>30?11:now.getDate()-19)):(t0<deadline?1:11);
+        document.querySelectorAll('#tab-timeline .dh[data-day]').forEach(function(h){
+          h.classList.toggle('today', inJul && parseInt(h.getAttribute('data-day'),10)===now.getDate());
+        });
+        document.querySelectorAll('#tab-timeline .todayline').forEach(function(e){e.remove();});
+        document.querySelectorAll('#tab-timeline .track').forEach(function(tr){
+          var line=document.createElement('div'); line.className='todayline'; line.style.gridColumn=String(col);
+          tr.insertBefore(line, tr.firstChild);
+        });
+      }catch(e){}
+    })();
+    </script>
 
     <div class="gnotes">
       <div class="card">
@@ -853,19 +917,28 @@ async function sqlFetch(){
   window.SRC='sql';
   const fs=document.getElementById('fileStatus');
   if(fs) fs.textContent='Querying SQL Server (AA) …';
+  showIngest('Querying SQL Server (AA)…'); ingStep(0,10);
   renderPipe({source:'sql'});
   try{
+    ingStep(1,35,'Running query & downloading rows…'); await _tick();
     const r=await fetch(API_BASE+'/api/data');
     if(!r.ok){ let d; try{ d=(await r.json()).detail; }catch(_){ d=r.statusText; } throw new Error(d||('HTTP '+r.status)); }
     const j=await r.json(); const rows=j.rows||[];
     if(!rows.length) throw new Error('query returned 0 rows');
+    ingStep(2,58,'Building records…'); await _tick();
     ROWS=rows;
     if(fs) fs.innerHTML='🗄 <b>SQL Server (AA)</b> · '+((j.table)||'dbo.Input_To_ML')+' — '+rows.length.toLocaleString()+' rows';
     document.getElementById('emptyState').style.display='none';
     document.getElementById('consoleArea').style.display='block';
     renderPipe({source:'sql', rows:rows.length});
-    buildFilters(); applyAndScan();
+    ingStep(3,74,'Computing the two metrics…'); await _tick();
+    buildFilters(); buildDashFilters();
+    ingStep(4,90,'Flagging misses…'); await _tick();
+    applyAndScan();
+    ingStep(6,100,'Done'); await _tick();
+    hideIngest();
   }catch(e){
+    hideIngest();
     if(fs) fs.textContent='SQL error: '+e.message; renderPipe({source:'sql'});
     alert('Connect to SQL Server failed: '+e.message+'\n\nStart the local backend first:\n  cd backend\n  uvicorn sql_backend:app --port 8000\n\n(connection is configured in backend/config.json)');
   }
@@ -882,6 +955,99 @@ function renderPipe(st){
     pstage(rows?'done':'pending', '🚩', 'Flag · ±band', flg!=null?flg.toLocaleString()+' flagged':'—')+
     pstage(ready?'done':(rows?'active':'pending'), '🔍', 'RCA', ready?'ready':(rows?'scanning…':'—'));
 }
+
+/* ---------------- Ingestion loading screen ---------------- */
+const INGEST_STEPS=['Read source (file / SQL Server)','Parse rows','Build records','Compute the two metrics','Flag misses (±band)','Render dashboard & report'];
+const _tick=()=>new Promise(r=>setTimeout(r,45));
+function showIngest(sub){
+  const host=document.getElementById('ingSteps'); if(!host) return;
+  host.innerHTML=INGEST_STEPS.map((s,i)=>`<div id="ings-${i}" style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted);"><span class="ingdot" style="width:17px;height:17px;border-radius:50%;border:2px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:9px;flex:0 0 auto;">${i+1}</span><span>${s}</span></div>`).join('');
+  const sb=document.getElementById('ingSub'); if(sb) sb.textContent=sub||'Starting…';
+  const bar=document.getElementById('ingBar'); if(bar) bar.style.width='0';
+  const ov=document.getElementById('ingestOverlay'); if(ov) ov.style.display='flex';
+}
+function ingStep(active,pct,note){
+  for(let k=0;k<INGEST_STEPS.length;k++){
+    const row=document.getElementById('ings-'+k); if(!row) continue;
+    const dot=row.querySelector('.ingdot');
+    if(k<active){ dot.style.background='var(--accent-2,#12986f)'; dot.style.borderColor='var(--accent-2,#12986f)'; dot.style.color='#fff'; dot.textContent='✓'; row.style.color='var(--text)'; row.style.fontWeight='400'; }
+    else if(k===active){ dot.style.borderColor='var(--accent)'; dot.style.color='var(--accent)'; dot.textContent=String(k+1); row.style.color='var(--text)'; row.style.fontWeight='700'; }
+    else { dot.style.background='transparent'; dot.style.borderColor='var(--border)'; dot.style.color='var(--muted)'; dot.textContent=String(k+1); row.style.color='var(--muted)'; row.style.fontWeight='400'; }
+  }
+  if(pct!=null){ const bar=document.getElementById('ingBar'); if(bar) bar.style.width=pct+'%'; }
+  if(note){ const sb=document.getElementById('ingSub'); if(sb) sb.textContent=note; }
+}
+function hideIngest(){ const ov=document.getElementById('ingestOverlay'); if(ov) ov.style.display='none'; }
+
+/* ---------------- Dashboard dropdown filters (drive the same scan engine) ---------------- */
+const DASH_FILTER_FIELDS=[['Region','Region'],['SubRegion','Sub-Region'],['Country','Country'],['channel','Channel'],['Offering','Offering'],['Forecaster','Forecaster'],['Projection_plan_name','Projection plan']];
+function buildDashFilters(){
+  const host=document.getElementById('dashFilters'); if(!host) return;
+  const fws=distinctValues('Fiscal_Week');
+  // Fiscal Week — typeable (Excel-style): type a week, a partial (2024 → all FY24 weeks), a comma list, or a range 202401-202410.
+  const fwHtml=`<label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted);"><span style="display:inline-flex;align-items:center;gap:5px;">Fiscal Week <span onclick="fwInfo()" title="Type or pick a Fiscal Week and press Enter — a popup lists the affected (flagged) queues for that week: names, adherence %, band and direction." style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;border:1px solid var(--muted);color:var(--muted);font-size:10px;font-weight:800;flex:0 0 auto;">i</span></span> <span style="opacity:.65">type / range e.g. 202401-202410 · Enter → affected queues</span>
+      <input list="dashFwList" id="dashFwInput" placeholder="All weeks — type to filter" onchange="dashFwApply(this)" onkeydown="if(event.key==='Enter'){dashFwApply(this);}" style="min-width:230px;background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:6px 8px;font-size:12px;">
+      <datalist id="dashFwList">${fws.map(w=>`<option value="${w}"></option>`).join('')}</datalist></label>`;
+  const sels=DASH_FILTER_FIELDS.map(([f,l])=>{
+    const vals=distinctValues(f);
+    return `<label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted);">${l}
+      <select data-f="${f}" onchange="dashFilterChange(this)" style="min-width:132px;background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:6px 8px;font-size:12px;">
+        <option value="">(All)</option>${vals.map(v=>`<option value="${String(v).replace(/"/g,'&quot;')}">${v}</option>`).join('')}
+      </select></label>`;
+  }).join('');
+  host.innerHTML=fwHtml+sels+`<button class="filebtn ghost" style="align-self:flex-end;" onclick="dashFiltersReset()">↻ Reset</button>`;
+  const wrap=document.getElementById('dashFilterWrap'); if(wrap) wrap.style.display='block';
+}
+function dashFilterChange(sel){
+  const f=sel.getAttribute('data-f'), v=sel.value;
+  FILTERS[f]= v ? new Set([v]) : null;
+  applyAndScan();               // recomputes flagged/affected queues within the new scope, re-renders the dashboard graphs
+}
+function dashFwApply(inp){
+  const raw=(inp.value||'').trim();
+  if(!raw){ FILTERS['Fiscal_Week']=null; applyAndScan(); return; }
+  const all=distinctValues('Fiscal_Week'); const sel=new Set();
+  raw.split(',').map(s=>s.trim()).filter(Boolean).forEach(tok=>{
+    const rng=tok.match(/^(\d+)\s*[-–]\s*(\d+)$/);           // range: 202401-202410 (fixed-width YYYYWW → lexicographic = numeric)
+    if(rng){ const lo=rng[1], hi=rng[2]; all.forEach(w=>{ if(w>=lo && w<=hi) sel.add(w); }); }
+    else { all.forEach(w=>{ if(w===tok || w.indexOf(tok)>=0) sel.add(w); }); }   // exact or partial (type-ahead)
+  });
+  FILTERS['Fiscal_Week']=sel;   // matched weeks; if nothing matched the set is empty → no rows (Excel behaviour)
+  applyAndScan();
+  openAffPopup();               // show the affected queues (real names) for the selected week(s)
+}
+function dashFiltersReset(){
+  DASH_FILTER_FIELDS.forEach(([f])=>{ FILTERS[f]=null; });
+  FILTERS['Fiscal_Week']=null;
+  document.querySelectorAll('#dashFilters select').forEach(s=>s.value='');
+  const fwi=document.getElementById('dashFwInput'); if(fwi) fwi.value='';
+  applyAndScan();
+}
+/* Affected-queues popup — lists the real flagged forecast names for the current scope.
+   Every value comes straight from the computed rows (FLAGS); nothing is inferred or invented. */
+function bandLabel(v){ const d=Math.abs(v); if(d<=5)return'±5%'; if(d<=10)return'±5–10%'; if(d<=15)return'±10–15%'; if(d<=20)return'±15–20%'; if(d<=25)return'±20–25%'; return'>±25%'; }
+function escHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function openAffPopup(){
+  const band=num(document.getElementById('band').value)||10;
+  const list=(FLAGS||[]).filter(r=>r&&r._padh!=null&&Math.abs(+r._padh.toFixed(1))>band).slice().sort((a,b)=>Math.abs(b._padh)-Math.abs(a._padh));
+  const fwi=document.getElementById('dashFwInput'); const fwTxt=(fwi&&fwi.value)?fwi.value:'(current filter)';
+  const head=document.getElementById('affPopupHead'), body=document.getElementById('affPopupBody'); if(!head||!body) return;
+  head.innerHTML=`Affected queues — Fiscal Week <b>${escHtml(fwTxt)}</b> <span style="color:var(--muted);font-weight:600;font-size:12px;">· ${list.length} beyond ±${band}%</span>`;
+  if(!list.length){ body.innerHTML=`<div class="empty" style="border:none;">No affected queues — every forecast name is within ±${band}% for this selection.</div>`; }
+  else {
+    body.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12.5px;"><thead><tr style="text-align:left;color:var(--muted);"><th style="padding:6px 8px;">#</th><th style="padding:6px 8px;">Forecast name (queue)</th><th style="padding:6px 8px;">Fiscal Week</th><th style="padding:6px 8px;text-align:right;">Forecast Adherence</th><th style="padding:6px 8px;">Band</th><th style="padding:6px 8px;">Direction</th></tr></thead><tbody>`+
+      list.map((r,i)=>{ const p=r._padh; const dir=p<0?'under-forecast (actual ran above)':(p>0?'over-forecast (actual ran below)':'on plan'); const col=Math.abs(p)>25?'var(--danger)':'#c96a10'; return `<tr style="border-top:1px solid var(--border);"><td style="padding:6px 8px;color:var(--muted);">${i+1}</td><td style="padding:6px 8px;font-weight:600;">${escHtml(r.Forecast_name||'(blank)')}</td><td style="padding:6px 8px;">${escHtml(r._wk)}</td><td style="padding:6px 8px;text-align:right;font-variant-numeric:tabular-nums;color:${col};">${p>0?'+':''}${p.toFixed(1)}%</td><td style="padding:6px 8px;">${bandLabel(p)}</td><td style="padding:6px 8px;color:var(--muted);">${dir}</td></tr>`; }).join('')+
+      `</tbody></table>`;
+  }
+  const pop=document.getElementById('affPopup'); if(pop) pop.style.display='flex';
+}
+function closeAffPopup(){ const p=document.getElementById('affPopup'); if(p) p.style.display='none'; }
+function fwInfo(){
+  const fwi=document.getElementById('dashFwInput');
+  if(fwi && fwi.value.trim()){ openAffPopup(); return; }   // a week is picked → just show the affected queues
+  alert('Fiscal Week → Affected queues\n\nType or pick a Fiscal Week and press Enter. A popup then lists the affected (flagged) queues for that week — their names, Forecast Adherence %, severity band and direction (over/under-forecast). All names come straight from the data.');
+}
+if(typeof document!=='undefined' && !window.__affEsc){ window.__affEsc=true; document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeAffPopup(); }); }
 
 /* ---------------- Parsing (CSV / TSV / XLSX) ---------------- */
 function detectDelim(t){const fl=(t.split(/\r?\n/)[0]||'');const a=(fl.match(/\t/g)||[]).length,c=(fl.match(/,/g)||[]).length,s=(fl.match(/;/g)||[]).length;if(a>=c&&a>=s&&a>0)return '\t';if(s>c)return ';';return ',';}
@@ -918,19 +1084,27 @@ async function fileToArrays(file){const nm=(file.name||'').toLowerCase();if(nm.e
 async function onWeekly(file){
   if(!file)return;
   const src=window._pendingSrc||'file'; window.SRC=src; window._pendingSrc=null;
+  showIngest(src==='sql'?'Querying SQL Server (AA)…':'Reading '+file.name+'…'); ingStep(0,8);
   document.getElementById('fileStatus').textContent=(src==='sql'?'Querying SQL Server (AA) → ':'Reading ')+file.name+' …';
   renderPipe({source:src});
   try{
-    const rows=buildRows(await fileToArrays(file));
+    ingStep(1,28,'Parsing rows…'); await _tick();
+    const arrays=await fileToArrays(file);
+    ingStep(2,52,'Building records…'); await _tick();
+    const rows=buildRows(arrays);
     if(!rows.length)throw new Error('no rows');
     ROWS=rows;
     document.getElementById('fileStatus').innerHTML=(src==='sql'?'🗄 <b>SQL Server (AA)</b> · dbo.demand_facts — ':'<b>'+file.name+'</b> — ')+rows.length.toLocaleString()+' rows';
     document.getElementById('emptyState').style.display='none';
     document.getElementById('consoleArea').style.display='block';
     renderPipe({source:src, rows:rows.length});
-    buildFilters();
+    ingStep(3,72,'Computing the two metrics…'); await _tick();
+    buildFilters(); buildDashFilters();
+    ingStep(4,88,'Flagging misses…'); await _tick();
     applyAndScan();
-  }catch(e){ document.getElementById('fileStatus').textContent='Error: '+e.message; renderPipe({source:src}); alert('Could not read weekly file: '+e.message); }
+    ingStep(6,100,'Done'); await _tick();
+    hideIngest();
+  }catch(e){ hideIngest(); document.getElementById('fileStatus').textContent='Error: '+e.message; renderPipe({source:src}); alert('Could not read weekly file: '+e.message); }
 }
 async function onMapping(file){
   if(!file)return;
@@ -1288,6 +1462,20 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
     {label:'>±25% · critical',value:dev[4],color:'var(--danger)'},  // red
   ].map(d=>({...d,note:(d.value/devTot*100).toFixed(0)+'%'}));
 
+  // ---- Forecast names by Forecast-Adherence band (ALL names in scope; each bucketed by its WORST week) ----
+  // Fine bands starting at ±5. Pick a Fiscal Week → each name has one value that week, so this shows
+  // exactly which names sat at ±5%, ±10%, ±15–20%, … that week.
+  const worstByQueue=new Map();
+  rows.forEach(r=>{ if(r._padh!=null){ const nm=(r.Forecast_name==null||r.Forecast_name==='')?'(blank)':String(r.Forecast_name); worstByQueue.set(nm,Math.max(worstByQueue.get(nm)||0,Math.abs(r._padh))); } });
+  const adhDefs=[[0,5,'≤ ±5%'],[5,10,'±5–10%'],[10,15,'±10–15%'],[15,20,'±15–20%'],[20,25,'±20–25%'],[25,Infinity,'> ±25%']];
+  const adhBucket=d=>{ for(let i=0;i<adhDefs.length;i++){ if(d>adhDefs[i][0] && d<=adhDefs[i][1]) return i; } return adhDefs.length-1; };
+  const adhCnt=adhDefs.map(()=>0), adhWk=adhDefs.map(()=>0);
+  worstByQueue.forEach(d=>{ adhCnt[adhBucket(d)]++; });
+  rows.forEach(r=>{ if(r._padh!=null) adhWk[adhBucket(Math.abs(r._padh))]++; });
+  const affTot=adhCnt.reduce((a,b)=>a+b,0)||1;
+  const affColors=['var(--accent-2)','var(--accent)','#f2b01e','#e8770f','#d1451f','var(--danger)'];
+  const affBars=adhDefs.map((d,i)=>({label:d[2],value:adhCnt[i],color:affColors[i],note:(adhCnt[i]/affTot*100).toFixed(0)+'% · '+adhWk[i].toLocaleString()+' wks'}));
+
   // ---- Actual vs Forecast overlay (same unit → one y-scale) ----
   const sActual={name:'Actual offered',color:'var(--accent-2)',vals:fw.map(w=>weekOff.get(w)||0)};
   const sFcst  ={name:'Forecast offered',color:'var(--accent)', vals:fw.map(w=>Math.round(weekFcst.get(w)||0))};
@@ -1337,9 +1525,10 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
       <div class="chart"><h4>Most over/under-forecast queues</h4><div class="cs">Largest signed bias among material queues (≥0.3% of forecast volume). The RCA shortlist.</div>${divergingBars(movers)}</div>
     </div>
     <div class="dgrid">
-      <div class="chart"><h4>Forecast-accuracy deviation spread</h4><div class="cs">Computable weeks bucketed by |1 − Actual÷Fcst|. Bands carry a status label, not colour alone.</div>${htmlBars(devBars,{fmt:v=>v.toLocaleString()+' wks'})}</div>
+      <div class="chart"><h4>Forecast Adherence spread — all weeks</h4><div class="cs">Every computable week bucketed by |Forecast Adherence| (= |1 − Actual÷Fcst|). Full distribution incl. on-plan; bands carry a status label, not colour alone.</div>${htmlBars(devBars,{fmt:v=>v.toLocaleString()+' wks'})}</div>
       <div class="chart"><h4 style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">Top flagged forecast names <span style="font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap;">${flagTot.toLocaleString()} wks flagged</span></h4><div class="cs">Forecast names with the most weeks outside the ±${band}% band. % = share of all flagged weeks.</div>${htmlBars(topFlag,{fmt:v=>v.toLocaleString()+' wks'})}</div>
     </div>
+    <div class="chart"><h4>Forecast names by adherence band</h4><div class="cs">Every forecast name in scope, bucketed by its <b>worst</b> week's |Forecast Adherence| into ±5 / ±10 / ±15–20 / ±20–25 / &gt;±25. <b>Pick a Fiscal Week above</b> to see which names sat in each band that week. Value = distinct forecast names; note = share · weeks in band.</div>${htmlBars(affBars,{fmt:v=>v.toLocaleString()+' names'})}</div>
     <div class="dgrid">
       <div class="chart"><h4>Actual offered by Region</h4><div class="cs">Σ Actual_Offered per region.</div>${htmlBars(regBars,{fmt:compactN})}</div>
       <div class="chart"><h4>Actual offered by Channel</h4><div class="cs">Σ Actual_Offered per channel.</div>${htmlBars(chBars,{fmt:compactN})}</div>

@@ -3,11 +3,11 @@
 Deploy **30 Jul 2026** · last dev day **29 Jul**. Ordered by priority.
 
 ## P0 — critical path to the mockup
-- [ ] **P6 · Connect to SQL Server (AA)** — live data ingestion + server-side compute of the two metrics; the bridge from the file-upload mockup to production. (Now a phase on the Timeline, Jul 24–29.)
+- [x] **P6 · Connect to SQL Server (AA)** — **DONE.** Live ingestion via FastAPI + pyODBC backend (`GET /api/data`); 138,775 rows loaded into `Playground.dbo.Input_To_ML`; console button wired; hosting packaged (Docker/Windows-service/systemd). See `IMP_DOCS/installation-and-connection.md`.
 - [ ] **P4 · Phase-1 digest** — one-click export of *all* flagged queues (multi-queue scan → top-N → printable/report page). Main remaining build.
-- [ ] **P6 · Validation with Prashant / SME** on the full real dataset — must land by **28 Jul** to keep a buffer day.
-- [ ] **Confirm the adherence band** — ±10% vs ±15%, and whether it tiers by `Volume_Category`. Blocks P6 tuning.
-- [ ] **P7 · Demo packaging + dry run** (28–29 Jul) — walkthrough script, rehearsal, digest export sanity check.
+- [ ] **P7 · Validation with Prashant / SME** on the full real dataset — must land by **28 Jul** to keep a buffer day.
+- [ ] **Confirm the adherence band** — ±10% vs ±15%, and whether it tiers by `Volume_Category`. Blocks tuning.
+- [ ] **P8 · Demo packaging + dry run** (28–29 Jul) — walkthrough script, rehearsal, digest export sanity check.
 
 ## P1 — correctness / data questions to close (probing layer)
 - [ ] Source of truth for adherence — **Offered vs Handled**?
@@ -72,6 +72,30 @@ Deploy **30 Jul 2026** · last dev day **29 Jul**. Ordered by priority.
   - Replaced a hardcoded, unconfirmed "25% = critical" severity cutoff with a pure ratio of the two already-confirmed numbers (`|deviation| ÷ band`, e.g. `2.2× band`) — no new invented threshold.
   - Fixed the engine badge to fail closed toward "uncertain" (requires explicit `engine==='llm'`) rather than failing open toward "real AI" on any non-`'placeholder'` value.
   - Documented (not code-changed, to avoid inventing a new rule): peer-matching ties to the client-CONFIRMED CQN key (not invented, but a fixed column-name assumption worth flagging for reuse); recommendations guardrail belongs in the model's system prompt, not a hardcoded keyword filter; "pattern deviations" is intentionally left for the LLM to derive from `is_outlier`/`trend_slope`/`changed` rather than a hand-picked score.
+
+## Done ✓ (2026-07-24, sessions 7–11 — dashboard filters, popup, run tooling, data scope)
+- [x] Dashboard **dropdown filters** (Region…Projection plan) driving the scan engine → affected/flagged queues per selection
+- [x] **Fiscal Week — typeable (Excel-style)** (exact / partial / comma / range) with datalist type-ahead
+- [x] **Affected-queues popup** on Fiscal Week select — real flagged names (name·week·signed adherence·band·direction), no fabrication; **ⓘ** hint button
+- [x] **"Forecast names by adherence band"** chart (≤±5 / ±5–10 / ±10–15 / ±15–20 / ±20–25 / >±25); renamed the all-weeks spread
+- [x] **Data-ingestion loading screen** (6-step overlay, file + SQL paths)
+- [x] **run.ps1 / run.sh** one-command runner; **AGENTS.md / CLAUDE.md** AI runbook
+- [x] **Truncated data to FY2025–2027** (138,775 → 66,612 rows) + loader Fiscal_Week filter so reloads stay truncated
+
+## Done ✓ (2026-07-24, session 6 — merge Shivam's dashboard + timeline polish)
+- [x] Merged `origin/shivam-updates` into main (clean, merge `babf5a1`) — both feature sets intact; his branch left untouched (0 ahead of main)
+- [x] **"Plan Adherence" → "Forecast Adherence"**, now **signed** (− = actual above forecast, + = below); flag on **|Forecast Adherence| > band**
+- [x] Dashboard: deviation colour-bands, flagged-% KPI, right-side **Insights drawer**, signed adherence, **agentic deep-dive / exploration-trace** UI (Shivam)
+- [x] Timeline: added **"RCA output — report per queue"** (now 10 steps); **auto-date from the PC clock**; plain-English step names; light-only
+- [ ] Cosmetic: clean up the last 2 legacy "Plan Adherence" strings in the UI (notes card + code comment)
+
+## Done ✓ (2026-07-23, session 5 — SQL Server (AA) live)
+- [x] FastAPI + pyODBC backend (`backend/sql_backend.py`): `/api/health`, `/api/data` (`SELECT * FROM <table>`), also serves the UI
+- [x] Excel→SQL loader (`upload_excel_to_sql.py`, `--dry-run` / `--schema-only`) — loaded **138,775 rows** into `Playground.dbo.Input_To_ML`
+- [x] Console "Connect to SQL Server (AA)" wired to `/api/data` (was a file-picker mock); modal shows real server/db/table
+- [x] Deployment package: `Dockerfile` (bundles msodbcsql18) + `docker-compose.yml` + env-var secrets + `DEPLOY.md`
+- [x] Timeline renames: P2 → "Accuracy & Error Computation (100-MAPE)", P5 → "Data Volumetrics"; P6 marked Done
+- [x] `IMP_DOCS/installation-and-connection.md` added
 
 ## Done ✓ (2026-07-22, session 4 — RCA analytics bundle)
 - [x] Actual-vs-Forecast weekly overlay (two-series, one y-scale)
