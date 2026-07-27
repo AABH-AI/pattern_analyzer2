@@ -126,3 +126,14 @@ Requested → delivered:
 4. **Distinct report sections** — Key Findings (objective observations) ≠ Root Cause (the why) ≠ Reasoning (the story, bulleted); Rejected Hypotheses in plain "checked & ruled out" language; confidence bar coloured by level; `_fill_gaps()` guarantees no blank card even on a sparse model reply.
 5. **Definitions tab** made business-accurate — Fiscal_Week calendar (Sat start / Fri last working day / FY from 1st week of Feb), Region AMER/LATAM, Offering tiers, channels, **ASU as its own field**, `Final_Units` Y1–Y5 overlap note, Monday–Sunday = holiday; removed the `formula` field and all "ML/Manual" labelling; **Severity tile removed**.
 Verification: `node --check` (frontend) + `py_compile`/AST (backend); live end-to-end against real SQL queues across models (per-queue differentiation, model comparison, honest fallback all confirmed); deterministic gap-fill unit-checked offline.
+
+---
+
+## Session 14 — 2026-07-27 · Glossary to the model + data-backed proof + report readability
+Requested → delivered:
+1. **Field glossary fed to the LLM** — `FIELD_DEFINITIONS` (mirrored from the Definitions tab; kept in sync) injected as `field_glossary` (present fields only) into the model context, plus a prompt line telling it to interpret fields via the glossary (ASU = units under warranty; `Final_Y1..Y5` nested) and never repeat a definition as a finding. Live: the model now expands and reasons about ASU correctly.
+2. **Definitions tab** — `Actual_Offered`/`Actual_Handled`/`fcst_offered`/`fcst_handled` set to plain "…volume" definitions; `ASU`/`Planned_ASU`/`Actual_ASU` to Active-Serviceable-Units wording (per the client's reference).
+3. **Data-backed proof, z-scores internal-only** — the reasoning stays plain English but is now backed by the **actual values from the data**. `derive_features()` adds real "usual" levels + a `proof` list (forecast, actual, ASU, installed base, holidays — this-week vs usual); a new **"Proof — values from the data"** panel renders them; `supporting_evidence.value` must be a real number (prompt-enforced), never a z-score/deviation. z-scores still reach the model as reasoning input, just never shown. Live-verified: evidence cites real numbers, zero jargon leaked.
+4. **Readability** — evidence chips switched to dark-blue text (`#123a7a`, bolder, stronger border) — the light-blue text was hard to read.
+5. **Process** — user asked that **IMP_DOCS be updated after every approved change**; `design-choice.md` ("RCA engine v2" section) and this trail brought current, and the standing instruction recorded.
+Verification: `node --check` (frontend) + AST (backend); offline check that proof/evidence carry real values; live Groq call confirmed real-number evidence + ASU expansion + no z-score/deviation leakage.

@@ -90,6 +90,12 @@ On the real data (Playground.dbo.Input_To_ML, 66,612 rows) the engine returned t
 
 **Severity removed.** The "N× band" tile (`|adherence| ÷ band`) was meaningless to non-analysts and was dropped from the Forecast Summary. Magnitude is still conveyed by Forecast error + Adherence.
 
+**Plain business language + distinct sections.** All human-facing text (Key Findings, Root Cause, Reasoning, Rejected Hypotheses, Recommendations, Missing Info) is written for a business lead — no `z-score`/`stdev`/`outlier`/`trend slope` jargon in the shown text (the prompt translates them). The three sections are deliberately different: **Key Findings** = objective observations, **Root Cause** = the single most-likely *why*, **Reasoning Narrative** = the story (rendered as bullets). Confidence bar is coloured by level (green/amber/red). `_fill_gaps()` populates any section a sparse model reply leaves empty from the derived features, so no card is ever blank.
+
+**Field glossary fed to the model.** `FIELD_DEFINITIONS` (mirrored from the Definitions & Formulas tab — keep the two in sync) is injected as `field_glossary` (only the fields present) into the context the LLM sees, so it interprets fields correctly (e.g. ASU = units under warranty; `Final_Y1..Y5` are nested/overlapping) instead of guessing from column names.
+
+**Data-backed proof, z-scores kept internal.** Business leads distrusted plain sentences with no numbers *and* raw z-scores. Resolution: every finding is backed by the **actual values from the data file** — `derive_features()` builds a `proof` list (forecast, actual, ASU, installed base, holidays — this-week vs usual real averages) rendered as a **"Proof — values from the data"** panel; `supporting_evidence.value` must be a real number (prompt-enforced), never a z-score/deviation. The z-scores still reach the model as *reasoning input*, they are just never shown. Evidence chips use dark-blue text for readability.
+
 ## Session-6 merge (`shivam-updates` → main) — dashboard refinements
 Merged clean (merge commit `babf5a1`); both feature sets kept. Shivam's additions:
 - **"Plan Adherence" renamed to "Forecast Adherence"** and made **signed** (was `ABS(...)`). Sign shows direction: **− = actual above forecast (under-forecast), + = actual below forecast (over-forecast)**. Flag is now on the **absolute** value, `|Forecast Adherence| > band` — same threshold behaviour as before.
