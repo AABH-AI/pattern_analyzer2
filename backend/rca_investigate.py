@@ -223,6 +223,74 @@ Hard rules:
 }
 """
 
+# ---------------------------------------------------------------------------
+# TWO-CALL SPLIT (call2 branch): Call 1 gathers OBSERVATIONS only (no cause);
+# Call 2 gets Call 1's findings + the real derived features and synthesises the
+# ROOT CAUSE only. This forces the cause to be an independent synthesis rather
+# than a reworded key finding. Sequential -> ~2x latency (documented trade-off).
+# ---------------------------------------------------------------------------
+CALL1_PROMPT = """You are an investigative analyst for a demand-forecasting system. You are given a JSON context
+bundle for ONE forecast miss (target row, recent history, similar-queue peers, statistical_summary), a
+DERIVED_FEATURES block (chronic bias, this-week-vs-usual, forecast-sanity, plan restatement, installed base,
+holiday, similar-queue divergence, and `proof` = real values), CLEANED_SIGNALS, and a FIELD_GLOSSARY defining
+each field. Reason primarily from DERIVED_FEATURES and CLEANED_SIGNALS.
+
+YOUR JOB IN THIS STEP: gather OBSERVATIONS ONLY. Do NOT decide or state a root cause — a separate step does that.
+
+AUDIENCE & LANGUAGE: the reader is a business lead, not a data scientist. Plain everyday English. NEVER use
+"z-score", "standard deviation", "outlier", "sigma", "trend slope", "MAPE" in the text — translate to ordinary
+words. Every supporting_evidence.value MUST be a REAL NUMBER from the data (forecast, actual, a usual average,
+an ASU/units count — see DERIVED_FEATURES.proof), never a z-score/deviation. Call sibling queues "similar
+queues (same region, country and channel)", never "peer queues".
+
+key_findings: 3-6 objective observations. Each MUST be two parts joined by " — which means ": first the fact
+with its real numbers, then a plain, child-simple explanation of what it implies. Apply the same
+" — which means ..." rule to every supporting_evidence[].text. Do NOT name a cause.
+
+Respond with ONLY a single JSON object, no prose, exactly this shape (use [] / "" where empty; never omit a key):
+{
+  "key_findings": ["string ending in ' — which means ...'"],
+  "supporting_evidence": [{"text": "string ending in ' — which means ...'", "source_field": "string", "value": "a real number from the data"}],
+  "rejected_hypotheses": [{"hypothesis": "string", "reason_rejected": "string"}],
+  "historical_comparison": {"narrative": "string", "data_points": [{"label": "string", "value": "any"}]},
+  "forecast_improvement_recommendations": ["string (forecasting model/process only — never staffing/ops)"],
+  "missing_information": ["string"]
+}
+"""
+
+CALL2_PROMPT = """You are the root-cause synthesiser for a demand-forecasting system. A first step already
+produced the KEY FINDINGS and evidence; you are given those PLUS DERIVED_FEATURES (including `proof` = real
+values), the FIELD_GLOSSARY and the forecast_summary. Your ONLY job: decide the single most likely reason WHY
+the forecast missed, and rank any secondary contributors.
+
+Classify into ONE primary cause_type:
+- forecast_baseline_error   : the forecast itself is off vs its OWN history.
+- systematic_forecast_bias  : the queue is chronically off in the same direction.
+- genuine_demand_event      : a real one-week demand move while the forecast looked normal.
+- volume_routing_shift      : a similar queue (same region, country and channel) moved the opposite way.
+- plan_restatement          : Projection_plan_name changed this week.
+- installed_base_change     : installed base (Final_*/units) moved materially.
+- calendar_holiday_effect   : a holiday/short week plausibly explains the magnitude.
+
+HARD RULES:
+- primary_root_cause.statement must EXPLAIN WHY (a synthesis). It must NOT reuse the wording of any KEY FINDING
+  you were given — do not restate WHAT was observed; say what it MEANS taken together.
+- NEVER make "actual/forecast is an outlier vs its own history" the primary cause — true of every miss by
+  definition, explains nothing.
+- Plain business English (no z-score/stdev/outlier jargon). Every supporting_evidence.value is a REAL NUMBER
+  from the data (see DERIVED_FEATURES.proof), never a z-score/deviation.
+- ALWAYS produce a primary_root_cause. If nothing is strong, pick the best-supported cause_type, give an HONEST
+  lower confidence, and phrase it "the data is most consistent with ...". Never say "not enough data".
+
+Respond with ONLY a single JSON object, exactly this shape:
+{
+  "cause_type": "one of the taxonomy keys",
+  "primary_root_cause": {"statement": "string (the WHY, NOT a restated finding)", "confidence": 0.0, "supporting_evidence": [{"text": "string", "source_field": "string", "value": "a real number"}]},
+  "secondary_contributors": [{"statement": "string", "confidence": 0.0, "supporting_evidence": [{"text": "string", "source_field": "string", "value": "a real number"}]}],
+  "confidence_score": 0.0
+}
+"""
+
 _RESPONSE_DEFAULTS = {
     "cause_type": None,
     "key_findings": [],
@@ -487,6 +555,39 @@ def _is_circular(item):
     return all((f in DEFINITIONAL_FIELDS) or (f in NOISE_FIELDS) for f in flds)
 
 
+# --- Step 1: text-dedup — a primary cause that just re-words a key finding is circular. ---
+_DEDUP_STOP = {"the", "a", "an", "this", "that", "was", "were", "are", "is", "of", "to", "in", "on", "for",
+               "and", "or", "by", "vs", "versus", "about", "which", "means", "week", "queue", "its", "it",
+               "with", "at", "than", "as", "so", "usual", "level", "around", "this_week"}
+
+
+def _dedup_tokens(s):
+    return {w for w in re.findall(r"[a-z0-9]+", str(s or "").lower()) if len(w) >= 3 and w not in _DEDUP_STOP}
+
+
+def _too_similar(a, b):
+    ta, tb = _dedup_tokens(a), _dedup_tokens(b)
+    if not ta or not tb:
+        return False
+    inter = len(ta & tb)
+    jaccard = inter / len(ta | tb)
+    contained = inter / min(len(ta), len(tb))
+    return jaccard >= 0.6 or contained >= 0.85
+
+
+def _dup_of_findings(primary, key_findings):
+    """True if the primary cause statement just restates one of the key findings
+    (compares against the fact half, before ' — which means ')."""
+    stmt = (primary or {}).get("statement")
+    if not stmt:
+        return False
+    for kf in (key_findings or []):
+        base = str(kf).split(" — which means ")[0]
+        if _too_similar(stmt, base) or _too_similar(stmt, kf):
+            return True
+    return False
+
+
 def _finding_from_features(features):
     """Build an honest, fully-cited primary finding from the strongest derived
     feature — the fallback that guarantees we never say 'not enough data'."""
@@ -715,7 +816,8 @@ def _verify_and_fix(result, context_bundle, features):
     computed = ((context_bundle or {}).get("target") or {}).get("computed") or {}
     note = None
     primary = result.get("primary_root_cause")
-    if not primary or _is_circular(primary):
+    # circular = only restates the miss (definitional/noise fields) OR just re-words a key finding.
+    if not primary or _is_circular(primary) or _dup_of_findings(primary, result.get("key_findings")):
         # try a clean secondary
         promoted = None
         for sec in (result.get("secondary_contributors") or []):
@@ -856,7 +958,25 @@ def _coerce_response(parsed, context_bundle, features):
     return out
 
 
+def _ask_json(endpoint, api_key, model, system, payload, context_bundle=None):
+    """One model call (system + JSON payload) -> parsed JSON, with the 413 trim-retry
+    (only meaningful for the big Call-1 payload that carries history/peers)."""
+    msgs = [{"role": "system", "content": system}, {"role": "user", "content": json.dumps(payload, default=str)}]
+    try:
+        return _chat_json(endpoint, api_key, model, msgs)
+    except urllib.error.HTTPError as e:
+        if e.code == 413 and isinstance(payload, dict) and (payload.get("history") or payload.get("peers")):
+            trimmed = dict(payload)
+            trimmed["history"] = (payload.get("history") or [])[-3:]
+            trimmed["peers"] = []
+            retry = [msgs[0], {"role": "user", "content": json.dumps(trimmed, default=str)}]
+            return _chat_json(endpoint, api_key, model, retry)
+        raise
+
+
 def _call_provider(slot_cfg, context_bundle, features, model_bundle):
+    """TWO-CALL flow: Call 1 = observations (no cause); Call 2 = root cause only, given
+    Call 1's key findings + the real derived features. Sequential -> ~2x latency."""
     slot_cfg = slot_cfg or {}
     provider = slot_cfg.get("provider")
     api_key = slot_cfg.get("api_key")
@@ -866,32 +986,41 @@ def _call_provider(slot_cfg, context_bundle, features, model_bundle):
     if not endpoint:
         return None, f"unknown provider '{provider}' and no endpoint override given"
     model = slot_cfg.get("model") or DEFAULT_MODELS.get(provider)
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": json.dumps(model_bundle, default=str)},
-    ]
+    computed = ((context_bundle or {}).get("target") or {}).get("computed") or {}
+
+    # --- Call 1: OBSERVATIONS (key findings / evidence / rejected / history / recs / missing) ---
     try:
-        parsed = _chat_json(endpoint, api_key, model, messages)
+        c1 = _ask_json(endpoint, api_key, model, CALL1_PROMPT, model_bundle, context_bundle)
     except urllib.error.HTTPError as e:
-        if e.code == 413 and (context_bundle.get("history") or context_bundle.get("peers")):
-            trimmed = dict(model_bundle)
-            trimmed["history"] = (model_bundle.get("history") or [])[-3:]
-            trimmed["peers"] = []
-            try:
-                retry = [messages[0], {"role": "user", "content": json.dumps(trimmed, default=str)}]
-                parsed = _chat_json(endpoint, api_key, model, retry)
-            except Exception as e2:
-                return None, f"{provider} error (413, trimmed retry failed): {e2}"
-        else:
-            detail = e.read().decode("utf-8", "replace")[:300]
-            return None, f"{provider} HTTP {e.code}: {detail}"
+        return None, f"{provider} call-1 HTTP {e.code}: {e.read().decode('utf-8', 'replace')[:200]}"
     except Exception as e:
-        return None, f"{provider} error: {e}"
-    result = _coerce_response(parsed, context_bundle, features)
-    result = _verify_and_fix(result, context_bundle, features)
+        return None, f"{provider} call-1 error: {e}"
+    c1 = c1 if isinstance(c1, dict) else {}
+
+    # --- Call 2: ROOT CAUSE only, given Call 1's findings + the real features (no history/peers dump) ---
+    call2_payload = {
+        "forecast_summary": _forecast_summary(computed),
+        "derived_features": features,                      # includes `proof` (real values)
+        "field_glossary": model_bundle.get("field_glossary"),
+        "key_findings_from_call_1": c1.get("key_findings"),
+        "supporting_evidence_from_call_1": c1.get("supporting_evidence"),
+    }
+    try:
+        c2 = _ask_json(endpoint, api_key, model, CALL2_PROMPT, call2_payload)
+    except urllib.error.HTTPError as e:
+        return None, f"{provider} call-2 HTTP {e.code}: {e.read().decode('utf-8', 'replace')[:200]}"
+    except Exception as e:
+        return None, f"{provider} call-2 error: {e}"
+    c2 = c2 if isinstance(c2, dict) else {}
+
+    merged = {}
+    merged.update({k: v for k, v in c1.items() if k in _RESPONSE_DEFAULTS})
+    merged.update({k: v for k, v in c2.items() if k in _RESPONSE_DEFAULTS})
+    result = _coerce_response(merged, context_bundle, features)
+    result = _verify_and_fix(result, context_bundle, features)   # incl. Step-1 dedup vs key findings
     result["investigation_meta"] = {
-        "engine": "llm", "provider": provider, "model": model, "generated_at": _now(),
-        "based_on_fields": sorted(set(((context_bundle or {}).get("target") or {}).get("fields", {}).keys())),
+        "engine": "llm-2call", "provider": provider, "model": model, "generated_at": _now(),
+        "calls": 2, "based_on_fields": sorted(set(((context_bundle or {}).get("target") or {}).get("fields", {}).keys())),
     }
     return result, None
 

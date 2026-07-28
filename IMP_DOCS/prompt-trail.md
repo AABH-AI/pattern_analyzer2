@@ -164,3 +164,15 @@ Requested → delivered:
 1. **Every Key Finding (and supporting evidence) now ends with " — which means …"** — a plain, child-simple explanation of what the fact implies, so a manager can read a line and immediately get it (e.g. "Installed base jumped to 648 units, about 5x the usual ~130 — which means far more units under warranty than normal, and more units in the field usually means more support demand."). Enforced in the prompt (key_findings + supporting_evidence[].text) and built into every deterministic observation. Live-verified: 3/3 findings carried "which means".
 2. **"peer queues" → "similar queues (same region, country and channel)"** everywhere in the output (prompt + deterministic text), so the term is self-explanatory.
 Verification: AST (backend); live Groq run confirmed the "which means" clause on all key findings.
+
+---
+
+## Session 18 — 2026-07-27 · Two-call split (branch `call2` ONLY — not on shivam-updates)
+On a NEW branch `call2` (copy of `shivam-updates`, so the stable branch can't break) built the 2-call RCA:
+1. **Step 1 (safety net):** the verifier now also treats a primary cause that merely re-words a key finding as circular (text similarity — `_too_similar`/`_dup_of_findings`, Jaccard≥0.6 or 85% contained), routing it through the existing promote-secondary / synthesise-from-features path. Zero new API calls.
+2. **Step 2 (the split):** `_call_provider` now makes TWO sequential calls per investigation:
+   - **Call 1 (`CALL1_PROMPT`)** — observations only: key_findings (+ "which means"), supporting_evidence, rejected_hypotheses, historical_comparison, recommendations, missing_information. Schema has NO primary_root_cause, so it structurally can't state a cause.
+   - **Call 2 (`CALL2_PROMPT`)** — root cause only: given Call 1's key_findings + the real DERIVED_FEATURES/proof (not just Call 1's prose), outputs cause_type, primary_root_cause, secondary_contributors, confidence_score, with the rule "your statement must NOT reuse the wording of any key finding — synthesise WHY, not restate WHAT."
+   - Results merged, then the existing `_verify_and_fix` (+ Step-1 dedup) + `_fill_gaps` run on the combined output. `investigation_meta.engine = "llm-2call"`.
+   - **Trade-off (explicit):** sequential → ~2x latency (NVIDIA reasoning models could push one investigation past a minute); not 2x throughput.
+Verification: AST; live Groq run — engine `llm-2call` in ~5s, Call-1 findings + a Call-2 root cause that was a genuine synthesis (not a restated finding), dedup check passed.
