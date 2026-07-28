@@ -130,3 +130,36 @@ Blank cells load as **NULL**. The two metrics only need `Actual_Offered` and `fc
 
 ## Timeline / Gantt
 The build Gantt lives both **in the app** (Timeline tab, scoped under `#tab-timeline`) and as a **standalone** `rca_timeline.html` (theme-aware light/dark). Keep the two in sync when phase status changes. Today marker and KPIs are currently hard-set to **22 Jul** — update them as the project moves.
+
+## RCA engine v3 — the WFM engine (`?mode=wfm`, branch `wfm-rca`)
+
+A **second, opt-in engine** implementing the business-authored WFM RCA specification. Full
+contract, module map, verification and known gaps: **`wfm-rca-engine.md`**. Only the design
+decisions worth recording here:
+
+- **Additive, never a replacement.** `POST /api/rca-investigate` without `mode` is byte-for-byte
+  the old behaviour. The WFM engine backfills every legacy response key (rank 1 →
+  `primary_root_cause`, ranks 2-5 → `secondary_contributors`, rejected challenges →
+  `rejected_hypotheses`), so `rca_console.html` needed **zero** changes.
+- **Arithmetic is never delegated to the model.** The KPI and the channel-migration verdict are
+  computed in Python and *overwrite* whatever the model returned. The model's job is to rank,
+  explain in business language, and challenge.
+- **Rules the spec stated became code, not prompt text.** "Never conclude below a level before
+  checking it isn't inherited" is a computed `inherited_from` verdict from a real SQL rollup.
+  "Reject weak explanations" is a feature precondition per cause type — a verdict the data cannot
+  support is rejected instead of published. "Ignore weak correlations" is a retain/reject
+  threshold. A prompt can request these; only code can guarantee them.
+- **One rule was added, not requested.** Check the number is credible *before* explaining it. It
+  is surfaced as a hypothesis to validate at source, never as an asserted cause.
+- **The CQN definition conflict is unresolved and deliberately visible.** The console's signed-off
+  CQN is `Forecast_name + Region + SubRegion + Country + Channel` — channel is *in* the key — while
+  the spec wants migration *between channels within* a CQN. Mutually exclusive. The engine does not
+  redefine CQN; migration uses a separately named grouping flagged `is_cqn_proxy: true`. Needs a
+  business answer (`TODO.md`, P1b).
+- **Deterministic fallback is a feature.** If no provider can be reached the report is built from
+  the computed signals alone and labelled `wfm-deterministic-fallback`, with the reason in
+  `missing_information`. It never fabricates a conclusion to fill the gap.
+
+Note on the Timeline hard-set date above: the "today" marker being pinned to **22 Jul** is now a
+tracked defect — the header computes the real date while the legend hardcodes it, so the two
+contradict each other on screen (Canary V0.1/V0.2, `TODO.md` P1c).

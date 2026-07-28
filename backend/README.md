@@ -2,7 +2,11 @@
 
 Gives the prototype a **live "Connect to SQL Server"** path (the browser can't reach
 SQL Server directly, so this small FastAPI service does the query and hands rows to the UI).
-The existing **file-upload** path in `rca_prototype.html` still works with no backend.
+The existing **file-upload** path in `rca_console.html` still works with no backend.
+
+> Quickest path on Windows: run **`..un.bat`** from the repo root instead of steps 1-4 — it
+> installs deps, ensures `config.json`, brings up the VPN, checks the SQL host, starts this
+> backend and opens the console. `run.bat --all` also runs the test suites in `../results/`.
 
 ## 1. Install
 ```bash
@@ -33,7 +37,7 @@ python upload_excel_to_sql.py               # create table + bulk insert (~139k 
 ```bash
 uvicorn sql_backend:app --port 8000
 ```
-Open **http://localhost:8000/rca_prototype.html** → click **🗄 Connect to SQL Server**.
+Open **http://localhost:8000/rca_console.html** → click **🗄 Connect to SQL Server**.
 (You can also open the .html file directly; CORS is open so it still reaches localhost:8000.)
 
 ## Endpoints
@@ -66,3 +70,19 @@ Open **http://localhost:8000/rca_prototype.html** → click **🗄 Connect to SQ
   No other code changes needed — see `rca_investigate.py`'s docstring and
   `IMP_DOCS/rca-investigation-contract.md` for the exact request/response shape, or to
   swap in a different provider later.
+
+## WFM engine (opt-in)
+
+`POST /api/rca-investigate?mode=wfm` selects the WFM cross-functional engine in `wfm/`
+(13 modules: investigation_engine, hierarchy_analyzer, channel_migration_detector,
+temporal_reasoner, correlation_engine, skeptic, hypothesis_generator,
+business_report_generator, data_quality, data_access, prompts, llm_client, common).
+
+Without `mode=` this endpoint behaves exactly as it always has. The WFM engine also backfills
+every legacy response key, so the existing console renders its output unchanged.
+
+`llm.timeout_seconds` in `config.json` sets the LLM read timeout for both engines (default 100
+when the key is absent; currently 150 — NVIDIA reasoning models need 45–100s).
+
+Contract, verification and known gaps: `../IMP_DOCS/wfm-rca-engine.md`.
+Evidence and re-runnable test scripts: `../results/`.

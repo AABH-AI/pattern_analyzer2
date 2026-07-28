@@ -4,6 +4,13 @@ Chronological record of what was requested and what was delivered. Newest at the
 
 ---
 
+
+> **Timestamp convention (from Session 19 onward).** Each session records **When** — the
+> local wall-clock window the work was actually done in, `Asia/Kolkata (IST, UTC+05:30)` —
+> plus **Runtime**, the measured execution time of the things that were built. Times are
+> reconstructed from commit timestamps and artifact mtimes, so they are accurate to the minute
+> rather than to the second. Sessions 1-18 predate this convention and carry dates only.
+
 ## Session 1 — 2026-07-22 · Console fixes & first enhancements
 **Source file:** `~/Downloads/rca_console.html` (single self-contained HTML, no libraries)
 **Input data understood:** `Input_To_ML_20260706110242.csv.xlsx` — 33 columns, 138,775 rows, Fiscal_Week 202249→202908.
@@ -160,7 +167,7 @@ Verification: `node --check` (frontend) + AST (backend); offline check that proo
 ---
 
 ## Session 19 — 2026-07-28 · WFM business prompt as a second engine (branch `wfm-rca`)
-**Timing:** in-band gate 0.60s · full WFM run (Groq) 3.65s · default engine ~4s · payload ~4,400 tokens/investigation (prompt ~2,300 + data ~2,100).
+**When:** Tue 28 Jul 2026, ~19:00–20:15 IST · **Runtime:** in-band gate 0.60s · full WFM run (Groq) 3.65s · default engine ~4s · payload ~4,400 tokens/investigation (prompt ~2,300 + data ~2,100).
 The business supplied a complete RCA specification (cross-functional-team ROLE, fixed
 investigation order, temporal rules, CQN/channel-migration rules, SKEPTIC MODE, Top-5 ranked
 RCAs, hypothesis marking, confidence levels, executive report format). Delivered on a NEW
@@ -213,7 +220,7 @@ decomposition (verified identity-exact on 22,003 flagged misses) is not yet a si
 ---
 
 ## Session 20 — 2026-07-28 · WFM engine split into reasoning modules + the two missing ones
-**Timing:** `fetch_wfm_context` **98.19s → 0.16s (614x)** after removing the correlated subquery · full WFM path (Groq) 3.12s · SQL-backed WFM run 3.63s · in-band gate 0.47s.
+**When:** Tue 28 Jul 2026, ~21:40–22:35 IST (modules written 21:48; SQL re-verified 22:30) · **Runtime:** `fetch_wfm_context` **98.19s → 0.16s (614x)** after removing the correlated subquery · full WFM path (Groq) 3.12s · SQL-backed WFM run 3.63s · in-band gate 0.47s.
 Requested: refactor the single `rca_wfm.py` into separate reasoning modules and add the two
 that were missing. Delivered on the same branch `wfm-rca`.
 
@@ -271,7 +278,7 @@ timeout dominates).
 ---
 
 ## Session 21 — 2026-07-28 · configurable LLM timeout + LLM ranking verified + Canary V0.2
-**Timing:** NVIDIA WFM investigations 53.4s / 59.2s / 67.9s · Groq 2.4–5.7s · Canary V0.2 session 15min/25 steps.
+**When:** Tue 28 Jul 2026, ~22:40–23:20 IST (llm_client 22:59; ranking report 23:13; engine doc 23:15) · **Runtime:** NVIDIA WFM investigations 53.4s / 59.2s / 67.9s · Groq 2.4–5.7s · Canary V0.2 session 15min/25 steps.
 Requested: get 2–3 LLM outputs to verify model ranking, and **it must actually use the LLM**;
 capture an updated Canary screen recording end to end; keep IMP_DOCS current.
 
@@ -321,6 +328,7 @@ Evidence: `results/` — `llm-ranking-report.json`, three raw LLM responses,
 ---
 
 ## Session 22 — 2026-07-29 · run.bat, module smoke test, timing log, commit
+**When:** Tue 28 Jul 23:50 – Wed 29 Jul 00:45 IST — the date rolled over mid-session (Canary V0.3 investigations stamped 11:50 PM and 11:56 PM on the 28th; canary-test-log 00:14; smoke test 00:26; run.bat 00:40; **commit `254af93` at 00:45 IST on Wed 29 Jul 2026**).
 Requested: commit the work to a new branch; confirm each Python module works; a `run.bat` that
 runs the whole system including VPN if possible; and timings recorded here.
 
@@ -368,3 +376,24 @@ runs the whole system including VPN if possible; and timings recorded here.
 one call in three hangs regardless of the ceiling. Raising the timeout 100 → 300 was measured and
 made it *worse* (same 2/3 success, failure took 5min), so it is set to **150**. Groq is ~10x
 faster but its daily quota is easily exhausted.
+
+---
+
+## Session clock log
+
+Wall-clock windows for the sessions on branch `wfm-rca`, all `Asia/Kolkata (IST, UTC+05:30)`.
+Anchors are commit timestamps and artifact mtimes.
+
+| Session | Date | Start – End (IST) | What was delivered | Anchor evidence |
+|---|---|---|---|---|
+| 19 | Tue 28 Jul 2026 | ~19:00 – 20:15 | WFM prompt as an opt-in second engine | test bundle written 19:27 |
+| 20 | Tue 28 Jul 2026 | ~21:40 – 22:35 | split into 13 modules; `skeptic` + `correlation_engine` added | `skeptic.py` / `correlation_engine.py` 21:48; `validation-report.json` 22:30 |
+| 21 | Tue 28 Jul 2026 | ~22:40 – 23:20 | configurable LLM timeout; LLM ranking 3/3; Canary V0.2 | `llm_client.py` 22:59; `llm-ranking-report.json` 23:13; `wfm-rca-engine.md` 23:15 |
+| 22 | Tue 28 – **Wed 29 Jul 2026** | 23:50 – 00:45 | Canary V0.3, `run.bat`, module smoke test, commit + push | Canary V0.3 RCAs 11:50 PM / 11:56 PM (28th); `canary-test-log.md` 00:14; `smoke_test_modules.py` 00:26; `run.bat` 00:40; **commit `254af93` 00:45** |
+
+Total: roughly **5 hours 45 minutes** of working time across the four sessions, spanning the
+midnight rollover from 28 to 29 July 2026.
+
+Note the two SQL outages inside that window — `10.10.9.75:1433` went unreachable twice (VPN
+drops), once around 19:40 and again around 00:25. Both are visible in the trail as the reason
+certain verifications were deferred and re-run.

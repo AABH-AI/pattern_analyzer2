@@ -29,7 +29,9 @@ The "Connect to SQL Server" button will not work in this mode.
 ### B) With the backend (live SQL) — one command
 Prereqs: **Python 3.11+**, **Microsoft ODBC Driver 17 or 18 for SQL Server**, network access to the
 SQL Server, and a SQL login.
-- **Windows:** `powershell -ExecutionPolicy Bypass -File run.ps1`
+- **Windows (easiest):** `run.bat` — also checks/starts the VPN, verifies the SQL host is
+  reachable, and can run the test suites (`--smoke` / `--validate` / `--llm` / `--all`).
+- **Windows (PowerShell):** `powershell -ExecutionPolicy Bypass -File run.ps1`
 - **Linux/macOS:** `chmod +x run.sh && ./run.sh`
 - **Docker (any OS, bundles the ODBC driver):** put creds in `.env` (see `backend/.env.example`), then
   `docker compose up -d --build`. Full details in `DEPLOY.md`.
@@ -64,24 +66,53 @@ DATE, dimensions NVARCHAR, measures FLOAT).
   Full contract + known gaps: `IMP_DOCS/wfm-rca-engine.md`.
 
 ## If you are an AI agent, do this
-1. Detect the OS; run `run.ps1` (Windows) or `run.sh` (POSIX). If Docker is available and preferred, use `docker compose up -d --build`.
+1. Detect the OS; run `run.bat` (Windows, preferred — it also handles the VPN and can run the test suites), `run.ps1` (Windows/PowerShell) or `run.sh` (POSIX). If Docker is available and preferred, use `docker compose up -d --build`.
 2. If `backend/config.json` is missing, create it from `backend/config.example.json` and ask the user for the SQL login (never guess credentials).
 3. If there is no SQL access / not on the network, fall back to the **file-upload** path and say so.
 4. Verify with `GET /api/health` (expect `configured:true`) and `GET /api/data?limit=1`.
 5. **Do not fabricate** queue names, numbers, or schema — everything is derived from the loaded data.
+6. For an RCA investigation, pick an **NVIDIA** model — Groq is faster but has a 100,000 token/**day**
+   cap, and once it is spent every call 429s and the engine returns its deterministic finding
+   (honest, but not the LLM). An NVIDIA investigation takes **45–100s**; that is not a hang.
+7. Before claiming the engine works, run the suites in `results/`:
+   `python results/smoke_test_modules.py` (12 modules), `run_validation.py` (SQL cross-checks),
+   `run_llm_ranking.py` (asserts the LLM actually answered).
 
 ## Repo map
 ```
 rca_console.html                     the app (console, dashboard, timeline, definitions)
 rca_timeline.html                    standalone build Gantt (auto-dates to the PC clock)
 index.html                           landing/entry
-run.ps1 / run.sh                     one-command setup + run
+run.bat                              Windows one-shot: deps, config, VPN, SQL check, backend,
+                                     optional --smoke/--validate/--llm suites, browser
+run.ps1 / run.sh                     same idea for PowerShell / POSIX
 docker-compose.yml                   always-on hosting (see DEPLOY.md)
 DEPLOY.md                            internal-server deployment (Docker / Windows service / systemd)
 backend/                             FastAPI + pyODBC connector + Excel→SQL loader
-  sql_backend.py, upload_excel_to_sql.py, requirements.txt,
+  sql_backend.py                     the API; ?mode=wfm branch selects the WFM engine
+  rca_investigate.py                 the ORIGINAL RCA engine (default path)
+  rca_wfm.py                         compatibility shim -> the wfm/ package
+  wfm/                               the WFM engine, one module per responsibility:
+    investigation_engine.py            orchestration + the ±10% in-band gate
+    hierarchy_analyzer.py              Business Org → Region → … drill-down / inherited_from
+    channel_migration_detector.py      Voice ↔ Chat ↔ Email shifts in one locality
+    temporal_reasoner.py               104 weeks, prior/4/13 wk, same week last year
+    correlation_engine.py              driver relationships + the exact ASU decomposition
+    skeptic.py                         REJECTS causes the features cannot support
+    hypothesis_generator.py            "Hypothesis – To be Validated" marking
+    business_report_generator.py       executive report + legacy-key back-compat
+    data_quality.py                    is the number itself credible?
+    data_access.py, prompts.py, llm_client.py, common.py
+  upload_excel_to_sql.py, requirements.txt,
   config.example.json (copy → config.json), .env.example, Dockerfile, README.md
-IMP_DOCS/                            installation-and-connection.md, design-choice.md, handoff.md, TODO.md, prompt-trail.md
+results/                             validation evidence + re-runnable test scripts
+  audit-log.md                       START HERE — the full audit trail
+  run_validation.py                  SQL cross-check suite (5 queues × 8 checks)
+  run_llm_ranking.py                 LLM ranking verification (asserts the LLM really ran)
+  smoke_test_modules.py              per-module smoke test (12 modules)
+  canary-v0.2/, canary-v0.3-llm/     recorded browser sessions (report.html + screenshots)
+IMP_DOCS/                            installation-and-connection.md, design-choice.md, handoff.md,
+                                     TODO.md, prompt-trail.md, wfm-rca-engine.md, canary-test-log.md
 ```
 
 ## Guardrails

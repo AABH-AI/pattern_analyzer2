@@ -74,3 +74,20 @@ The image bundles the Microsoft ODBC Driver 18, so nothing else to install but D
   override `config.json`. That's how the Docker option injects them without a file.
 - For HTTPS + a friendly hostname, front it with nginx/IIS reverse proxy (optional).
 - Load the demand table once via `python backend/upload_excel_to_sql.py` if it isn't already in SQL.
+
+---
+
+## Local one-shot alternative (Windows)
+
+For a developer machine rather than a shared server, `run.bat` does the whole thing in one
+command — dependencies, `config.json`, VPN (Cisco Secure Client detect/connect/poll), SQL
+reachability, port 8000, backend + health wait, optional test suites, browser:
+
+```bat
+run.bat            :: setup and run
+run.bat --all      :: ...and run the smoke / SQL-validation / LLM-ranking suites
+```
+
+Docker (above) remains the right answer for always-on team hosting. Note that the container needs
+`llm.timeout_seconds` in `config.json` (or the matching env vars) if you use the RCA investigation
+with NVIDIA models — they take 45–100s per call.

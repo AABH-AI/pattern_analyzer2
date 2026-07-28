@@ -53,9 +53,51 @@ A single-file, dependency-free HTML tool ("Demand Pattern RCA Agent — Console"
 - **In progress:** P4 — multi-queue scan → top-N → **printable Phase-1 digest** (main remaining build).
 - **To do:** SME validation with Prashant + band tuning (±10 vs ±15 — note ~66% flag rate); demo packaging + dry run; presentation.
 
+## State of play (2026-07-29) — branch `wfm-rca`
+
+Pushed as **`wfm-rca`** (commit `254af93`), deliberately kept separate: `main`,
+`shivam-updates` and `call2` are all untouched by it.
+
+- **A SECOND RCA engine, opt-in per request.** `POST /api/rca-investigate?mode=wfm` runs the
+  business-authored WFM specification from `backend/wfm/` (13 modules). Omit `mode` and the
+  endpoint behaves exactly as before. `rca_console.html` is **unmodified** — the WFM engine
+  backfills every legacy response key, so the current UI renders its output as-is.
+  Contract, module map and known gaps: `wfm-rca-engine.md`.
+- **Two modules close real gaps in the spec.** `skeptic.py` gates all 10 cause types on a feature
+  precondition, so a verdict the data cannot support (e.g. `plan_restatement` on a week the plan
+  did not change) is *rejected* rather than published; it also reconciles every cited figure
+  against the source data. `correlation_engine.py` computes the driver relationships the prompt
+  asked for but nothing provided, plus the **exact ASU decomposition** — verified identity-exact
+  on all 22,003 flagged misses carrying both ASU columns.
+- **A data-quality gate was added** (not in the spec, implied by it): an isolated extreme that
+  reverts immediately is ranked as a *suspected data issue to validate at source*, never explained
+  as a business event. This **revises Session 15's conclusion** on `NA Core Spanish` FW202719
+  (actual 8,805 vs ~117 typical) — that figure is probably a decimal-shift ingestion error, not a
+  demand event. **It should be validated at source.**
+- **`llm.timeout_seconds`** in `config.json` now drives the LLM read timeout for *both* engines
+  (150; the original hard-coded 100 remains the fallback when the key is absent).
+- **`run.bat`** — one-shot Windows runner: deps, config, VPN (Cisco Secure Client), SQL
+  reachability, port, backend + health wait, optional test suites, browser.
+- **Evidence lives in `results/`** — start with `results/audit-log.md`. 40/40 SQL cross-checks over
+  5 deliberately-chosen queues, 3/3 queues answered by the LLM with 27/27 ranking checks, 12/12
+  per-module smoke tests, and two recorded browser sessions.
+- **Known open items** (all in `TODO.md`): ranking **correctness** is still unmeasured and needs a
+  labelled set — everything verified so far is internal consistency, not truth; ~1 in 3 NVIDIA
+  calls hangs and a bigger timeout makes it worse, not better; the **CQN definition conflicts with
+  the spec** (the console's signed-off CQN includes channel, the spec wants migration *within* a
+  CQN across channels) so migration runs on a clearly-labelled proxy and needs a business answer;
+  and Canary found UI defects incl. a load-time `TypeError` on every page load and flagged-queue
+  cards that may not be clickable by a real pointer.
+
 ## Watch-outs
 - Keep the **console** library-free. No CDN (must run behind Kong / offline). The backend is a separate, optional Python service — that boundary is intentional (see `IMP_DOCS/rca-investigation-contract.md`), don't blur it by adding libraries to `rca_console.html` itself.
-- **Never change the two formulas' math** — only display/rounding. The ⓘ modal must always match what's computed. Plan Adherence is now **signed** — any code touching `_padh` for flagging/severity/sorting/MAPE must compare on `Math.abs()`, only the *displayed* number stays signed.
+- **Never change the two formulas' math** — only display/rounding. The ⓘ modal must always match what's computed. Forecast Adherence is now **signed** — any code touching `_padh` for flagging/severity/sorting/MAPE must compare on `Math.abs()`, only the *displayed* number stays signed.
 - **The RCA Investigation Engine must never fabricate a conclusion.** If no provider is configured (or a call fails), show the honest placeholder/error — never synthesize a plausible-looking root cause client-side to "fill the gap."
 - When phase status changes, update **both** the Timeline tab and `rca_timeline.html` (and the "today" marker/KPIs).
 - WSL note (this workstation): browsers here can't reach localhost dev servers — QA static files via `file://` + headless screenshots, not a loopback server.
+- **`?mode=wfm` is additive and must stay that way.** The default path is what the console uses in
+  production; never change its behaviour to serve the WFM engine. Both are exercised by
+  `results/run_validation.py` (which asserts the default path leaks no WFM keys).
+- **Do not "fix" a deterministic fallback by removing the guard.** `wfm-deterministic-fallback` and
+  `deterministic-fallback` are correct, honest outcomes when a provider is unreachable — the reason
+  is always recorded in `missing_information`. Read it before assuming the engine is broken.

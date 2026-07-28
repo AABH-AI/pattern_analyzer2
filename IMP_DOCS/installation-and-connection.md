@@ -25,6 +25,21 @@ No SQL, no backend. The **Connect to SQL Server** button will not work in this m
 
 ---
 
+## A2. One command on Windows — `run.bat`
+
+```bat
+run.bat                 :: deps, config, VPN, SQL reachability, backend, browser
+run.bat --all           :: ...and run all three test suites
+run.bat --smoke         :: 12-module smoke test only (no SQL, no LLM needed)
+run.bat --tests-only    :: run suites against an already-running backend
+run.bat --no-vpn        :: skip the VPN step
+```
+
+Nine stages, and it stops with a clear message if one fails. The VPN stage detects **Cisco Secure
+Client**, checks `vpncli status`, tries `connect aavpn.alignedautomation.com`, and if the CLI
+cannot finish (SAML/MFA logins can't be done from a command line) it launches the desktop app and
+polls up to 90s for the tunnel. The SQL host is read from `config.json`, not hardcoded.
+
 ## B. With the backend (live SQL) — local
 
 ### Prerequisites
@@ -103,6 +118,52 @@ Quick self-check: open `http://<host>:8000/api/health`.
 `configured:true` = config is loaded; then `http://<host>:8000/api/data?limit=1` should return one row.
 
 ---
+
+## LLM configuration (RCA investigation)
+
+`backend/config.json` → `llm`:
+
+| Key | Meaning |
+|---|---|
+| `primary` / `secondary` | provider slots (`nvidia`, `groq`) with `api_key` and optional `model` |
+| `timeout_seconds` | LLM read timeout for **both** engines. Omit for the original 100s; currently **150** |
+| `selectable_models` | what the console's per-queue model picker offers |
+
+Practical notes, measured:
+
+- **NVIDIA** reasoning models take **45–100s** per investigation, and roughly **1 call in 3 hangs**.
+  A larger timeout does not fix that — 300s was measured as *worse* than 150s (same success rate,
+  failures simply took five minutes).
+- **Groq** answers in 2–6s but has a **100,000 token/day** cap. Once spent, every call returns
+  HTTP 429 and the engine falls back to its deterministic finding — honest, but not the LLM. The
+  reason is always recorded in the response's `missing_information`.
+- Leave both `api_key` fields blank to get the deterministic feature-based finding only. The engine
+  never fabricates a conclusion.
+
+## Which RCA engine am I calling?
+
+Two engines sit behind one endpoint:
+
+| Call | Engine |
+|---|---|
+| `POST /api/rca-investigate` | the original single-call investigation (what the console uses today) |
+| `POST /api/rca-investigate?mode=wfm` | the WFM engine — ranked causes, skeptic review, investigation ladder, 104-week context, channel migration, and the ±10% in-band rule |
+
+`?mode=wfm` is additive: omit it and nothing changes. It also backfills the legacy response keys,
+so the existing console renders its output unmodified. Contract and known gaps:
+`wfm-rca-engine.md`.
+
+**To verify an install actually works**, run the suites in `results/` (they are re-runnable and
+re-derive every number from SQL independently):
+
+```bash
+cd backend
+python ../results/smoke_test_modules.py   # 12 modules, no SQL or LLM needed
+python ../results/run_validation.py       # 5 queues x 8 SQL cross-checks
+python ../results/run_llm_ranking.py      # 3 queues; fails if the LLM did not answer
+```
+
+Start with `results/audit-log.md` for what has already been verified.
 
 ## Security notes
 - `config.json` and `.env` are **gitignored** — credentials never leave the machine/repo.

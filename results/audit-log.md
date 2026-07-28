@@ -161,7 +161,7 @@ initial failures were my harness, and only investigating each one told me which 
 | `run_validation.py` | the entire run — selection, bundle construction, calls, all 8 checks |
 | `audit-console-output.txt` | full console transcript of the passing run |
 | `validation-report.json` | machine-readable: per-case results, timings, every check |
-| `case-A..E-response.json` | untouched engine responses, including `derived_features` |
+| `case-A-response.json` … `case-E-response.json` | untouched engine responses, including `derived_features` |
 | `_server_stdout.log` / `_server_stderr.log` | backend request log for the run |
 
 ## 9. Reproducing
