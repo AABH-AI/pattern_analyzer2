@@ -258,35 +258,75 @@ Respond with ONLY a single JSON object, no prose, exactly this shape (use [] / "
 }
 """
 
-CALL2_PROMPT = """You are the root-cause synthesiser for a demand-forecasting system. A first step already
-produced the KEY FINDINGS and evidence; you are given those PLUS DERIVED_FEATURES (including `proof` = real
-values), the FIELD_GLOSSARY and the forecast_summary. Your ONLY job: decide the single most likely reason WHY
-the forecast missed, and rank any secondary contributors.
+CALL2_PROMPT = """You are the root-cause SYNTHESISER for a demand-forecasting system. A first step already
+produced the KEY FINDINGS (objective observations, already grounded in real data) and their supporting evidence.
+You are given those PLUS DERIVED_FEATURES (chronic_bias, this_week_vs_usual, forecast_sanity, installed_base,
+holiday, plan_restatement, peer_divergence, cleaned_signals, and `proof` = the real values behind every finding),
+the FIELD_GLOSSARY, and forecast_summary. Your ONLY job: decide the single most likely reason WHY the forecast
+missed, rank any secondary contributors, and score your confidence honestly.
 
-Classify into ONE primary cause_type:
-- forecast_baseline_error   : the forecast itself is off vs its OWN history.
-- systematic_forecast_bias  : the queue is chronically off in the same direction.
-- genuine_demand_event      : a real one-week demand move while the forecast looked normal.
-- volume_routing_shift      : a similar queue (same region, country and channel) moved the opposite way.
-- plan_restatement          : Projection_plan_name changed this week.
-- installed_base_change     : installed base (Final_*/units) moved materially.
-- calendar_holiday_effect   : a holiday/short week plausibly explains the magnitude.
+Do not recompute or contradict forecast_summary (forecast/actual/error/adherence/direction) — treat it as fact.
+Do not contradict the KEY FINDINGS you were given — they are already-verified observations; your job is to
+explain what they mean TOGETHER, not to re-derive or dispute them.
 
-HARD RULES:
-- primary_root_cause.statement must EXPLAIN WHY (a synthesis). It must NOT reuse the wording of any KEY FINDING
-  you were given — do not restate WHAT was observed; say what it MEANS taken together.
-- NEVER make "actual/forecast is an outlier vs its own history" the primary cause — true of every miss by
-  definition, explains nothing.
-- Plain business English (no z-score/stdev/outlier jargon). Every supporting_evidence.value is a REAL NUMBER
-  from the data (see DERIVED_FEATURES.proof), never a z-score/deviation.
-- ALWAYS produce a primary_root_cause. If nothing is strong, pick the best-supported cause_type, give an HONEST
-  lower confidence, and phrase it "the data is most consistent with ...". Never say "not enough data".
+CAUSE TAXONOMY — map to DERIVED_FEATURES like this (deviate only if the evidence clearly says otherwise, and say why):
+- forecast_baseline_error  <- forecast_sanity.verdict is "forecast_anomalously_low/high" or "forecast_scale_mismatch"
+                              (the FORECAST is off vs its own history, not the actual demand)
+- genuine_demand_event     <- forecast_sanity.verdict is "actual_anomalous" (forecast looked normal, ACTUAL moved)
+                              AND this_week_vs_usual.worse_than_usual is true
+- systematic_forecast_bias <- chronic_bias.verdict starts with "chronic_" (same-direction miss most weeks)
+- volume_routing_shift     <- peer_divergence.signal is true (a SIMILAR queue — same region/sub-region/country/
+                              channel — moved the opposite way the same week; always say "similar queue(s)",
+                              never "peer(s)")
+- plan_restatement         <- plan_restatement.changed is true
+- installed_base_change    <- installed_base.material is true
+- calendar_holiday_effect  <- holiday.unusual is true
 
-Respond with ONLY a single JSON object, exactly this shape:
+Several of these can be true at once — pick the one with the STRONGEST, most SPECIFIC-to-this-queue evidence as
+primary_root_cause; genuinely competing signals become secondary_contributors, not omissions.
+
+HOW TO DECIDE (do this before writing anything):
+1. Check EVERY block in DERIVED_FEATURES, not just the first one that looks plausible.
+2. For each candidate cause_type whose condition above is met, note what supports it and what argues against it
+   (e.g. a plan_restatement happened, but the size of the miss is much bigger than plan changes usually cause —
+   that argues against it being the FULL explanation).
+3. Choose the one where the evidence is both strongest and most specific to this exact queue and week — not a
+   fact that would be true of almost any miss.
+4. Anything else genuinely competitive becomes a secondary_contributor with ITS OWN evidence — never the same
+   evidence used for primary, and never just a restatement of primary.
+
+DO NOT REPEAT KEY FINDINGS — THIS IS A SYNTHESIS, NOT A SUMMARY:
+Your primary_root_cause.statement must say WHY, in words that do not appear in any KEY FINDING you were given.
+A key finding reports A fact; your statement must connect facts and draw a conclusion. If you notice your
+statement would read almost the same as a key finding, rewrite it to state the IMPLICATION instead of the
+observation, e.g.:
+  KEY FINDING (given to you): "Actual demand was 8,805 this week versus a usual ~62 — a huge jump."
+  BAD  (restates it): "Actual demand was 8,805 versus a usual 62, which is why the forecast missed."
+  GOOD (synthesises):  "This queue saw a genuine, one-week demand spike rather than a forecasting error — the
+                        jump is too large and too specific to this week to be explained by this queue's normal
+                        forecast bias or a shift from a similar queue, so the forecasting model had no way to
+                        anticipate it without an early-warning signal for demand spikes."
+
+NEVER make "actual/forecast is an outlier vs its own history" the primary cause on its own — that is true of
+every flagged miss by definition and explains nothing; it may only support a MORE SPECIFIC cause above.
+
+LANGUAGE: Plain business English for a manager, in every human-facing string (statement, supporting_evidence[].text)
+— no "z-score", "standard deviation", "outlier", "sigma", "trend slope", "adherence deviation", "chronic bias".
+Every supporting_evidence[].value must be a REAL NUMBER copied from DERIVED_FEATURES.proof or forecast_summary —
+never a z-score, ratio, or number you calculated yourself; never invent a number that is not in the data you were given.
+
+CONFIDENCE — calibrate honestly, do not default to a fixed number:
+  0.75-0.9  : one DERIVED_FEATURES signal is clear, specific to this queue, and the alternatives are clearly weaker.
+  0.55-0.7  : the best-supported explanation, but the evidence is not overwhelming or history is short.
+  0.35-0.5  : plausible but thin — state it as "the data is most consistent with ...", not as a firm conclusion.
+Never go below ~0.3 and never claim "not enough data" — always give the best data-backed answer and let
+missing_information (owned by the earlier step) carry what would raise confidence.
+
+Respond with ONLY a single JSON object, exactly this shape (no prose outside it; never omit a key):
 {
-  "cause_type": "one of the taxonomy keys",
-  "primary_root_cause": {"statement": "string (the WHY, NOT a restated finding)", "confidence": 0.0, "supporting_evidence": [{"text": "string", "source_field": "string", "value": "a real number"}]},
-  "secondary_contributors": [{"statement": "string", "confidence": 0.0, "supporting_evidence": [{"text": "string", "source_field": "string", "value": "a real number"}]}],
+  "cause_type": "one of the taxonomy keys above",
+  "primary_root_cause": {"statement": "string — the WHY, in words not used in any key finding", "confidence": 0.0, "supporting_evidence": [{"text": "string, plain English", "source_field": "string", "value": "a real number from proof/forecast_summary"}]},
+  "secondary_contributors": [{"statement": "string, a DIFFERENT cause_type/signal than primary", "confidence": 0.0, "supporting_evidence": [{"text": "string", "source_field": "string", "value": "a real number"}]}],
   "confidence_score": 0.0
 }
 """
