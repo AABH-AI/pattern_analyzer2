@@ -156,3 +156,11 @@ Requested → delivered:
 3. **Removed `Forecast (fcst_handled)` and `Actual handled` rows** from the Proof panel.
 4. **Excluded all "handled" fields from the RCA** (`HANDLED_FIELDS = {Actual_Handled, fcst_handled}`): stripped from the model context (statistical_summary, target fields, glossary), the cleaned signals, and the proof. Verified nothing handled-related reaches the model.
 Verification: `node --check` (frontend) + AST (backend); offline check that proof/model context carry no handled fields and "usual" still populates from history.
+
+---
+
+## Session 17 — 2026-07-27 · "which means" explanations + "similar queues" wording
+Requested → delivered:
+1. **Every Key Finding (and supporting evidence) now ends with " — which means …"** — a plain, child-simple explanation of what the fact implies, so a manager can read a line and immediately get it (e.g. "Installed base jumped to 648 units, about 5x the usual ~130 — which means far more units under warranty than normal, and more units in the field usually means more support demand."). Enforced in the prompt (key_findings + supporting_evidence[].text) and built into every deterministic observation. Live-verified: 3/3 findings carried "which means".
+2. **"peer queues" → "similar queues (same region, country and channel)"** everywhere in the output (prompt + deterministic text), so the term is self-explanatory.
+Verification: AST (backend); live Groq run confirmed the "which means" clause on all key findings.

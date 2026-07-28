@@ -172,10 +172,16 @@ How to reason:
 4. Rank survivors: the strongest becomes primary_root_cause, the rest secondary_contributors.
 
 These three sections are DIFFERENT and must NOT repeat the same sentence:
-- key_findings: 3-6 OBJECTIVE OBSERVATIONS discovered in the data — plain facts, NOT the cause. Each states
-  something notable that is true of this queue this week (e.g. "The forecast was set about 3x this queue's
-  usual level.", "This week's gap is roughly 9x the queue's typical weekly gap.", "3 of 11 similar queues
-  moved the opposite way.", "The forecast plan did not change this week."). Do NOT say "the cause is ..." here.
+- key_findings: 3-6 OBJECTIVE OBSERVATIONS discovered in the data — plain facts, NOT the cause. Each finding
+  MUST be TWO parts joined by " — which means ": first the fact with its real numbers, then a plain,
+  child-simple explanation of what that fact means for demand/forecasting. Examples:
+    "Installed base jumped to 648 units this week, about 5x the usual ~130 — which means far more units under
+     warranty than normal, and more units in the field usually means more support demand."
+    "3 of 11 similar queues (same region, country and channel) moved the opposite way this week — which means
+     the work likely shifted between sibling queues rather than total demand actually changing."
+  Write the "which means" part as if explaining to someone new to the business. Do NOT say "the cause is ..."
+  in key_findings (that belongs in primary_root_cause). Apply the SAME " — which means ..." rule to every
+  supporting_evidence[].text.
 - primary_root_cause.statement: the single MOST LIKELY EXPLANATION for WHY the forecast missed (the conclusion
   drawn FROM the findings). This is a different sentence from any single key finding.
 - reasoning_narrative: 2-4 short bullet-style sentences that tell the STORY connecting the findings to the
@@ -539,44 +545,49 @@ def _observations_from_features(features):
     (facts, not the cause). Used to fill key_findings when the model omits them and for
     the deterministic path, so Key Findings never just echoes the root cause."""
     f = features or {}
+    # Each observation is "<fact with real numbers> — which means <child-simple meaning>".
     obs = []
     fs = f.get("forecast_sanity") or {}
-    # Always lead with the two real headline numbers straight from the data.
-    if fs.get("forecast") is not None and fs.get("actual") is not None:
-        obs.append(f"The forecast this week was {fs.get('forecast')}, and actual demand was {fs.get('actual')}.")
+    fc, ac = fs.get("forecast"), fs.get("actual")
+    if fc is not None and ac is not None:
+        gap = (round(ac - fc) if isinstance(ac, (int, float)) and isinstance(fc, (int, float)) else None)
+        obs.append(f"The forecast this week was {fc}, and actual demand was {ac} — which means the plan expected about {fc} but {ac} actually came in"
+                   + (f", a gap of {gap}." if gap is not None else "."))
     v = fs.get("verdict", "normal")
     lvl = fs.get("forecast_usual_level")
     if v == "forecast_anomalously_low":
-        obs.append(f"That forecast ({fs.get('forecast')}) is well below this queue's usual level of about {lvl}.")
+        obs.append(f"That forecast ({fc}) is well below this queue's usual level of about {lvl} — which means the forecast itself was set unusually low this week, so the miss may be about the forecast, not real demand.")
     elif v == "forecast_anomalously_high":
-        obs.append(f"That forecast ({fs.get('forecast')}) is well above this queue's usual level of about {lvl}.")
+        obs.append(f"That forecast ({fc}) is well above this queue's usual level of about {lvl} — which means the forecast itself was set unusually high this week, so the miss may be about the forecast, not real demand.")
     elif v == "actual_anomalous":
-        obs.append(f"Actual demand ({fs.get('actual')}) was far from this queue's usual level of about {fs.get('actual_usual_level')}, while the forecast ({fs.get('forecast')}) was about normal.")
+        obs.append(f"Actual demand ({ac}) was far from this queue's usual level of about {fs.get('actual_usual_level')}, while the forecast ({fc}) was about normal — which means real demand moved sharply this week even though the forecast looked ordinary.")
     elif v == "forecast_scale_mismatch":
-        obs.append(f"The forecast ({fs.get('forecast')}) is far out of line with the actual volume ({fs.get('actual')}) this week.")
+        obs.append(f"The forecast ({fc}) is far out of line with the actual volume ({ac}) this week — which means the forecast and the real demand were on very different scales, which usually points to a bad forecast value.")
     ch = f.get("chronic_bias") or {}
     if str(ch.get("verdict", "")).startswith("chronic"):
-        obs.append(f"This queue is {ch.get('consistent_direction')}-forecast in most recent weeks (typically about {ch.get('usual_actual')} actual against {ch.get('usual_forecast')} forecast).")
+        d = ch.get("consistent_direction")
+        plan = "too low" if d == "under" else "too high"
+        obs.append(f"This queue is {d}-forecast in most recent weeks (typically about {ch.get('usual_actual')} actual against {ch.get('usual_forecast')} forecast) — which means the plan is set {plan} for this queue week after week, so this week is part of an ongoing pattern, not a one-off.")
     elif ch.get("verdict") == "mixed":
-        obs.append("This queue's misses have no consistent direction over recent weeks.")
+        obs.append("This queue's misses have no consistent direction over recent weeks — which means it sometimes over- and sometimes under-forecasts, with no steady bias to correct.")
     pd = f.get("peer_divergence") or {}
     if pd.get("signal"):
-        obs.append(f"{pd.get('peers_opposite_direction')} of {pd.get('peers_total')} similar queues (same region, country and channel) moved the opposite way this week.")
+        obs.append(f"{pd.get('peers_opposite_direction')} of {pd.get('peers_total')} similar queues (same region, country and channel) moved the opposite way this week — which means the work likely shifted between sibling queues rather than total demand actually changing.")
     elif pd.get("peers_total") == 1:
-        obs.append("The one similar queue moved the same way this week.")
+        obs.append("The one similar queue moved the same way this week — which means the change was not just this queue, but there are too few peers to say much.")
     elif pd.get("peers_total"):
-        obs.append(f"All {pd.get('peers_total')} similar queues mostly moved the same way this week.")
+        obs.append(f"All {pd.get('peers_total')} similar queues mostly moved the same way this week — which means this was a broad move across similar queues, not something unique to this one.")
     pr = f.get("plan_restatement") or {}
     if pr.get("changed"):
-        obs.append(f"The forecast plan changed this week (from {pr.get('prior')} to {pr.get('current')}).")
+        obs.append(f"The forecast plan changed this week (from {pr.get('prior')} to {pr.get('current')}) — which means this week was forecast under a different plan version, which can shift the numbers.")
     else:
-        obs.append("The forecast plan did not change this week.")
+        obs.append("The forecast plan did not change this week — which means the miss cannot be blamed on a plan switch.")
     ib = f.get("installed_base")
     if ib and ib.get("material"):
-        obs.append(f"The installed base ({ib.get('field')}) was {ib.get('target_value')} this week vs a usual ~{ib.get('history_mean')}.")
+        obs.append(f"The installed base ({ib.get('field')}) was {ib.get('target_value')} this week vs a usual ~{ib.get('history_mean')} — which means the number of units under warranty (the pool that generates support demand) changed a lot, which can push demand up or down.")
     hol = f.get("holiday")
     if hol and hol.get("unusual"):
-        obs.append(f"There were {hol.get('holiday_count')} holidays in this week — more than usual.")
+        obs.append(f"There were {hol.get('holiday_count')} holidays in this week, more than usual — which means fewer working days, which can lower or distort the week's volumes.")
     return obs[:6]
 
 
