@@ -16,6 +16,101 @@ Deploy **30 Jul 2026** · last dev day **29 Jul**. Ordered by priority.
 - [ ] Treatment of **holiday weeks** (`Holiday_Count > 0`).
 - [ ] Per-**Offering** / per-**Channel** acceptable bands, if any.
 
+## P1b — WFM engine follow-ups (branch `wfm-rca`, added 2026-07-28)
+Contract + full detail: `IMP_DOCS/wfm-rca-engine.md`. The engine ships and runs; these are the
+gaps between it and the business spec.
+- [x] **SQL-backed WFM path re-verified after the refactor** (2026-07-28, VPN restored) —
+      3.63s end to end, 103 history weeks, same-week-last-year found, all 5 ladder levels,
+      real channel-sibling deltas, relationships retained on live data, and the ASU
+      decomposition identity exact on 3 further real queues. See `wfm-rca-engine.md`.
+- [ ] **A dead SQL host makes a `?mode=wfm` request wait ~42s** before degrading. The fetch is
+      deliberately non-fatal (the engine still answers from the posted bundle), but the ODBC
+      login timeout dominates. Lower the connect timeout for this path, or probe the host once
+      and cache the result for a few seconds.
+- [ ] **BLOCKING QUESTION · does the true Combined Queue span channels?** The console's
+      signed-off CQN is `Forecast_name + Region + SubRegion + Country + Channel` (channel IS in
+      the key, `rca_console.html:1653`), but the WFM spec wants migration *between channels
+      within a CQN* — mutually exclusive. Migration detection currently uses a separately named
+      proxy (`Region + SubRegion + Country + business_org`, flagged `is_cqn_proxy: true`).
+      Answer decides whether the console's CQN definition changes or the check is renamed.
+- [ ] **No evaluation set — ranking correctness is unmeasured.** Verification so far proves the
+      engine runs and the deterministic gates fire, NOT that cause #1 is right. Need ~50-100
+      past misses labelled by the forecasters, scored on top-1 accuracy. Prerequisite for any
+      further prompt tuning; without it every prompt change is unfalsifiable.
+- [x] **`correlation_engine` implemented** (2026-07-28) — `wfm/correlation_engine.py`. Rank
+      correlation per driver with retain/reject thresholds (≥12 weeks, |strength| ≥ 0.5), plus
+      the exact ASU driver decomposition. Unit-verified.
+- [x] **`skeptic` now rejects in code** (2026-07-28) — `wfm/skeptic.py`. Feature preconditions
+      for all 10 cause types (hard reject) + numeric grounding of every cited figure (prunes
+      evidence). Verified: a `plan_restatement` claim on a week where the plan did not change is
+      rejected. This was the highest-value accuracy defect.
+- [x] **Split into reasoning modules** (2026-07-28) — `backend/wfm/` package, 13 modules;
+      `backend/rca_wfm.py` kept as a compatibility shim.
+- [x] **ASU driver decomposition wired as a first-class signal** (2026-07-28) — in
+      `correlation_engine`, fed to the prompt as `CORRELATIONS`, and surfaced in
+      `technical_metrics`. Original note kept below for the maths.
+- [ ] ~~Wire the exact ASU driver decomposition as a first-class signal.~~
+      `volume = (Actual_ASU − Planned_ASU) × planned_rate`, `rate = Actual_ASU × (actual_rate −
+      planned_rate)`; these sum identically to the total error — verified exact on all 22,003
+      flagged misses carrying both columns (60.7% rate-driven, 9.8% base-driven, 29.6% mixed).
+      This is genuine attribution, unlike picking a label.
+- [ ] **`derive_features` looks for a column named `ASU`** for the proof panel; the table only
+      has `Planned_ASU` / `Actual_ASU`, so that proof row silently never populates.
+- [x] **LLM timeout configurable in BOTH engines** (2026-07-28) — `llm.timeout_seconds` in
+      `config.json`, set to **150**, honoured by `wfm/llm_client.py` AND
+      `rca_investigate._call_openai_compatible` (falls back to the original 100 when the key is
+      absent). **Note: this means `rca_investigate.py` is no longer byte-identical to
+      `shivam-updates`** — traded deliberately because the UI's LLM path was failing ~1 in 3 on
+      the old 100s ceiling (Canary V0.3 measured a call dying at exactly 100,121 ms).
+      NVIDIA answers WFM investigations in 53–68s; **3/3 queues, 27/27 ranking checks**
+      (`results/llm-ranking-report.json`).
+- [ ] **~1 in 3 NVIDIA calls HANGS, and a bigger timeout does not help.** Measured on the default
+      engine + NVIDIA: 52.5s `llm` / **300.7s fallback** / 43.9s `llm` at a 300s ceiling — the
+      success rate stayed 2/3 and the failure just took 5 minutes, so 300 was reverted to 150.
+      Real remedies: retry the same model once, or fall back to a second model on a hang. The
+      latter conflicts with the deliberate "never answer a picked model with a different one"
+      rule that keeps per-queue model comparison honest. **Needs a product decision.**
+- [ ] **Validate `NA Core Spanish` week 202719 (actual 8,805) at source** — almost certainly a
+      decimal shift, not demand. See `wfm-rca-engine.md`. This revises Session 15's conclusion.
+- [ ] Consume the uploaded **CQN mapping file** in the WFM engine (today the grouping is a proxy).
+- [ ] Optional: surface the new WFM keys (`ranked_root_causes`, `skeptic_review`,
+      `investigation_trail`, collapsed `technical_metrics`) directly in the UI. Not required —
+      the engine backfills the legacy keys so the current UI already renders it.
+
+## P1c — defects found by Canary V0.1 (2026-07-28, all pre-existing in the UI)
+Full detail + report path: `IMP_DOCS/canary-test-log.md`. None introduced by the WFM work
+(`rca_console.html` unmodified on branch `wfm-rca`).
+- [ ] **Uncaught `TypeError` on every page load** — `rca_console.html:2094` `renderProbe()` sets
+      `#kbCount`, removed with the Probing layer (`e432543`), but is still called at line 2120.
+      The throw aborts the block so line 2121 `renderPipe()` never runs and the initial pipeline
+      strip is never painted. One guard clause. **Highest priority — it fires for every user.**
+- [ ] **RCA Console flagged tile under-counts by 96** — RESOLVED against SQL: true count is
+      **33,099** (the Dashboard figure). The tile shows `33,003`. Not explained by excluding
+      `Actual_Offered = 0` (that gives 33,055). Fix the tile's scan, not the Dashboard.
+- [ ] **Dashboard "Forecast names by adherence band" reads as broken** — 5 of 6 bands show
+      `0 names · 0%` against non-zero week counts, because names are bucketed by their WORST
+      week (all 427 have a >±25% week). Bucket by typical week, or relabel.
+- [ ] **Model picker races the first RCA** — first Investigate click runs on the NVIDIA default
+      (times out here) with no picker shown, because `RCA_MODELS` is still empty. Await
+      `/api/models` before enabling, or default to Groq.
+- [ ] **Unbounded percentages** — `acc 9700% / −9600% dev` is formula-correct with
+      `fcst_offered = 0.34` but reads as garbage. Cap the display or special-case near-zero forecasts.
+- [ ] **Timeline legend hardcodes "today (Wed 22 Jul)"** while the header computes 28 Jul.
+- [ ] No favicon → a 404 on every load (cosmetic; it is the 404 in the console).
+
+## P1d — defects found by Canary V0.2 (2026-07-28)
+Recording in `results/canary-v0.2/`, full write-up in `IMP_DOCS/canary-test-log.md`.
+- [ ] **Flagged-queue cards may not be clickable by a real pointer.** A native click on `#q0` was
+      blocked 30s: `<input class="fsearch">` (`#filters`) and `<a data-tab="timeline">` (`.nav`)
+      intercept pointer events over the queue list. The test only proceeded via `element.click()`.
+      **A real user at that viewport may be unable to open a queue.** Highest severity.
+- [ ] **Changing the AI model re-runs the PREVIOUS queue and overwrites the panel.**
+      `onRcaModelChange()` calls `triggerRCA(window._rcaCurrent)`, stale after `selectFlag()`.
+      Observed live: header said `EC Comm Client Israel EUC Chat`, panel rendered
+      `NA Core Spanish · FW 202719` — a real server call for the wrong queue.
+- [ ] **Model picker only exists after a card is selected** (it lives inside `#investigationPanel`,
+      built by `selectFlag()`). This is the mechanism behind the V0.1 picker-race finding.
+
 ## P2 — dashboard / UX polish (post-deadline OK)
 - [x] High-cardinality dimension cards showed 0% shares — now show row counts; Fiscal_Week dropped from the grid; panel made bolder/cleaner. (2026-07-22)
 - [ ] Trend charts: optional brush/zoom for the 325-week span; shared hover legend across the two trend charts.

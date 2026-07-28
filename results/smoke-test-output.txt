@@ -1,0 +1,32 @@
+==============================================================================
+WFM MODULE SMOKE TEST — each module exercised in isolation
+==============================================================================
+
+  PASS  common.py                          KPI maths & helpers
+        KPI sign convention, bands, median, fiscal-week maths
+  PASS  temporal_reasoner.py               104wk / last-year / plan change
+        14 wks, last-year found, plan-change flag, 4/13wk averages
+  PASS  hierarchy_analyzer.py              investigation ladder
+        highest same-direction level wins; opposite direction ignored; empty handled
+  PASS  channel_migration_detector.py      channel migration
+        offsetting move detected; joint growth rejected; proxy flag present
+  PASS  data_quality.py                    credibility of the number
+        isolated reverting spike flagged; level shift not flagged; short history skipped
+  PASS  correlation_engine.py              decomposition + relationships
+        identity exact; missing cols handled; retained=['Actual_ASU']
+  PASS  skeptic.py                         rejection & numeric grounding
+        unsupported cause rejected; 10 preconditions; fabricated figure pruned
+  PASS  hypothesis_generator.py            status marking & fallback list
+        over-confidence downgraded; deterministic list leads with data quality
+  PASS  business_report_generator.py       report + back-compat
+        KPI recomputed; 0-1 confidence rescaled; band derived; legacy keys present
+  PASS  data_access.py                     SQL fetches (needs VPN)
+        104 history, 4 forward, 92 siblings, 5 ladder levels
+  PASS  llm_client.py + prompts.py         timeout config & prompt contract
+        timeout config parsed + defaulted; prompt contract intact
+  PASS  investigation_engine.py            wiring & threshold gate
+        all 6 feature blocks built; in-band gate refuses without calling any provider
+
+==============================================================================
+12 passed, 0 failed, 0 skipped, of 12 modules
+==============================================================================

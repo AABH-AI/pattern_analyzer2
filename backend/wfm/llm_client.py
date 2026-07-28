@@ -1,0 +1,71 @@
+"""LLM transport for the WFM engine, with a CONFIGURABLE timeout.
+
+Why this exists
+---------------
+`rca_investigate._call_openai_compatible` hard-codes `timeout=100`. NVIDIA reasoning models
+routinely need longer than that on this network for a full WFM payload, so every NVIDIA
+investigation landed in the deterministic fallback — and when Groq's daily quota is spent there
+is no working provider left at all.
+
+Rather than edit `rca_investigate.py` (which is deliberately kept byte-identical to
+`shivam-updates` so the original engine cannot regress), the WFM engine gets its own transport
+with the timeout read from config:
+
+    "llm": { "timeout_seconds": 300, ... }
+
+Defaults to 100 so behaviour is unchanged when the key is absent.
+
+Everything else mirrors the original transport exactly, including the two behaviours that were
+learned the hard way and must not be lost:
+  * a browser-like User-Agent -- Groq's Cloudflare returns 403 "error code: 1010" to the
+    default Python-urllib UA before the request reaches the API;
+  * a retry without `response_format` -- some NVIDIA models reject it with 400/503.
+"""
+import json
+import urllib.error
+import urllib.request
+
+from rca_investigate import _extract_json      # loose/fenced JSON parsing, reused as-is
+
+DEFAULT_TIMEOUT_SECONDS = 100
+TEMPERATURE = 0.35        # same as the original engine
+
+_UA = "Mozilla/5.0 (compatible; rca-investigation-engine/1.0)"
+
+
+def timeout_from_config(llm_cfg):
+    """Read llm.timeout_seconds, falling back to the original 100s."""
+    try:
+        value = float((llm_cfg or {}).get("timeout_seconds") or DEFAULT_TIMEOUT_SECONDS)
+        return value if value > 0 else DEFAULT_TIMEOUT_SECONDS
+    except (TypeError, ValueError):
+        return DEFAULT_TIMEOUT_SECONDS
+
+
+def _post(endpoint, api_key, model, messages, timeout, use_response_format):
+    payload = {"model": model, "messages": messages, "temperature": TEMPERATURE}
+    if use_response_format:
+        payload["response_format"] = {"type": "json_object"}
+    req = urllib.request.Request(
+        endpoint, data=json.dumps(payload).encode("utf-8"), method="POST",
+        headers={"Content-Type": "application/json",
+                 "Authorization": f"Bearer {api_key}",
+                 "Accept": "application/json",
+                 "User-Agent": _UA})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        body = json.loads(resp.read().decode("utf-8"))
+    return body["choices"][0]["message"]["content"]
+
+
+def chat_json(endpoint, api_key, model, messages, timeout=None):
+    """Call the model and parse JSON. Retries once without response_format for models
+    that reject it."""
+    timeout = timeout or DEFAULT_TIMEOUT_SECONDS
+    try:
+        raw = _post(endpoint, api_key, model, messages, timeout, True)
+    except urllib.error.HTTPError as e:
+        if e.code in (400, 415, 422, 500, 503):
+            raw = _post(endpoint, api_key, model, messages, timeout, False)
+        else:
+            raise
+    return _extract_json(raw)

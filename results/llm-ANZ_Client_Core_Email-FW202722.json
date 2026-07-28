@@ -1,0 +1,682 @@
+{
+ "executive_summary": "Forecast adherence for ANZ Client Core Email was 16.3%, meaning the forecast over\u2011estimated actual demand by more than the allowed 10% threshold. The same over\u2011forecast pattern is already present at the Business Org level (CSG) and propagates down through Region, SubRegion and Country, indicating the miss is not specific to this queue. A contributing factor is an unusually high count of upgrade units (Final_upp_units) this week, though warranty\u2011unit data is missing. Action should focus on revising the Business Org forecast plan and validating the installed\u2011base assumptions that feed it.",
+ "kpi_status": {
+  "metric": "Forecast Adherence",
+  "adherence_pct": 16.3,
+  "threshold_pct": 10.0,
+  "breached": true,
+  "direction": "over_forecast"
+ },
+ "business_impact": "The over\u2011forecast creates excess planned capacity, likely leading to unnecessary staffing costs and lower agent utilization.",
+ "ranked_root_causes": [
+  {
+   "rank": 1,
+   "cause_type": "inherited_from_higher_level",
+   "title": "Business Org\u2011level forecast miss",
+   "explanation": "The forecast for this queue is high because the whole CSG business organisation is over\u2011forecasting demand; the same pattern appears at Region, SubRegion and Country levels.",
+   "evidence": [
+    {
+     "text": "Business Org forecast adherence is 20.5%",
+     "source_field": "INVESTIGATION_LADDER.levels[0].adherence_pct",
+     "value": 20.5
+    },
+    {
+     "text": "Business Org actual offered 185,972 vs forecast 233,909.3",
+     "source_field": "INVESTIGATION_LADDER.levels[0].actual_offered",
+     "value": 185972.0
+    },
+    {
+     "text": "Business Org forecast offered 233,909.3",
+     "source_field": "INVESTIGATION_LADDER.levels[0].fcst_offered",
+     "value": 233909.3
+    }
+   ],
+   "confidence_pct": 90,
+   "confidence_level": "High",
+   "business_impact": "Excess capacity and cost across the entire CSG organisation.",
+   "recommended_action": "Review and recalibrate the CSG\u2011level forecast plan (FY27 Jun Projection) and its underlying demand drivers.",
+   "status": "Verified"
+  },
+  {
+   "rank": 2,
+   "cause_type": "installed_base_change",
+   "title": "Unusually high upgrade units",
+   "explanation": "The count of upgrade\u2011protected units (Final_upp_units) is well above its usual level, which may be influencing demand but is not yet reflected in the forecast.",
+   "evidence": [
+    {
+     "text": "Final_upp_units this week is 2,677",
+     "source_field": "target_row_fields.Final_upp_units",
+     "value": 2677.0
+    },
+    {
+     "text": "Usual level of Final_upp_units is about 2,150",
+     "source_field": "DERIVED_FEATURES.installed_base.history_mean",
+     "value": 2149.88
+    },
+    {
+     "text": "Z\u2011score for Final_upp_units is 2.96, indicating an unusual increase",
+     "source_field": "DERIVED_FEATURES.installed_base.z_score",
+     "value": 2.96
+    }
+   ],
+   "confidence_pct": 55,
+   "confidence_level": "Medium",
+   "business_impact": "If upgrade units drive contacts, the forecast may be under\u2011estimating demand from that segment; however, the observed over\u2011forecast suggests other factors dominate.",
+   "recommended_action": "Validate the upgrade\u2011unit forecast assumption and incorporate recent trends into the CSG demand model.",
+   "status": "Hypothesis - To be Validated"
+  },
+  {
+   "rank": 3,
+   "cause_type": "volume_routing_shift",
+   "title": "No significant channel shift detected",
+   "explanation": "Overall offered volume across all channels declined versus the prior week, but there is no evidence of demand moving between channels; the change appears to be a general volume decrease rather than a routing shift.",
+   "evidence": [
+    {
+     "text": "Total offered volume across Chat, Email and Voice changed by \u20131,162 versus prior week",
+     "source_field": "CHANNEL_SIBLINGS.group_total_change",
+     "value": -1162.0
+    },
+    {
+     "text": "Combined gross channel movement is 1,162 with no offsetting gains",
+     "source_field": "CHANNEL_SIBLINGS.gross_channel_movement",
+     "value": 1162.0
+    }
+   ],
+   "confidence_pct": 30,
+   "confidence_level": "Low",
+   "business_impact": "Limited; the volume change does not explain the forecast miss through channel migration.",
+   "recommended_action": "Monitor channel trends for any future shifts, but no immediate action required.",
+   "status": "Verified"
+  }
+ ],
+ "skeptic_review": [
+  {
+   "cause": "inherited_from_higher_level",
+   "challenge": "Could the miss be driven solely by a queue\u2011specific anomaly that coincidentally matches the Business Org trend?",
+   "verdict": "rejected",
+   "reason": "The INVESTIGATION_LADDER shows the same adherence breach at Business Org, Region, SubRegion and Country levels, making a queue\u2011only cause unlikely."
+  },
+  {
+   "cause": "installed_base_change",
+   "challenge": "Without Actual_ASU data we cannot confirm that the upgrade\u2011unit increase translates into higher demand; the correlation analysis rejected the relationship between installed base and offered volume.",
+   "verdict": "retained",
+   "reason": "The installed\u2011base signal is strong (z\u2011score 2.96) and material, but the lack of warranty\u2011unit data prevents a verified causal link; therefore it remains a hypothesis."
+  },
+  {
+   "cause": "volume_routing_shift",
+   "challenge": "The overall volume drop could be masking a hidden shift where gains in one channel offset losses in another.",
+   "verdict": "rejected",
+   "reason": "CHANNEL_SIBLINGS reports migration_detected false and all three channels show losses, with gaining_channels empty, indicating no offsetting shift."
+  },
+  {
+   "cause": "Business Org\u2011level forecast miss",
+   "challenge": "Is this supported by the data, or could something else explain it better?",
+   "verdict": "retained",
+   "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+  },
+  {
+   "cause": "Unusually high upgrade units",
+   "challenge": "Is this supported by the data, or could something else explain it better?",
+   "verdict": "retained",
+   "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+  },
+  {
+   "cause": "No significant channel shift detected",
+   "challenge": "Is this supported by the data, or could something else explain it better?",
+   "verdict": "retained",
+   "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+  }
+ ],
+ "investigation_trail": {
+  "levels_checked": [
+   "Business Org",
+   "Region",
+   "SubRegion",
+   "Country",
+   "Channel"
+  ],
+  "inherited_from": "Business Org",
+  "narrative": "Starting at the queue level, adherence exceeded the threshold. Checking the INVESTIGATION_LADDER revealed the same breach at the Business Org level, so the investigation stopped there as the cause is inherited from higher aggregation."
+ },
+ "channel_migration": {
+  "detected": false,
+  "narrative": "All three channels (Chat, Email, Voice) showed lower offered volume this week versus last week, with no channel gaining volume to offset another's loss, so there is no evidence of demand shifting between channels.",
+  "gaining_channels": [],
+  "losing_channels": [
+   "Chat",
+   "Email",
+   "Voice"
+  ],
+  "grouped_by": "Region + SubRegion + Country + business_org",
+  "is_cqn_proxy": true,
+  "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+  "detail": {
+   "available": true,
+   "grouped_by": "Region + SubRegion + Country + business_org",
+   "is_cqn_proxy": true,
+   "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+   "prior_week": "202721",
+   "this_week": "202722",
+   "per_channel": [
+    {
+     "channel": "Chat",
+     "prior_week_actual": 506.0,
+     "this_week_actual": 493.0,
+     "change": -13.0,
+     "is_target_channel": false
+    },
+    {
+     "channel": "Email",
+     "prior_week_actual": 4654.0,
+     "this_week_actual": 4071.0,
+     "change": -583.0,
+     "is_target_channel": true
+    },
+    {
+     "channel": "Voice",
+     "prior_week_actual": 1364.0,
+     "this_week_actual": 798.0,
+     "change": -566.0,
+     "is_target_channel": false
+    }
+   ],
+   "group_total_prior_week": 6524.0,
+   "group_total_this_week": 5362.0,
+   "group_total_change": -1162.0,
+   "gross_channel_movement": 1162.0,
+   "offset_share": 0.0,
+   "migration_detected": false,
+   "gaining_channels": [],
+   "losing_channels": [
+    "Chat",
+    "Email",
+    "Voice"
+   ],
+   "note": "Channel movements do not cancel out, so this is not a like-for-like shift between channels."
+  }
+ },
+ "technical_metrics": [
+  {
+   "label": "Forecast (fcst_offered)",
+   "value": 700.51
+  },
+  {
+   "label": "Actual demand (Actual_Offered)",
+   "value": 586.0
+  },
+  {
+   "label": "Planned ASU",
+   "value": 124187.0
+  },
+  {
+   "label": "Installed base (Final_upp_units)",
+   "value": 2677.0
+  },
+  {
+   "label": "Adherence at Business Org level",
+   "value": 20.5
+  },
+  {
+   "label": "Adherence at Region level",
+   "value": 27.3
+  },
+  {
+   "label": "Adherence at SubRegion level",
+   "value": 17.2
+  },
+  {
+   "label": "Adherence at Country level",
+   "value": 17.2
+  },
+  {
+   "label": "Adherence at Channel level",
+   "value": 8.0
+  },
+  {
+   "label": "Forecast adherence (%)",
+   "value": 16.3
+  },
+  {
+   "label": "Actual offered (Actual_Offered)",
+   "value": 586.0
+  },
+  {
+   "label": "Business Org adherence (%)",
+   "value": 20.5
+  },
+  {
+   "label": "Final_upp_units (upgrade units)",
+   "value": 2677.0
+  }
+ ],
+ "missing_information": [
+  "Actual_ASU (actual units under warranty) \u2013 needed to split the miss into warranty\u2011base and contacts\u2011per\u2011unit effects.",
+  "Detailed historical ASU trend to confirm whether the upgrade\u2011unit rise is sustained or a one\u2011off."
+ ],
+ "derived_features": {
+  "base_features": {
+   "chronic_bias": {
+    "history_mean_adherence_pct": 5.3,
+    "typical_abs_deviation_pct": 8.0,
+    "history_weeks": 13,
+    "usual_forecast": 656.7,
+    "usual_actual": 620.7,
+    "consistent_direction": null,
+    "share_same_direction": 0.77,
+    "verdict": "mixed"
+   },
+   "this_week_vs_usual": {
+    "target_adherence_pct": 16.3,
+    "typical_abs_deviation_pct": 8.0,
+    "times_usual": 2.0,
+    "worse_than_usual": true
+   },
+   "forecast_sanity": {
+    "forecast": 700.51,
+    "actual": 586.0,
+    "forecast_usual_level": 656.71,
+    "actual_usual_level": 620.69,
+    "forecast_z_vs_own_history": 0.67,
+    "actual_z_vs_own_history": -0.48,
+    "forecast_over_actual_ratio": 1.195,
+    "verdict": "normal"
+   },
+   "installed_base": {
+    "field": "Final_upp_units",
+    "z_score": 2.96,
+    "target_value": 2677.0,
+    "history_mean": 2149.88,
+    "material": true
+   },
+   "holiday": {
+    "holiday_count": 0.0,
+    "z_score": -0.7,
+    "unusual": false
+   },
+   "plan_restatement": {
+    "changed": false
+   },
+   "forecaster_change": {
+    "changed": false
+   },
+   "offering_change": {
+    "changed": false
+   },
+   "peer_divergence": {
+    "peers_total": 4,
+    "peers_opposite_direction": 2,
+    "peers_same_direction": 2,
+    "examples_opposite": [
+     {
+      "forecast_name": "ANZ Cons Core TS Email",
+      "adherence_pct": -36.8
+     },
+     {
+      "forecast_name": "ANZ Consumer Client OOP Email",
+      "adherence_pct": -20.3
+     }
+    ],
+    "signal": true
+   },
+   "population_context": null,
+   "cleaned_signals": [
+    {
+     "field": "installed_base(Final_upp_units)",
+     "z_score": 2.96,
+     "target_value": 2677.0,
+     "history_mean": 2149.88
+    }
+   ],
+   "proof": [
+    {
+     "label": "Forecast (fcst_offered)",
+     "field": "fcst_offered",
+     "this_week": 700.51,
+     "usual": 656.7,
+     "change": "about the same as usual"
+    },
+    {
+     "label": "Actual demand (Actual_Offered)",
+     "field": "Actual_Offered",
+     "this_week": 586.0,
+     "usual": 620.7,
+     "change": "about the same as usual"
+    },
+    {
+     "label": "Planned ASU",
+     "field": "Planned_ASU",
+     "this_week": 124187.0,
+     "usual": 126444,
+     "change": "about the same as usual"
+    },
+    {
+     "label": "Installed base (Final_upp_units)",
+     "field": "Final_upp_units",
+     "this_week": 2677.0,
+     "usual": 2150,
+     "change": "about the same as usual"
+    }
+   ]
+  },
+  "temporal": {
+   "this_week": {
+    "fiscal_week": "202722",
+    "actual": 586.0,
+    "forecast": 700.512609710049,
+    "adherence_pct": 16.3
+   },
+   "previous_week": {
+    "fiscal_week": 202721,
+    "actual": 536.0
+   },
+   "last_4_week_avg_actual": 618.0,
+   "last_13_week_avg_actual": 620.7,
+   "full_history_avg_actual": 663.3,
+   "history_weeks_available": 103,
+   "same_week_last_year": {
+    "fiscal_week": 202622,
+    "actual": 728.0,
+    "forecast": 682.665799079791
+   },
+   "same_week_last_year_note": null,
+   "distinct_forecast_plans_in_window": [
+    "FY25 Jul Projection",
+    "FY25 Aug Projection",
+    "FY25 Sep Projection",
+    "FY25 Oct Projection",
+    "FY25 Nov Projection",
+    "FY25 Dec Projection",
+    "FY26 Feb Projection",
+    "FY26 Mar Projection",
+    "FY26 Apr Projection",
+    "FY26 May Projection",
+    "FY26 Jun Projection",
+    "FY26 Jul Projection",
+    "FY26 Aug Projection",
+    "FY26 Sep Projection",
+    "FY26 Oct Projection",
+    "FY26 Nov Projection",
+    "FY26 Dec Projection",
+    "FY26 Jan Projection",
+    "FY27 Feb Projection",
+    "FY27 Mar Projection",
+    "FY27 Apr Projection",
+    "FY27 May Projection",
+    "FY27 Jun Projection"
+   ],
+   "forecast_plan_changed_within_window": true
+  },
+  "channel_siblings": {
+   "available": true,
+   "grouped_by": "Region + SubRegion + Country + business_org",
+   "is_cqn_proxy": true,
+   "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+   "prior_week": "202721",
+   "this_week": "202722",
+   "per_channel": [
+    {
+     "channel": "Chat",
+     "prior_week_actual": 506.0,
+     "this_week_actual": 493.0,
+     "change": -13.0,
+     "is_target_channel": false
+    },
+    {
+     "channel": "Email",
+     "prior_week_actual": 4654.0,
+     "this_week_actual": 4071.0,
+     "change": -583.0,
+     "is_target_channel": true
+    },
+    {
+     "channel": "Voice",
+     "prior_week_actual": 1364.0,
+     "this_week_actual": 798.0,
+     "change": -566.0,
+     "is_target_channel": false
+    }
+   ],
+   "group_total_prior_week": 6524.0,
+   "group_total_this_week": 5362.0,
+   "group_total_change": -1162.0,
+   "gross_channel_movement": 1162.0,
+   "offset_share": 0.0,
+   "migration_detected": false,
+   "gaining_channels": [],
+   "losing_channels": [
+    "Chat",
+    "Email",
+    "Voice"
+   ],
+   "note": "Channel movements do not cancel out, so this is not a like-for-like shift between channels."
+  },
+  "investigation_ladder": {
+   "available": true,
+   "band_pct": 10.0,
+   "levels": [
+    {
+     "level": "Business Org",
+     "scope": "CSG",
+     "actual_offered": 185972.0,
+     "fcst_offered": 233909.3,
+     "adherence_pct": 20.5,
+     "queue_weeks_in_scope": 423
+    },
+    {
+     "level": "Region",
+     "scope": "CSG / APJ",
+     "actual_offered": 73956.0,
+     "fcst_offered": 101691.7,
+     "adherence_pct": 27.3,
+     "queue_weeks_in_scope": 157
+    },
+    {
+     "level": "SubRegion",
+     "scope": "CSG / APJ / ANZ",
+     "actual_offered": 5362.0,
+     "fcst_offered": 6472.1,
+     "adherence_pct": 17.2,
+     "queue_weeks_in_scope": 15
+    },
+    {
+     "level": "Country",
+     "scope": "CSG / APJ / ANZ / Australia",
+     "actual_offered": 5362.0,
+     "fcst_offered": 6472.1,
+     "adherence_pct": 17.2,
+     "queue_weeks_in_scope": 15
+    },
+    {
+     "level": "Channel",
+     "scope": "CSG / APJ / ANZ / Australia / Email",
+     "actual_offered": 4071.0,
+     "fcst_offered": 4423.3,
+     "adherence_pct": 8.0,
+     "queue_weeks_in_scope": 5
+    }
+   ],
+   "levels_breaching_band": [
+    "Business Org",
+    "Region",
+    "SubRegion",
+    "Country"
+   ],
+   "inherited_from": "Business Org",
+   "note": "The same miss is already visible at Business Org level, so it is not specific to this queue and should be attributed there."
+  },
+  "data_quality": {
+   "available": true,
+   "this_week_actual": 586.0,
+   "typical_week_actual": 679.0,
+   "times_typical": 0.9,
+   "weeks_compared": 103,
+   "is_isolated_one_off": false,
+   "next_weeks_actual": [],
+   "returns_to_normal_immediately": false,
+   "reversion_testable": false,
+   "suspect": false,
+   "note": "Nothing about the value itself looks implausible."
+  },
+  "correlations": {
+   "relationships": {
+    "available": true,
+    "min_weeks_required": 12,
+    "min_strength_required": 0.5,
+    "retained": [],
+    "rejected": [
+     {
+      "driver": "Actual_ASU",
+      "subject": "the number of units under warranty",
+      "weeks": 82,
+      "technical_strength": 0.39,
+      "direction": "same",
+      "reason": "Relationship too weak or too little history to rely on (82 weeks)."
+     },
+     {
+      "driver": "Planned_ASU",
+      "subject": "the planned number of units under warranty",
+      "weeks": 104,
+      "technical_strength": 0.13,
+      "direction": "same",
+      "reason": "Relationship too weak or too little history to rely on (104 weeks)."
+     },
+     {
+      "driver": "Final_Units",
+      "subject": "the installed base",
+      "weeks": 104,
+      "technical_strength": 0.02,
+      "direction": "same",
+      "reason": "Relationship too weak or too little history to rely on (104 weeks)."
+     },
+     {
+      "driver": "Holiday_Count",
+      "subject": "the number of holidays in the week",
+      "weeks": 104,
+      "technical_strength": -0.39,
+      "direction": "opposite",
+      "reason": "Relationship too weak or too little history to rely on (104 weeks)."
+     }
+    ],
+    "note": "Only relationships consistently supported by this queue's own history are retained; the rest are listed as rejected so they are not used as evidence."
+   },
+   "driver_decomposition": {
+    "available": false,
+    "missing_fields": [
+     "Actual_ASU"
+    ],
+    "reason": "Cannot split the miss into a warranty-base effect and a contacts-per-unit effect because these values are missing or zero for this week: Actual_ASU."
+   }
+  }
+ },
+ "investigation_meta": {
+  "engine": "wfm-llm",
+  "provider": "nvidia",
+  "model": "nvidia/nemotron-3-super-120b-a12b",
+  "calls": 1,
+  "generated_at": "2026-07-28T17:43:31.061651+00:00"
+ },
+ "primary_root_cause": {
+  "statement": "The forecast for this queue is high because the whole CSG business organisation is over\u2011forecasting demand; the same pattern appears at Region, SubRegion and Country levels.",
+  "confidence": 0.9,
+  "supporting_evidence": [
+   {
+    "text": "Business Org forecast adherence is 20.5%",
+    "source_field": "INVESTIGATION_LADDER.levels[0].adherence_pct",
+    "value": 20.5
+   },
+   {
+    "text": "Business Org actual offered 185,972 vs forecast 233,909.3",
+    "source_field": "INVESTIGATION_LADDER.levels[0].actual_offered",
+    "value": 185972.0
+   },
+   {
+    "text": "Business Org forecast offered 233,909.3",
+    "source_field": "INVESTIGATION_LADDER.levels[0].fcst_offered",
+    "value": 233909.3
+   }
+  ]
+ },
+ "secondary_contributors": [
+  {
+   "statement": "The count of upgrade\u2011protected units (Final_upp_units) is well above its usual level, which may be influencing demand but is not yet reflected in the forecast.",
+   "confidence": 0.55,
+   "supporting_evidence": [
+    {
+     "text": "Final_upp_units this week is 2,677",
+     "source_field": "target_row_fields.Final_upp_units",
+     "value": 2677.0
+    },
+    {
+     "text": "Usual level of Final_upp_units is about 2,150",
+     "source_field": "DERIVED_FEATURES.installed_base.history_mean",
+     "value": 2149.88
+    },
+    {
+     "text": "Z\u2011score for Final_upp_units is 2.96, indicating an unusual increase",
+     "source_field": "DERIVED_FEATURES.installed_base.z_score",
+     "value": 2.96
+    }
+   ]
+  },
+  {
+   "statement": "Overall offered volume across all channels declined versus the prior week, but there is no evidence of demand moving between channels; the change appears to be a general volume decrease rather than a routing shift.",
+   "confidence": 0.3,
+   "supporting_evidence": [
+    {
+     "text": "Total offered volume across Chat, Email and Voice changed by \u20131,162 versus prior week",
+     "source_field": "CHANNEL_SIBLINGS.group_total_change",
+     "value": -1162.0
+    },
+    {
+     "text": "Combined gross channel movement is 1,162 with no offsetting gains",
+     "source_field": "CHANNEL_SIBLINGS.gross_channel_movement",
+     "value": 1162.0
+    }
+   ]
+  }
+ ],
+ "confidence_score": 0.9,
+ "cause_type": "inherited_from_higher_level",
+ "key_findings": [
+  "The forecast this week was 700.51, and actual demand was 586.0.",
+  "This queue's misses have no consistent direction over recent weeks.",
+  "2 of 4 similar queues (same region, country and channel) moved the opposite way this week.",
+  "The forecast plan did not change this week.",
+  "The installed base (Final_upp_units) was 2677.0 this week vs a usual ~2149.88."
+ ],
+ "supporting_evidence": [
+  {
+   "text": "Business Org forecast adherence is 20.5%",
+   "source_field": "INVESTIGATION_LADDER.levels[0].adherence_pct",
+   "value": 20.5
+  },
+  {
+   "text": "Business Org actual offered 185,972 vs forecast 233,909.3",
+   "source_field": "INVESTIGATION_LADDER.levels[0].actual_offered",
+   "value": 185972.0
+  },
+  {
+   "text": "Business Org forecast offered 233,909.3",
+   "source_field": "INVESTIGATION_LADDER.levels[0].fcst_offered",
+   "value": 233909.3
+  }
+ ],
+ "reasoning_narrative": "Forecast adherence for ANZ Client Core Email was 16.3%, meaning the forecast over\u2011estimated actual demand by more than the allowed 10% threshold. The same over\u2011forecast pattern is already present at the Business Org level (CSG) and propagates down through Region, SubRegion and Country, indicating the miss is not specific to this queue. A contributing factor is an unusually high count of upgrade units (Final_upp_units) this week, though warranty\u2011unit data is missing. Action should focus on revising the Business Org forecast plan and validating the installed\u2011base assumptions that feed it.",
+ "rejected_hypotheses": [
+  {
+   "hypothesis": "inherited_from_higher_level",
+   "reason_rejected": "The INVESTIGATION_LADDER shows the same adherence breach at Business Org, Region, SubRegion and Country levels, making a queue\u2011only cause unlikely."
+  },
+  {
+   "hypothesis": "volume_routing_shift",
+   "reason_rejected": "CHANNEL_SIBLINGS reports migration_detected false and all three channels show losses, with gaining_channels empty, indicating no offsetting shift."
+  }
+ ],
+ "historical_comparison": {},
+ "forecast_improvement_recommendations": [
+  "Review and recalibrate the CSG\u2011level forecast plan (FY27 Jun Projection) and its underlying demand drivers.",
+  "Validate the upgrade\u2011unit forecast assumption and incorporate recent trends into the CSG demand model.",
+  "Monitor channel trends for any future shifts, but no immediate action required."
+ ],
+ "forecast_summary": {}
+}

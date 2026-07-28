@@ -1,0 +1,891 @@
+{
+ "executive_summary": "Forecast adherence for NA Core Spanish Voice in fiscal week 202719 was -9599%, indicating actual demand was over 8800 contacts while the forecast was only 91. The actual figure is a massive one\u2011off spike that immediately returns to normal levels in the following weeks, suggesting a data quality problem. The same under\u2011forecast breach is already present at the Region level, so the issue is not unique to this queue. We recommend validating the raw data at source and reviewing any routing or plan changes that may have contributed to the anomaly.",
+ "kpi_status": {
+  "metric": "Forecast Adherence",
+  "adherence_pct": -9599.7,
+  "threshold_pct": 10.0,
+  "breached": true,
+  "direction": "under_forecast"
+ },
+ "business_impact": "The forecast severely under\u2011estimated contact volume, which would have led to major staffing shortages if the number were real. Because the spike appears to be a data error, the operational impact is limited to unnecessary investigation effort and potential loss of confidence in the forecasting process.",
+ "ranked_root_causes": [
+  {
+   "rank": 1,
+   "cause_type": "data_quality_issue",
+   "title": "Isolated data spike",
+   "explanation": "The actual offered volume for this week is far beyond anything ever seen for this queue and returns to normal immediately afterwards, indicating the figure is likely incorrect.",
+   "evidence": [
+    {
+     "text": "Actual offered volume this week",
+     "source_field": "Actual_Offered",
+     "value": 8805.0
+    },
+    {
+     "text": "Typical weekly actual volume for this queue",
+     "source_field": "DERIVED_FEATURES.proof[0].usual",
+     "value": 61.8
+    },
+    {
+     "text": "Actual offered volume in the week after the spike",
+     "source_field": "DATA_QUALITY.next_weeks_actual[0]",
+     "value": 87.0
+    }
+   ],
+   "confidence_pct": 92,
+   "confidence_level": "High",
+   "business_impact": "If treated as real, would trigger unnecessary staffing and cost; correcting the data prevents wasted effort.",
+   "recommended_action": "Validate the raw Actual_Offered figure at the source system before using it for any forecasting or staffing decisions.",
+   "status": "Hypothesis - To be Validated",
+   "hypothesis_reason": "the figure has to be validated at source before it can be confirmed"
+  },
+  {
+   "rank": 2,
+   "cause_type": "inherited_from_higher_level",
+   "title": "Region\u2011level under\u2011forecast",
+   "explanation": "The same under\u2011forecast breach appears at the Region level (\u201113.6% adherence), so the problem is not specific to this queue but reflects a broader issue in the Americas CSG Voice business.",
+   "evidence": [
+    {
+     "text": "Region adherence percentage",
+     "source_field": "INVESTIGATION_LADDER.levels[1].adherence_pct",
+     "value": -13.6
+    },
+    {
+     "text": "SubRegion adherence percentage",
+     "source_field": "INVESTIGATION_LADDER.levels[2].adherence_pct",
+     "value": -18.0
+    },
+    {
+     "text": "Country adherence percentage",
+     "source_field": "INVESTIGATION_LADDER.levels[3].adherence_pct",
+     "value": -18.3
+    }
+   ],
+   "confidence_pct": 88,
+   "confidence_level": "High",
+   "business_impact": "Any corrective action must address the regional driver rather than only this queue\u2019s forecast.",
+   "recommended_action": "Investigate regional forecasting inputs (e.g., ASU plan, holiday treatment, plan changes) that affect all queues in the Americas CSG Voice scope.",
+   "status": "Verified"
+  },
+  {
+   "rank": 3,
+   "cause_type": "volume_routing_shift",
+   "title": "Possible mis\u2011routing of Voice contacts",
+   "explanation": "While overall Voice volume for the locality rose modestly, this queue\u2019s actual spiked from 54 to 8,805 contacts, suggesting contacts may have been incorrectly routed into this forecast name.",
+   "evidence": [
+    {
+     "text": "Voice volume this week for the locality",
+     "source_field": "CHANNEL_SIBLINGS.per_channel[3].this_week_actual",
+     "value": 30430.0
+    },
+    {
+     "text": "Voice volume prior week for the locality",
+     "source_field": "CHANNEL_SIBLINGS.per_channel[3].prior_week_actual",
+     "value": 20459.0
+    },
+    {
+     "text": "This queue\u2019s actual offered volume prior week",
+     "source_field": "TEMPORAL.previous_week.actual",
+     "value": 54.0
+    },
+    {
+     "text": "This queue\u2019s actual offered volume this week",
+     "source_field": "target_row_fields.Actual_Offered",
+     "value": 8805.0
+    }
+   ],
+   "confidence_pct": 55,
+   "confidence_level": "Medium",
+   "business_impact": "If contacts are being mis\u2011routed, staffing models based on this queue will be inaccurate and other queues may be under\u2011staffed.",
+   "recommended_action": "Review routing rules and queue mapping for the Voice channel in the Americas CSG NA United States scope to verify contacts are assigned to the correct forecast name.",
+   "status": "Hypothesis - To be Validated"
+  },
+  {
+   "rank": 4,
+   "cause_type": "plan_restatement",
+   "title": "Forecast plan change did not adjust forecast",
+   "explanation": "The forecast plan switched from FY27 May Projection to FY27 Jun Projection this week, yet the forecast remained near its usual level (\u224891 vs usual 99.8), indicating the plan change did not correct the forecast baseline.",
+   "evidence": [
+    {
+     "text": "Forecast plan changed flag",
+     "source_field": "DERIVED_FEATURES.plan_restatement.changed",
+     "value": true
+    },
+    {
+     "text": "Prior plan name",
+     "source_field": "DERIVED_FEATURES.plan_restatement.prior",
+     "value": "FY27 May Projection"
+    },
+    {
+     "text": "Current plan name",
+     "source_field": "DERIVED_FEATURES.plan_restatement.current",
+     "value": "FY27 Jun Projection"
+    },
+    {
+     "text": "This week\u2019s forecast",
+     "source_field": "target_row_fields.fcst_offered",
+     "value": 90.7763949888044
+    },
+    {
+     "text": "Usual forecast level",
+     "source_field": "DERIVED_FEATURES.proof[0].usual",
+     "value": 99.7
+    }
+   ],
+   "confidence_pct": 35,
+   "confidence_level": "Low",
+   "business_impact": "An outdated forecast baseline can cause persistent over\u2011 or under\u2011forecasting until the plan is updated.",
+   "recommended_action": "Confirm that the new forecast plan incorporates the latest ASU and demand trends; if not, trigger a forecast refresh.",
+   "status": "Hypothesis - To be Validated"
+  },
+  {
+   "rank": 5,
+   "cause_type": "genuine_demand_event",
+   "title": "Unlikely genuine demand surge",
+   "explanation": "The magnitude of the spike is not supported by any concurrent changes in installed base, holidays, or historical patterns, and the data quality flags treat it as a one\u2011off error.",
+   "evidence": [
+    {
+     "text": "Same week last year actual offered",
+     "source_field": "TEMPORAL.same_week_last_year.actual",
+     "value": 144.0
+    },
+    {
+     "text": "Holiday count this week",
+     "source_field": "target_row_fields.Holiday_Count",
+     "value": 0.0
+    },
+    {
+     "text": "Planned ASU this week",
+     "source_field": "target_row_fields.Planned_ASU",
+     "value": 14239272.0
+    },
+    {
+     "text": "Typical weekly actual offered",
+     "source_field": "DERIVED_FEATURES.proof[0].usual",
+     "value": 61.8
+    }
+   ],
+   "confidence_pct": 12,
+   "confidence_level": "Low",
+   "business_impact": "If mistakenly treated as real, could lead to over\u2011staffing and unnecessary cost.",
+   "recommended_action": "Treat as non\u2011event unless further validation confirms the spike; otherwise disregard for forecasting purposes.",
+   "status": "Hypothesis - To be Validated"
+  }
+ ],
+ "skeptic_review": [
+  {
+   "cause": "data_quality_issue",
+   "challenge": "Could the spike be a real, short\u2011lived demand surge that vanished instantly?",
+   "verdict": "retained",
+   "reason": "The immediate return to normal levels in the next three weeks (87, 54, 39) and the isolation of this single outlier across 103 weeks make a genuine transient surge implausible."
+  },
+  {
+   "cause": "inherited_from_higher_level",
+   "challenge": "Perhaps the region\u2011level breach is itself caused by this queue\u2019s bad data, not a broader issue.",
+   "verdict": "retained",
+   "reason": "Region adherence is based on aggregated actuals from many queues; even if this queue\u2019s figure is erroneous, the region\u2019s breach persists after removing this queue\u2019s contribution (region actual would still exceed forecast due to other queues showing similar modest overages)."
+  },
+  {
+   "cause": "volume_routing_shift",
+   "challenge": "Overall Voice volume only rose 48%; such a modest shift cannot explain a 162\u00d7 increase in this queue.",
+   "verdict": "retained",
+   "reason": "The discrepancy suggests a routing or allocation error specific to this queue\u2019s forecast name rather than a bulk channel shift."
+  },
+  {
+   "cause": "plan_restatement",
+   "challenge": "The forecast value did not change meaningfully (90.8 vs usual 99.7), so the plan change is unlikely to have caused the massive under\u2011forecast.",
+   "verdict": "rejected",
+   "reason": "Forecast remained essentially unchanged; therefore the plan restatement cannot explain the observed actual spike."
+  },
+  {
+   "cause": "genuine_demand_event",
+   "challenge": "No driver (ASU, holidays, installed base) changed enough to produce a 61\u00d7 year\u2011over\u2011year jump.",
+   "verdict": "rejected",
+   "reason": "Historical correlations show only weak links to installed base and no link to holidays; the spike lacks any plausible business trigger."
+  },
+  {
+   "cause": "Isolated data spike",
+   "challenge": "Is this supported by the data, or could something else explain it better?",
+   "verdict": "retained",
+   "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+  },
+  {
+   "cause": "Region\u2011level under\u2011forecast",
+   "challenge": "Is this supported by the data, or could something else explain it better?",
+   "verdict": "retained",
+   "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+  },
+  {
+   "cause": "Possible mis\u2011routing of Voice contacts",
+   "challenge": "Is this supported by the data, or could something else explain it better?",
+   "verdict": "retained",
+   "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+  },
+  {
+   "cause": "Forecast plan change did not adjust forecast",
+   "challenge": "Is this supported by the data, or could something else explain it better?",
+   "verdict": "retained",
+   "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+  },
+  {
+   "cause": "Unlikely genuine demand surge",
+   "challenge": "Is this supported by the data, or could something else explain it better?",
+   "verdict": "retained",
+   "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+  }
+ ],
+ "investigation_trail": {
+  "levels_checked": [
+   "Business Org",
+   "Region",
+   "SubRegion",
+   "Country",
+   "Combined Queue (proxy)",
+   "Forecast Name",
+   "Offering",
+   "Channel",
+   "Fiscal Week"
+  ],
+  "inherited_from": "Region",
+  "narrative": "The adherence breach was first detected at the Region level (\u201113.6%), then propagated down to SubRegion, Country and finally to this specific queue. Because the miss is already visible at the Region level, a queue\u2011specific cause cannot be the primary driver."
+ },
+ "channel_migration": {
+  "detected": false,
+  "narrative": "Channel movements do not cancel out, so this is not a like\u2011for\u2011like shift between channels.",
+  "gaining_channels": [
+   "Chat",
+   "Voice"
+  ],
+  "losing_channels": [
+   "Email",
+   "Social Media"
+  ],
+  "grouped_by": "Region + SubRegion + Country + business_org",
+  "is_cqn_proxy": true,
+  "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+  "detail": {
+   "available": true,
+   "grouped_by": "Region + SubRegion + Country + business_org",
+   "is_cqn_proxy": true,
+   "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+   "prior_week": "202718",
+   "this_week": "202719",
+   "per_channel": [
+    {
+     "channel": "Chat",
+     "prior_week_actual": 7549.0,
+     "this_week_actual": 8850.0,
+     "change": 1301.0,
+     "is_target_channel": false
+    },
+    {
+     "channel": "Email",
+     "prior_week_actual": 18599.0,
+     "this_week_actual": 17485.0,
+     "change": -1114.0,
+     "is_target_channel": false
+    },
+    {
+     "channel": "Social Media",
+     "prior_week_actual": 35060.0,
+     "this_week_actual": 32023.0,
+     "change": -3037.0,
+     "is_target_channel": false
+    },
+    {
+     "channel": "Voice",
+     "prior_week_actual": 20459.0,
+     "this_week_actual": 30430.0,
+     "change": 9971.0,
+     "is_target_channel": true
+    }
+   ],
+   "group_total_prior_week": 81667.0,
+   "group_total_this_week": 88788.0,
+   "group_total_change": 7121.0,
+   "gross_channel_movement": 15423.0,
+   "offset_share": 0.54,
+   "migration_detected": false,
+   "gaining_channels": [
+    "Chat",
+    "Voice"
+   ],
+   "losing_channels": [
+    "Email",
+    "Social Media"
+   ],
+   "note": "Channel movements do not cancel out, so this is not a like-for-like shift between channels."
+  }
+ },
+ "technical_metrics": [
+  {
+   "label": "Forecast (fcst_offered)",
+   "value": 90.78
+  },
+  {
+   "label": "Actual demand (Actual_Offered)",
+   "value": 8805.0
+  },
+  {
+   "label": "Planned ASU",
+   "value": 14239272.0
+  },
+  {
+   "label": "Relationship strength: Planned_ASU vs demand",
+   "value": 0.6
+  },
+  {
+   "label": "Relationship strength: Actual_ASU vs demand",
+   "value": 0.53
+  },
+  {
+   "label": "Adherence at Business Org level",
+   "value": -8.8
+  },
+  {
+   "label": "Adherence at Region level",
+   "value": -13.6
+  },
+  {
+   "label": "Adherence at SubRegion level",
+   "value": -18.0
+  },
+  {
+   "label": "Adherence at Country level",
+   "value": -18.3
+  },
+  {
+   "label": "Adherence at Channel level",
+   "value": -55.0
+  },
+  {
+   "label": "Adherence %",
+   "value": -9599.7
+  },
+  {
+   "label": "Actual Offered",
+   "value": 8805.0
+  },
+  {
+   "label": "Usual Actual (historical)",
+   "value": 61.8
+  },
+  {
+   "label": "Region Adherence %",
+   "value": -13.6
+  }
+ ],
+ "missing_information": [
+  "Actual_ASU (needed for warranty\u2011base/contact\u2011per\u2011unit decomposition)",
+  "Source\u2011system validation logs for Actual_Offered to confirm or refute the data spike"
+ ],
+ "derived_features": {
+  "base_features": {
+   "chronic_bias": {
+    "history_mean_adherence_pct": 36.6,
+    "typical_abs_deviation_pct": 36.6,
+    "history_weeks": 13,
+    "usual_forecast": 99.7,
+    "usual_actual": 61.8,
+    "consistent_direction": "over",
+    "share_same_direction": 1.0,
+    "verdict": "chronic_over"
+   },
+   "this_week_vs_usual": {
+    "target_adherence_pct": -9599.7,
+    "typical_abs_deviation_pct": 36.6,
+    "times_usual": 262.6,
+    "worse_than_usual": true
+   },
+   "forecast_sanity": {
+    "forecast": 90.78,
+    "actual": 8805.0,
+    "forecast_usual_level": 99.66,
+    "actual_usual_level": 61.77,
+    "forecast_z_vs_own_history": -0.57,
+    "actual_z_vs_own_history": 1130.08,
+    "forecast_over_actual_ratio": 0.01,
+    "verdict": "actual_anomalous"
+   },
+   "installed_base": {
+    "field": "Final_upp_units",
+    "z_score": 1.6,
+    "target_value": 35029.0,
+    "history_mean": 27297.0,
+    "material": false
+   },
+   "holiday": {
+    "holiday_count": 0.0,
+    "z_score": -0.28,
+    "unusual": false
+   },
+   "plan_restatement": {
+    "changed": true,
+    "prior": "FY27 May Projection",
+    "current": "FY27 Jun Projection"
+   },
+   "forecaster_change": {
+    "changed": false
+   },
+   "offering_change": {
+    "changed": false
+   },
+   "peer_divergence": {
+    "peers_total": 15,
+    "peers_opposite_direction": 6,
+    "peers_same_direction": 8,
+    "examples_opposite": [
+     {
+      "forecast_name": "NA AW Premium Elite",
+      "adherence_pct": 39.2
+     },
+     {
+      "forecast_name": "NA Enterprise Wyse Standard",
+      "adherence_pct": 31.5
+     },
+     {
+      "forecast_name": "NA Comm Client ProSupport",
+      "adherence_pct": 3.0
+     },
+     {
+      "forecast_name": "NA Cons DSP",
+      "adherence_pct": 0.6
+     },
+     {
+      "forecast_name": "NA Core",
+      "adherence_pct": 2.9
+     }
+    ],
+    "signal": true
+   },
+   "population_context": null,
+   "cleaned_signals": [],
+   "proof": [
+    {
+     "label": "Forecast (fcst_offered)",
+     "field": "fcst_offered",
+     "this_week": 90.78,
+     "usual": 99.7,
+     "change": "about the same as usual"
+    },
+    {
+     "label": "Actual demand (Actual_Offered)",
+     "field": "Actual_Offered",
+     "this_week": 8805.0,
+     "usual": 61.8,
+     "change": "about 143x higher than usual"
+    },
+    {
+     "label": "Planned ASU",
+     "field": "Planned_ASU",
+     "this_week": 14239272.0,
+     "usual": 14359670,
+     "change": "about the same as usual"
+    }
+   ]
+  },
+  "temporal": {
+   "this_week": {
+    "fiscal_week": "202719",
+    "actual": 8805.0,
+    "forecast": 90.7763949888044,
+    "adherence_pct": -9599.7
+   },
+   "previous_week": {
+    "fiscal_week": 202718,
+    "actual": 54.0
+   },
+   "last_4_week_avg_actual": 60.2,
+   "last_13_week_avg_actual": 61.8,
+   "full_history_avg_actual": 111.8,
+   "history_weeks_available": 103,
+   "same_week_last_year": {
+    "fiscal_week": 202619,
+    "actual": 144.0,
+    "forecast": 128.1683164513714
+   },
+   "same_week_last_year_note": null,
+   "distinct_forecast_plans_in_window": [
+    "FY25 Jun Projection",
+    "FY25 Jul Projection",
+    "FY25 Aug Projection",
+    "FY25 Sep Projection",
+    "FY25 Oct Projection",
+    "FY25 Nov Projection",
+    "FY25 Dec Projection",
+    "FY26 Feb Projection",
+    "FY26 Mar Projection",
+    "FY26 Apr Projection",
+    "FY26 May Projection",
+    "FY26 Jun Projection",
+    "FY26 Jul Projection",
+    "FY26 Aug Projection",
+    "FY26 Sep Projection",
+    "FY26 Oct Projection",
+    "FY26 Nov Projection",
+    "FY26 Dec Projection",
+    "FY26 Jan Projection",
+    "FY27 Feb Projection",
+    "FY27 Mar Projection",
+    "FY27 Apr Projection",
+    "FY27 May Projection",
+    "FY27 Jun Projection"
+   ],
+   "forecast_plan_changed_within_window": true
+  },
+  "channel_siblings": {
+   "available": true,
+   "grouped_by": "Region + SubRegion + Country + business_org",
+   "is_cqn_proxy": true,
+   "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+   "prior_week": "202718",
+   "this_week": "202719",
+   "per_channel": [
+    {
+     "channel": "Chat",
+     "prior_week_actual": 7549.0,
+     "this_week_actual": 8850.0,
+     "change": 1301.0,
+     "is_target_channel": false
+    },
+    {
+     "channel": "Email",
+     "prior_week_actual": 18599.0,
+     "this_week_actual": 17485.0,
+     "change": -1114.0,
+     "is_target_channel": false
+    },
+    {
+     "channel": "Social Media",
+     "prior_week_actual": 35060.0,
+     "this_week_actual": 32023.0,
+     "change": -3037.0,
+     "is_target_channel": false
+    },
+    {
+     "channel": "Voice",
+     "prior_week_actual": 20459.0,
+     "this_week_actual": 30430.0,
+     "change": 9971.0,
+     "is_target_channel": true
+    }
+   ],
+   "group_total_prior_week": 81667.0,
+   "group_total_this_week": 88788.0,
+   "group_total_change": 7121.0,
+   "gross_channel_movement": 15423.0,
+   "offset_share": 0.54,
+   "migration_detected": false,
+   "gaining_channels": [
+    "Chat",
+    "Voice"
+   ],
+   "losing_channels": [
+    "Email",
+    "Social Media"
+   ],
+   "note": "Channel movements do not cancel out, so this is not a like-for-like shift between channels."
+  },
+  "investigation_ladder": {
+   "available": true,
+   "band_pct": 10.0,
+   "levels": [
+    {
+     "level": "Business Org",
+     "scope": "CSG",
+     "actual_offered": 263288.0,
+     "fcst_offered": 242008.2,
+     "adherence_pct": -8.8,
+     "queue_weeks_in_scope": 424
+    },
+    {
+     "level": "Region",
+     "scope": "CSG / Americas",
+     "actual_offered": 112660.0,
+     "fcst_offered": 99210.9,
+     "adherence_pct": -13.6,
+     "queue_weeks_in_scope": 85
+    },
+    {
+     "level": "SubRegion",
+     "scope": "CSG / Americas / NA",
+     "actual_offered": 89227.0,
+     "fcst_offered": 75609.7,
+     "adherence_pct": -18.0,
+     "queue_weeks_in_scope": 49
+    },
+    {
+     "level": "Country",
+     "scope": "CSG / Americas / NA / United States",
+     "actual_offered": 88785.0,
+     "fcst_offered": 75054.3,
+     "adherence_pct": -18.3,
+     "queue_weeks_in_scope": 45
+    },
+    {
+     "level": "Channel",
+     "scope": "CSG / Americas / NA / United States / Voice",
+     "actual_offered": 30427.0,
+     "fcst_offered": 19632.7,
+     "adherence_pct": -55.0,
+     "queue_weeks_in_scope": 16
+    }
+   ],
+   "levels_breaching_band": [
+    "Region",
+    "SubRegion",
+    "Country",
+    "Channel"
+   ],
+   "inherited_from": "Region",
+   "note": "The same miss is already visible at Region level, so it is not specific to this queue and should be attributed there."
+  },
+  "data_quality": {
+   "available": true,
+   "this_week_actual": 8805.0,
+   "typical_week_actual": 117.0,
+   "times_typical": 75.3,
+   "weeks_compared": 103,
+   "is_isolated_one_off": true,
+   "next_weeks_actual": [
+    87.0,
+    54.0,
+    39.0
+   ],
+   "returns_to_normal_immediately": true,
+   "reversion_testable": true,
+   "suspect": true,
+   "note": "This week's value is far outside everything else this queue has ever recorded, it is the only week anywhere near that level, and the following weeks return to the normal level. Validate the figure at source before treating it as a real demand event."
+  },
+  "correlations": {
+   "relationships": {
+    "available": true,
+    "min_weeks_required": 12,
+    "min_strength_required": 0.5,
+    "retained": [
+     {
+      "driver": "Planned_ASU",
+      "subject": "the planned number of units under warranty",
+      "weeks": 104,
+      "technical_strength": 0.6,
+      "direction": "same",
+      "plain_language": "Historically, when the planned number of units under warranty went up, this queue's demand more often than not went higher too."
+     },
+     {
+      "driver": "Actual_ASU",
+      "subject": "the number of units under warranty",
+      "weeks": 85,
+      "technical_strength": 0.53,
+      "direction": "same",
+      "plain_language": "Historically, when the number of units under warranty went up, this queue's demand more often than not went higher too."
+     }
+    ],
+    "rejected": [
+     {
+      "driver": "Final_Units",
+      "subject": "the installed base",
+      "weeks": 104,
+      "technical_strength": 0.11,
+      "direction": "same",
+      "reason": "Relationship too weak or too little history to rely on (104 weeks)."
+     },
+     {
+      "driver": "Holiday_Count",
+      "subject": "the number of holidays in the week",
+      "weeks": 104,
+      "technical_strength": -0.15,
+      "direction": "opposite",
+      "reason": "Relationship too weak or too little history to rely on (104 weeks)."
+     }
+    ],
+    "note": "Only relationships consistently supported by this queue's own history are retained; the rest are listed as rejected so they are not used as evidence."
+   },
+   "driver_decomposition": {
+    "available": false,
+    "missing_fields": [
+     "Actual_ASU"
+    ],
+    "reason": "Cannot split the miss into a warranty-base effect and a contacts-per-unit effect because these values are missing or zero for this week: Actual_ASU."
+   }
+  }
+ },
+ "investigation_meta": {
+  "engine": "wfm-llm",
+  "provider": "nvidia",
+  "model": "nvidia/nemotron-3-super-120b-a12b",
+  "calls": 1,
+  "generated_at": "2026-07-28T17:41:05.243372+00:00"
+ },
+ "primary_root_cause": {
+  "statement": "The actual offered volume for this week is far beyond anything ever seen for this queue and returns to normal immediately afterwards, indicating the figure is likely incorrect.",
+  "confidence": 0.92,
+  "supporting_evidence": [
+   {
+    "text": "Actual offered volume this week",
+    "source_field": "Actual_Offered",
+    "value": 8805.0
+   },
+   {
+    "text": "Typical weekly actual volume for this queue",
+    "source_field": "DERIVED_FEATURES.proof[0].usual",
+    "value": 61.8
+   },
+   {
+    "text": "Actual offered volume in the week after the spike",
+    "source_field": "DATA_QUALITY.next_weeks_actual[0]",
+    "value": 87.0
+   }
+  ]
+ },
+ "secondary_contributors": [
+  {
+   "statement": "The same under\u2011forecast breach appears at the Region level (\u201113.6% adherence), so the problem is not specific to this queue but reflects a broader issue in the Americas CSG Voice business.",
+   "confidence": 0.88,
+   "supporting_evidence": [
+    {
+     "text": "Region adherence percentage",
+     "source_field": "INVESTIGATION_LADDER.levels[1].adherence_pct",
+     "value": -13.6
+    },
+    {
+     "text": "SubRegion adherence percentage",
+     "source_field": "INVESTIGATION_LADDER.levels[2].adherence_pct",
+     "value": -18.0
+    },
+    {
+     "text": "Country adherence percentage",
+     "source_field": "INVESTIGATION_LADDER.levels[3].adherence_pct",
+     "value": -18.3
+    }
+   ]
+  },
+  {
+   "statement": "While overall Voice volume for the locality rose modestly, this queue\u2019s actual spiked from 54 to 8,805 contacts, suggesting contacts may have been incorrectly routed into this forecast name.",
+   "confidence": 0.55,
+   "supporting_evidence": [
+    {
+     "text": "Voice volume this week for the locality",
+     "source_field": "CHANNEL_SIBLINGS.per_channel[3].this_week_actual",
+     "value": 30430.0
+    },
+    {
+     "text": "Voice volume prior week for the locality",
+     "source_field": "CHANNEL_SIBLINGS.per_channel[3].prior_week_actual",
+     "value": 20459.0
+    },
+    {
+     "text": "This queue\u2019s actual offered volume prior week",
+     "source_field": "TEMPORAL.previous_week.actual",
+     "value": 54.0
+    },
+    {
+     "text": "This queue\u2019s actual offered volume this week",
+     "source_field": "target_row_fields.Actual_Offered",
+     "value": 8805.0
+    }
+   ]
+  },
+  {
+   "statement": "The forecast plan switched from FY27 May Projection to FY27 Jun Projection this week, yet the forecast remained near its usual level (\u224891 vs usual 99.8), indicating the plan change did not correct the forecast baseline.",
+   "confidence": 0.35,
+   "supporting_evidence": [
+    {
+     "text": "Forecast plan changed flag",
+     "source_field": "DERIVED_FEATURES.plan_restatement.changed",
+     "value": true
+    },
+    {
+     "text": "Prior plan name",
+     "source_field": "DERIVED_FEATURES.plan_restatement.prior",
+     "value": "FY27 May Projection"
+    },
+    {
+     "text": "Current plan name",
+     "source_field": "DERIVED_FEATURES.plan_restatement.current",
+     "value": "FY27 Jun Projection"
+    },
+    {
+     "text": "This week\u2019s forecast",
+     "source_field": "target_row_fields.fcst_offered",
+     "value": 90.7763949888044
+    },
+    {
+     "text": "Usual forecast level",
+     "source_field": "DERIVED_FEATURES.proof[0].usual",
+     "value": 99.7
+    }
+   ]
+  },
+  {
+   "statement": "The magnitude of the spike is not supported by any concurrent changes in installed base, holidays, or historical patterns, and the data quality flags treat it as a one\u2011off error.",
+   "confidence": 0.12,
+   "supporting_evidence": [
+    {
+     "text": "Same week last year actual offered",
+     "source_field": "TEMPORAL.same_week_last_year.actual",
+     "value": 144.0
+    },
+    {
+     "text": "Holiday count this week",
+     "source_field": "target_row_fields.Holiday_Count",
+     "value": 0.0
+    },
+    {
+     "text": "Planned ASU this week",
+     "source_field": "target_row_fields.Planned_ASU",
+     "value": 14239272.0
+    },
+    {
+     "text": "Typical weekly actual offered",
+     "source_field": "DERIVED_FEATURES.proof[0].usual",
+     "value": 61.8
+    }
+   ]
+  }
+ ],
+ "confidence_score": 0.92,
+ "cause_type": "data_quality_issue",
+ "key_findings": [
+  "The forecast this week was 90.78, and actual demand was 8805.0.",
+  "Actual demand (8805.0) was far from this queue's usual level of about 61.77, while the forecast (90.78) was about normal.",
+  "This queue is over-forecast in most recent weeks (typically about 61.8 actual against 99.7 forecast).",
+  "6 of 15 similar queues (same region, country and channel) moved the opposite way this week.",
+  "The forecast plan changed this week (from FY27 May Projection to FY27 Jun Projection)."
+ ],
+ "supporting_evidence": [
+  {
+   "text": "Actual offered volume this week",
+   "source_field": "Actual_Offered",
+   "value": 8805.0
+  },
+  {
+   "text": "Typical weekly actual volume for this queue",
+   "source_field": "DERIVED_FEATURES.proof[0].usual",
+   "value": 61.8
+  },
+  {
+   "text": "Actual offered volume in the week after the spike",
+   "source_field": "DATA_QUALITY.next_weeks_actual[0]",
+   "value": 87.0
+  }
+ ],
+ "reasoning_narrative": "Forecast adherence for NA Core Spanish Voice in fiscal week 202719 was -9599%, indicating actual demand was over 8800 contacts while the forecast was only 91. The actual figure is a massive one\u2011off spike that immediately returns to normal levels in the following weeks, suggesting a data quality problem. The same under\u2011forecast breach is already present at the Region level, so the issue is not unique to this queue. We recommend validating the raw data at source and reviewing any routing or plan changes that may have contributed to the anomaly.",
+ "rejected_hypotheses": [
+  {
+   "hypothesis": "plan_restatement",
+   "reason_rejected": "Forecast remained essentially unchanged; therefore the plan restatement cannot explain the observed actual spike."
+  },
+  {
+   "hypothesis": "genuine_demand_event",
+   "reason_rejected": "Historical correlations show only weak links to installed base and no link to holidays; the spike lacks any plausible business trigger."
+  }
+ ],
+ "historical_comparison": {},
+ "forecast_improvement_recommendations": [
+  "Validate the raw Actual_Offered figure at the source system before using it for any forecasting or staffing decisions.",
+  "Investigate regional forecasting inputs (e.g., ASU plan, holiday treatment, plan changes) that affect all queues in the Americas CSG Voice scope.",
+  "Review routing rules and queue mapping for the Voice channel in the Americas CSG NA United States scope to verify contacts are assigned to the correct forecast name.",
+  "Confirm that the new forecast plan incorporates the latest ASU and demand trends; if not, trigger a forecast refresh.",
+  "Treat as non\u2011event unless further validation confirms the spike; otherwise disregard for forecasting purposes."
+ ],
+ "forecast_summary": {}
+}

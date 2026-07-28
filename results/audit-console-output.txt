@@ -1,0 +1,115 @@
+==============================================================================
+WFM RCA ENGINE -- END-TO-END VALIDATION RUN
+started (UTC)      : 2026-07-28T16:57:06.837152+00:00
+backend            : http://localhost:8000
+table              : dbo.Input_To_ML  on  10.10.9.75
+model              : groq / llama-3.3-70b-versatile
+band               : +/-10.0%
+queue selection    : DELIBERATE (explicit SQL predicate per engine path), not random
+==============================================================================
+
+[0] health -> {"status": "ok", "configured": true, "table": "dbo.Input_To_ML"}
+[0] selected 5 cases: A, B, C, D, E
+
+------------------------------------------------------------------------------
+CASE A: NA Core Spanish  FW202719
+  locality : Americas / NA / United States / Voice
+  selected because: Known isolated extreme (8,805 vs ~117 typical); the only queue in the table with a week >50x its own median. Must rank data_quality_issue first.
+  [1] GET /api/queue-context -> 2.34s (history=13, peers=15)
+  [2] POST /api/rca-investigate?mode=wfm -> 2.62s  engine=wfm-deterministic-fallback
+      adherence=-9599.7%  causes=3
+        #1 [60% Medium] Hypothesis - To be Validated :: data_quality_issue :: Suspected data quality issue in this week's actual
+        #2 [65% Medium] Verified :: inherited_from_higher_level :: The miss is inherited from Region level
+        #3 [60% Medium] Verified :: genuine_demand_event :: Genuine demand event
+  [3] raw response -> results/case-A-response.json
+      PASS  V1  KPI adherence matches SQL recomputation
+      PASS  V2  Driver decomposition correctly unavailable
+      PASS  V3  All 5 ladder levels match independent SQL aggregates
+      PASS  V4  Data-quality typical week == median of SQL history
+      PASS  V5  Temporal last-13-week average matches SQL
+      PASS  V6  Every shipped cause_type satisfies its precondition
+      PASS  V7  All legacy response keys present (existing UI renders it)
+      PASS  V8  No banned statistics vocabulary in business-facing text
+
+------------------------------------------------------------------------------
+CASE B: ANZ Comm Client DSP Upsell  FW202652
+  locality : APJ / ANZ / Australia / Voice
+  selected because: Both Planned_ASU and Actual_ASU present with a >30% miss and a non-trivial forecast, so the driver decomposition must be available and must reconcile exactly.
+  pacing 40s (Groq on-demand cap is 12,000 tokens/min)...
+  [1] GET /api/queue-context -> 2.25s (history=13, peers=6)
+  [2] POST /api/rca-investigate?mode=wfm -> 2.46s  engine=wfm-deterministic-fallback
+      adherence=38.5%  causes=2
+        #1 [65% Medium] Verified :: inherited_from_higher_level :: The miss is inherited from Channel level
+        #2 [50% Medium] Verified :: systematic_forecast_bias :: Systematic forecast bias
+  [3] raw response -> results/case-B-response.json
+      PASS  V1  KPI adherence matches SQL recomputation
+      PASS  V2  Driver decomposition sums to the total miss
+      PASS  V3  All 5 ladder levels match independent SQL aggregates
+      PASS  V4  Data-quality typical week == median of SQL history
+      PASS  V5  Temporal last-13-week average matches SQL
+      PASS  V6  Every shipped cause_type satisfies its precondition
+      PASS  V7  All legacy response keys present (existing UI renders it)
+      PASS  V8  No banned statistics vocabulary in business-facing text
+
+------------------------------------------------------------------------------
+CASE C: ANZ Client Core  FW202722
+  locality : APJ / ANZ / Australia / Voice
+  selected because: Its Country-level rollup also breaches the band in the same week, so the engine must report the miss as inherited from a higher level rather than concluding at the queue.
+  pacing 40s (Groq on-demand cap is 12,000 tokens/min)...
+  [1] GET /api/queue-context -> 2.19s (history=13, peers=6)
+  [2] POST /api/rca-investigate?mode=wfm -> 2.38s  engine=wfm-deterministic-fallback
+      adherence=66.1%  causes=2
+        #1 [65% Medium] Verified :: inherited_from_higher_level :: The miss is inherited from Business Org level
+        #2 [60% Medium] Verified :: genuine_demand_event :: Genuine demand event
+  [3] raw response -> results/case-C-response.json
+      PASS  V1  KPI adherence matches SQL recomputation
+      PASS  V2  Driver decomposition correctly unavailable
+      PASS  V3  All 5 ladder levels match independent SQL aggregates
+      PASS  V4  Data-quality typical week == median of SQL history
+      PASS  V5  Temporal last-13-week average matches SQL
+      PASS  V6  Every shipped cause_type satisfies its precondition
+      PASS  V7  All legacy response keys present (existing UI renders it)
+      PASS  V8  No banned statistics vocabulary in business-facing text
+
+------------------------------------------------------------------------------
+CASE D: Brazil Client Core  FW202722
+  locality : Americas / Brazil / Brazil / Voice
+  selected because: Sits in a locality carrying 4+ channels, so channel-migration detection has real sibling data to evaluate.
+  pacing 40s (Groq on-demand cap is 12,000 tokens/min)...
+  [1] GET /api/queue-context -> 2.25s (history=13, peers=6)
+  [2] POST /api/rca-investigate?mode=wfm -> 5.69s  engine=wfm-llm
+      adherence=75.3%  causes=2
+        #1 [90% High] Verified :: inherited_from_higher_level :: Inherited from Business Org level
+        #2 [70% High] Verified :: systematic_forecast_bias :: Systematic forecast bias
+  [3] raw response -> results/case-D-response.json
+      PASS  V1  KPI adherence matches SQL recomputation
+      PASS  V2  Driver decomposition correctly unavailable
+      PASS  V3  All 5 ladder levels match independent SQL aggregates
+      PASS  V4  Data-quality typical week == median of SQL history
+      PASS  V5  Temporal last-13-week average matches SQL
+      PASS  V6  Every shipped cause_type satisfies its precondition
+      PASS  V7  All legacy response keys present (existing UI renders it)
+      PASS  V8  No banned statistics vocabulary in business-facing text
+
+------------------------------------------------------------------------------
+CASE E: ANZ Comm Client ProSupport Chat  FW202722
+  locality : APJ / ANZ / Australia / Chat
+  selected because: CONTROL: adherence inside +/-10%. The business rule forbids investigating, so the engine must return engine=wfm-not-investigated with zero causes.
+  pacing 40s (Groq on-demand cap is 12,000 tokens/min)...
+  [1] GET /api/queue-context -> 2.21s (history=13, peers=2)
+  [2] POST /api/rca-investigate?mode=wfm -> 2.35s  engine=wfm-not-investigated
+      adherence=-0.0%  causes=0
+  [3] raw response -> results/case-E-response.json
+      PASS  V1  KPI adherence matches SQL recomputation
+      PASS  V2  Driver decomposition correctly unavailable
+      PASS  V3  All 5 ladder levels match independent SQL aggregates
+      PASS  V4  Data-quality typical week == median of SQL history
+      PASS  V5  Temporal last-13-week average matches SQL
+      PASS  V6  Every shipped cause_type satisfies its precondition
+      PASS  V7  All legacy response keys present (existing UI renders it)
+      PASS  V8  No banned statistics vocabulary in business-facing text
+
+==============================================================================
+TOTAL: 40/40 checks passed across 5 cases
+report -> results/validation-report.json
+==============================================================================

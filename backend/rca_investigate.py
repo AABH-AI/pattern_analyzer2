@@ -797,7 +797,25 @@ def _extract_json(text):
     return json.loads(m.group(0))
 
 
-def _call_openai_compatible(endpoint, api_key, model, messages, timeout=100, use_response_format=True):
+# Read from config.json as "llm".timeout_seconds; falls back to the original 100s when the key
+# is absent, so behaviour is unchanged for any existing config. Raised because NVIDIA reasoning
+# models take 45-100s for a real investigation from the browser: Canary V0.3 measured
+# /api/rca-investigate at 45s / 100.1s / 90s on the same model, and the middle one died exactly
+# on the old 100s ceiling ("nvidia error: The read operation timed out") and fell back to the
+# deterministic finding. That made the UI's LLM path fail roughly one time in three.
+LLM_TIMEOUT_DEFAULT = 100
+
+
+def _configured_timeout(llm_cfg):
+    try:
+        value = float((llm_cfg or {}).get("timeout_seconds") or LLM_TIMEOUT_DEFAULT)
+        return value if value > 0 else LLM_TIMEOUT_DEFAULT
+    except (TypeError, ValueError):
+        return LLM_TIMEOUT_DEFAULT
+
+
+def _call_openai_compatible(endpoint, api_key, model, messages, timeout=None, use_response_format=True):
+    timeout = timeout or LLM_TIMEOUT_DEFAULT
     payload = {"model": model, "messages": messages, "temperature": 0.35}
     # Some NVIDIA models (e.g. nemotron-3-ultra) reject response_format with a 400/503;
     # _chat_json retries without it, and _extract_json handles loose/fenced JSON.
@@ -817,14 +835,16 @@ def _call_openai_compatible(endpoint, api_key, model, messages, timeout=100, use
     return payload["choices"][0]["message"]["content"]
 
 
-def _chat_json(endpoint, api_key, model, messages):
+def _chat_json(endpoint, api_key, model, messages, timeout=None):
     """Call the model and parse JSON. Retries once without response_format for
     models that reject it (some NVIDIA models 400/503 on response_format)."""
     try:
-        raw = _call_openai_compatible(endpoint, api_key, model, messages, use_response_format=True)
+        raw = _call_openai_compatible(endpoint, api_key, model, messages, timeout=timeout,
+                                      use_response_format=True)
     except urllib.error.HTTPError as e:
         if e.code in (400, 415, 422, 500, 503):
-            raw = _call_openai_compatible(endpoint, api_key, model, messages, use_response_format=False)
+            raw = _call_openai_compatible(endpoint, api_key, model, messages, timeout=timeout,
+                                          use_response_format=False)
         else:
             raise
     return _extract_json(raw)
@@ -845,7 +865,7 @@ def _coerce_response(parsed, context_bundle, features):
     return out
 
 
-def _call_provider(slot_cfg, context_bundle, features, model_bundle):
+def _call_provider(slot_cfg, context_bundle, features, model_bundle, timeout=None):
     slot_cfg = slot_cfg or {}
     provider = slot_cfg.get("provider")
     api_key = slot_cfg.get("api_key")
@@ -860,7 +880,7 @@ def _call_provider(slot_cfg, context_bundle, features, model_bundle):
         {"role": "user", "content": json.dumps(model_bundle, default=str)},
     ]
     try:
-        parsed = _chat_json(endpoint, api_key, model, messages)
+        parsed = _chat_json(endpoint, api_key, model, messages, timeout=timeout)
     except urllib.error.HTTPError as e:
         if e.code == 413 and (context_bundle.get("history") or context_bundle.get("peers")):
             trimmed = dict(model_bundle)
@@ -868,7 +888,7 @@ def _call_provider(slot_cfg, context_bundle, features, model_bundle):
             trimmed["peers"] = []
             try:
                 retry = [messages[0], {"role": "user", "content": json.dumps(trimmed, default=str)}]
-                parsed = _chat_json(endpoint, api_key, model, retry)
+                parsed = _chat_json(endpoint, api_key, model, retry, timeout=timeout)
             except Exception as e2:
                 return None, f"{provider} error (413, trimmed retry failed): {e2}"
         else:
@@ -916,6 +936,7 @@ def investigate(context_bundle, llm_cfg, model_choice=None):
     llm_cfg = llm_cfg or {}
     features = derive_features(context_bundle)
     model_bundle = _bundle_for_model(context_bundle, features)
+    timeout = _configured_timeout(llm_cfg)
 
     if model_choice and model_choice.get("model"):
         chosen = _slot_for_choice(model_choice, llm_cfg)
@@ -923,7 +944,7 @@ def investigate(context_bundle, llm_cfg, model_choice=None):
             return _placeholder_response(context_bundle, features,
                 [f"Selected model '{model_choice.get('model')}' has no API key configured for its provider — "
                  "add one in backend/config.json (llm.*) or the matching *_API_KEY env var."])
-        result, err = _call_provider(chosen, context_bundle, features, model_bundle)
+        result, err = _call_provider(chosen, context_bundle, features, model_bundle, timeout=timeout)
         if result is not None:
             return result
         return _placeholder_response(context_bundle, features,
@@ -934,7 +955,7 @@ def investigate(context_bundle, llm_cfg, model_choice=None):
     for name in ("primary", "secondary"):
         slot = llm_cfg.get(name) or {}
         if slot.get("provider") and slot.get("api_key"):
-            result, err = _call_provider(slot, context_bundle, features, model_bundle)
+            result, err = _call_provider(slot, context_bundle, features, model_bundle, timeout=timeout)
             if result is not None:
                 return result
             failures.append(f"{slot.get('provider')}/{slot.get('model') or DEFAULT_MODELS.get(slot.get('provider'))}: {err}")

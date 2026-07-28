@@ -156,3 +156,215 @@ Requested → delivered:
 3. **Removed `Forecast (fcst_handled)` and `Actual handled` rows** from the Proof panel.
 4. **Excluded all "handled" fields from the RCA** (`HANDLED_FIELDS = {Actual_Handled, fcst_handled}`): stripped from the model context (statistical_summary, target fields, glossary), the cleaned signals, and the proof. Verified nothing handled-related reaches the model.
 Verification: `node --check` (frontend) + AST (backend); offline check that proof/model context carry no handled fields and "usual" still populates from history.
+
+---
+
+## Session 19 — 2026-07-28 · WFM business prompt as a second engine (branch `wfm-rca`)
+**Timing:** in-band gate 0.60s · full WFM run (Groq) 3.65s · default engine ~4s · payload ~4,400 tokens/investigation (prompt ~2,300 + data ~2,100).
+The business supplied a complete RCA specification (cross-functional-team ROLE, fixed
+investigation order, temporal rules, CQN/channel-migration rules, SKEPTIC MODE, Top-5 ranked
+RCAs, hypothesis marking, confidence levels, executive report format). Delivered on a NEW
+branch `wfm-rca` off `shivam-updates`, as an **additive opt-in engine** — see
+`IMP_DOCS/wfm-rca-engine.md` for the full contract.
+
+1. **New `backend/rca_wfm.py`** carrying the prompt verbatim in substance, with only a JSON
+   output contract appended (the engine has to parse the reply).
+2. **`?mode=wfm` on `POST /api/rca-investigate`.** Without it the endpoint behaves exactly as
+   before. `backend/rca_investigate.py` changed by **zero lines** and `rca_console.html` by
+   **zero lines** — confirmed by an empty `git diff --stat` against `shivam-updates`.
+3. **The spec needed data, not just wording.** Added server-side fetches the old bundle never
+   had: 104-week history + same-week-last-year; an **investigation ladder** (adherence
+   recomputed at org/region/subregion/country/channel for the same week, so a queue-level
+   conclusion is never reported before checking inheritance); and **channel siblings** (the
+   locality across ALL channels — the old peer query filtered to the *same* channel, so
+   channel migration was structurally undetectable). Fetched from the target row's own
+   identifiers, which is why the console needs no change.
+4. **Threshold gate.** Within ±band returns `engine: wfm-not-investigated` and no causes, per
+   "never investigate KPIs within the acceptable threshold".
+5. **Arithmetic stays in Python.** `kpi_status` and the channel-migration verdict are computed
+   and then *overwrite* whatever the model said. The model ranks, explains, challenges.
+6. **Back-compat.** Rank 1 → `primary_root_cause`/`cause_type`/`confidence_score`, ranks 2-5 →
+   `secondary_contributors`, rejected challenges → `rejected_hypotheses`. All 11 legacy keys
+   verified present, so the current UI renders a WFM report unmodified.
+7. **Added a data-quality gate (not in the supplied spec).** "Never fabricate business events"
+   implies checking the number is real before explaining it. Flags an actual that is ≥10x or
+   ≤0.1x the typical week, is the only week near that level, and reverts immediately — as a
+   *hypothesis to validate at source*, never as an asserted cause.
+
+**This revises Session 15.** That session reclassified `NA Core Spanish` 202719 (actual 8,805
+vs usual ~62) from `forecast_baseline_error` to `genuine_demand_event`. Evidence now says it is
+probably neither: across 126 weeks the queue ranges 31–8,805 with **exactly one** week over
+1,000; the next weeks are 87/54/39; of 427 queues with ≥8 weeks it is the **only** one with a
+week >50x its own median; the warranty base barely moves; and `8805/100 = 88.05` against that
+week's forecast of `90.78`. The cumulative-backfill alternative was tested and rejected (52wk
+sum 4,752, 104wk 11,697 — no match). The WFM engine now ranks **"Suspected data quality issue"
+#1 at 90% (High)** for this case. The figure should be validated at source.
+
+Verification: AST (backend); empty diffstat vs `shivam-updates` for the old engine + UI; live
+Groq runs for all three engine states (`wfm-llm`, `wfm-not-investigated`,
+`wfm-deterministic-fallback`); default mode confirmed unchanged and free of WFM keys; SQL fetch
+confirmed returning 104 history / 4 forward / 92 channel-sibling / 5 ladder rows.
+
+**Still open (largest gaps):** no evaluation set, so ranking *correctness* remains unmeasured;
+`correlation_engine` unimplemented, so the prompt asks for ASU↔demand and holiday↔demand
+relationships nothing has computed; and the exact `Planned_ASU`/`Actual_ASU` driver
+decomposition (verified identity-exact on 22,003 flagged misses) is not yet a signal.
+
+---
+
+## Session 20 — 2026-07-28 · WFM engine split into reasoning modules + the two missing ones
+**Timing:** `fetch_wfm_context` **98.19s → 0.16s (614x)** after removing the correlated subquery · full WFM path (Groq) 3.12s · SQL-backed WFM run 3.63s · in-band gate 0.47s.
+Requested: refactor the single `rca_wfm.py` into separate reasoning modules and add the two
+that were missing. Delivered on the same branch `wfm-rca`.
+
+1. **`backend/wfm/` package, 13 modules** — `investigation_engine`, `hierarchy_analyzer`,
+   `channel_migration_detector`, `temporal_reasoner`, `correlation_engine`,
+   `hypothesis_generator`, `skeptic`, `business_report_generator`, plus `data_quality`,
+   `data_access`, `prompts`, `common`, `__init__`. `backend/rca_wfm.py` is now a
+   compatibility shim, so `from rca_wfm import ...` still works.
+   Rationale worth recording: file layout does not give the model "clearer responsibilities" —
+   it never sees the directory. The win is that each responsibility becomes **deterministic
+   Python instead of a prompt instruction**, which makes it testable and unfakeable.
+2. **`skeptic.py` — rejection in code (the highest-value fix).** SKEPTIC MODE was prompt-side
+   only; nothing could reject anything. Now: a feature **precondition** for all 10 cause types
+   (no trace in the features ⇒ the cause is impossible, hard reject), plus **numeric grounding**
+   of every cited figure against the real numbers (2% tolerance; unreconciled figures are
+   pruned, which deliberately does not kill the cause). Verified: a `plan_restatement` claim on
+   a week where the plan did not change is now rejected — the old engine published it.
+   `eligible_cause_types()` is fed to the prompt so a slot is not wasted on a doomed type.
+   Required adding `cause_type` to each ranked cause in the output contract — without a
+   machine-readable type nothing can be gated.
+3. **`correlation_engine.py` — the gap that mattered.** The prompt asked for ASU↔demand and
+   holiday↔demand relationships "consistently supported by history" while nothing computed
+   them, so the model was being asked for correlations it had no numbers for. Now: Spearman
+   rank correlation per driver (rank-based so the extreme week that triggered the
+   investigation does not drag it), retained/rejected against explicit thresholds (≥12 weeks,
+   |strength| ≥ 0.5), each retained entry carrying a jargon-free sentence with the coefficient
+   confined to the collapsed technical section. Plus the **exact ASU driver decomposition**:
+   `volume=(Actual_ASU−Planned_ASU)×planned_rate`, `rate=Actual_ASU×(actual_rate−planned_rate)`,
+   summing identically to the total miss — verified exact on all 22,003 flagged misses carrying
+   both columns (60.7% rate-driven, 9.8% base-driven, 29.6% mixed).
+4. **`hypothesis_generator.mark()`** downgrades over-confident statuses structurally: a
+   `data_quality_issue` (needs source validation) or a `channel_migration` (computed on a CQN
+   *proxy*) can never be "Verified", and a cause with no surviving evidence is downgraded too.
+
+**Bug found and fixed in my own earlier code:** the channel-sibling query resolved the prior
+week with a correlated subquery. On this un-indexed table that measured **101.5s** while every
+other query ran in 0.02–0.05s — an investigation appeared to hang. The prior week is already
+known from the 104-week history, so it is passed as a literal: **98.19s → 0.16s (614×)**,
+identical results.
+
+Verification: AST on all 16 backend files; package + shim + `sql_backend` imports; empty
+diffstat vs `shivam-updates` for the old engine and the UI; default mode unchanged with no WFM
+keys leaked; in-band gate correct; full WFM path via Groq in **3.12s** ranking
+`data_quality_issue` first (auto-downgraded to Hypothesis) with both model-side and code-side
+skeptic entries; unit checks on both new modules.
+
+**Caveat:** late in the session SQL host `10.10.9.75:1433` became unreachable (`Named Pipes
+Provider … Login timeout expired`), so the SQL-backed fetches (104-week / ladder / channel
+siblings) could not be re-run after the refactor — they were verified before it. The full
+pipeline was exercised in-process with a context built from the bundle's own history.
+**Re-run the SQL-backed path once the network is back.** Also logged: a dead SQL host makes a
+`?mode=wfm` request wait ~42s before degrading (the fetch is non-fatal, but the ODBC login
+timeout dominates).
+
+---
+
+## Session 21 — 2026-07-28 · configurable LLM timeout + LLM ranking verified + Canary V0.2
+**Timing:** NVIDIA WFM investigations 53.4s / 59.2s / 67.9s · Groq 2.4–5.7s · Canary V0.2 session 15min/25 steps.
+Requested: get 2–3 LLM outputs to verify model ranking, and **it must actually use the LLM**;
+capture an updated Canary screen recording end to end; keep IMP_DOCS current.
+
+1. **`wfm/llm_client.py` — LLM transport with a configurable timeout.** `llm.timeout_seconds`
+   in `config.json` (set to 300). Deliberately a SEPARATE transport rather than editing
+   `rca_investigate._call_openai_compatible`, so `rca_investigate.py` stays byte-identical to
+   `shivam-updates` and the original engine cannot regress — it keeps its own 100s. Preserves
+   both hard-won behaviours: the browser-like User-Agent (Groq's Cloudflare 403s the default
+   urllib UA) and the retry without `response_format` (some NVIDIA models 400/503 on it).
+2. **LLM ranking verified — 3/3 queues answered by the model, 27/27 checks passed.**
+   `results/run_llm_ranking.py`, NVIDIA `nemotron-3-super-120b-a12b`, 53–68s each. Checks L1–L9
+   assert the engine really used the LLM (a deterministic fallback is a FAILURE of that run),
+   ranks are sequential, confidence descends with rank, confidence_level matches its band, every
+   shipped cause_type satisfies its precondition, the ladder's `inherited_from` is actually
+   ranked, `data_quality.suspect` forces `data_quality_issue` FIRST, no banned statistics
+   vocabulary, and every cause carries an action and a status.
+   Ranking quality worth noting: on `NA Core Spanish` FW202719 the model produced 5 ranked
+   causes, put `data_quality_issue` first at 92%, and ranked `genuine_demand_event` **last at
+   12%** titled "Unlikely genuine demand surge" — i.e. it actively deprioritised the cause the
+   ORIGINAL engine had concluded (Session 15). That is the intended behaviour arriving.
+3. **Groq's binding limit is the DAILY quota, not the per-minute one.** 100,000 tokens/day,
+   exhausted by the day's testing (`Used 98586`). Per-minute pacing cannot help. NVIDIA plus the
+   raised timeout is the working combination once Groq is spent.
+4. **Diagnostic fix.** When every model-proposed cause is rejected the engine fell back with an
+   opaque "produced no cause the data supports". It now records what was proposed, each rejection
+   reason, and which cause types the data actually supports. Found while investigating two
+   fallbacks that turned out to be model run-to-run variance in chosen cause types, not
+   over-rejection — verified by replaying the same queue directly, where the skeptic retained
+   both proposals.
+5. **Canary V0.2** — 25-step end-to-end session with video; recording copied into
+   `results/canary-v0.2/` (25 MB). **3 new bugs**, the worst being that flagged-queue cards may
+   not be clickable by a real pointer (`#filters` search input and a `.nav` anchor intercept
+   pointer events over the list; the test only proceeded via `element.click()`). Also: changing
+   the AI model re-runs the PREVIOUS queue and overwrites the panel. Logged as P1d.
+   Re-confirmed still unfixed from V0.1: the `renderProbe` TypeError on every load, and the
+   adherence-band chart reading `0 names · 0%` in 5 of 6 bands.
+
+Honest note on causality: NVIDIA completed these runs in 53–68s, which is **inside** the old
+100s, so the raised timeout was not what unblocked them — what varies is the model's choice of
+cause types. The raised timeout remains correct insurance (an earlier NVIDIA call on the default
+engine did exceed 100s), but it should not be credited with this result.
+
+Evidence: `results/` — `llm-ranking-report.json`, three raw LLM responses,
+`llm-ranking-console-output.txt`, `canary-v0.2/`, plus the earlier `validation-report.json`
+(40/40 SQL cross-checks).
+
+---
+
+## Session 22 — 2026-07-29 · run.bat, module smoke test, timing log, commit
+Requested: commit the work to a new branch; confirm each Python module works; a `run.bat` that
+runs the whole system including VPN if possible; and timings recorded here.
+
+1. **`results/smoke_test_modules.py` — every module exercised in isolation.** **12/12 pass**,
+   including the SQL fetches. Each check asserts behaviour, not just importability: KPI sign
+   convention both ways, the ladder picking the highest *same-direction* level (and ignoring an
+   opposite-direction breach), an offsetting channel move detected while joint growth is
+   rejected, an isolated reverting spike flagged while a level shift is not, the decomposition
+   identity, `plan_restatement` rejected when the plan did not change, a fabricated evidence
+   figure pruned, `data_quality_issue` never allowed to be "Verified", the confidence band
+   derived rather than trusted, and the in-band gate refusing without calling any provider.
+   Runtime ~3s (module 10 hits SQL).
+2. **`run.bat`** — 9 stages: Python check, deps, ensure `config.json`, **VPN** (detects Cisco
+   Secure Client 5.1.9.113, checks `vpncli status`, tries `connect aavpn.alignedautomation.com`,
+   falls back to launching the UI for SAML/MFA and polls up to 90s for the tunnel), SQL
+   reachability read from `config.json` rather than hardcoded, frees port 8000, starts the
+   backend and waits on `/api/health`, optional `--smoke` / `--validate` / `--llm` / `--all`
+   suites, then opens the console. Flags: `--no-vpn`, `--no-browser`, `--tests-only`.
+3. **Restored `backend/.env.example` and `backend/config.example.json`**, deleted before this
+   session. `run.ps1:19` and `run.sh:16` both copy `config.example.json` to create
+   `config.json`, so its absence broke first-run setup for anyone cloning the repo.
+4. **Secret scan before committing** — 93 candidate files scanned for `nvapi-`, `gsk_` and the
+   SQL password literal: clean. `backend/config.json` and `backend/.env` are gitignored.
+
+### Measured timings — consolidated reference
+
+| Operation | Time | Notes |
+|---|---|---|
+| `GET /api/health` | <50ms | |
+| `GET /api/data` (full table) | 12.7–14.6s | 66,612 rows x 33 cols |
+| `GET /api/queue-context` | 0.84–2.34s | 13 wks history + 15 peers |
+| `fetch_wfm_context` (WFM deep context) | **0.16s** | was 98.19s before the subquery fix |
+| in-band gate (`wfm-not-investigated`) | 0.47–0.60s | no LLM call at all |
+| WFM investigation — Groq | 2.4–5.7s | 100k token/DAY cap |
+| WFM investigation — NVIDIA | 36.8–67.9s | needs `timeout_seconds` > 100 |
+| Default engine — NVIDIA | 36.8–52.5s good, 90–100s slow, occasional hang | ~1 in 3 hangs |
+| Deterministic fallback | 2.3–2.6s | no provider reached |
+| Per-module smoke test (12 modules) | ~3s | |
+| SQL cross-check suite (5 queues, 40 checks) | 3min 11s | includes 40s pacing per case |
+| LLM ranking suite (3 queues, 27 checks) | ~3min | NVIDIA, sequential |
+| Canary V0.2 session (25 steps) | ~15min | video 14–18MB |
+| Canary V0.3 session (18 steps) | ~19min | 3 investigations |
+
+**The number that matters operationally:** an NVIDIA investigation is **45–100s**, and roughly
+one call in three hangs regardless of the ceiling. Raising the timeout 100 → 300 was measured and
+made it *worse* (same 2/3 success, failure took 5min), so it is set to **150**. Groq is ~10x
+faster but its daily quota is easily exhausted.

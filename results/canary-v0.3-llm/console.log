@@ -1,0 +1,2 @@
+{"ts":1785262427362,"kind":"pageerror","message":"Cannot set properties of null (setting 'textContent')","stack":"TypeError: Cannot set properties of null (setting 'textContent')\n    at renderProbe (http://localhost:8000/rca_console.html:2094:49)\n    at http://localhost:8000/rca_console.html:2120:1","page":"main"}
+{"ts":1785262427691,"kind":"console","type":"error","text":"Failed to load resource: the server responded with a status of 404 (Not Found)","url":"http://localhost:8000/favicon.ico","line":0,"col":0,"page":"main"}

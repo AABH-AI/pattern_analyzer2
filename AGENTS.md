@@ -55,6 +55,13 @@ DATE, dimensions NVARCHAR, measures FLOAT).
 ## Endpoints (backend)
 - `GET /api/health` → `{status, configured, table}`
 - `GET /api/data[?limit=N]` → `{columns, rows, count}`
+- `POST /api/rca-investigate[?provider=&model=]` → the RCA report (see `IMP_DOCS/rca-investigation-contract.md`)
+- `POST /api/rca-investigate?mode=wfm` → the **WFM business-prompt engine** (branch `wfm-rca`):
+  top-5 ranked causes, skeptic review, hypothesis marking, investigation ladder, 104-week
+  temporal context, channel-migration detection, and the ±10% "don't investigate in-band" rule.
+  **Additive** — omit `mode` and the endpoint behaves exactly as before. It also backfills every
+  legacy response key, so the existing UI renders it unchanged.
+  Full contract + known gaps: `IMP_DOCS/wfm-rca-engine.md`.
 
 ## If you are an AI agent, do this
 1. Detect the OS; run `run.ps1` (Windows) or `run.sh` (POSIX). If Docker is available and preferred, use `docker compose up -d --build`.

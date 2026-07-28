@@ -36,6 +36,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from rca_investigate import investigate
+from wfm import fetch_wfm_context, investigate_wfm
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent               # repo root, where the .html files live
@@ -262,7 +263,9 @@ def models():
 
 @app.post("/api/rca-investigate")
 def rca_investigate(context_bundle: dict, provider: str = Query("", description="Optional model-picker provider"),
-                    model: str = Query("", description="Optional model-picker model id")):
+                    model: str = Query("", description="Optional model-picker model id"),
+                    mode: str = Query("", description="'wfm' for the WFM cross-functional engine; "
+                                                      "empty (default) = the original engine, unchanged")):
     """
     LLM Investigation Engine proxy. Body = the generic ContextBundle the console
     builds client-side (target row + history + peers + auto-discovered statistical
@@ -271,11 +274,53 @@ def rca_investigate(context_bundle: dict, provider: str = Query("", description=
     output); if that model fails, the engine returns the deterministic best-supported
     finding — it does NOT silently answer with a different model.
 
+    ?mode=wfm selects the WFM cross-functional engine (backend/rca_wfm.py): the
+    business-authored prompt, a top-5 ranked RCA list, skeptic review, hypothesis
+    marking, the investigation ladder (is the miss inherited from a higher level?),
+    104-week temporal context and channel-migration detection. It is ADDITIVE — with
+    no mode= parameter this endpoint behaves exactly as it always has, so the console
+    needs no change. The WFM engine fills the original response keys too
+    (primary_root_cause / secondary_contributors / key_findings), so the existing UI
+    renders it without modification.
+
     Runs server-side ONLY so a real provider key never has to live in the
     (publicly hosted) rca_console.html.
     """
     cfg = load_config()
     model_choice = {"provider": provider, "model": model} if model else None
+
+    if (mode or "").lower() == "wfm":
+        # The deeper context (104 weeks, channel siblings, higher-level rollups) is
+        # fetched here rather than in the browser, so no frontend change is needed.
+        # If SQL is unreachable the engine still runs on the posted bundle alone.
+        target = (context_bundle or {}).get("target") or {}
+        fields = target.get("fields") or {}
+        key = {
+            "Forecast_name": (target.get("key") or {}).get("Forecast_name") or fields.get("Forecast_name"),
+            "Fiscal_Week": (target.get("key") or {}).get("Fiscal_Week") or fields.get("Fiscal_Week"),
+            "Region": fields.get("Region"), "SubRegion": fields.get("SubRegion"),
+            "Country": fields.get("Country"), "channel": fields.get("channel"),
+            "business_org": fields.get("business_org"),
+        }
+        wfm_context = {}
+        conn = None
+        try:
+            conn = connect(cfg)
+            wfm_context = fetch_wfm_context(conn.cursor(), cfg.get("sql", {}).get("table", "dbo.Input_To_ML"), key)
+        except Exception as e:
+            # Not fatal: the WFM engine degrades to the posted bundle and says what is missing.
+            wfm_context = {"fetch_error": str(e)}
+        finally:
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+        try:
+            return investigate_wfm(context_bundle, cfg.get("llm", {}), wfm_context, model_choice=model_choice)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"WFM investigation failed: {e}")
+
     try:
         return investigate(context_bundle, cfg.get("llm", {}), model_choice=model_choice)
     except Exception as e:

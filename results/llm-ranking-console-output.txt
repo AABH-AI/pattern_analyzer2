@@ -1,0 +1,89 @@
+==============================================================================
+LLM RANKING VERIFICATION -- the engine MUST use the LLM
+started (UTC) : 2026-07-28T17:40:01.341930+00:00
+provider/model: nvidia / nvidia/nemotron-3-super-120b-a12b
+llm timeout   : 300s (configurable; was hard-coded 100)
+==============================================================================
+
+[0] health -> {"status": "ok", "configured": true, "table": "dbo.Input_To_ML"}
+[0] 3 queues selected
+
+------------------------------------------------------------------------------
+NA Core Spanish  FW202719   [data-quality outlier]
+  engine=wfm-llm  model=nvidia/nemotron-3-super-120b-a12b  59.2s
+  adherence=-9599.7%
+  EXEC: Forecast adherence for NA Core Spanish Voice in fiscal week 202719 was -9599%, indicating actual demand was over 8800 contacts while the forecast was only 91. The actual figure is a massive one‑off sp
+    #1 [92% High] Hypothesis - To be Validated
+        data_quality_issue :: Isolated data spike
+        action: Validate the raw Actual_Offered figure at the source system before using it for any forecasting or staffing de
+    #2 [88% High] Verified
+        inherited_from_higher_level :: Region‑level under‑forecast
+        action: Investigate regional forecasting inputs (e.g., ASU plan, holiday treatment, plan changes) that affect all queu
+    #3 [55% Medium] Hypothesis - To be Validated
+        volume_routing_shift :: Possible mis‑routing of Voice contacts
+        action: Review routing rules and queue mapping for the Voice channel in the Americas CSG NA United States scope to ver
+    #4 [35% Low] Hypothesis - To be Validated
+        plan_restatement :: Forecast plan change did not adjust forecast
+        action: Confirm that the new forecast plan incorporates the latest ASU and demand trends; if not, trigger a forecast r
+    #5 [12% Low] Hypothesis - To be Validated
+        genuine_demand_event :: Unlikely genuine demand surge
+        action: Treat as non‑event unless further validation confirms the spike; otherwise disregard for forecasting purposes.
+    skeptic: 10 entries, 2 rejected
+      PASS  L1  engine == wfm-llm (the model actually answered)
+      PASS  L2  at least one ranked cause, ranks sequential
+      PASS  L3  confidence descends with rank
+      PASS  L4  confidence_level matches its band
+      PASS  L5  every shipped cause_type satisfies its precondition
+      PASS  L6  ladder says inherited from Region -> model ranked it
+      PASS  L7  data_quality.suspect -> data_quality_issue ranked FIRST
+      PASS  L8  no banned statistics vocabulary
+      PASS  L9  every cause carries an action and a status
+
+------------------------------------------------------------------------------
+ANZ Comm Client DSP Upsell  FW202652   [ASU decomposition available]
+  engine=wfm-llm  model=nvidia/nemotron-3-super-120b-a12b  53.4s
+  adherence=38.5%
+  EXEC: Forecast adherence was 38.5% (over‑forecast) because actual contacts were far lower than predicted. The same over‑forecast appears at the Voice channel level for the ANZ region, indicating the miss is
+    #1 [90% High] Verified
+        inherited_from_higher_level :: Forecast miss inherited from Voice channel level
+        action: Review and adjust the Voice channel forecast model for ANZ region, particularly the planned ASU and contact‑pe
+    skeptic: 2 entries, 0 rejected
+      PASS  L1  engine == wfm-llm (the model actually answered)
+      PASS  L2  at least one ranked cause, ranks sequential
+      PASS  L3  confidence descends with rank
+      PASS  L4  confidence_level matches its band
+      PASS  L5  every shipped cause_type satisfies its precondition
+      PASS  L6  ladder says inherited from Channel -> model ranked it
+      PASS  L7  value not suspect (nothing to rank first)
+      PASS  L8  no banned statistics vocabulary
+      PASS  L9  every cause carries an action and a status
+
+------------------------------------------------------------------------------
+ANZ Client Core Email  FW202722   [moderate miss, high volume]
+  engine=wfm-llm  model=nvidia/nemotron-3-super-120b-a12b  67.9s
+  adherence=16.3%
+  EXEC: Forecast adherence for ANZ Client Core Email was 16.3%, meaning the forecast over‑estimated actual demand by more than the allowed 10% threshold. The same over‑forecast pattern is already present at t
+    #1 [90% High] Verified
+        inherited_from_higher_level :: Business Org‑level forecast miss
+        action: Review and recalibrate the CSG‑level forecast plan (FY27 Jun Projection) and its underlying demand drivers.
+    #2 [55% Medium] Hypothesis - To be Validated
+        installed_base_change :: Unusually high upgrade units
+        action: Validate the upgrade‑unit forecast assumption and incorporate recent trends into the CSG demand model.
+    #3 [30% Low] Verified
+        volume_routing_shift :: No significant channel shift detected
+        action: Monitor channel trends for any future shifts, but no immediate action required.
+    skeptic: 6 entries, 2 rejected
+      PASS  L1  engine == wfm-llm (the model actually answered)
+      PASS  L2  at least one ranked cause, ranks sequential
+      PASS  L3  confidence descends with rank
+      PASS  L4  confidence_level matches its band
+      PASS  L5  every shipped cause_type satisfies its precondition
+      PASS  L6  ladder says inherited from Business Org -> model ranked it
+      PASS  L7  value not suspect (nothing to rank first)
+      PASS  L8  no banned statistics vocabulary
+      PASS  L9  every cause carries an action and a status
+
+==============================================================================
+LLM answered on 3/3 queues;  27/27 ranking checks passed
+report -> results/llm-ranking-report.json
+==============================================================================

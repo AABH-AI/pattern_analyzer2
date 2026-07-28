@@ -1,0 +1,611 @@
+{
+ "run": {
+  "started_utc": "2026-07-28T17:40:01.341930+00:00",
+  "finished_utc": "2026-07-28T17:43:31.087572+00:00",
+  "provider": "nvidia",
+  "model": "nvidia/nemotron-3-super-120b-a12b",
+  "llm_timeout_seconds": 300,
+  "purpose": "verify the engine uses the LLM and that its ranking is sound"
+ },
+ "totals": {
+  "queues": 3,
+  "llm_answered": 3,
+  "checks": 27,
+  "passed": 27,
+  "failed": 0
+ },
+ "queues": [
+  {
+   "queue": "NA Core Spanish",
+   "fiscal_week": "202719",
+   "selected_because": "data-quality outlier",
+   "engine": "wfm-llm",
+   "provider": "nvidia",
+   "model": "nvidia/nemotron-3-super-120b-a12b",
+   "seconds": 59.2,
+   "adherence_pct": -9599.7,
+   "executive_summary": "Forecast adherence for NA Core Spanish Voice in fiscal week 202719 was -9599%, indicating actual demand was over 8800 contacts while the forecast was only 91. The actual figure is a massive one\u2011off spike that immediately returns to normal levels in the following weeks, suggesting a data quality problem. The same under\u2011forecast breach is already present at the Region level, so the issue is not unique to this queue. We recommend validating the raw data at source and reviewing any routing or plan changes that may have contributed to the anomaly.",
+   "ranked_causes": [
+    {
+     "rank": 1,
+     "cause_type": "data_quality_issue",
+     "title": "Isolated data spike",
+     "explanation": "The actual offered volume for this week is far beyond anything ever seen for this queue and returns to normal immediately afterwards, indicating the figure is likely incorrect.",
+     "evidence": [
+      {
+       "text": "Actual offered volume this week",
+       "source_field": "Actual_Offered",
+       "value": 8805.0
+      },
+      {
+       "text": "Typical weekly actual volume for this queue",
+       "source_field": "DERIVED_FEATURES.proof[0].usual",
+       "value": 61.8
+      },
+      {
+       "text": "Actual offered volume in the week after the spike",
+       "source_field": "DATA_QUALITY.next_weeks_actual[0]",
+       "value": 87.0
+      }
+     ],
+     "confidence_pct": 92,
+     "confidence_level": "High",
+     "business_impact": "If treated as real, would trigger unnecessary staffing and cost; correcting the data prevents wasted effort.",
+     "recommended_action": "Validate the raw Actual_Offered figure at the source system before using it for any forecasting or staffing decisions.",
+     "status": "Hypothesis - To be Validated",
+     "hypothesis_reason": "the figure has to be validated at source before it can be confirmed"
+    },
+    {
+     "rank": 2,
+     "cause_type": "inherited_from_higher_level",
+     "title": "Region\u2011level under\u2011forecast",
+     "explanation": "The same under\u2011forecast breach appears at the Region level (\u201113.6% adherence), so the problem is not specific to this queue but reflects a broader issue in the Americas CSG Voice business.",
+     "evidence": [
+      {
+       "text": "Region adherence percentage",
+       "source_field": "INVESTIGATION_LADDER.levels[1].adherence_pct",
+       "value": -13.6
+      },
+      {
+       "text": "SubRegion adherence percentage",
+       "source_field": "INVESTIGATION_LADDER.levels[2].adherence_pct",
+       "value": -18.0
+      },
+      {
+       "text": "Country adherence percentage",
+       "source_field": "INVESTIGATION_LADDER.levels[3].adherence_pct",
+       "value": -18.3
+      }
+     ],
+     "confidence_pct": 88,
+     "confidence_level": "High",
+     "business_impact": "Any corrective action must address the regional driver rather than only this queue\u2019s forecast.",
+     "recommended_action": "Investigate regional forecasting inputs (e.g., ASU plan, holiday treatment, plan changes) that affect all queues in the Americas CSG Voice scope.",
+     "status": "Verified"
+    },
+    {
+     "rank": 3,
+     "cause_type": "volume_routing_shift",
+     "title": "Possible mis\u2011routing of Voice contacts",
+     "explanation": "While overall Voice volume for the locality rose modestly, this queue\u2019s actual spiked from 54 to 8,805 contacts, suggesting contacts may have been incorrectly routed into this forecast name.",
+     "evidence": [
+      {
+       "text": "Voice volume this week for the locality",
+       "source_field": "CHANNEL_SIBLINGS.per_channel[3].this_week_actual",
+       "value": 30430.0
+      },
+      {
+       "text": "Voice volume prior week for the locality",
+       "source_field": "CHANNEL_SIBLINGS.per_channel[3].prior_week_actual",
+       "value": 20459.0
+      },
+      {
+       "text": "This queue\u2019s actual offered volume prior week",
+       "source_field": "TEMPORAL.previous_week.actual",
+       "value": 54.0
+      },
+      {
+       "text": "This queue\u2019s actual offered volume this week",
+       "source_field": "target_row_fields.Actual_Offered",
+       "value": 8805.0
+      }
+     ],
+     "confidence_pct": 55,
+     "confidence_level": "Medium",
+     "business_impact": "If contacts are being mis\u2011routed, staffing models based on this queue will be inaccurate and other queues may be under\u2011staffed.",
+     "recommended_action": "Review routing rules and queue mapping for the Voice channel in the Americas CSG NA United States scope to verify contacts are assigned to the correct forecast name.",
+     "status": "Hypothesis - To be Validated"
+    },
+    {
+     "rank": 4,
+     "cause_type": "plan_restatement",
+     "title": "Forecast plan change did not adjust forecast",
+     "explanation": "The forecast plan switched from FY27 May Projection to FY27 Jun Projection this week, yet the forecast remained near its usual level (\u224891 vs usual 99.8), indicating the plan change did not correct the forecast baseline.",
+     "evidence": [
+      {
+       "text": "Forecast plan changed flag",
+       "source_field": "DERIVED_FEATURES.plan_restatement.changed",
+       "value": true
+      },
+      {
+       "text": "Prior plan name",
+       "source_field": "DERIVED_FEATURES.plan_restatement.prior",
+       "value": "FY27 May Projection"
+      },
+      {
+       "text": "Current plan name",
+       "source_field": "DERIVED_FEATURES.plan_restatement.current",
+       "value": "FY27 Jun Projection"
+      },
+      {
+       "text": "This week\u2019s forecast",
+       "source_field": "target_row_fields.fcst_offered",
+       "value": 90.7763949888044
+      },
+      {
+       "text": "Usual forecast level",
+       "source_field": "DERIVED_FEATURES.proof[0].usual",
+       "value": 99.7
+      }
+     ],
+     "confidence_pct": 35,
+     "confidence_level": "Low",
+     "business_impact": "An outdated forecast baseline can cause persistent over\u2011 or under\u2011forecasting until the plan is updated.",
+     "recommended_action": "Confirm that the new forecast plan incorporates the latest ASU and demand trends; if not, trigger a forecast refresh.",
+     "status": "Hypothesis - To be Validated"
+    },
+    {
+     "rank": 5,
+     "cause_type": "genuine_demand_event",
+     "title": "Unlikely genuine demand surge",
+     "explanation": "The magnitude of the spike is not supported by any concurrent changes in installed base, holidays, or historical patterns, and the data quality flags treat it as a one\u2011off error.",
+     "evidence": [
+      {
+       "text": "Same week last year actual offered",
+       "source_field": "TEMPORAL.same_week_last_year.actual",
+       "value": 144.0
+      },
+      {
+       "text": "Holiday count this week",
+       "source_field": "target_row_fields.Holiday_Count",
+       "value": 0.0
+      },
+      {
+       "text": "Planned ASU this week",
+       "source_field": "target_row_fields.Planned_ASU",
+       "value": 14239272.0
+      },
+      {
+       "text": "Typical weekly actual offered",
+       "source_field": "DERIVED_FEATURES.proof[0].usual",
+       "value": 61.8
+      }
+     ],
+     "confidence_pct": 12,
+     "confidence_level": "Low",
+     "business_impact": "If mistakenly treated as real, could lead to over\u2011staffing and unnecessary cost.",
+     "recommended_action": "Treat as non\u2011event unless further validation confirms the spike; otherwise disregard for forecasting purposes.",
+     "status": "Hypothesis - To be Validated"
+    }
+   ],
+   "skeptic_review": [
+    {
+     "cause": "data_quality_issue",
+     "challenge": "Could the spike be a real, short\u2011lived demand surge that vanished instantly?",
+     "verdict": "retained",
+     "reason": "The immediate return to normal levels in the next three weeks (87, 54, 39) and the isolation of this single outlier across 103 weeks make a genuine transient surge implausible."
+    },
+    {
+     "cause": "inherited_from_higher_level",
+     "challenge": "Perhaps the region\u2011level breach is itself caused by this queue\u2019s bad data, not a broader issue.",
+     "verdict": "retained",
+     "reason": "Region adherence is based on aggregated actuals from many queues; even if this queue\u2019s figure is erroneous, the region\u2019s breach persists after removing this queue\u2019s contribution (region actual would still exceed forecast due to other queues showing similar modest overages)."
+    },
+    {
+     "cause": "volume_routing_shift",
+     "challenge": "Overall Voice volume only rose 48%; such a modest shift cannot explain a 162\u00d7 increase in this queue.",
+     "verdict": "retained",
+     "reason": "The discrepancy suggests a routing or allocation error specific to this queue\u2019s forecast name rather than a bulk channel shift."
+    },
+    {
+     "cause": "plan_restatement",
+     "challenge": "The forecast value did not change meaningfully (90.8 vs usual 99.7), so the plan change is unlikely to have caused the massive under\u2011forecast.",
+     "verdict": "rejected",
+     "reason": "Forecast remained essentially unchanged; therefore the plan restatement cannot explain the observed actual spike."
+    },
+    {
+     "cause": "genuine_demand_event",
+     "challenge": "No driver (ASU, holidays, installed base) changed enough to produce a 61\u00d7 year\u2011over\u2011year jump.",
+     "verdict": "rejected",
+     "reason": "Historical correlations show only weak links to installed base and no link to holidays; the spike lacks any plausible business trigger."
+    },
+    {
+     "cause": "Isolated data spike",
+     "challenge": "Is this supported by the data, or could something else explain it better?",
+     "verdict": "retained",
+     "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+    },
+    {
+     "cause": "Region\u2011level under\u2011forecast",
+     "challenge": "Is this supported by the data, or could something else explain it better?",
+     "verdict": "retained",
+     "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+    },
+    {
+     "cause": "Possible mis\u2011routing of Voice contacts",
+     "challenge": "Is this supported by the data, or could something else explain it better?",
+     "verdict": "retained",
+     "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+    },
+    {
+     "cause": "Forecast plan change did not adjust forecast",
+     "challenge": "Is this supported by the data, or could something else explain it better?",
+     "verdict": "retained",
+     "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+    },
+    {
+     "cause": "Unlikely genuine demand surge",
+     "challenge": "Is this supported by the data, or could something else explain it better?",
+     "verdict": "retained",
+     "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+    }
+   ],
+   "checks": [
+    {
+     "id": "L1",
+     "check": "engine == wfm-llm (the model actually answered)",
+     "pass": true,
+     "detail": "engine=wfm-llm provider=nvidia model=nvidia/nemotron-3-super-120b-a12b"
+    },
+    {
+     "id": "L2",
+     "check": "at least one ranked cause, ranks sequential",
+     "pass": true,
+     "detail": "5 causes, ranks=[1, 2, 3, 4, 5]"
+    },
+    {
+     "id": "L3",
+     "check": "confidence descends with rank",
+     "pass": true,
+     "detail": "confidences=[92, 88, 55, 35, 12]"
+    },
+    {
+     "id": "L4",
+     "check": "confidence_level matches its band",
+     "pass": true,
+     "detail": "mismatched=[]"
+    },
+    {
+     "id": "L5",
+     "check": "every shipped cause_type satisfies its precondition",
+     "pass": true,
+     "detail": "[]"
+    },
+    {
+     "id": "L6",
+     "check": "ladder says inherited from Region -> model ranked it",
+     "pass": true,
+     "detail": "types=['data_quality_issue', 'inherited_from_higher_level', 'volume_routing_shift', 'plan_restatement', 'genuine_demand_event']"
+    },
+    {
+     "id": "L7",
+     "check": "data_quality.suspect -> data_quality_issue ranked FIRST",
+     "pass": true,
+     "detail": "first=data_quality_issue"
+    },
+    {
+     "id": "L8",
+     "check": "no banned statistics vocabulary",
+     "pass": true,
+     "detail": "hits=[]"
+    },
+    {
+     "id": "L9",
+     "check": "every cause carries an action and a status",
+     "pass": true,
+     "detail": "incomplete=[]"
+    }
+   ],
+   "raw_file": "llm-NA_Core_Spanish-FW202719.json"
+  },
+  {
+   "queue": "ANZ Comm Client DSP Upsell",
+   "fiscal_week": "202652",
+   "selected_because": "ASU decomposition available",
+   "engine": "wfm-llm",
+   "provider": "nvidia",
+   "model": "nvidia/nemotron-3-super-120b-a12b",
+   "seconds": 53.4,
+   "adherence_pct": 38.5,
+   "executive_summary": "Forecast adherence was 38.5% (over\u2011forecast) because actual contacts were far lower than predicted. The same over\u2011forecast appears at the Voice channel level for the ANZ region, indicating the miss is inherited from a higher level rather than being unique to this queue. Historical shows the forecast was about average while actual demand was roughly 44% lower than usual, with no evidence of a channel shift or data quality issue. Review the Voice channel forecast assumptions for ANZ to correct the over\u2011forecast.",
+   "ranked_causes": [
+    {
+     "rank": 1,
+     "cause_type": "inherited_from_higher_level",
+     "title": "Forecast miss inherited from Voice channel level",
+     "explanation": "The over\u2011forecast observed at the queue level mirrors the over\u2011forecast already present for the Voice channel in ANZ, showing the root cause lies at the channel forecast rather than the specific queue.",
+     "evidence": [
+      {
+       "text": "Channel adherence 13.9% (beyond the \u00b110% threshold)",
+       "source_field": "INVESTIGATION_LADDER.levels[4].adherence_pct",
+       "value": 13.9
+      },
+      {
+       "text": "Investigation ladder indicates the miss is inherited from the Channel level",
+       "source_field": "INVESTIGATION_LADDER.inherited_from",
+       "value": "Channel"
+      },
+      {
+       "text": "Queue actual 106.0 and forecast 172.44 are proportional to Voice channel actual 1560.0 and forecast 1812.4",
+       "source_field": "target_row_fields.Actual_Offered and target_row_fields.fcst_offered",
+       "value": "106.0 / 172.44 \u2248 0.615; channel actual/forecast = 1560.0 / 1812.4 \u2248 0.861 (same direction of under\u2011performance)"
+      }
+     ],
+     "confidence_pct": 90,
+     "confidence_level": "High",
+     "business_impact": "Same as overall: excess staffing and cost.",
+     "recommended_action": "Review and adjust the Voice channel forecast model for ANZ region, particularly the planned ASU and contact\u2011per\u2011unit assumptions.",
+     "status": "Verified"
+    }
+   ],
+   "skeptic_review": [
+    {
+     "cause": "inherited_from_higher_level",
+     "challenge": "Could the miss be due to queue\u2011specific factors that are not visible at the channel level?",
+     "verdict": "retained",
+     "reason": "The channel\u2011level data shows the same direction of error and the investigation ladder explicitly marks the miss as inherited from Channel; no queue\u2011specific anomaly is evident in the provided fields."
+    },
+    {
+     "cause": "Forecast miss inherited from Voice channel level",
+     "challenge": "Is this supported by the data, or could something else explain it better?",
+     "verdict": "retained",
+     "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+    }
+   ],
+   "checks": [
+    {
+     "id": "L1",
+     "check": "engine == wfm-llm (the model actually answered)",
+     "pass": true,
+     "detail": "engine=wfm-llm provider=nvidia model=nvidia/nemotron-3-super-120b-a12b"
+    },
+    {
+     "id": "L2",
+     "check": "at least one ranked cause, ranks sequential",
+     "pass": true,
+     "detail": "1 causes, ranks=[1]"
+    },
+    {
+     "id": "L3",
+     "check": "confidence descends with rank",
+     "pass": true,
+     "detail": "confidences=[90]"
+    },
+    {
+     "id": "L4",
+     "check": "confidence_level matches its band",
+     "pass": true,
+     "detail": "mismatched=[]"
+    },
+    {
+     "id": "L5",
+     "check": "every shipped cause_type satisfies its precondition",
+     "pass": true,
+     "detail": "[]"
+    },
+    {
+     "id": "L6",
+     "check": "ladder says inherited from Channel -> model ranked it",
+     "pass": true,
+     "detail": "types=['inherited_from_higher_level']"
+    },
+    {
+     "id": "L7",
+     "check": "value not suspect (nothing to rank first)",
+     "pass": true,
+     "detail": "not applicable"
+    },
+    {
+     "id": "L8",
+     "check": "no banned statistics vocabulary",
+     "pass": true,
+     "detail": "hits=[]"
+    },
+    {
+     "id": "L9",
+     "check": "every cause carries an action and a status",
+     "pass": true,
+     "detail": "incomplete=[]"
+    }
+   ],
+   "raw_file": "llm-ANZ_Comm_Client_DSP_Upsell-FW202652.json"
+  },
+  {
+   "queue": "ANZ Client Core Email",
+   "fiscal_week": "202722",
+   "selected_because": "moderate miss, high volume",
+   "engine": "wfm-llm",
+   "provider": "nvidia",
+   "model": "nvidia/nemotron-3-super-120b-a12b",
+   "seconds": 67.9,
+   "adherence_pct": 16.3,
+   "executive_summary": "Forecast adherence for ANZ Client Core Email was 16.3%, meaning the forecast over\u2011estimated actual demand by more than the allowed 10% threshold. The same over\u2011forecast pattern is already present at the Business Org level (CSG) and propagates down through Region, SubRegion and Country, indicating the miss is not specific to this queue. A contributing factor is an unusually high count of upgrade units (Final_upp_units) this week, though warranty\u2011unit data is missing. Action should focus on revising the Business Org forecast plan and validating the installed\u2011base assumptions that feed it.",
+   "ranked_causes": [
+    {
+     "rank": 1,
+     "cause_type": "inherited_from_higher_level",
+     "title": "Business Org\u2011level forecast miss",
+     "explanation": "The forecast for this queue is high because the whole CSG business organisation is over\u2011forecasting demand; the same pattern appears at Region, SubRegion and Country levels.",
+     "evidence": [
+      {
+       "text": "Business Org forecast adherence is 20.5%",
+       "source_field": "INVESTIGATION_LADDER.levels[0].adherence_pct",
+       "value": 20.5
+      },
+      {
+       "text": "Business Org actual offered 185,972 vs forecast 233,909.3",
+       "source_field": "INVESTIGATION_LADDER.levels[0].actual_offered",
+       "value": 185972.0
+      },
+      {
+       "text": "Business Org forecast offered 233,909.3",
+       "source_field": "INVESTIGATION_LADDER.levels[0].fcst_offered",
+       "value": 233909.3
+      }
+     ],
+     "confidence_pct": 90,
+     "confidence_level": "High",
+     "business_impact": "Excess capacity and cost across the entire CSG organisation.",
+     "recommended_action": "Review and recalibrate the CSG\u2011level forecast plan (FY27 Jun Projection) and its underlying demand drivers.",
+     "status": "Verified"
+    },
+    {
+     "rank": 2,
+     "cause_type": "installed_base_change",
+     "title": "Unusually high upgrade units",
+     "explanation": "The count of upgrade\u2011protected units (Final_upp_units) is well above its usual level, which may be influencing demand but is not yet reflected in the forecast.",
+     "evidence": [
+      {
+       "text": "Final_upp_units this week is 2,677",
+       "source_field": "target_row_fields.Final_upp_units",
+       "value": 2677.0
+      },
+      {
+       "text": "Usual level of Final_upp_units is about 2,150",
+       "source_field": "DERIVED_FEATURES.installed_base.history_mean",
+       "value": 2149.88
+      },
+      {
+       "text": "Z\u2011score for Final_upp_units is 2.96, indicating an unusual increase",
+       "source_field": "DERIVED_FEATURES.installed_base.z_score",
+       "value": 2.96
+      }
+     ],
+     "confidence_pct": 55,
+     "confidence_level": "Medium",
+     "business_impact": "If upgrade units drive contacts, the forecast may be under\u2011estimating demand from that segment; however, the observed over\u2011forecast suggests other factors dominate.",
+     "recommended_action": "Validate the upgrade\u2011unit forecast assumption and incorporate recent trends into the CSG demand model.",
+     "status": "Hypothesis - To be Validated"
+    },
+    {
+     "rank": 3,
+     "cause_type": "volume_routing_shift",
+     "title": "No significant channel shift detected",
+     "explanation": "Overall offered volume across all channels declined versus the prior week, but there is no evidence of demand moving between channels; the change appears to be a general volume decrease rather than a routing shift.",
+     "evidence": [
+      {
+       "text": "Total offered volume across Chat, Email and Voice changed by \u20131,162 versus prior week",
+       "source_field": "CHANNEL_SIBLINGS.group_total_change",
+       "value": -1162.0
+      },
+      {
+       "text": "Combined gross channel movement is 1,162 with no offsetting gains",
+       "source_field": "CHANNEL_SIBLINGS.gross_channel_movement",
+       "value": 1162.0
+      }
+     ],
+     "confidence_pct": 30,
+     "confidence_level": "Low",
+     "business_impact": "Limited; the volume change does not explain the forecast miss through channel migration.",
+     "recommended_action": "Monitor channel trends for any future shifts, but no immediate action required.",
+     "status": "Verified"
+    }
+   ],
+   "skeptic_review": [
+    {
+     "cause": "inherited_from_higher_level",
+     "challenge": "Could the miss be driven solely by a queue\u2011specific anomaly that coincidentally matches the Business Org trend?",
+     "verdict": "rejected",
+     "reason": "The INVESTIGATION_LADDER shows the same adherence breach at Business Org, Region, SubRegion and Country levels, making a queue\u2011only cause unlikely."
+    },
+    {
+     "cause": "installed_base_change",
+     "challenge": "Without Actual_ASU data we cannot confirm that the upgrade\u2011unit increase translates into higher demand; the correlation analysis rejected the relationship between installed base and offered volume.",
+     "verdict": "retained",
+     "reason": "The installed\u2011base signal is strong (z\u2011score 2.96) and material, but the lack of warranty\u2011unit data prevents a verified causal link; therefore it remains a hypothesis."
+    },
+    {
+     "cause": "volume_routing_shift",
+     "challenge": "The overall volume drop could be masking a hidden shift where gains in one channel offset losses in another.",
+     "verdict": "rejected",
+     "reason": "CHANNEL_SIBLINGS reports migration_detected false and all three channels show losses, with gaining_channels empty, indicating no offsetting shift."
+    },
+    {
+     "cause": "Business Org\u2011level forecast miss",
+     "challenge": "Is this supported by the data, or could something else explain it better?",
+     "verdict": "retained",
+     "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+    },
+    {
+     "cause": "Unusually high upgrade units",
+     "challenge": "Is this supported by the data, or could something else explain it better?",
+     "verdict": "retained",
+     "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+    },
+    {
+     "cause": "No significant channel shift detected",
+     "challenge": "Is this supported by the data, or could something else explain it better?",
+     "verdict": "retained",
+     "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+    }
+   ],
+   "checks": [
+    {
+     "id": "L1",
+     "check": "engine == wfm-llm (the model actually answered)",
+     "pass": true,
+     "detail": "engine=wfm-llm provider=nvidia model=nvidia/nemotron-3-super-120b-a12b"
+    },
+    {
+     "id": "L2",
+     "check": "at least one ranked cause, ranks sequential",
+     "pass": true,
+     "detail": "3 causes, ranks=[1, 2, 3]"
+    },
+    {
+     "id": "L3",
+     "check": "confidence descends with rank",
+     "pass": true,
+     "detail": "confidences=[90, 55, 30]"
+    },
+    {
+     "id": "L4",
+     "check": "confidence_level matches its band",
+     "pass": true,
+     "detail": "mismatched=[]"
+    },
+    {
+     "id": "L5",
+     "check": "every shipped cause_type satisfies its precondition",
+     "pass": true,
+     "detail": "[]"
+    },
+    {
+     "id": "L6",
+     "check": "ladder says inherited from Business Org -> model ranked it",
+     "pass": true,
+     "detail": "types=['inherited_from_higher_level', 'installed_base_change', 'volume_routing_shift']"
+    },
+    {
+     "id": "L7",
+     "check": "value not suspect (nothing to rank first)",
+     "pass": true,
+     "detail": "not applicable"
+    },
+    {
+     "id": "L8",
+     "check": "no banned statistics vocabulary",
+     "pass": true,
+     "detail": "hits=[]"
+    },
+    {
+     "id": "L9",
+     "check": "every cause carries an action and a status",
+     "pass": true,
+     "detail": "incomplete=[]"
+    }
+   ],
+   "raw_file": "llm-ANZ_Client_Core_Email-FW202722.json"
+  }
+ ]
+}

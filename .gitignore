@@ -17,3 +17,11 @@ __pycache__/
 Thumbs.db
 .DS_Store
 .vscode/
+
+# Canary screen recordings — kept OUT of git deliberately: ~33 MB of WebM that would
+# bloat every future clone forever. The evidence survives without them: report.html
+# embeds the per-step screenshots, and screenshots/ + network.har + console.log are
+# committed. The videos live in the Canary session dirs under ~/.canary/sessions/ and
+# are copied into results/canary-*/video/ locally. Force-add if you really want them.
+results/**/video/
+*.webm

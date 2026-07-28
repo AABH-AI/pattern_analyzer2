@@ -1,0 +1,561 @@
+{
+ "executive_summary": "The forecast adherence for the Brazil Client Core queue was 75.3%, which is below the threshold of 10%. This indicates that the actual offered volume was significantly lower than the forecasted volume. The investigation suggests that the miss is inherited from a higher level, specifically the Business Org level. The actual offered volume was 28.0, which is about 3x lower than usual, while the forecasted volume was 113.4, which is about 28% lower than usual.",
+ "kpi_status": {
+  "metric": "Forecast Adherence",
+  "adherence_pct": 75.3,
+  "threshold_pct": 10.0,
+  "breached": true,
+  "direction": "over_forecast"
+ },
+ "business_impact": "The low forecast adherence may lead to over-staffing and reduced productivity, resulting in increased costs and decreased efficiency.",
+ "ranked_root_causes": [
+  {
+   "rank": 1,
+   "cause_type": "inherited_from_higher_level",
+   "title": "Inherited from Business Org level",
+   "explanation": "The same miss is already visible at the Business Org level, so it is not specific to this queue and should be attributed there.",
+   "evidence": [
+    {
+     "text": "INVESTIGATION_LADDER levels breaching band",
+     "source_field": "INVESTIGATION_LADDER.levels_breaching_band",
+     "value": "Business Org"
+    }
+   ],
+   "confidence_pct": 90,
+   "confidence_level": "High",
+   "business_impact": "The low forecast adherence at the Business Org level may have a significant impact on the overall business, resulting in increased costs and decreased efficiency.",
+   "recommended_action": "Investigate and address the issue at the Business Org level",
+   "status": "Verified"
+  },
+  {
+   "rank": 2,
+   "cause_type": "systematic_forecast_bias",
+   "title": "Systematic forecast bias",
+   "explanation": "The forecasted volume was 113.4, which is about 28% lower than usual, while the actual offered volume was 28.0, which is about 3x lower than usual. This suggests a systematic bias in the forecasting process.",
+   "evidence": [
+    {
+     "text": "DERIVED_FEATURES forecast sanity verdict",
+     "source_field": "DERIVED_FEATURES.forecast_sanity.verdict",
+     "value": "actual_anomalous"
+    }
+   ],
+   "confidence_pct": 70,
+   "confidence_level": "High",
+   "business_impact": "The systematic forecast bias may result in consistent over- or under-forecasting, leading to inefficiencies and increased costs.",
+   "recommended_action": "Review and adjust the forecasting process to reduce bias",
+   "status": "Verified"
+  }
+ ],
+ "skeptic_review": [
+  {
+   "cause": "inherited_from_higher_level",
+   "challenge": "Is the issue specific to this queue or is it inherited from a higher level?",
+   "verdict": "retained",
+   "reason": "The INVESTIGATION_LADDER levels breaching band includes Business Org, indicating that the issue is inherited from a higher level."
+  },
+  {
+   "cause": "systematic_forecast_bias",
+   "challenge": "Is the forecast bias due to a systematic issue or a one-time anomaly?",
+   "verdict": "retained",
+   "reason": "The DERIVED_FEATURES forecast sanity verdict indicates that the actual offered volume is anomalous, suggesting a systematic bias."
+  },
+  {
+   "cause": "Inherited from Business Org level",
+   "challenge": "Is this supported by the data, or could something else explain it better?",
+   "verdict": "retained",
+   "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+  },
+  {
+   "cause": "Systematic forecast bias",
+   "challenge": "Is this supported by the data, or could something else explain it better?",
+   "verdict": "retained",
+   "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+  }
+ ],
+ "investigation_trail": {
+  "levels_checked": [
+   "Business Org",
+   "Region",
+   "SubRegion",
+   "Country",
+   "Channel"
+  ],
+  "inherited_from": "Business Org",
+  "narrative": "The investigation started at the queue level and moved up the hierarchy, finding that the issue is inherited from the Business Org level."
+ },
+ "channel_migration": {
+  "detected": false,
+  "narrative": "No channel migration was detected, as the CHANNEL_SIBLINGS migration_detected verdict is false.",
+  "gaining_channels": [
+   "Email"
+  ],
+  "losing_channels": [
+   "Chat",
+   "Social Media",
+   "Voice"
+  ],
+  "grouped_by": "Region + SubRegion + Country + business_org",
+  "is_cqn_proxy": true,
+  "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+  "detail": {
+   "available": true,
+   "grouped_by": "Region + SubRegion + Country + business_org",
+   "is_cqn_proxy": true,
+   "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+   "prior_week": "202721",
+   "this_week": "202722",
+   "per_channel": [
+    {
+     "channel": "Chat",
+     "prior_week_actual": 2117.0,
+     "this_week_actual": 2006.0,
+     "change": -111.0,
+     "is_target_channel": false
+    },
+    {
+     "channel": "Email",
+     "prior_week_actual": 2928.0,
+     "this_week_actual": 2979.0,
+     "change": 51.0,
+     "is_target_channel": false
+    },
+    {
+     "channel": "Social Media",
+     "prior_week_actual": 4454.0,
+     "this_week_actual": 4320.0,
+     "change": -134.0,
+     "is_target_channel": false
+    },
+    {
+     "channel": "Voice",
+     "prior_week_actual": 2620.0,
+     "this_week_actual": 929.0,
+     "change": -1691.0,
+     "is_target_channel": true
+    }
+   ],
+   "group_total_prior_week": 12119.0,
+   "group_total_this_week": 10234.0,
+   "group_total_change": -1885.0,
+   "gross_channel_movement": 1987.0,
+   "offset_share": 0.05,
+   "migration_detected": false,
+   "gaining_channels": [
+    "Email"
+   ],
+   "losing_channels": [
+    "Chat",
+    "Social Media",
+    "Voice"
+   ],
+   "note": "Channel movements do not cancel out, so this is not a like-for-like shift between channels."
+  }
+ },
+ "technical_metrics": [
+  {
+   "label": "Forecast (fcst_offered)",
+   "value": 113.4
+  },
+  {
+   "label": "Actual demand (Actual_Offered)",
+   "value": 28.0
+  },
+  {
+   "label": "Planned ASU",
+   "value": 1288240.0
+  },
+  {
+   "label": "Relationship strength: Actual_ASU vs demand",
+   "value": 0.73
+  },
+  {
+   "label": "Relationship strength: Planned_ASU vs demand",
+   "value": 0.57
+  },
+  {
+   "label": "Adherence at Business Org level",
+   "value": 20.5
+  },
+  {
+   "label": "Adherence at Region level",
+   "value": 11.3
+  },
+  {
+   "label": "Adherence at SubRegion level",
+   "value": 24.5
+  },
+  {
+   "label": "Adherence at Country level",
+   "value": 24.5
+  },
+  {
+   "label": "Adherence at Channel level",
+   "value": 68.1
+  },
+  {
+   "label": "Forecast error",
+   "value": -85.4
+  }
+ ],
+ "missing_information": [
+  "Actual_ASU"
+ ],
+ "derived_features": {
+  "base_features": {
+   "chronic_bias": {
+    "history_mean_adherence_pct": 39.4,
+    "typical_abs_deviation_pct": 39.4,
+    "history_weeks": 13,
+    "usual_forecast": 157.9,
+    "usual_actual": 90.2,
+    "consistent_direction": "over",
+    "share_same_direction": 1.0,
+    "verdict": "chronic_over"
+   },
+   "this_week_vs_usual": {
+    "target_adherence_pct": 75.3,
+    "typical_abs_deviation_pct": 39.4,
+    "times_usual": 1.9,
+    "worse_than_usual": true
+   },
+   "forecast_sanity": {
+    "forecast": 113.4,
+    "actual": 28.0,
+    "forecast_usual_level": 157.9,
+    "actual_usual_level": 90.15,
+    "forecast_z_vs_own_history": -0.9,
+    "actual_z_vs_own_history": -3.06,
+    "forecast_over_actual_ratio": 4.05,
+    "verdict": "actual_anomalous"
+   },
+   "installed_base": {
+    "field": "Final_Units",
+    "z_score": 1.22,
+    "target_value": 9587.0,
+    "history_mean": 6976.15,
+    "material": false
+   },
+   "holiday": {
+    "holiday_count": 0.0,
+    "z_score": -0.64,
+    "unusual": false
+   },
+   "plan_restatement": {
+    "changed": false
+   },
+   "forecaster_change": {
+    "changed": false
+   },
+   "offering_change": {
+    "changed": false
+   },
+   "peer_divergence": {
+    "peers_total": 6,
+    "peers_opposite_direction": 0,
+    "peers_same_direction": 6,
+    "examples_opposite": [],
+    "signal": false
+   },
+   "population_context": null,
+   "cleaned_signals": [],
+   "proof": [
+    {
+     "label": "Forecast (fcst_offered)",
+     "field": "fcst_offered",
+     "this_week": 113.4,
+     "usual": 157.9,
+     "change": "about 28% lower than usual"
+    },
+    {
+     "label": "Actual demand (Actual_Offered)",
+     "field": "Actual_Offered",
+     "this_week": 28.0,
+     "usual": 90.2,
+     "change": "about 3x lower than usual"
+    },
+    {
+     "label": "Planned ASU",
+     "field": "Planned_ASU",
+     "this_week": 1288240.0,
+     "usual": 1298064,
+     "change": "about the same as usual"
+    }
+   ]
+  },
+  "temporal": {
+   "this_week": {
+    "fiscal_week": "202722",
+    "actual": 28.0,
+    "forecast": 113.4,
+    "adherence_pct": 75.3
+   },
+   "previous_week": {
+    "fiscal_week": 202721,
+    "actual": 96.0
+   },
+   "last_4_week_avg_actual": 83.0,
+   "last_13_week_avg_actual": 90.2,
+   "full_history_avg_actual": 243.6,
+   "history_weeks_available": 103,
+   "same_week_last_year": {
+    "fiscal_week": 202622,
+    "actual": 219.0,
+    "forecast": 208.05
+   },
+   "same_week_last_year_note": null,
+   "distinct_forecast_plans_in_window": [
+    "FY25 Jul Projection",
+    "FY25 Aug Projection",
+    "FY25 Sep Projection",
+    "FY25 Oct Projection",
+    "FY25 Nov Projection",
+    "FY25 Dec Projection",
+    "FY26 Feb Projection",
+    "FY26 Mar Projection",
+    "FY26 Apr Projection",
+    "FY26 May Projection",
+    "FY26 Jun Projection",
+    "FY26 Jul Projection",
+    "FY26 Aug Projection",
+    "FY26 Sep Projection",
+    "FY26 Oct Projection",
+    "FY26 Nov Projection",
+    "FY26 Dec Projection",
+    "FY26 Jan Projection",
+    "FY27 Feb Projection",
+    "FY27 Mar Projection",
+    "FY27 Apr Projection",
+    "FY27 May Projection",
+    "FY27 Jun Projection"
+   ],
+   "forecast_plan_changed_within_window": true
+  },
+  "channel_siblings": {
+   "available": true,
+   "grouped_by": "Region + SubRegion + Country + business_org",
+   "is_cqn_proxy": true,
+   "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+   "prior_week": "202721",
+   "this_week": "202722",
+   "per_channel": [
+    {
+     "channel": "Chat",
+     "prior_week_actual": 2117.0,
+     "this_week_actual": 2006.0,
+     "change": -111.0,
+     "is_target_channel": false
+    },
+    {
+     "channel": "Email",
+     "prior_week_actual": 2928.0,
+     "this_week_actual": 2979.0,
+     "change": 51.0,
+     "is_target_channel": false
+    },
+    {
+     "channel": "Social Media",
+     "prior_week_actual": 4454.0,
+     "this_week_actual": 4320.0,
+     "change": -134.0,
+     "is_target_channel": false
+    },
+    {
+     "channel": "Voice",
+     "prior_week_actual": 2620.0,
+     "this_week_actual": 929.0,
+     "change": -1691.0,
+     "is_target_channel": true
+    }
+   ],
+   "group_total_prior_week": 12119.0,
+   "group_total_this_week": 10234.0,
+   "group_total_change": -1885.0,
+   "gross_channel_movement": 1987.0,
+   "offset_share": 0.05,
+   "migration_detected": false,
+   "gaining_channels": [
+    "Email"
+   ],
+   "losing_channels": [
+    "Chat",
+    "Social Media",
+    "Voice"
+   ],
+   "note": "Channel movements do not cancel out, so this is not a like-for-like shift between channels."
+  },
+  "investigation_ladder": {
+   "available": true,
+   "band_pct": 10.0,
+   "levels": [
+    {
+     "level": "Business Org",
+     "scope": "CSG",
+     "actual_offered": 185972.0,
+     "fcst_offered": 233909.3,
+     "adherence_pct": 20.5,
+     "queue_weeks_in_scope": 423
+    },
+    {
+     "level": "Region",
+     "scope": "CSG / Americas",
+     "actual_offered": 80766.0,
+     "fcst_offered": 91054.4,
+     "adherence_pct": 11.3,
+     "queue_weeks_in_scope": 84
+    },
+    {
+     "level": "SubRegion",
+     "scope": "CSG / Americas / Brazil",
+     "actual_offered": 10234.0,
+     "fcst_offered": 13561.6,
+     "adherence_pct": 24.5,
+     "queue_weeks_in_scope": 20
+    },
+    {
+     "level": "Country",
+     "scope": "CSG / Americas / Brazil / Brazil",
+     "actual_offered": 10234.0,
+     "fcst_offered": 13561.6,
+     "adherence_pct": 24.5,
+     "queue_weeks_in_scope": 20
+    },
+    {
+     "level": "Channel",
+     "scope": "CSG / Americas / Brazil / Brazil / Voice",
+     "actual_offered": 929.0,
+     "fcst_offered": 2909.2,
+     "adherence_pct": 68.1,
+     "queue_weeks_in_scope": 7
+    }
+   ],
+   "levels_breaching_band": [
+    "Business Org",
+    "Region",
+    "SubRegion",
+    "Country",
+    "Channel"
+   ],
+   "inherited_from": "Business Org",
+   "note": "The same miss is already visible at Business Org level, so it is not specific to this queue and should be attributed there."
+  },
+  "data_quality": {
+   "available": true,
+   "this_week_actual": 28.0,
+   "typical_week_actual": 233.0,
+   "times_typical": 0.1,
+   "weeks_compared": 103,
+   "is_isolated_one_off": false,
+   "next_weeks_actual": [],
+   "returns_to_normal_immediately": false,
+   "reversion_testable": false,
+   "suspect": false,
+   "note": "Nothing about the value itself looks implausible."
+  },
+  "correlations": {
+   "relationships": {
+    "available": true,
+    "min_weeks_required": 12,
+    "min_strength_required": 0.5,
+    "retained": [
+     {
+      "driver": "Actual_ASU",
+      "subject": "the number of units under warranty",
+      "weeks": 82,
+      "technical_strength": 0.73,
+      "direction": "same",
+      "plain_language": "Historically, when the number of units under warranty went up, this queue's demand usually went higher too."
+     },
+     {
+      "driver": "Planned_ASU",
+      "subject": "the planned number of units under warranty",
+      "weeks": 104,
+      "technical_strength": 0.57,
+      "direction": "same",
+      "plain_language": "Historically, when the planned number of units under warranty went up, this queue's demand more often than not went higher too."
+     }
+    ],
+    "rejected": [
+     {
+      "driver": "Final_Units",
+      "subject": "the installed base",
+      "weeks": 104,
+      "technical_strength": 0.45,
+      "direction": "same",
+      "reason": "Relationship too weak or too little history to rely on (104 weeks)."
+     },
+     {
+      "driver": "Holiday_Count",
+      "subject": "the number of holidays in the week",
+      "weeks": 104,
+      "technical_strength": -0.25,
+      "direction": "opposite",
+      "reason": "Relationship too weak or too little history to rely on (104 weeks)."
+     }
+    ],
+    "note": "Only relationships consistently supported by this queue's own history are retained; the rest are listed as rejected so they are not used as evidence."
+   },
+   "driver_decomposition": {
+    "available": false,
+    "missing_fields": [
+     "Actual_ASU"
+    ],
+    "reason": "Cannot split the miss into a warranty-base effect and a contacts-per-unit effect because these values are missing or zero for this week: Actual_ASU."
+   }
+  }
+ },
+ "investigation_meta": {
+  "engine": "wfm-llm",
+  "provider": "groq",
+  "model": "llama-3.3-70b-versatile",
+  "calls": 1,
+  "generated_at": "2026-07-28T16:59:32.986578+00:00"
+ },
+ "primary_root_cause": {
+  "statement": "The same miss is already visible at the Business Org level, so it is not specific to this queue and should be attributed there.",
+  "confidence": 0.9,
+  "supporting_evidence": [
+   {
+    "text": "INVESTIGATION_LADDER levels breaching band",
+    "source_field": "INVESTIGATION_LADDER.levels_breaching_band",
+    "value": "Business Org"
+   }
+  ]
+ },
+ "secondary_contributors": [
+  {
+   "statement": "The forecasted volume was 113.4, which is about 28% lower than usual, while the actual offered volume was 28.0, which is about 3x lower than usual. This suggests a systematic bias in the forecasting process.",
+   "confidence": 0.7,
+   "supporting_evidence": [
+    {
+     "text": "DERIVED_FEATURES forecast sanity verdict",
+     "source_field": "DERIVED_FEATURES.forecast_sanity.verdict",
+     "value": "actual_anomalous"
+    }
+   ]
+  }
+ ],
+ "confidence_score": 0.9,
+ "cause_type": "inherited_from_higher_level",
+ "key_findings": [
+  "The forecast this week was 113.4, and actual demand was 28.0.",
+  "Actual demand (28.0) was far from this queue's usual level of about 90.15, while the forecast (113.4) was about normal.",
+  "This queue is over-forecast in most recent weeks (typically about 90.2 actual against 157.9 forecast).",
+  "All 6 similar queues mostly moved the same way this week.",
+  "The forecast plan did not change this week."
+ ],
+ "supporting_evidence": [
+  {
+   "text": "INVESTIGATION_LADDER levels breaching band",
+   "source_field": "INVESTIGATION_LADDER.levels_breaching_band",
+   "value": "Business Org"
+  }
+ ],
+ "reasoning_narrative": "The forecast adherence for the Brazil Client Core queue was 75.3%, which is below the threshold of 10%. This indicates that the actual offered volume was significantly lower than the forecasted volume. The investigation suggests that the miss is inherited from a higher level, specifically the Business Org level. The actual offered volume was 28.0, which is about 3x lower than usual, while the forecasted volume was 113.4, which is about 28% lower than usual.",
+ "rejected_hypotheses": [],
+ "historical_comparison": {},
+ "forecast_improvement_recommendations": [
+  "Investigate and address the issue at the Business Org level",
+  "Review and adjust the forecasting process to reduce bias"
+ ],
+ "forecast_summary": {}
+}

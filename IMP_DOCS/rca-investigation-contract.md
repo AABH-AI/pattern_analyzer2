@@ -74,6 +74,31 @@ the honest placeholder response — never a fabricated conclusion. The UI
 Renderer shows an explicit empty-state for every section rather than hiding
 it, so the gap is visible, not silently absent.
 
+## WFM mode (`?mode=wfm`) — additive
+
+`POST /api/rca-investigate?mode=wfm` selects the WFM business-prompt engine
+(`backend/rca_wfm.py`). **Without the `mode` parameter this endpoint is unchanged**, so the
+contract above still holds exactly for every existing caller.
+
+The WFM engine accepts the **same ContextBundle** — it fetches the extra context it needs
+(104-week history, channel siblings across all channels, higher-level rollups) server-side from
+the target row's identifiers, so the console sends nothing new.
+
+It returns **every key in the InvestigationResponse above**, populated by mapping its ranked
+list: rank 1 → `primary_root_cause` / `cause_type` / `confidence_score`, ranks 2-5 →
+`secondary_contributors`, rejected skeptic challenges → `rejected_hypotheses`, each cause's
+action → `forecast_improvement_recommendations`. Plus these additional keys:
+
+`executive_summary`, `kpi_status`, `business_impact`, `ranked_root_causes[]`,
+`skeptic_review[]`, `investigation_trail`, `channel_migration`, `technical_metrics[]`.
+
+`kpi_status` and `channel_migration.detected` are computed in Python and overwrite whatever the
+model returned. `investigation_meta.engine` is one of `wfm-llm`,
+`wfm-not-investigated` (inside ±band — the business rule forbids investigating), or
+`wfm-deterministic-fallback`.
+
+Full detail, including the CQN definition conflict and known gaps: `IMP_DOCS/wfm-rca-engine.md`.
+
 ## Where each piece lives
 
 | Module | File | Function |
