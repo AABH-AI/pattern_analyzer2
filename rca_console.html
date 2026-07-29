@@ -349,6 +349,10 @@
   table.def th,table.def td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
   table.def th{color:var(--muted);text-transform:uppercase;font-size:10.5px;letter-spacing:.5px;}
   table.def td code{background:var(--panel-2);padding:1px 5px;border-radius:4px;font-size:11.5px;}
+  /* direction caption under the big Forecast Adherence figure -- the sign alone is easy to miss,
+     and reading it backwards inverts the conclusion */
+  .acc .adhdir{ font-size:9.5px; font-weight:600; color:var(--muted); margin-top:2px;
+                text-transform:none; letter-spacing:0; line-height:1.25; max-width:150px; }
 </style>
 </head>
 <body>
@@ -1579,7 +1583,7 @@ function renderList(){
     return `<div class="qitem" id="q${i}" onclick="selectFlag(${i})">
       <div class="qn">${r.Forecast_name} ${r._mapped?'':'<span class="badge unm" style="font-size:8.5px">unmapped</span>'}</div>
       <div class="qmeta">${r.Region||''} · ${r.Country||''} · ${r.channel||''} · FW ${r._wk}</div>
-      <div class="chips"><span class="chip ${sev}">acc ${r._acc.toFixed(0)}%</span><span class="chip ${sev}">${r._padh.toFixed(0)}% dev</span></div>
+      <div class="chips"><span class="chip ${sev}">acc ${r._acc.toFixed(0)}%</span><span class="chip ${sev}">${r._padh>0?'+':''}${r._padh.toFixed(0)}% dev</span></div>
     </div>`;
   }).join('');
   if(FLAGS.length>CAP)h+=`<div class="empty" style="border:none;font-size:11px;">Top ${CAP} of ${FLAGS.length.toLocaleString()} shown</div>`;
@@ -1630,7 +1634,7 @@ function selectFlag(i){
         <div class="rtitle">${r.Forecast_name} ${r._mapped?'<span class="badge ok">mapped</span>':'<span class="badge unm">unmapped</span>'}</div>
         <div class="rmeta">${r.Region||''} · ${r.SubRegion||''} · ${r.Country||''} · ${r.channel||''}<br>Fiscal Week ${r._wk} · Plan: ${r.Projection_plan_name||'—'} · Forecaster: ${r.Forecaster||'—'}</div>
       </div>
-      <div class="acc"><div class="big" style="color:${accCol}">${r._padh!=null?Math.abs(r._padh).toFixed(1)+'%':'N/A'}</div><div class="lbl">Forecast Adherence</div></div>
+      <div class="acc"><div class="big" style="color:${accCol}">${r._padh!=null?(r._padh>0?'+':'')+r._padh.toFixed(1)+'%':'N/A'}</div><div class="lbl">Forecast Adherence${r._padh!=null?'<div class="adhdir">'+(r._padh<0?'under-forecast · actual ran above plan':(r._padh>0?'over-forecast · actual ran below plan':'on plan'))+'</div>':''}</div></div>
     </div>
     <div class="subhead">Findings <span style="text-transform:none;font-weight:500;color:var(--muted)">(ⓘ = the exact formula &amp; numbers)</span></div>
     <ul class="rca-bullets">${bullets}</ul>
@@ -1638,7 +1642,7 @@ function selectFlag(i){
     <div class="kv"><span class="k">Actual_Offered</span><span class="val">${r.Actual_Offered===''?'(blank)':(r._ao!=null?r._ao.toLocaleString():r.Actual_Offered)}</span></div>
     <div class="kv"><span class="k">Forecast Offered</span><span class="val">${r._fo!=null?fmt2(r._fo):(r.fcst_offered||'(blank)')}</span></div>
     <div class="subhead">Root-Cause Investigation</div>
-    <div class="rca-cap">Gathers every available field for this queue — target week, history, and CQN peers — and hands it to the LLM Investigation Engine to reason freely: generate hypotheses, weigh evidence, reject what isn't supported, and rank what's left. Nothing here is a fixed rule checklist.</div>
+    <div class="rca-cap">Every field available for this queue — the target week, its recent history, and the other queues in its Combined Queue — is consolidated into a single evidence base. Each candidate explanation is then tested against that evidence: competing hypotheses are weighed, those the data does not support are rejected and recorded with the reason, and the remainder are ranked by the strength of the evidence behind them. Conclusions are stated in business language with the underlying figures attached, and where the data cannot settle a question, that limit is reported rather than filled in.</div>
     <div id="investigationPanel"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><button class="filebtn" onclick="triggerRCA(${i})">🔎 Investigate Root Cause</button>${rcaModelPickerHtml()}</div></div>
   `;
 }
