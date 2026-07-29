@@ -379,9 +379,10 @@ def derive_features(context_bundle):
         if pd is None:
             continue
         is_opp = (t_dir is not None and pd != t_dir)
+        ch_val = fields_info.get("channel") or key_info.get("channel") or p.get("channel") or tgt.get("channel") or "Voice"
         item = {
             "forecast_name": fname,
-            "channel": fields_info.get("channel") or "Unknown",
+            "channel": ch_val,
             "direction": pd,
             "adherence_pct": round(adh, 1) if isinstance(adh, (int, float)) else None,
             "actual": fields_info.get("Actual_Offered") or pc.get("actual"),
@@ -390,7 +391,7 @@ def derive_features(context_bundle):
         }
         all_p.append(item)
         if is_opp:
-            opp.append({"forecast_name": fname,
+            opp.append({"forecast_name": fname, "channel": ch_val,
                         "adherence_pct": round(adh, 1) if isinstance(adh, (int, float)) else None})
         elif pd == t_dir:
             same += 1
@@ -426,15 +427,13 @@ def derive_features(context_bundle):
     # -- PROOF: real values straight from the data file (NO z-scores/deviations), each with a
     #    plain "change vs usual" so a manager instantly sees which number is the odd one out.
     #    "usual" = this queue's average over the prior weeks in history (RCA_HISTORY_CAP). --
-    def _tw(v):
-        return round(v, 2) if isinstance(v, (int, float)) else v
-    def _usual(v):
-        if not isinstance(v, (int, float)):
-            return v
-        return round(v) if abs(v) >= 1000 else round(v, 1)   # whole numbers for big counts, 1dp otherwise
+    def _tw(val):
+        return round(val, 2) if isinstance(val, (int, float)) else val
+    def _usual(val):
+        return round(val, 2) if isinstance(val, (int, float)) else val
     def _change(tw, us):
         if not isinstance(tw, (int, float)) or not isinstance(us, (int, float)) or us == 0:
-            return None
+            return "no historical comparison"
         r = tw / us
         if 0.8 <= r <= 1.25:
             return "about the same as usual"
@@ -444,7 +443,7 @@ def derive_features(context_bundle):
     def _row(label, field, tw, us):
         return {"label": label, "field": field, "this_week": _tw(tw), "usual": _usual(us), "change": _change(tw, us)}
     proof = [
-        _row("Forecast (fcst_offered)", "fcst_offered", t_forecast, (numeric.get("fcst_offered") or {}).get("history_mean")),
+        _row("Forecast Offered", "fcst_offered", t_forecast, (numeric.get("fcst_offered") or {}).get("history_mean")),
         _row("Actual_Offered", "Actual_Offered", t_actual, (numeric.get("Actual_Offered") or {}).get("history_mean")),
     ]
     for fld, label in (("ASU", "Units under warranty (ASU)"), ("Actual_ASU", "Actual ASU"),

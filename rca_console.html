@@ -1785,7 +1785,7 @@ function buildStatSummary(target, history){
 // limit exceeded") on real data. The TARGET row still gets its full raw fields — it's the
 // one row actually being explained, and nothing generic is lost since statistical_summary
 // still covers every field discovered across target ∪ history, not a curated subset.
-function slimEntry(e){ return {key:e.key, computed:e.computed}; }
+function slimEntry(e){ return {key:e.key, computed:e.computed, channel:(e.fields||{}).channel||(e.key||{}).channel}; }
 async function buildContext(r){
   const band=num(document.getElementById('band').value)||10;
   const agg=await aggregateData(r);
@@ -1939,10 +1939,10 @@ function renderInvestigationReport(f, ctx){
   // each with a plain "vs usual" so a manager can see at a glance which number is the odd one out.
   const fmtVal=(v)=> v==null? '—' : (typeof v==='number'? v.toLocaleString(undefined,{maximumFractionDigits:2}) : invEsc(v));
   const proofRows=(f.proof||[]).filter(p=>p && p.this_week!=null).map(p => {
-    let lbl = p.label || '';
-    if (lbl.includes('Actual demand (Actual_Offered)') || lbl === 'Actual demand') {
-      lbl = 'Actual_Offered';
-    }
+    let lbl = (p.label || '')
+      .replace(/Forecast \(fcst_offered\)/gi, 'Forecast Offered')
+      .replace(/Actual demand \(Actual_Offered\)/gi, 'Actual_Offered')
+      .replace(/^Actual demand$/gi, 'Actual_Offered');
     return `
     <tr><td style="padding:5px 10px;color:var(--text);">${invEsc(lbl)}</td>
         <td style="padding:5px 10px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;">${fmtVal(p.this_week)}</td>
@@ -2221,12 +2221,14 @@ function showPeerQueuesModal(){
           const badgeStyle = isOpp ? 'background:#ef4444;color:#ffffff;font-weight:700;' : 'background:var(--border);color:var(--muted);';
           const badgeLabel = isOpp ? 'OPPOSITE DIRECTION' : 'SAME DIRECTION';
           const adhVal = p.adherence_pct != null ? (p.adherence_pct + '%') : '—';
+          const tgtChan = ((resp.target||{}).fields||{}).channel || ((resp.target||{}).key||{}).channel || 'Voice';
+          const chDisplay = (p.channel && p.channel !== 'Unknown') ? p.channel : tgtChan;
           return `
             <div style="padding:12px 16px;background:${cardBg};border:${border};border-radius:10px;display:flex;justify-content:space-between;align-items:center;">
               <div>
                 <div style="font-weight:700;font-size:13.5px;color:var(--text);">${invEsc(p.forecast_name)}</div>
                 <div style="font-size:11.5px;color:var(--muted);margin-top:3px;">
-                  Channel: <b>${invEsc(p.channel)}</b> · Miss Type: <b>${invEsc(p.direction || '—')}</b>
+                  Channel: <b>${invEsc(chDisplay)}</b> · Miss Type: <b>${invEsc(p.direction || '—')}</b>
                 </div>
               </div>
               <div style="text-align:right;">
