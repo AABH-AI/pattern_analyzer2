@@ -175,6 +175,91 @@ Loader: `backend/upload_cqn_mapping.py`. Source: `CQN and FC mapping.xlsx`.
       (e.g. `GET /api/cqn-mapping`) would remove the badge and let the dashboard group by real
       Combined Queue.
 
+## P1j — RCA output quality, from Canary V0.6 (file-upload, no SQL) — 2026-07-30
+Recording: `results/canary-v0.6-fileupload/canary-v0.6-fileupload.mp4` (4.2 MB) + report/screenshots.
+Case: `NA Federal Standard` FW202719, Groq llama-3.3-70b-versatile, `engine: wfm-llm`.
+Forecast 364.04, actual 1,525, adherence **-318.9%**, a 1,161-contact miss (materially large, not a
+small-denominator artefact).
+
+### CONFIRMED WORKING
+- [x] **Negative adherence now shows correctly in the top UI** — header `-318.9%` and the FINDINGS
+      line `-318.9%` agree, caption reads "Under-forecast — actual came in above plan". The old
+      header/findings disagreement is gone. (Committed: `b919739` + `8308730`.)
+- [x] **File-upload path works with no SQL at all** — 7,350 rows, 42 forecast names from
+      `file1.csv`; `mapBadge` = "CQN mapped · 443 entries"; **0 of 250 cards unmapped** after the
+      mapping upload.
+
+### CORRECTION TO AN EARLIER CLAIM — I was wrong, the business was right
+I reported that SUPPORTING EVIDENCE / REJECTED HYPOTHESES / HISTORICAL COMPARISON "render empty
+despite the API returning their data". **That is wrong.** Those three are
+`<details class="inv-sec">` with **no `open` attribute** — collapsed by design (`rca_console.html`
+~2061/2065/2070), while Proof / Key Findings / Narrative / Recommendations / Missing Information all
+carry `open`. They contain their data; they simply start closed. The tester read `innerText`, got
+only the `<summary>` text, and concluded "empty" — and I repeated it without checking.
+**Canary V0.1 already documented this exact trap** ("they look empty in innerText but are not") and
+I failed to apply my own earlier finding. The recording never scrolled or expanded below Proof,
+which is what surfaced the mistake.
+- [ ] **Future browser QA must EXPAND every `<details>` before judging a panel empty.** Add it to
+      the session brief as a standing rule.
+- [ ] Consider whether Supporting Evidence and Historical Comparison should default to `open`.
+      A business reader is unlikely to click three disclosure triangles, so the strongest evidence
+      is effectively hidden. Product decision, not a bug.
+
+### REAL DEFECTS — still valid after the correction
+
+- [ ] **THE SERIOUS ONE: the root cause states the chronic direction BACKWARDS.** The headline says
+      the queue has *"consistently been under-estimating the demand"*. The data says the opposite,
+      verified arithmetically:
+        history 364.5 actual vs 414.5 forecast -> adherence **+12.1% = chronically OVER-forecast**
+        this week 1,525 actual vs 364.04 forecast -> -318.9% = under-forecast **this week only**
+      KEY FINDING 3 correctly says "over-forecast in most recent weeks", and the historical panel
+      independently says "trends below forecast, average adherence 12.2%" — matching +12.1%. So two
+      parts of the same report contradict the conclusion drawn from them. A forecaster will spot
+      this immediately and stop trusting the output.
+      **Fix:** `chronic_bias.consistent_direction` is already computed deterministically. The
+      narrative must be made to USE it rather than letting the model infer direction from prose.
+      Same principle as the KPI and the migration verdict: compute it, then overwrite.
+- [ ] **The root cause is one idea repeated seven times.** Bullet 1 is a paragraph; bullets 2-5 are
+      that paragraph split into its own sentences; 6-7 restate it again. Almost certainly the
+      "guarantee minimum 6 comprehensive bullet points" rule (`79cb90f`) manufacturing volume where
+      there is only one idea. One bullet is also circular — *"Because the forecast was generated
+      independently for this queue, it became under-forecast"* asserts a mechanism with no evidence.
+      **Question for the business:** was the 6-bullet floor a stakeholder ask? If so the fix is not
+      removing it but giving the model more genuine content to fill it.
+- [ ] **`DERIVED_FEATURES` is printed to the business reader, twice**, inside ROOT CAUSE prose. An
+      internal payload block name. Same class of leak as `peers[0].computed.error`. The language
+      guard (on `wfm-rca`) should be extended to strip internal block names, not just statistics
+      vocabulary.
+- [ ] **MISSING INFORMATION shows four bare internal tokens** instead of sentences:
+      `Actual_ASU · CHANNEL_SIBLINGS · INVESTIGATION_LADDER · DATA_QUALITY`. These should read as
+      plain English ("the channel-sibling comparison was unavailable because ...").
+- [ ] **"No recommendations yet" is false.** Every ranked cause carries a `recommended_action`
+      (e.g. "Review the forecasting process to identify and address the systematic bias"), but the
+      top-level `forecast_improvement_recommendations` was null, and that is what the UI reads.
+      Back-fill it from the causes.
+- [ ] **Footer says "based on 0 field(s)"** — `fields_used` is null in the WFM response, while the
+      default engine populated it. Back-fill it.
+- [ ] **`technical_metrics` is never rendered (0 UI refs)** and contains
+      **`Forecast Error = 1160.9627879`** — an unrounded float waiting to be displayed. The
+      `_round_display` fix is on `wfm-rca`, not this branch.
+- [ ] **"3 of 7 similar queues (same region, country and channel)"** still appears — the analyst
+      phrasing, and the locality group rather than the Combined Queue. The CQN-naming fix is on
+      `wfm-rca` (`b1c0fd6`) and is not on this branch. (It also needs SQL, which this run did not
+      have.)
+- [ ] **Flagged list caps at 250 with no indication** — 3,091 flagged, 250 rendered, no
+      "showing 250 of 3,091" note. A reader cannot tell the list is truncated.
+
+### QA / environment friction worth fixing
+- [ ] **The sticky `#filters` panel and `.nav` bar intercept clicks over `#qlist`** at ~929px width;
+      a forced click landed on the Timeline nav link and silently switched tabs. Widening to 1680px
+      fixed it. Third session in a row hitting this — it is likely affecting real users on smaller
+      screens, not just automation.
+- [ ] **`renderProbe` TypeError still fires on every page load** (`rca_console.html:2211`, called
+      from `:2237`). Unfixed across V0.1, V0.2, V0.3, V0.4, V0.5 and now V0.6.
+- [ ] Note for testers: the weekly file input is `id="fileWeekly"` (not `fileInput`), the RCA tab is
+      `#tab-console` (not `#tab-rca`), and Canary cannot `setInputFiles` from a real path — the file
+      must be base64'd into `~/.canary/tmp` and passed as a buffer.
+
 ## P2 — dashboard / UX polish (post-deadline OK)
 - [x] High-cardinality dimension cards showed 0% shares — now show row counts; Fiscal_Week dropped from the grid; panel made bolder/cleaner. (2026-07-22)
 - [ ] Trend charts: optional brush/zoom for the 325-week span; shared hover legend across the two trend charts.
