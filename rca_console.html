@@ -1910,19 +1910,57 @@ function invRcCard(rc, cls){
   const chips=(rc.supporting_evidence||[]).map(e=>`<span class="ev-chip" title="${invAttr((e.source_field||'')+(e.value!=null?' = '+e.value:''))}">${invEsc(e.text||e)}</span>`).join('');
   return `<div class="rc-card ${cls}"><div>${invEsc(rc.statement)}</div>${conf}${chips}</div>`;
 }
+function formatBoldText(s) {
+  if (!s) return '';
+  let res = invEsc(s).replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+  if (res.includes('<b>')) return res;
+  res = res.replace(/(-?\d+(?:\.\d+)?%)/g, '<b>$1</b>');
+  res = res.replace(/(\b\d{1,3}(?:,\d{3})*(?:\.\d+)?\s*(?:contacts|units|offered|handled)?\b)/gi, '<b>$1</b>');
+  res = res.replace(/(\(\s*\d+(?:,\d+)*(?:\.\d+)?\s*→\s*\d+(?:,\d+)*(?:\.\d+)?\s*\))/gi, '<b>$1</b>');
+  res = res.replace(/(\b[A-Z][a-zA-Z0-9\s()]{2,30}\b)(?=\s+(?:demand|volume|decreased|increased|reduced|changed|experienced|inherited|resulted|fell|grew|showed|remained|dropped|was|were))/g, '<b>$1</b>');
+  return res;
+}
+
+function getFourOrMoreRootCausePoints(f) {
+  let raw = f.reasoning_points || invToPoints(f.reasoning_narrative);
+  if (!Array.isArray(raw)) raw = [];
+  const seen = new Set();
+  let cleanPts = [];
+  raw.forEach(p => {
+    const str = (p || '').trim();
+    if (str && !seen.has(str.toLowerCase())) {
+      seen.add(str.toLowerCase());
+      cleanPts.push(str);
+    }
+  });
+
+  if (cleanPts.length < 4) {
+    const kf = f.key_findings || [];
+    for (const k of kf) {
+      const kTrim = (k || '').trim();
+      if (kTrim && !seen.has(kTrim.toLowerCase())) {
+        seen.add(kTrim.toLowerCase());
+        cleanPts.push(kTrim);
+        if (cleanPts.length >= 4) break;
+      }
+    }
+  }
+  if (cleanPts.length < 4) {
+    const hc = (f.historical_comparison || {}).narrative;
+    if (hc && !seen.has(hc.toLowerCase())) {
+      cleanPts.push(hc);
+    }
+  }
+  return cleanPts.slice(0, 5);
+}
+
 function renderInvestigationReport(f, ctx){
   const meta=f.investigation_meta||{};
-  // Fail CLOSED toward "uncertain," never toward "real AI" — only an explicit engine:'llm'
-  // earns the confident badge, so a malformed/missing meta can't be mistaken for a live model.
-  const engineBadge = meta.engine==='llm'
-    ? `<span class="inv-badge llm">🤖 ${invEsc(meta.model||meta.provider||'LLM')}</span>`
-    : '<span class="inv-badge placeholder">🧮 rule-based (data-backed) finding</span>';
-  const causeTag = f.cause_type ? `<span style="font-size:10.5px;font-weight:700;color:var(--accent);background:rgba(45,108,223,.10);padding:2px 9px;border-radius:99px;white-space:nowrap;">${invEsc(CAUSE_LABELS[f.cause_type]||f.cause_type)}</span>` : '';
   const fsr=f.forecast_summary;
 
   const key=ctx.target.key||{};
   const summaryHtml=`<div class="inv-card">
-    <div class="rhead" style="margin-bottom:2px;gap:8px;flex-wrap:wrap;"><div class="rtitle" style="font-size:13px;">Forecast Summary</div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-left:auto;">${rcaModelPickerHtml()}${engineBadge}</div></div>
+    <div class="rhead" style="margin-bottom:2px;gap:8px;flex-wrap:wrap;"><div class="rtitle" style="font-size:13px;">Forecast Summary</div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-left:auto;">${rcaModelPickerHtml()}</div></div>
     <div class="rmeta" style="margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${invEsc(key.Forecast_name||'—')} · Fiscal Week ${invEsc(key.Fiscal_Week||'—')}</div>
     <div class="inv-kv-grid">
       <div class="kvi"><div class="l">Forecast</div><div class="v">${invEsc(fsr.forecast)}</div></div>
@@ -1935,8 +1973,6 @@ function renderInvestigationReport(f, ctx){
 
   const secDesc=(t)=>`<div style="font-size:11px;color:var(--muted);margin:0 0 8px;">${t}</div>`;
 
-  // Proof — the actual values from the data file behind every finding (no z-scores/deviations),
-  // each with a plain "vs usual" so a manager can see at a glance which number is the odd one out.
   const fmtVal=(v)=> v==null? '—' : (typeof v==='number'? v.toLocaleString(undefined,{maximumFractionDigits:2}) : invEsc(v));
   const proofRows=(f.proof||[]).filter(p=>p && p.this_week!=null).map(p => {
     let lbl = (p.label || '')
@@ -1971,6 +2007,24 @@ function renderInvestigationReport(f, ctx){
     ${findingsList?`<ul class="inv-findings">${findingsList}</ul>`:'<div class="inv-empty">No observations recorded.</div>'}
   </div></details>`;
 
+  const confScore = f.confidence_score != null ? f.confidence_score : ((f.primary_root_cause||{}).confidence);
+  const confMeterHeader = confScore != null ? `
+    <div style="display:inline-flex;align-items:center;gap:8px;margin-left:auto;">
+      <span style="font-size:11px;color:var(--muted);font-weight:600;">Confidence:</span>
+      ${invConfMeter(confScore)}
+    </div>` : '';
+
+  const rcPoints = getFourOrMoreRootCausePoints(f);
+  const narrativeHtml=`<details class="inv-sec" open>
+    <summary style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+      <span style="font-weight:700;font-size:13.5px;">Root Cause</span>
+      ${confMeterHeader}
+    </summary>
+    <div class="body">
+      ${secDesc('The most likely explanation for WHY the forecast missed (drawn from data findings and model analysis).')}
+      ${rcPoints.length?`<ul style="list-style:none;padding:0;margin:0;">${rcPoints.map(p=>`<li style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);"><span style="font-size:14px;color:var(--accent);flex-shrink:0;margin-top:2px;">&#9670;</span><span style="font-size:12.5px;line-height:1.6;color:var(--text);">${formatBoldText(p)}</span></li>`).join('')}</ul>`:'<div class="inv-empty">No root cause narrative produced.</div>'}
+    </div>
+  </details>`;
 
   const evidenceHtml=`<details class="inv-sec"><summary>Supporting Evidence</summary><div class="body">
     ${(f.supporting_evidence||[]).length?`<ul class="inv-findings">${(f.supporting_evidence||[]).map(e=>`<li>${invEsc(e.text||'')} <span style="color:var(--muted);font-size:11px;">(${invEsc(e.source_field||'—')}${e.value!=null?' = '+invEsc(e.value):''})</span></li>`).join('')}</ul>`:'<div class="inv-empty">No supporting evidence recorded.</div>'}
@@ -1986,15 +2040,9 @@ function renderInvestigationReport(f, ctx){
     ${(hist.data_points||[]).map(d=>`<div class="kv"><span class="k">${invEsc(d.label)}</span><span class="val">${invEsc(d.value)}</span></div>`).join('')}
   </div></details>`;
 
-  const narrativeHtml=`<details class="inv-sec" open><summary>Root Cause</summary><div class="body">
-    ${(f.reasoning_points||[]).length?`<ul style="list-style:none;padding:0;margin:0;">${f.reasoning_points.map(p=>`<li style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);"><span style="font-size:14px;color:var(--accent);flex-shrink:0;margin-top:2px;">&#9670;</span><span style="font-size:12.5px;line-height:1.6;color:var(--text);">${invEsc(p)}</span></li>`).join('')}</ul>`:'<div class="inv-empty">No root cause narrative produced.</div>'}
-  </div></details>`;
-
   const recsHtml=`<details class="inv-sec" open><summary>Forecast Improvement Recommendations</summary><div class="body">
     ${(f.forecast_improvement_recommendations||[]).length?`<ul class="inv-findings">${(f.forecast_improvement_recommendations||[]).map(x=>`<li>${invEsc(x)}</li>`).join('')}</ul>`:'<div class="inv-empty">No recommendations yet.</div>'}
   </div></details>`;
-
-  const confHtml=`<div class="inv-card"><div class="subhead" style="margin:0 0 8px;">Confidence</div>${invConfMeter(f.confidence_score)}</div>`;
 
   const missingHtml=`<details class="inv-sec" open><summary>Missing Information</summary><div class="body">
     ${(f.missing_information||[]).length?`<ul class="inv-findings">${(f.missing_information||[]).map(x=>`<li>${invEsc(x)}</li>`).join('')}</ul>`:'<div class="inv-empty">Nothing flagged as missing.</div>'}
@@ -2002,7 +2050,7 @@ function renderInvestigationReport(f, ctx){
 
   const metaHtml=`<div class="inv-meta">Engine: ${invEsc(meta.engine||'—')}${meta.model?' · '+invEsc(meta.model):''} · generated ${meta.generated_at?new Date(meta.generated_at).toLocaleString():'—'} · based on ${(meta.based_on_fields||[]).length} field(s) gathered generically from the source file</div>`;
 
-  return summaryHtml+proofHtml+findingsHtml+evidenceHtml+rejectedHtml+historyHtml+narrativeHtml+recsHtml+confHtml+missingHtml+metaHtml;
+  return summaryHtml+proofHtml+findingsHtml+narrativeHtml+evidenceHtml+rejectedHtml+historyHtml+recsHtml+missingHtml+metaHtml;
 }
 
 /* ---- RCA Trigger — orchestrates the pipeline above; owns nothing except sequencing.
