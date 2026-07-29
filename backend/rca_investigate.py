@@ -166,7 +166,14 @@ Classify the miss into ONE primary cause_type from this taxonomy, then explain i
 - "volume_routing_shift"         : a similar queue moved the opposite way the same week (see peer_divergence)
                                     — volume shifted between queues, not total demand. ("Similar queues" =
                                     other queues in the SAME region, sub-region, country and channel that week;
-                                    always call them "similar queues", not "peer queues".)
+                                    always call them "similar queues", not "peer queues".
+                                    IF the context carries `cqn.name`, name that Combined Queue
+                                    explicitly instead -- e.g. "3 of the 7 queues in the
+                                    EMEA PRO LCAT DB Combined Queue" -- because a business lead
+                                    recognises the Combined Queue and does not recognise
+                                    "similar queues". Note the queues you are given are the same
+                                    CHANNEL as this queue; the Combined Queue may span several
+                                    channels, so do not claim to have seen all of it.)
 - "plan_restatement"             : Projection_plan_name changed this week (see plan_restatement).
 - "installed_base_change"        : installed base (Final_* / units) shifted materially and plausibly drives demand.
 - "calendar_holiday_effect"      : a holiday/short week plausibly explains the magnitude (see holiday).
@@ -385,6 +392,17 @@ def derive_features(context_bundle):
                         "adherence_pct": round(pc["adherence_pct"], 1) if isinstance(pc.get("adherence_pct"), (int, float)) else None})
         elif pd == t_dir:
             same += 1
+    # The Combined Queue this queue belongs to, injected by sql_backend._attach_cqn. Carried into
+    # the features so the narrative can NAME it instead of saying "similar queues".
+    cqn = ((b.get("meta") or {}).get("cqn")) or {}
+    feats["cqn"] = {
+        "name": cqn.get("primary"),
+        "all_names": cqn.get("all") or [],
+        "is_multi_queue": bool(cqn.get("is_multi_queue")),
+        "channels_in_cqn": cqn.get("channels_in_cqn") or [],
+        "member_count_this_week": len(cqn.get("members_this_week") or []),
+    } if cqn else None
+
     feats["peer_divergence"] = {
         "peers_total": len(peers),
         "peers_opposite_direction": len(opp),
@@ -571,6 +589,14 @@ def _finding_from_features(features):
     return ctype, {"statement": stmt, "confidence": conf, "supporting_evidence": ev}
 
 
+def _cqn_phrase(features, template):
+    """Fill {where} with the real Combined Queue name when we have it, so the narrative names the
+    queue group instead of saying "similar queues"."""
+    name = ((features or {}).get("cqn") or {}).get("name")
+    return template.replace("{where}", f"the {name} Combined Queue" if name
+                            else "the same region, country and channel")
+
+
 def _observations_from_features(features):
     """Plain-language OBJECTIVE observations from the data — the Key Findings section
     (facts, not the cause). Used to fill key_findings when the model omits them and for
@@ -598,11 +624,16 @@ def _observations_from_features(features):
         obs.append("This queue's misses have no consistent direction over recent weeks.")
     pd = f.get("peer_divergence") or {}
     if pd.get("signal"):
-        obs.append(f"{pd.get('peers_opposite_direction')} of {pd.get('peers_total')} similar queues (same region, country and channel) moved the opposite way this week.")
+        cqn_name = ((f.get("cqn") or {}) or {}).get("name")
+        where = (f"the {cqn_name} Combined Queue" if cqn_name
+                 else "the same region, country and channel")
+        obs.append(f"{pd.get('peers_opposite_direction')} of {pd.get('peers_total')} related queues "
+                   f"in {where} moved the opposite way this week.")
     elif pd.get("peers_total") == 1:
-        obs.append("The one similar queue moved the same way this week.")
+        obs.append(_cqn_phrase(f, "The one other queue in {where} moved the same way this week."))
     elif pd.get("peers_total"):
-        obs.append(f"All {pd.get('peers_total')} similar queues mostly moved the same way this week.")
+        obs.append(_cqn_phrase(f, "All " + str(pd.get('peers_total'))
+                               + " related queues in {where} mostly moved the same way this week."))
     pr = f.get("plan_restatement") or {}
     if pr.get("changed"):
         obs.append(f"The forecast plan changed this week (from {pr.get('prior')} to {pr.get('current')}).")

@@ -159,7 +159,7 @@
   }
  ],
  "missing_information": [
-  "groq/llama-3.3-70b-versatile HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kkrjztjcfcd8h1kwmdh4ymne` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 95232,. This report was built from the deterministic data checks only - it is not the full multi-hypothesis WFM investigation."
+  "groq/llama-3.3-70b-versatile HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kkrjztjcfcd8h1kwmdh4ymne` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 99611,. This report was built from the deterministic data checks only - it is not the full multi-hypothesis WFM investigation."
  ],
  "derived_features": {
   "base_features": {
@@ -209,6 +209,17 @@
    },
    "offering_change": {
     "changed": false
+   },
+   "cqn": {
+    "name": "Brazil Client Core SITEL",
+    "all_names": [
+     "Brazil Client Core SITEL"
+    ],
+    "is_multi_queue": false,
+    "channels_in_cqn": [
+     "Voice"
+    ],
+    "member_count_this_week": 1
    },
    "peer_divergence": {
     "peers_total": 6,
@@ -590,7 +601,7 @@
  },
  "investigation_meta": {
   "engine": "wfm-deterministic-fallback",
-  "generated_at": "2026-07-29T08:06:17.697985+00:00"
+  "generated_at": "2026-07-29T09:13:17.988015+00:00"
  },
  "primary_root_cause": {
   "statement": "The same miss is already visible at Business Org level, so it is not specific to this queue and a queue-level cause cannot explain it.",
@@ -621,7 +632,7 @@
   "The forecast this week was 113.4, and actual demand was 28.0.",
   "Actual demand (28.0) was far from this queue's usual level of about 90.15, while the forecast (113.4) was about normal.",
   "This queue is over-forecast in most recent weeks (typically about 90.2 actual against 157.9 forecast).",
-  "All 6 similar queues mostly moved the same way this week.",
+  "All 6 related queues in the Brazil Client Core SITEL Combined Queue mostly moved the same way this week.",
   "The forecast plan did not change this week."
  ],
  "supporting_evidence": [

@@ -1,0 +1,57 @@
+{
+ "rows": 66612,
+ "queues": 427,
+ "min_weeks": 12,
+ "strong_threshold": 0.5,
+ "drivers": {
+  "fcst_offered": {
+   "tested": 427,
+   "strong": 285,
+   "share": 0.667,
+   "median_rho": 0.628,
+   "positive": 285,
+   "negative": 0
+  },
+  "Planned_ASU": {
+   "tested": 347,
+   "strong": 145,
+   "share": 0.418,
+   "median_rho": 0.284,
+   "positive": 116,
+   "negative": 29
+  },
+  "Actual_ASU": {
+   "tested": 365,
+   "strong": 128,
+   "share": 0.351,
+   "median_rho": 0.212,
+   "positive": 104,
+   "negative": 24
+  },
+  "Final_Units": {
+   "tested": 401,
+   "strong": 8,
+   "share": 0.02,
+   "median_rho": 0.138,
+   "positive": 8,
+   "negative": 0
+  },
+  "Final_upp_units": null,
+  "Holiday_Count": {
+   "tested": 423,
+   "strong": 29,
+   "share": 0.069,
+   "median_rho": -0.3,
+   "positive": 0,
+   "negative": 29
+  },
+  "Actual_Handled": {
+   "tested": 427,
+   "strong": 427,
+   "share": 1.0,
+   "median_rho": 0.997,
+   "positive": 427,
+   "negative": 0
+  }
+ }
+}

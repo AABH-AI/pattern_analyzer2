@@ -220,6 +220,33 @@ From three screenshots of `Nordic Premium Support` FW202718. See `prompt-trail.m
       is arithmetically correct and operationally meaningless. Consider a volume floor for the
       ±10% band, or a separate low-volume review track.
 
+## P1h — what the correlation survey exposes (2026-07-29)
+Measured by `results/full_correlation_survey.py`. See `prompt-trail.md` Session 27.
+- [ ] **THE BIG ONE: no column in the dataset explains the SIZE of a miss.** Per queue, the share
+      strongly related to `|adherence|` is 4% for the forecast, 1% for ASU, **0% for installed base
+      and 0% for holidays**. The data explains what demand IS, not why the plan was WRONG. Two
+      consequences: (a) `data_exhausted` should be the COMMON outcome and the UI should present it
+      as a normal result rather than a failure; (b) real attribution needs external feeds —
+      incidents, campaigns, releases, routing-change history. **Worth putting to the business as
+      the central finding.**
+- [ ] **Chase `Final_upp_units`** — the ONLY column related to the miss on a meaningful share of
+      queues (35%), but only 22% populated (72 queues). If it can be populated more widely it is
+      the most promising driver in the dataset. Ask whether that is possible.
+- [ ] **Stop treating `Volume_Category` as explanatory** — eta-squared 0.909 vs demand is circular
+      (it is a binned version of volume). It should never be cited as a driver.
+- [ ] **`business_org` is a CONSTANT (1 distinct value).** The investigation ladder's "Business Org"
+      level therefore compares the queue against the entire dataset, which is not a meaningful
+      hierarchy level. Either drop the level or document that it means "everything".
+- [ ] **Weaken `calendar_holiday_effect`.** Holiday day-flags correlate between −0.06 and +0.08 with
+      both demand and the miss, and `Holiday_Count` is strong on 7% of queues for demand and **0%**
+      for the miss. The cause type should require per-queue evidence, not just an unusual count.
+- [ ] **Verifier: widen coverage.** `POST /api/verify-finding` reproduces direct columns plus
+      adherence/accuracy/error. Add rules for peer/CQN aggregates and the ASU decomposition so a
+      higher share of claims can be checked instead of returning `unsupported`.
+- [ ] **Surface the verifier in the UI** — a "Verify this finding" button per RCA that shows a
+      tick/cross per claim with the SQL behind it. Design options were discussed; the endpoint is
+      built and working, only the frontend is missing.
+
 ## P2 — dashboard / UX polish (post-deadline OK)
 - [x] High-cardinality dimension cards showed 0% shares — now show row counts; Fiscal_Week dropped from the grid; panel made bolder/cleaner. (2026-07-22)
 - [ ] Trend charts: optional brush/zoom for the 325-week span; shared hover legend across the two trend charts.

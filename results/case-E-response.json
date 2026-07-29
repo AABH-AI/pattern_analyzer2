@@ -72,6 +72,17 @@
    "offering_change": {
     "changed": false
    },
+   "cqn": {
+    "name": "Client ProSupport ANZ Chat",
+    "all_names": [
+     "Client ProSupport ANZ Chat"
+    ],
+    "is_multi_queue": false,
+    "channels_in_cqn": [
+     "Chat"
+    ],
+    "member_count_this_week": 1
+   },
    "peer_divergence": {
     "peers_total": 2,
     "peers_opposite_direction": 1,
@@ -462,7 +473,7 @@
  "key_findings": [
   "The forecast this week was 304.95, and actual demand was 305.0.",
   "This queue's misses have no consistent direction over recent weeks.",
-  "1 of 2 similar queues (same region, country and channel) moved the opposite way this week.",
+  "1 of 2 related queues in the Client ProSupport ANZ Chat Combined Queue moved the opposite way this week.",
   "The forecast plan did not change this week."
  ],
  "supporting_evidence": [],

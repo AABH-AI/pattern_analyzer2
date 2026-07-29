@@ -36,6 +36,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from rca_investigate import investigate
+from rca_verify import claims_from_response, verify as verify_claims
 from wfm import fetch_wfm_context, investigate_wfm
 
 HERE = Path(__file__).resolve().parent
@@ -261,6 +262,58 @@ def models():
     return {"models": available, "providers_configured": sorted(provider_has_key)}
 
 
+def _attach_cqn(context_bundle, cfg):
+    """Put the Combined Queue identity into context_bundle["meta"]["cqn"].
+
+    A Forecast_Name can belong to more than one Combined Queue (69 of 442 do -- vendor-site
+    splits), so all of them are carried and `primary` is the one used for display.
+    `members_this_week` lists the queue+channel rows that actually reported in the target week,
+    which is what makes it possible to say "3 of the 7 queues in <CQN>" instead of
+    "3 of 5 similar queues".
+    """
+    target = (context_bundle or {}).get("target") or {}
+    fields = target.get("fields") or {}
+    name = (target.get("key") or {}).get("Forecast_name") or fields.get("Forecast_name")
+    week = (target.get("key") or {}).get("Fiscal_Week") or fields.get("Fiscal_Week")
+    if not name:
+        return
+    table = cfg.get("sql", {}).get("table", "dbo.Input_To_ML")
+    conn = connect(cfg)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT DISTINCT Combined_Queue_Name FROM dbo.CQN_Mapping "
+                    "WHERE Forecast_Name = ? AND Combined_Queue_Name IS NOT NULL", (name,))
+        names = [r[0] for r in cur.fetchall()]
+        if not names:
+            return
+        members = []
+        if week is not None:
+            marks = ", ".join("?" for _ in names)
+            cur.execute(
+                f"SELECT d.Forecast_name, d.channel, d.Actual_Offered, d.fcst_offered "
+                f"FROM {table} d WHERE d.Fiscal_Week = ? AND EXISTS ("
+                f"  SELECT 1 FROM dbo.CQN_Mapping m WHERE m.Forecast_Name = d.Forecast_name "
+                f"    AND m.Combined_Queue_Name IN ({marks}))",
+                tuple([week] + names))
+            for fn, ch, ao, fo in cur.fetchall():
+                members.append({"Forecast_name": fn, "channel": ch,
+                                "Actual_Offered": ao, "fcst_offered": fo})
+        meta = context_bundle.setdefault("meta", {})
+        meta["cqn"] = {
+            "primary": names[0],
+            "all": names,
+            "is_multi_queue": len(names) > 1,
+            "members_this_week": members,
+            "channels_in_cqn": sorted({str(m["channel"]) for m in members if m.get("channel")}),
+            "source": "dbo.CQN_Mapping",
+        }
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
 @app.get("/api/cqn-mapping")
 def cqn_mapping(table: str = Query("dbo.CQN_Mapping", description="Mapping table to read")):
     """The authoritative Forecast_Name -> Combined_Queue_Name mapping, from SQL.
@@ -332,6 +385,15 @@ def rca_investigate(context_bundle: dict, provider: str = Query("", description=
     cfg = load_config()
     model_choice = {"provider": provider, "model": model} if model else None
 
+    # Resolve the authoritative Combined Queue for this queue and attach it to the bundle, for
+    # BOTH engines. Without this the default engine has no CQN name at all and can only say
+    # "similar queues (same region, country and channel)" -- which is a locality group, not the
+    # Combined Queue. Silent no-op if dbo.CQN_Mapping is not loaded.
+    try:
+        _attach_cqn(context_bundle, cfg)
+    except Exception:
+        pass
+
     if (mode or "").lower() == "wfm":
         # The deeper context (104 weeks, channel siblings, higher-level rollups) is
         # fetched here rather than in the browser, so no frontend change is needed.
@@ -368,6 +430,54 @@ def rca_investigate(context_bundle: dict, provider: str = Query("", description=
         return investigate(context_bundle, cfg.get("llm", {}), model_choice=model_choice)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Investigation failed: {e}")
+
+
+
+@app.post("/api/verify-finding")
+def verify_finding(payload: dict,
+                   history_cap: int = Query(13, ge=2, le=104,
+                                            description="Weeks used for 'usual' -- match the engine")):
+    """Re-derive an RCA's quoted numbers from SQL and return the query that did it.
+
+    Body is either a whole investigation response (the console can post back exactly what it
+    rendered) or `{"queue": {...}, "claims": [...]}`. No LLM is involved: the verifier has to be
+    independent of the thing it verifies, or it proves nothing.
+
+    Returns per-claim `verified` / `mismatch` / `unsupported` / `no_data`, each with the SQL, so a
+    reader can paste it into their own client. `reproducible_share` is the fraction of quoted
+    numbers that reproduce -- deliberately not called "confidence", because unlike the model's
+    self-reported score it is a fact.
+    """
+    cfg = load_config()
+    if not cfg.get("sql", {}).get("server"):
+        raise HTTPException(status_code=503, detail="SQL not configured.")
+    table = cfg.get("sql", {}).get("table", "dbo.Input_To_ML")
+
+    queue = payload.get("queue") or {}
+    if not queue:
+        target = (payload.get("target") or {})
+        key = target.get("key") or {}
+        fields = target.get("fields") or {}
+        queue = {"Forecast_name": key.get("Forecast_name") or fields.get("Forecast_name"),
+                 "Fiscal_Week": key.get("Fiscal_Week") or fields.get("Fiscal_Week")}
+    if not queue.get("Forecast_name") or queue.get("Fiscal_Week") in (None, ""):
+        raise HTTPException(status_code=400,
+                            detail="Need queue.Forecast_name and queue.Fiscal_Week (or a full "
+                                   "investigation response containing target.key).")
+    claims = payload.get("claims")
+    if claims is None:
+        claims = claims_from_response(payload)
+
+    conn = connect(cfg)
+    try:
+        return verify_claims(conn.cursor(), table, queue, claims, history_cap=history_cap)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Verification failed: {e}")
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 # Serve the static UI from the repo root. Mounted last so /api/* wins.

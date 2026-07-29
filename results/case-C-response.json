@@ -163,7 +163,7 @@
   }
  ],
  "missing_information": [
-  "groq/llama-3.3-70b-versatile HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kkrjztjcfcd8h1kwmdh4ymne` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 95284,. This report was built from the deterministic data checks only - it is not the full multi-hypothesis WFM investigation."
+  "groq/llama-3.3-70b-versatile HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kkrjztjcfcd8h1kwmdh4ymne` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 99663,. This report was built from the deterministic data checks only - it is not the full multi-hypothesis WFM investigation."
  ],
  "derived_features": {
   "base_features": {
@@ -213,6 +213,17 @@
    },
    "offering_change": {
     "changed": false
+   },
+   "cqn": {
+    "name": "ANZ Commercial Client Concentrix",
+    "all_names": [
+     "ANZ Commercial Client Concentrix"
+    ],
+    "is_multi_queue": false,
+    "channels_in_cqn": [
+     "Voice"
+    ],
+    "member_count_this_week": 1
    },
    "peer_divergence": {
     "peers_total": 6,
@@ -603,7 +614,7 @@
  },
  "investigation_meta": {
   "engine": "wfm-deterministic-fallback",
-  "generated_at": "2026-07-29T08:05:32.892986+00:00"
+  "generated_at": "2026-07-29T09:12:33.081275+00:00"
  },
  "primary_root_cause": {
   "statement": "The same miss is already visible at Business Org level, so it is not specific to this queue and a queue-level cause cannot explain it.",
@@ -634,7 +645,7 @@
   "The forecast this week was 244.6, and actual demand was 83.0.",
   "Actual demand (83.0) was far from this queue's usual level of about 232.38, while the forecast (244.6) was about normal.",
   "This queue is over-forecast in most recent weeks (typically about 232.4 actual against 283.4 forecast).",
-  "All 6 similar queues mostly moved the same way this week.",
+  "All 6 related queues in the ANZ Commercial Client Concentrix Combined Queue mostly moved the same way this week.",
   "The forecast plan did not change this week.",
   "The installed base (Final_upp_units) was 2677.0 this week vs a usual ~2149.88."
  ],

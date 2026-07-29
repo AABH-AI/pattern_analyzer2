@@ -1,0 +1,70 @@
+================================================================================================
+FULL CORRELATION SURVEY — Input_To_ML joined to the CQN mapping
+  80,340 joined rows (the LEFT JOIN fans out multi-CQN queues, so this exceeds 66,612)
+  targets: Actual_Offered (drives demand) and |adherence| (drives the MISS)
+================================================================================================
+
+1) NUMERIC vs target — Spearman rho, pooled across all queues
+   driver                     n  rho vs demand       n  rho vs |miss|
+   --------------------------------------------------------------------
+   fcst_offered          62,497          +0.98  62,479          -0.35
+   Planned_ASU           51,720          +0.48  51,482          -0.20
+   Actual_ASU            44,574          +0.51  44,284          -0.20
+   Final_Units           59,298          +0.55  58,732          -0.17
+   Final_Y1              59,298          +0.55  58,732          -0.17
+   Final_Y2              59,298          +0.53  58,732          -0.16
+   Final_Y3              59,298          +0.50  58,732          -0.15
+   Final_Y4              59,298          +0.50  58,732          -0.15
+   Final_Y5              59,298          +0.47  58,732          -0.15
+   Final_upp_units        4,060          +0.51   4,043          -0.18
+   Holiday_Count         63,162          -0.02  62,479          +0.08
+
+2) HOLIDAY-ON-DAY flags vs target — Spearman on a 0/1 flag
+   flag          holiday weeks  rho vs demand  rho vs |miss|
+   ----------------------------------------------------------
+   Monday                5,850          +0.02          +0.02
+   Tuesday               2,422          -0.03          +0.05
+   Wednesday             3,347          -0.04          +0.07
+   Thursday              4,216          -0.06          +0.08
+   Friday                4,052          -0.04          +0.06
+   Saturday              2,380          +0.00          +0.02
+   Sunday                2,743          -0.00          +0.02
+
+3) CATEGORICAL vs target — eta-squared on ranks (share of variance explained)
+   READ WITH CARE: many levels explains variance trivially. >20 levels = descriptive only.
+   column                    levels  eta2 demand  eta2 |miss|  interpretable?
+   ------------------------------------------------------------------------------
+   Region                         3        0.149        0.017  yes
+   SubRegion                     16        0.290        0.043  yes
+   Country                       49        0.399        0.072  descriptive only (high cardinality)
+   Offering                       4        0.026        0.007  yes
+   Projection_plan_name          28        0.009        0.014  descriptive only (high cardinality)
+   channel                        5        0.041        0.031  yes
+   business_org                   0          n/a          n/a  CONSTANT - explains nothing
+   Volume_Category                6        0.909        0.109  yes
+   Forecast_name                427        0.937        0.209  descriptive only (high cardinality)
+   Combined_Queue_Name          330        0.761        0.156  descriptive only (high cardinality)
+   DB_OSP                         2        0.007        0.000  yes
+
+4) FISCAL_WEEK — is there a trend or a seasonal pattern?
+   long-term trend (week vs demand, pooled) : rho -0.082 over 63,162 rows
+   seasonality: not computable
+
+5) PER-QUEUE — the test that actually matters for RCA
+   (pooled correlations above are contaminated by queue size; this is within-queue)
+   driver                queues  strong vs demand  strong vs |miss|
+   ------------------------------------------------------------------
+   fcst_offered             427     285/427 (67%)       17/427 (4%)
+   Planned_ASU              347     145/347 (42%)        3/347 (1%)
+   Actual_ASU               366     128/366 (35%)        4/366 (1%)
+   Final_Units              401        8/401 (2%)        0/401 (0%)
+   Final_Y1                 401        9/401 (2%)        0/401 (0%)
+   Final_Y2                 401       10/401 (2%)        0/401 (0%)
+   Final_Y3                 401       23/401 (6%)        0/401 (0%)
+   Final_Y4                 401       14/401 (3%)        0/401 (0%)
+   Final_Y5                 401       19/401 (5%)        0/401 (0%)
+   Final_upp_units           72       17/72 (24%)       25/71 (35%)
+   Holiday_Count            427       29/427 (7%)        0/427 (0%)
+
+report -> results/full-correlation-survey.json
+================================================================================================

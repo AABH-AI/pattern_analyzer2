@@ -1,7 +1,7 @@
 {
  "run": {
-  "started_utc": "2026-07-29T08:03:54.800741+00:00",
-  "finished_utc": "2026-07-29T08:07:02.758853+00:00",
+  "started_utc": "2026-07-29T09:10:50.357220+00:00",
+  "finished_utc": "2026-07-29T09:14:03.092228+00:00",
   "backend": "http://localhost:8000",
   "server": "10.10.9.75",
   "table": "dbo.Input_To_ML",
@@ -32,38 +32,38 @@
     "Country": "United States",
     "channel": "Voice"
    },
-   "engine": "wfm-deterministic-fallback",
-   "provider": null,
-   "model": null,
+   "engine": "wfm-llm",
+   "provider": "groq",
+   "model": "llama-3.3-70b-versatile",
    "timing_seconds": {
-    "queue_context": 2.25,
-    "investigate": 2.64
+    "queue_context": 2.2,
+    "investigate": 7.27
    },
    "adherence_pct": -9599.7,
    "ranked_causes": [
     {
      "rank": 1,
      "cause_type": "data_quality_issue",
-     "title": "Suspected data quality issue in this week's actual",
-     "confidence_pct": 60,
-     "confidence_level": "Medium",
+     "title": "Invalid Recorded Figure",
+     "confidence_pct": 80,
+     "confidence_level": "High",
      "status": "Hypothesis - To be Validated"
     },
     {
      "rank": 2,
      "cause_type": "inherited_from_higher_level",
-     "title": "The miss is inherited from Region level",
-     "confidence_pct": 65,
-     "confidence_level": "Medium",
+     "title": "Region-Level Miss",
+     "confidence_pct": 90,
+     "confidence_level": "High",
      "status": "Verified"
     },
     {
      "rank": 3,
      "cause_type": "genuine_demand_event",
-     "title": "Genuine demand event",
-     "confidence_pct": 60,
-     "confidence_level": "Medium",
-     "status": "Verified"
+     "title": "Unprecedented Demand",
+     "confidence_pct": 70,
+     "confidence_level": "High",
+     "status": "Hypothesis - To be Validated"
     }
    ],
    "skeptic_rejected": [],
@@ -150,8 +150,8 @@
    "provider": null,
    "model": null,
    "timing_seconds": {
-    "queue_context": 2.18,
-    "investigate": 2.41
+    "queue_context": 2.22,
+    "investigate": 2.49
    },
    "adherence_pct": 38.5,
    "ranked_causes": [
@@ -263,8 +263,8 @@
    "provider": null,
    "model": null,
    "timing_seconds": {
-    "queue_context": 2.3,
-    "investigate": 2.59
+    "queue_context": 2.25,
+    "investigate": 2.58
    },
    "adherence_pct": 66.1,
    "ranked_causes": [
@@ -369,8 +369,8 @@
    "provider": null,
    "model": null,
    "timing_seconds": {
-    "queue_context": 2.18,
-    "investigate": 2.43
+    "queue_context": 2.19,
+    "investigate": 2.56
    },
    "adherence_pct": 75.3,
    "ranked_causes": [
@@ -475,8 +475,8 @@
    "provider": null,
    "model": null,
    "timing_seconds": {
-    "queue_context": 2.23,
-    "investigate": 2.48
+    "queue_context": 2.21,
+    "investigate": 2.51
    },
    "adherence_pct": -0.0,
    "ranked_causes": [],

@@ -1,5 +1,5 @@
 {
- "executive_summary": "This week's value is far outside everything else this queue has ever recorded, it is the only week anywhere near that level, and the following weeks return to the normal level. Validate the figure at source before treating it as a real demand event.",
+ "executive_summary": "The NA Core Spanish queue experienced a significant under-forecast, with actual offered volume exceeding the forecast by 9599.7%. This miss is not specific to this queue, as it is also visible at the Region level. The recorded figure may not be credible and needs validation at source before any forecasting action is taken.",
  "kpi_status": {
   "metric": "Forecast Adherence",
   "adherence_pct": -9599.7,
@@ -7,79 +7,96 @@
   "breached": true,
   "direction": "under_forecast"
  },
- "business_impact": "Any forecasting action taken on this figure would rest on a number that may not be real.",
+ "business_impact": "The under-forecast resulted in a significant surplus of contacts, which may impact the queue's ability to handle future demand.",
  "ranked_root_causes": [
   {
    "rank": 1,
    "cause_type": "data_quality_issue",
-   "title": "Suspected data quality issue in this week's actual",
-   "explanation": "This week's value is far outside everything else this queue has ever recorded, it is the only week anywhere near that level, and the following weeks return to the normal level. Validate the figure at source before treating it as a real demand event.",
+   "title": "Invalid Recorded Figure",
+   "explanation": "The recorded figure may not be credible and needs validation at source before any forecasting action is taken.",
    "evidence": [
     {
-     "text": "This week recorded 8805.0 against a typical week of about 117.0.",
+     "text": "The recorded figure is far outside the normal range for this queue.",
      "source_field": "Actual_Offered",
      "value": 8805.0
+    },
+    {
+     "text": "The week had a normal number of holidays (0.0).",
+     "source_field": "Holiday_Count",
+     "value": 0.0
     }
    ],
-   "confidence_pct": 60,
-   "confidence_level": "Medium",
-   "business_impact": "Any forecasting action taken on this figure would rest on a number that may not be real.",
-   "recommended_action": "Validate this week's offered volume at source before acting on it.",
+   "confidence_pct": 80,
+   "confidence_level": "High",
+   "business_impact": "The invalid recorded figure may lead to incorrect forecasting decisions.",
+   "recommended_action": "Validate the figure at source before taking any forecasting action.",
    "status": "Hypothesis - To be Validated",
    "hypothesis_reason": "the figure has to be validated at source before it can be confirmed"
   },
   {
    "rank": 2,
    "cause_type": "inherited_from_higher_level",
-   "title": "The miss is inherited from Region level",
-   "explanation": "The same miss is already visible at Region level, so it is not specific to this queue and a queue-level cause cannot explain it.",
+   "title": "Region-Level Miss",
+   "explanation": "The same miss is already visible at the Region level, so it is not specific to this queue.",
    "evidence": [
     {
-     "text": "At Region level (CSG / Americas) adherence was -13.6% for the same week.",
+     "text": "At Region level, the whole scope was off by -13.6% in the same direction this week.",
      "source_field": "Actual_Offered",
      "value": 112660.0
     }
    ],
-   "confidence_pct": 65,
-   "confidence_level": "Medium",
-   "business_impact": "Correcting this queue alone would not fix a miss the whole level shares.",
-   "recommended_action": "Investigate at Region level before adjusting this queue's plan.",
+   "confidence_pct": 90,
+   "confidence_level": "High",
+   "business_impact": "The Region-level miss may impact multiple queues, including this one.",
+   "recommended_action": "Investigate the Region-level miss to determine the root cause.",
    "status": "Verified"
   },
   {
    "rank": 3,
    "cause_type": "genuine_demand_event",
-   "title": "Genuine demand event",
-   "explanation": "Actual demand this week was 8805.0 \u2014 far from this queue's usual level of about 61.77 \u2014 while the forecast (90.78) was about normal. This looks like a real change in demand this week, not a forecasting error.",
+   "title": "Unprecedented Demand",
+   "explanation": "The demand for this queue was unprecedented, with a significant increase in actual offered volume.",
    "evidence": [
     {
-     "text": "actual demand was 8805.0 vs a usual ~61.77, while the forecast (90.78) was about normal",
+     "text": "The actual offered volume was 8805.0, which is significantly higher than the forecast.",
      "source_field": "Actual_Offered",
      "value": 8805.0
     }
    ],
-   "confidence_pct": 60,
-   "confidence_level": "Medium",
-   "business_impact": "See the forecast adherence gap for this queue.",
-   "recommended_action": "Review this queue's forecast inputs and recent accuracy with the planning team.",
-   "status": "Verified"
+   "confidence_pct": 70,
+   "confidence_level": "High",
+   "business_impact": "The unprecedented demand may indicate a change in customer behavior or preferences.",
+   "recommended_action": "Investigate the cause of the unprecedented demand to determine if it is a one-time event or a trend.",
+   "status": "Hypothesis - To be Validated"
   }
  ],
  "skeptic_review": [
   {
-   "cause": "Suspected data quality issue in this week's actual",
+   "cause": "data_quality_issue",
+   "challenge": "Is the recorded figure really invalid?",
+   "verdict": "retained",
+   "reason": "The recorded figure is far outside the normal range for this queue, and the week had a normal number of holidays."
+  },
+  {
+   "cause": "inherited_from_higher_level",
+   "challenge": "Is the Region-level miss really the cause of this queue's miss?",
+   "verdict": "retained",
+   "reason": "The same miss is already visible at the Region level, and the Region-level miss may impact multiple queues, including this one."
+  },
+  {
+   "cause": "Invalid Recorded Figure",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
   },
   {
-   "cause": "The miss is inherited from Region level",
+   "cause": "Region-Level Miss",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
   },
   {
-   "cause": "Genuine demand event",
+   "cause": "Unprecedented Demand",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
@@ -91,14 +108,17 @@
    "Region",
    "SubRegion",
    "Country",
+   "Combined Queue",
+   "Forecast Name",
+   "Offering",
    "Channel"
   ],
   "inherited_from": "Region",
-  "narrative": "The same miss is already visible at Region level, so it is not specific to this queue and should be attributed there."
+  "narrative": "The investigation started at the Business Org level and moved down to the Region level, where the same miss was found. The investigation then moved down to the SubRegion, Country, Combined Queue, Forecast Name, Offering, and Channel levels, but the miss was not specific to this queue."
  },
  "channel_migration": {
   "detected": false,
-  "narrative": "Channel movements do not cancel out, so this is not a like-for-like shift between channels.",
+  "narrative": "No channel migration was detected, as the demand for this queue was unprecedented and not shifted from another channel.",
   "gaining_channels": [
    "Voice"
   ],
@@ -181,11 +201,34 @@
   {
    "label": "Adherence at Channel level",
    "value": -55.0
+  },
+  {
+   "label": "Forecast Error",
+   "value": 8714.223605011195
   }
  ],
  "missing_information": [
-  "groq/llama-3.3-70b-versatile HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kkrjztjcfcd8h1kwmdh4ymne` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 95388,. This report was built from the deterministic data checks only - it is not the full multi-hypothesis WFM investigation."
+  "Actual_ASU"
  ],
+ "investigation_summary": {
+  "what_happened": "The NA Core Spanish queue experienced a significant under-forecast, with actual offered volume exceeding the forecast by 9599.7%.",
+  "why_it_happened": "The recorded figure may not be credible and needs validation at source before any forecasting action is taken. The same miss is already visible at the Region level, so it is not specific to this queue.",
+  "why_we_believe_it": "The investigation found that the recorded figure is far outside the normal range for this queue, and the week had a normal number of holidays. The same miss is already visible at the Region level, and the Region-level miss may impact multiple queues, including this one. Within the Combined Queue, handled more: Voice (+8751.0). This queue's own channel (Voice) went from 54.0 to 8805.0. No. Across 23 comparable weeks, the Combined Queue has never before held its total flat while the split between channels moved this much. This week is the first.",
+  "what_we_eliminated": [
+   "Holiday or short week",
+   "Installed base / units under warranty"
+  ],
+  "what_forecasting_should_do": [
+   "Validate the figure at source before taking any forecasting action",
+   "Investigate the Region-level miss to determine the root cause"
+  ],
+  "how_far_the_investigation_got": "data_exhausted",
+  "stopped_because": "Validate the figure at source.",
+  "steps_taken": 7,
+  "data_required_to_go_deeper": [
+   "The source extract for this week, to confirm the recorded volume is real before acting"
+  ]
+ },
  "derived_features": {
   "base_features": {
    "chronic_bias": {
@@ -236,6 +279,17 @@
    },
    "offering_change": {
     "changed": false
+   },
+   "cqn": {
+    "name": "NA Basic Spanish SITEL",
+    "all_names": [
+     "NA Basic Spanish SITEL"
+    ],
+    "is_multi_queue": false,
+    "channels_in_cqn": [
+     "Voice"
+    ],
+    "member_count_this_week": 1
    },
    "peer_divergence": {
     "peers_total": 15,
@@ -621,83 +675,81 @@
    "narrative": "This queue handled more contacts than the plan expected: 8805.0 against a forecast of 90.8, which is about 14148% above its normal weekly level. System-wide. The same miss is already visible at Region level (CSG / Americas), so this queue did not cause it and correcting this queue alone would not fix it. Total demand genuinely rose across the whole Combined Queue, not just this channel \u2014 so this is a real change in customer demand rather than work moving between channels. Within the Combined Queue, handled more: Voice (+8751.0). This queue's own channel (Voice) went from 54.0 to 8805.0. No. Across 23 comparable weeks, the Combined Queue has never before held its total flat while the split between channels moved this much. This week is the first. Ruled out: Holiday or short week \u2014 the week had a normal number of holidays (0.0); Installed base / units under warranty \u2014 the installed base did not move materially. Still in play: the forecast plan changed (FY27 May Projection -> FY27 Jun Projection); a standing over-forecast bias on this queue; the recorded figure itself may not be credible and needs validating at source. Not yet \u2014 the recorded figure has to be validated at source first. Acting on it would mean adjusting a plan to match a number that may not be real."
   }
  },
- "cause_type": "genuine_demand_event",
- "investigation_summary": {
-  "what_happened": "This queue handled more contacts than the plan expected: 8805.0 against a forecast of 90.8, which is about 14148% above its normal weekly level.",
-  "why_it_happened": "Total demand genuinely rose across the whole Combined Queue, not just this channel \u2014 so this is a real change in customer demand rather than work moving between channels.",
-  "why_we_believe_it": "Within the Combined Queue, handled more: Voice (+8751.0). This queue's own channel (Voice) went from 54.0 to 8805.0. No. Across 23 comparable weeks, the Combined Queue has never before held its total flat while the split between channels moved this much. This week is the first.",
-  "what_we_eliminated": [
-   "Ruled out: Holiday or short week \u2014 the week had a normal number of holidays (0.0); Installed base / units under warranty \u2014 the installed base did not move materially. Still in play: the forecast plan changed (FY27 May Projection -> FY27 Jun Projection); a standing over-forecast bias on this queue; the recorded figure itself may not be credible and needs validating at source."
-  ],
-  "what_forecasting_should_do": [],
-  "how_far_the_investigation_got": "data_exhausted",
-  "stopped_because": "Validate the figure at source.",
-  "steps_taken": 7,
-  "data_required_to_go_deeper": [
-   "The source extract for this week, to confirm the recorded volume is real before acting"
-  ]
- },
  "investigation_meta": {
-  "engine": "wfm-deterministic-fallback",
-  "generated_at": "2026-07-29T08:04:03.074811+00:00"
+  "engine": "wfm-llm",
+  "provider": "groq",
+  "model": "llama-3.3-70b-versatile",
+  "calls": 1,
+  "generated_at": "2026-07-29T09:11:03.213411+00:00"
  },
  "primary_root_cause": {
-  "statement": "This week's value is far outside everything else this queue has ever recorded, it is the only week anywhere near that level, and the following weeks return to the normal level. Validate the figure at source before treating it as a real demand event.",
-  "confidence": 0.6,
+  "statement": "The recorded figure may not be credible and needs validation at source before any forecasting action is taken.",
+  "confidence": 0.8,
   "supporting_evidence": [
    {
-    "text": "This week recorded 8805.0 against a typical week of about 117.0.",
+    "text": "The recorded figure is far outside the normal range for this queue.",
     "source_field": "Actual_Offered",
     "value": 8805.0
+   },
+   {
+    "text": "The week had a normal number of holidays (0.0).",
+    "source_field": "Holiday_Count",
+    "value": 0.0
    }
   ]
  },
  "secondary_contributors": [
   {
-   "statement": "The same miss is already visible at Region level, so it is not specific to this queue and a queue-level cause cannot explain it.",
-   "confidence": 0.65,
+   "statement": "The same miss is already visible at the Region level, so it is not specific to this queue.",
+   "confidence": 0.9,
    "supporting_evidence": [
     {
-     "text": "At Region level (CSG / Americas) adherence was -13.6% for the same week.",
+     "text": "At Region level, the whole scope was off by -13.6% in the same direction this week.",
      "source_field": "Actual_Offered",
      "value": 112660.0
     }
    ]
   },
   {
-   "statement": "Actual demand this week was 8805.0 \u2014 far from this queue's usual level of about 61.77 \u2014 while the forecast (90.78) was about normal. This looks like a real change in demand this week, not a forecasting error.",
-   "confidence": 0.6,
+   "statement": "The demand for this queue was unprecedented, with a significant increase in actual offered volume.",
+   "confidence": 0.7,
    "supporting_evidence": [
     {
-     "text": "actual demand was 8805.0 vs a usual ~61.77, while the forecast (90.78) was about normal",
+     "text": "The actual offered volume was 8805.0, which is significantly higher than the forecast.",
      "source_field": "Actual_Offered",
      "value": 8805.0
     }
    ]
   }
  ],
- "confidence_score": 0.6,
+ "confidence_score": 0.8,
+ "cause_type": "data_quality_issue",
  "key_findings": [
   "The forecast this week was 90.78, and actual demand was 8805.0.",
   "Actual demand (8805.0) was far from this queue's usual level of about 61.77, while the forecast (90.78) was about normal.",
   "This queue is over-forecast in most recent weeks (typically about 61.8 actual against 99.7 forecast).",
-  "6 of 15 similar queues (same region, country and channel) moved the opposite way this week.",
+  "6 of 15 related queues in the NA Basic Spanish SITEL Combined Queue moved the opposite way this week.",
   "The forecast plan changed this week (from FY27 May Projection to FY27 Jun Projection)."
  ],
  "supporting_evidence": [
   {
-   "text": "This week recorded 8805.0 against a typical week of about 117.0.",
+   "text": "The recorded figure is far outside the normal range for this queue.",
    "source_field": "Actual_Offered",
    "value": 8805.0
+  },
+  {
+   "text": "The week had a normal number of holidays (0.0).",
+   "source_field": "Holiday_Count",
+   "value": 0.0
   }
  ],
- "reasoning_narrative": "This week's value is far outside everything else this queue has ever recorded, it is the only week anywhere near that level, and the following weeks return to the normal level. Validate the figure at source before treating it as a real demand event.",
+ "reasoning_narrative": "The NA Core Spanish queue experienced a significant under-forecast, with actual offered volume exceeding the forecast by 9599.7%. This miss is not specific to this queue, as it is also visible at the Region level. The recorded figure may not be credible and needs validation at source before any forecasting action is taken.",
  "rejected_hypotheses": [],
  "historical_comparison": {},
  "forecast_improvement_recommendations": [
-  "Validate this week's offered volume at source before acting on it.",
-  "Investigate at Region level before adjusting this queue's plan.",
-  "Review this queue's forecast inputs and recent accuracy with the planning team."
+  "Validate the figure at source before taking any forecasting action.",
+  "Investigate the Region-level miss to determine the root cause.",
+  "Investigate the cause of the unprecedented demand to determine if it is a one-time event or a trend."
  ],
  "forecast_summary": {}
 }

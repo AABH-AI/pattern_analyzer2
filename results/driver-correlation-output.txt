@@ -1,0 +1,27 @@
+==============================================================================
+DRIVER CORRELATION SURVEY
+  66,612 rows across 427 queues
+  per-queue rank correlation vs Actual_Offered; >= 12 weeks; strong = |rho| >= 0.5
+==============================================================================
+
+  driver                  tested   strong   share  median rho  sign split
+  --------------------------------------------------------------------------
+  fcst_offered               427      285    67%        0.63  +285 / -0
+  Planned_ASU                347      145    42%        0.28  +116 / -29
+  Actual_ASU                 365      128    35%        0.21  +104 / -24
+  Final_Units                401        8     2%        0.14  +8 / -0
+  Final_upp_units              0        -       -           -  (no queue had enough data)
+  Holiday_Count              423       29     7%       -0.30  +0 / -29
+  Actual_Handled             427      427   100%        1.00  +427 / -0
+
+  WHAT THIS MEANS
+  * The forecast tracks demand on 67% of queues (median rho 0.63). This is the sanity check: a forecast that did not correlate with its own actuals would carry almost no information.
+  * The warranty base (ASU) tracks demand on 35% of queues that have it (median rho 0.21).
+  * Holidays reach the strong threshold on 7% of queues (median rho -0.30) -- so treating holidays as a general explanation is usually not supported; it has to be shown per queue.
+
+  Caveat worth stating: a correlation over a queue's own history says a driver MOVES WITH
+  demand, not that it CAUSED a particular week's miss. The engine uses these only to
+  decide which drivers are worth citing for a given queue -- it retains a relationship
+  per queue and rejects the rest, rather than assuming any driver applies everywhere.
+==============================================================================
+report -> results/driver-correlation-survey.json

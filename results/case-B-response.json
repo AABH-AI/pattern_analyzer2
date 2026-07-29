@@ -185,7 +185,7 @@
   }
  ],
  "missing_information": [
-  "groq/llama-3.3-70b-versatile HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kkrjztjcfcd8h1kwmdh4ymne` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 95336,. This report was built from the deterministic data checks only - it is not the full multi-hypothesis WFM investigation."
+  "groq/llama-3.3-70b-versatile HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kkrjztjcfcd8h1kwmdh4ymne` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 99716,. This report was built from the deterministic data checks only - it is not the full multi-hypothesis WFM investigation."
  ],
  "derived_features": {
   "base_features": {
@@ -235,6 +235,17 @@
    },
    "offering_change": {
     "changed": false
+   },
+   "cqn": {
+    "name": "Client ProSupport ANZ",
+    "all_names": [
+     "Client ProSupport ANZ"
+    ],
+    "is_multi_queue": false,
+    "channels_in_cqn": [
+     "Voice"
+    ],
+    "member_count_this_week": 3
    },
    "peer_divergence": {
     "peers_total": 6,
@@ -646,7 +657,7 @@
  },
  "investigation_meta": {
   "engine": "wfm-deterministic-fallback",
-  "generated_at": "2026-07-29T08:04:47.855269+00:00"
+  "generated_at": "2026-07-29T09:11:48.100893+00:00"
  },
  "primary_root_cause": {
   "statement": "The same miss is already visible at Channel level, so it is not specific to this queue and a queue-level cause cannot explain it.",
@@ -676,7 +687,7 @@
  "key_findings": [
   "The forecast this week was 172.44, and actual demand was 106.0.",
   "This queue is under-forecast in most recent weeks (typically about 189.5 actual against 177.7 forecast).",
-  "2 of 6 similar queues (same region, country and channel) moved the opposite way this week.",
+  "2 of 6 related queues in the Client ProSupport ANZ Combined Queue moved the opposite way this week.",
   "The forecast plan did not change this week."
  ],
  "supporting_evidence": [

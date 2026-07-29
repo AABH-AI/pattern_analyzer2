@@ -1,0 +1,227 @@
+{
+ "joined_rows": 80340,
+ "numeric": {
+  "fcst_offered": {
+   "n_demand": 62497,
+   "rho_demand": 0.981,
+   "n_miss": 62479,
+   "rho_abs_miss": -0.349
+  },
+  "Planned_ASU": {
+   "n_demand": 51720,
+   "rho_demand": 0.481,
+   "n_miss": 51482,
+   "rho_abs_miss": -0.199
+  },
+  "Actual_ASU": {
+   "n_demand": 44574,
+   "rho_demand": 0.506,
+   "n_miss": 44284,
+   "rho_abs_miss": -0.199
+  },
+  "Final_Units": {
+   "n_demand": 59298,
+   "rho_demand": 0.553,
+   "n_miss": 58732,
+   "rho_abs_miss": -0.169
+  },
+  "Final_Y1": {
+   "n_demand": 59298,
+   "rho_demand": 0.553,
+   "n_miss": 58732,
+   "rho_abs_miss": -0.17
+  },
+  "Final_Y2": {
+   "n_demand": 59298,
+   "rho_demand": 0.527,
+   "n_miss": 58732,
+   "rho_abs_miss": -0.161
+  },
+  "Final_Y3": {
+   "n_demand": 59298,
+   "rho_demand": 0.496,
+   "n_miss": 58732,
+   "rho_abs_miss": -0.155
+  },
+  "Final_Y4": {
+   "n_demand": 59298,
+   "rho_demand": 0.498,
+   "n_miss": 58732,
+   "rho_abs_miss": -0.154
+  },
+  "Final_Y5": {
+   "n_demand": 59298,
+   "rho_demand": 0.473,
+   "n_miss": 58732,
+   "rho_abs_miss": -0.147
+  },
+  "Final_upp_units": {
+   "n_demand": 4060,
+   "rho_demand": 0.515,
+   "n_miss": 4043,
+   "rho_abs_miss": -0.183
+  },
+  "Holiday_Count": {
+   "n_demand": 63162,
+   "rho_demand": -0.024,
+   "n_miss": 62479,
+   "rho_abs_miss": 0.083
+  }
+ },
+ "day_flags": {
+  "Monday": {
+   "holiday_weeks": 5850,
+   "rho_demand": 0.021,
+   "rho_abs_miss": 0.019
+  },
+  "Tuesday": {
+   "holiday_weeks": 2422,
+   "rho_demand": -0.026,
+   "rho_abs_miss": 0.048
+  },
+  "Wednesday": {
+   "holiday_weeks": 3347,
+   "rho_demand": -0.04,
+   "rho_abs_miss": 0.069
+  },
+  "Thursday": {
+   "holiday_weeks": 4216,
+   "rho_demand": -0.059,
+   "rho_abs_miss": 0.083
+  },
+  "Friday": {
+   "holiday_weeks": 4052,
+   "rho_demand": -0.039,
+   "rho_abs_miss": 0.059
+  },
+  "Saturday": {
+   "holiday_weeks": 2380,
+   "rho_demand": 0.005,
+   "rho_abs_miss": 0.024
+  },
+  "Sunday": {
+   "holiday_weeks": 2743,
+   "rho_demand": -0.001,
+   "rho_abs_miss": 0.02
+  }
+ },
+ "categorical": {
+  "Region": {
+   "levels": 3,
+   "eta2_demand": 0.1486,
+   "eta2_abs_miss": 0.0165,
+   "interpretable": "yes"
+  },
+  "SubRegion": {
+   "levels": 16,
+   "eta2_demand": 0.2897,
+   "eta2_abs_miss": 0.0431,
+   "interpretable": "yes"
+  },
+  "Country": {
+   "levels": 49,
+   "eta2_demand": 0.3989,
+   "eta2_abs_miss": 0.0724,
+   "interpretable": "descriptive only (high cardinality)"
+  },
+  "Offering": {
+   "levels": 4,
+   "eta2_demand": 0.026,
+   "eta2_abs_miss": 0.0073,
+   "interpretable": "yes"
+  },
+  "Projection_plan_name": {
+   "levels": 28,
+   "eta2_demand": 0.0091,
+   "eta2_abs_miss": 0.0138,
+   "interpretable": "descriptive only (high cardinality)"
+  },
+  "channel": {
+   "levels": 5,
+   "eta2_demand": 0.0408,
+   "eta2_abs_miss": 0.0307,
+   "interpretable": "yes"
+  },
+  "business_org": {
+   "levels": 0,
+   "eta2_demand": null,
+   "eta2_abs_miss": null,
+   "interpretable": "CONSTANT - explains nothing"
+  },
+  "Volume_Category": {
+   "levels": 6,
+   "eta2_demand": 0.9092,
+   "eta2_abs_miss": 0.109,
+   "interpretable": "yes"
+  },
+  "Forecast_name": {
+   "levels": 427,
+   "eta2_demand": 0.937,
+   "eta2_abs_miss": 0.2086,
+   "interpretable": "descriptive only (high cardinality)"
+  },
+  "Combined_Queue_Name": {
+   "levels": 330,
+   "eta2_demand": 0.7614,
+   "eta2_abs_miss": 0.1556,
+   "interpretable": "descriptive only (high cardinality)"
+  },
+  "DB_OSP": {
+   "levels": 2,
+   "eta2_demand": 0.0074,
+   "eta2_abs_miss": 0.0005,
+   "interpretable": "yes"
+  }
+ },
+ "per_queue": {
+  "fcst_offered": {
+   "strong_vs_demand": "285/427 (67%)",
+   "strong_vs_abs_miss": "17/427 (4%)"
+  },
+  "Planned_ASU": {
+   "strong_vs_demand": "145/347 (42%)",
+   "strong_vs_abs_miss": "3/347 (1%)"
+  },
+  "Actual_ASU": {
+   "strong_vs_demand": "128/366 (35%)",
+   "strong_vs_abs_miss": "4/366 (1%)"
+  },
+  "Final_Units": {
+   "strong_vs_demand": "8/401 (2%)",
+   "strong_vs_abs_miss": "0/401 (0%)"
+  },
+  "Final_Y1": {
+   "strong_vs_demand": "9/401 (2%)",
+   "strong_vs_abs_miss": "0/401 (0%)"
+  },
+  "Final_Y2": {
+   "strong_vs_demand": "10/401 (2%)",
+   "strong_vs_abs_miss": "0/401 (0%)"
+  },
+  "Final_Y3": {
+   "strong_vs_demand": "23/401 (6%)",
+   "strong_vs_abs_miss": "0/401 (0%)"
+  },
+  "Final_Y4": {
+   "strong_vs_demand": "14/401 (3%)",
+   "strong_vs_abs_miss": "0/401 (0%)"
+  },
+  "Final_Y5": {
+   "strong_vs_demand": "19/401 (5%)",
+   "strong_vs_abs_miss": "0/401 (0%)"
+  },
+  "Final_upp_units": {
+   "strong_vs_demand": "17/72 (24%)",
+   "strong_vs_abs_miss": "25/71 (35%)"
+  },
+  "Holiday_Count": {
+   "strong_vs_demand": "29/427 (7%)",
+   "strong_vs_abs_miss": "0/427 (0%)"
+  }
+ },
+ "fiscal_week": {
+  "trend_rho": -0.082,
+  "seasonality_eta2": null,
+  "week_numbers": 0
+ }
+}

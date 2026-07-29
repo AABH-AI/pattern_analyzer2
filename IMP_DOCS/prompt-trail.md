@@ -626,3 +626,84 @@ Saved to `results/output-fixes-example.json`.
 
 **Regression: 12/12 modules, 40/40 SQL cross-checks, 42/42 spec clauses**, and the default engine
 still returns its original key shape with no WFM keys leaking into it.
+
+---
+
+## Session 27 — 2026-07-29 · CQN naming, a claim verifier, and the correlation survey
+**When:** Wed 29 Jul 2026, ~14:30 – 16:10 IST · **Runtime:** CQN lookup adds ~90ms per
+investigation; verifier ~0.3s for 5 claims; full correlation survey ~4min over 80,340 joined rows.
+
+### 1. Why the output said "similar queues" instead of the CQN name — a DATA problem, not wording
+`rca_investigate.py` contained **zero** references to CQN. The default engine had no Combined Queue
+name to print. Worse: the peers it compares against come from the console's `cqnDimsKey`
+(Region + SubRegion + Country + **channel**), a LOCALITY key — so its "similar queues" were
+same-channel neighbours, **not the Combined Queue members**, which can span channels.
+
+Fixed with `sql_backend._attach_cqn()`, which resolves the Combined Queue from `dbo.CQN_Mapping`
+and injects it into `context_bundle.meta.cqn` for **both** engines, carrying `primary`, `all`
+(a queue can belong to several), `members_this_week` and `channels_in_cqn`. `derive_features` now
+exposes `features.cqn`, the deterministic observations name it, and the prompt requires naming it.
+Live: *"The one other queue in the **Nordic Premium Support Turku** Combined Queue moved the same
+way this week."*
+
+### 2. A claim verifier — validating an RCA from the UI
+New `backend/rca_verify.py` + `POST /api/verify-finding`. For each quoted number it builds the
+EXACT SQL that reproduces it, runs it, and compares — **no LLM involved**, because a verifier that
+shares the thing it verifies proves nothing. Per claim it returns `verified` / `mismatch` /
+`unsupported` / `no_data`, **plus the SQL**, so a reader can paste it into their own client.
+
+`reproducible_share` is deliberately NOT called confidence: unlike the model's self-reported score
+it is a fact. Live on `Nordic Premium Support` FW202718: **2 verified, 0 mismatches**, 3 unsupported
+because that saved example predates the `source_field` inference fix.
+
+### 3. THE CORRELATION SURVEY — and the finding that reframes the project
+`results/full_correlation_survey.py`, over Input_To_ML **joined to the CQN mapping** (80,340 rows),
+three methods (Spearman for numeric, eta-squared on ranks for categorical, rank correlation for the
+day flags) and **two targets**: what drives DEMAND, and what drives the MISS.
+
+**Drivers track demand. Almost nothing tracks the miss.** Per queue — the only honest test, since
+pooled correlations are contaminated by queue size — the share of queues where a driver is strongly
+related to `|adherence|`:
+
+| driver | strong vs DEMAND | strong vs the MISS |
+|---|---|---|
+| `fcst_offered` | 285/427 (67%) | **17/427 (4%)** |
+| `Planned_ASU` | 145/347 (42%) | **3/347 (1%)** |
+| `Actual_ASU` | 128/366 (35%) | **4/366 (1%)** |
+| `Final_Units` | 8/401 (2%) | **0/401 (0%)** |
+| `Final_Y1..Y5` | 2-6% | **0%** |
+| `Holiday_Count` | 29/427 (7%) | **0/427 (0%)** |
+| `Final_upp_units` | 17/72 (24%) | **25/71 (35%)** |
+
+So **the size of a forecast miss is essentially unexplained by any column in this dataset.** The
+data says what demand IS; it contains almost nothing about why the plan was WRONG. That is not a
+defect in the engine — it is the ceiling of the dataset, and it means `data_exhausted` should be the
+COMMON outcome, not the exception. It also vindicates building that outcome honestly rather than
+letting the model fill the gap.
+
+The one lead: **`Final_upp_units` (extended-protection units) is the only column related to the miss
+on a meaningful share of queues (35%)** — but it is only 22% populated, so it covers 72 queues. Worth
+asking the business whether it can be populated more widely.
+
+Other findings, each with its caveat:
+- **`Volume_Category` eta-squared 0.909 vs demand is CIRCULAR** — it is a binned version of volume, so
+  it "explains" volume by construction. Not insight.
+- **`Forecast_name` 0.937 / `Combined_Queue_Name` 0.761 (vs demand)** — 427 and 330 levels. High
+  cardinality explains variance trivially; this restates "queues differ", which is identity.
+- **Holiday day-flags are flat**: every Monday..Sunday flag lands between −0.06 and +0.08 on both
+  targets. `calendar_holiday_effect` is weakly supported as a general explanation and must be shown
+  per queue.
+- **`business_org` has ONE distinct value** — it can explain nothing, and the investigation ladder's
+  "Business Org" level is therefore the whole dataset.
+- **`DB_OSP` eta-squared 0.000 vs the miss** — vendor type (in-house vs outsourced) explains nothing
+  about misses.
+- **`Final_Y1..Y5` correlate 0.47–0.55 with demand and near-identically with each other**, confirming
+  they are nested and were right to collapse into one installed-base signal.
+- **No long-term trend**: Fiscal_Week vs demand rho −0.082.
+
+**Method note for anyone re-reading this:** pooled vs per-queue matters enormously. `fcst_offered`
+shows rho **+0.98** against demand pooled and only 67% strong per queue — the pooled figure is mostly
+"big queues have big numbers". Every driver conclusion above uses the per-queue test.
+
+Regression: 12/12 modules, 40/40 SQL cross-checks. Default engine keys intact and `features.cqn`
+present.

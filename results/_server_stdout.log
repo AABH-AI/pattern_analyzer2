@@ -1,0 +1,17 @@
+INFO:     127.0.0.1:57393 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57396 - "GET /api/queue-context?forecast_name=Nordic+Premium+Support&fiscal_week=202718&region=EMEA&subregion=NER&country=Nordics&channel=Voice&history_cap=13&peers_cap=15 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57399 - "POST /api/rca-investigate?provider=nvidia&model=nvidia/nemotron-3-super-120b-a12b HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60126 - "POST /api/verify-finding?history_cap=13 HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:61029 - "POST /api/verify-finding?history_cap=13 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61060 - "POST /api/rca-investigate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54544 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54547 - "GET /api/queue-context?forecast_name=NA%20Core%20Spanish&fiscal_week=202719&region=Americas&subregion=NA&country=United%20States&channel=Voice&history_cap=13&peers_cap=15 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54550 - "POST /api/rca-investigate?mode=wfm&provider=groq&model=llama-3.3-70b-versatile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64831 - "GET /api/queue-context?forecast_name=ANZ%20Comm%20Client%20DSP%20Upsell&fiscal_week=202652&region=APJ&subregion=ANZ&country=Australia&channel=Voice&history_cap=13&peers_cap=15 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64833 - "POST /api/rca-investigate?mode=wfm&provider=groq&model=llama-3.3-70b-versatile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53264 - "GET /api/queue-context?forecast_name=ANZ%20Client%20Core&fiscal_week=202722&region=APJ&subregion=ANZ&country=Australia&channel=Voice&history_cap=13&peers_cap=15 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53266 - "POST /api/rca-investigate?mode=wfm&provider=groq&model=llama-3.3-70b-versatile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53270 - "GET /api/queue-context?forecast_name=Brazil%20Client%20Core&fiscal_week=202722&region=Americas&subregion=Brazil&country=Brazil&channel=Voice&history_cap=13&peers_cap=15 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53272 - "POST /api/rca-investigate?mode=wfm&provider=groq&model=llama-3.3-70b-versatile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53279 - "GET /api/queue-context?forecast_name=ANZ%20Comm%20Client%20ProSupport%20Chat&fiscal_week=202722&region=APJ&subregion=ANZ&country=Australia&channel=Chat&history_cap=13&peers_cap=15 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53282 - "POST /api/rca-investigate?mode=wfm&provider=groq&model=llama-3.3-70b-versatile HTTP/1.1" 200 OK
