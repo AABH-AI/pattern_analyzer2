@@ -1630,7 +1630,7 @@ function selectFlag(i){
         <div class="rtitle">${r.Forecast_name} ${r._mapped?'<span class="badge ok">mapped</span>':'<span class="badge unm">unmapped</span>'}</div>
         <div class="rmeta">${r.Region||''} · ${r.SubRegion||''} · ${r.Country||''} · ${r.channel||''}<br>Fiscal Week ${r._wk} · Plan: ${r.Projection_plan_name||'—'} · Forecaster: ${r.Forecaster||'—'}</div>
       </div>
-      <div class="acc"><div class="big" style="color:${accCol}">${r._acc!=null?r._acc.toFixed(1)+'%':'N/A'}</div><div class="lbl">forecast accuracy</div></div>
+      <div class="acc"><div class="big" style="color:${accCol}">${r._acc!=null?r._acc.toFixed(1)+'%':'N/A'}</div><div class="lbl">Forecast Adherence</div></div>
     </div>
     <div class="subhead">Findings <span style="text-transform:none;font-weight:500;color:var(--muted)">(ⓘ = the exact formula &amp; numbers)</span></div>
     <ul class="rca-bullets">${bullets}</ul>
@@ -1950,9 +1950,19 @@ function renderInvestigationReport(f, ctx){
     </table>
   </div></details>`:'';
 
+  const findingsList = (f.key_findings||[]).map(k=>{
+    let text = invEsc(k);
+    if(text.includes("(same region, country and channel)")){
+      text = text.replace("(same region, country and channel)", `(same region, country and channel <button class="ibtn" title="View breakdown of all similar queues" onclick="showPeerQueuesModal()">i</button>)`);
+    } else if(text.includes("similar queues")){
+      text = text.replace("similar queues", `similar queues <button class="ibtn" title="View breakdown of all similar queues" onclick="showPeerQueuesModal()">i</button>`);
+    }
+    return `<li>${text}</li>`;
+  }).join('');
+
   const findingsHtml=`<details class="inv-sec" open><summary>Key Findings</summary><div class="body">
     ${secDesc('Objective observations discovered in the data for this queue — the facts, not the cause.')}
-    ${(f.key_findings||[]).length?`<ul class="inv-findings">${f.key_findings.map(k=>`<li>${invEsc(k)}</li>`).join('')}</ul>`:'<div class="inv-empty">No observations recorded.</div>'}
+    ${findingsList?`<ul class="inv-findings">${findingsList}</ul>`:'<div class="inv-empty">No observations recorded.</div>'}
   </div></details>`;
 
   const rootCausesHtml=`<details class="inv-sec" open><summary>Root Cause</summary><div class="body">
@@ -2046,6 +2056,7 @@ async function triggerRCA(i, force){
   let resp;
   try{
     resp=await callInvestigationEngine(ctx);
+    window.LAST_RCA_RESP = resp;
     state.investigate='done'; paint();
   }catch(e){
     state.investigate='error'; paint();
@@ -2147,16 +2158,85 @@ function downloadKB(){
 renderProbe();
 renderPipe();   // initial: all stages pending until a source is connected
 
-/* delegated clicks for the volumetrics drill-down & member expand (attached once) */
-(function(){
-  const da=document.getElementById('dashboardArea'); if(!da) return;
-  da.addEventListener('click',e=>{
-    const ex=e.target.closest('[data-expand]');
-    if(ex){ const r=document.getElementById('rest-'+ex.getAttribute('data-expand')); if(r){ r.hidden=!r.hidden; ex.textContent=r.hidden?ex.getAttribute('data-more'):'− show less'; } return; }
-    const d=e.target.closest('[data-df]');
-    if(d) drillInto(d.getAttribute('data-df'), d.getAttribute('data-dv'));
-  });
-})();
+/* ---------------- Peer Queues Modal Breakdown ---------------- */
+function showPeerQueuesModal(){
+  const modal = document.getElementById('peerQueuesModal');
+  const body = document.getElementById('peerModalBody');
+  const title = document.getElementById('peerModalTitle');
+  const sub = document.getElementById('peerModalSub');
+  if(!modal || !body) return;
+
+  const resp = window.LAST_RCA_RESP || {};
+  const df = resp.derived_features || resp.base_features || {};
+  const pd = df.peer_divergence || {};
+  const peers = pd.all_peers || [];
+
+  const total = pd.peers_total || peers.length || 0;
+  const oppCount = pd.peers_opposite_direction || peers.filter(p=>p.is_opposite).length || 0;
+
+  if(title) title.innerText = `Similar Queues Breakdown (${oppCount} of ${total} moved in opposite direction)`;
+  if(sub) sub.innerText = `Evaluated across same region, country, and channel for this fiscal week.`;
+
+  if(!peers.length){
+    body.innerHTML = `<div class="inv-empty" style="padding:20px;text-align:center;">No peer queue details available for this week.</div>`;
+  } else {
+    body.innerHTML = `
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:8px;">
+        <span style="display:inline-block;width:12px;height:12px;background:#ef4444;border-radius:3px;"></span>
+        <span><b>Highlighted Cards (${oppCount})</b> = queues that moved in the <b>opposite direction</b> from the target queue this week.</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr;gap:10px;">
+        ${peers.map(p => {
+          const isOpp = p.is_opposite;
+          const cardBg = isOpp ? 'rgba(239, 68, 68, 0.08)' : 'var(--panel-2)';
+          const border = isOpp ? '2px solid #ef4444' : '1px solid var(--border)';
+          const badgeStyle = isOpp ? 'background:#ef4444;color:#ffffff;font-weight:700;' : 'background:var(--border);color:var(--muted);';
+          const badgeLabel = isOpp ? 'OPPOSITE DIRECTION' : 'SAME DIRECTION';
+          const adhVal = p.adherence_pct != null ? (p.adherence_pct + '%') : '—';
+          return `
+            <div style="padding:12px 16px;background:${cardBg};border:${border};border-radius:10px;display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="font-weight:700;font-size:13.5px;color:var(--text);">${invEsc(p.forecast_name)}</div>
+                <div style="font-size:11.5px;color:var(--muted);margin-top:3px;">
+                  Channel: <b>${invEsc(p.channel)}</b> · Miss Type: <b>${invEsc(p.direction || '—')}</b>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <span style="font-size:10px;padding:3px 9px;border-radius:12px;display:inline-block;${badgeStyle}">${badgeLabel}</span>
+                <div style="font-size:12px;font-weight:700;color:var(--text);margin-top:5px;">Adherence: ${adhVal}</div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+  modal.style.display = 'flex';
+}
+
+function closePeerModal(){
+  const modal = document.getElementById('peerQueuesModal');
+  if(modal) modal.style.display = 'none';
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closePeerModal();
+});
 </script>
+
+<!-- Peer Queues Breakdown Popup Modal Overlay -->
+<div id="peerQueuesModal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.65);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(4px);" onclick="if(event.target===this)closePeerModal()">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:12px;width:680px;max-width:92vw;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,0.5);overflow:hidden;">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--panel-2);">
+      <div>
+        <h3 id="peerModalTitle" style="margin:0;font-size:16px;font-weight:700;color:var(--text);">Similar Queues Comparison</h3>
+        <div id="peerModalSub" style="font-size:12px;color:var(--muted);margin-top:2px;">Comparing sibling queues across same Region, Country, and Channel</div>
+      </div>
+      <button onclick="closePeerModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);padding:4px 8px;line-height:1;">✕</button>
+    </div>
+    <div id="peerModalBody" style="padding:20px;overflow-y:auto;flex:1;"></div>
+  </div>
+</div>
 </body>
 </html>
+

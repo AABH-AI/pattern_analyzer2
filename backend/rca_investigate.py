@@ -368,23 +368,42 @@ def derive_features(context_bundle):
     t_dir = computed.get("direction")
     opp = []
     same = 0
+    all_p = []
     for p in peers:
+        key_info = p.get("key") or {}
+        fields_info = p.get("fields") or {}
+        fname = key_info.get("Forecast_name") or fields_info.get("Forecast_name") or "Unknown Queue"
         pc = p.get("computed") or {}
         pd = pc.get("direction")
+        adh = pc.get("adherence_pct")
         if pd is None:
             continue
-        if t_dir is not None and pd != t_dir:
-            opp.append({"forecast_name": (p.get("key") or {}).get("Forecast_name"),
-                        "adherence_pct": round(pc["adherence_pct"], 1) if isinstance(pc.get("adherence_pct"), (int, float)) else None})
+        is_opp = (t_dir is not None and pd != t_dir)
+        item = {
+            "forecast_name": fname,
+            "channel": fields_info.get("channel") or "Unknown",
+            "direction": pd,
+            "adherence_pct": round(adh, 1) if isinstance(adh, (int, float)) else None,
+            "actual": fields_info.get("Actual_Offered") or pc.get("actual"),
+            "forecast": fields_info.get("fcst_offered") or pc.get("forecast"),
+            "is_opposite": is_opp
+        }
+        all_p.append(item)
+        if is_opp:
+            opp.append({"forecast_name": fname,
+                        "adherence_pct": round(adh, 1) if isinstance(adh, (int, float)) else None})
         elif pd == t_dir:
             same += 1
+
     feats["peer_divergence"] = {
         "peers_total": len(peers),
         "peers_opposite_direction": len(opp),
         "peers_same_direction": same,
         "examples_opposite": opp[:5],
+        "all_peers": all_p,
         "signal": bool(opp),
     }
+
 
     # -- population context (if the console supplied it) --
     feats["population_context"] = (b.get("meta") or {}).get("population")
