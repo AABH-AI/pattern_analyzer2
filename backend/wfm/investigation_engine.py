@@ -62,7 +62,9 @@ def derive_wfm_features(context_bundle, wfm_context, band):
         "temporal": temporal_reasoner.analyse(history, week, actual, forecast,
                                               wfm_context.get("prior_year_week")),
         "channel_siblings": channel_migration_detector.analyse(
-            wfm_context.get("channel_sibling_rows") or [], week, fields.get("channel")),
+            wfm_context.get("channel_sibling_rows") or [], week, fields.get("channel"),
+            cqn_names=wfm_context.get("cqn_names"),
+            cqn_source=wfm_context.get("cqn_source", "proxy")),
         "investigation_ladder": hierarchy_analyzer.analyse(
             wfm_context.get("ladder") or [], adherence, band),
         "data_quality": data_quality.analyse(history, wfm_context.get("history_forward") or [],
@@ -120,6 +122,7 @@ def _assemble(parsed, features, adherence, band, provider, model):
         "losing_channels": siblings.get("losing_channels") or [],
         "grouped_by": siblings.get("grouped_by"),
         "is_cqn_proxy": siblings.get("is_cqn_proxy"),
+        "combined_queue_names": siblings.get("combined_queue_names") or [],
         "cqn_note": siblings.get("cqn_note"),
         "detail": siblings,
     }
@@ -134,7 +137,9 @@ def _assemble(parsed, features, adherence, band, provider, model):
     out["derived_features"] = features
     out["investigation_meta"] = {"engine": "wfm-llm", "provider": provider, "model": model,
                                 "calls": 1, "generated_at": _now()}
-    return report.back_compat(out, features.get("base_features") or {})
+    out = report.back_compat(out, features.get("base_features") or {})
+    # The prompt's BUSINESS LANGUAGE rule, enforced rather than requested.
+    return report.apply_language_guard(out)
 
 
 def _fallback(features, adherence, band, reason):
@@ -163,7 +168,10 @@ def _fallback(features, adherence, band, reason):
                               "narrative": siblings.get("note") or "",
                               "gaining_channels": siblings.get("gaining_channels") or [],
                               "losing_channels": siblings.get("losing_channels") or [],
+                              "grouped_by": siblings.get("grouped_by"),
                               "is_cqn_proxy": siblings.get("is_cqn_proxy"),
+                              "combined_queue_names": siblings.get("combined_queue_names") or [],
+                              "cqn_note": siblings.get("cqn_note"),
                               "detail": siblings},
         "technical_metrics": report.technical_metrics(features),
         "missing_information": [
@@ -173,7 +181,7 @@ def _fallback(features, adherence, band, reason):
         "cause_type": ctype,
         "investigation_meta": {"engine": "wfm-deterministic-fallback", "generated_at": _now()},
     }
-    return report.back_compat(out, base)
+    return report.apply_language_guard(report.back_compat(out, base))
 
 
 def investigate_wfm(context_bundle, llm_cfg, wfm_context, model_choice=None, band=None):

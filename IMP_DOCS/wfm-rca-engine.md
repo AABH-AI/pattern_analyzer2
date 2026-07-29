@@ -202,7 +202,40 @@ this case, with possible channel migration as a #2 hypothesis at 30% (Low). The 
 engine ranked it `systematic_forecast_bias`. **The figure should be validated at source
 before any forecasting action is taken.**
 
-## Known limitation — the CQN definition conflict (READ BEFORE CHANGING GROUPING)
+## RESOLVED (2026-07-29) — the CQN definition, settled by the mapping file
+
+The client supplied `CQN and FC mapping.xlsx`, now loaded into SQL by
+`backend/upload_cqn_mapping.py`:
+
+| Table | Rows | Source |
+|---|---|---|
+| `dbo.CQN_Mapping` | 532 | Sheet1 — flat: Region, SubRegion, Channel, Offering, Forecast_Name, Combined_Queue_Name, DB_OSP |
+| `dbo.CQN_Forecast_Pair` | 522 | Sheet3 — the Data Pair list (pivot; 191 blank CQN cells forward-filled) |
+
+**The spec was right and the console's definition is a different concept.** Of 331 Combined
+Queues, **35 span more than one channel** — `EMEA English ProSupp Client (Multi-Site)` covers
+Case + Chat + Email + Voice across 9 forecast names. So channel is **not** part of the CQN key,
+migration *within* a CQN is real, and `rca_console.html:1653`'s `cqnDimsKey` is a **locality key**,
+not the Combined Queue.
+
+**Coverage: 427/427 queues mapped — 0 unmapped.** The "unmapped" action item is closed.
+Re-check with `python upload_cqn_mapping.py --coverage`.
+
+The engine now groups channel siblings by the authoritative CQN and reports
+`is_cqn_proxy: false` plus `combined_queue_names`. The locality proxy remains only as the
+fallback for when `dbo.CQN_Mapping` is absent.
+
+**Sheet1 vs Sheet3 — measured, not assumed.** Sheet3 is the same mapping in pivot form with 191
+of 523 CQN cells blank. Forward-fill them and the sheets agree on **442/442 names, 0
+disagreements** (`--verify-sheets` proves it). Read naively, Sheet3 maps 167 names to blank, which
+is why Sheet1 is loaded as authoritative.
+
+**Still open:** 69 of 442 Forecast_Names map to MORE THAN ONE Combined Queue — vendor-site splits
+(Concentrix vs CGS, Bangalore vs Pune, SITEL, BW, Sykes). No column disambiguates them; `DB_OSP`
+separates in-house from outsourced but not vendor. **Current behaviour: the union of every CQN the
+forecast belongs to is used for sibling grouping.** Needs a business answer (`TODO.md` P1e).
+
+## Superseded — the original CQN conflict note (kept for history)
 
 `rca_console.html:1648-1653` records the client's **confirmed** CQN definition as
 `Forecast_name + Region + SubRegion + Country + Channel` — **channel is part of the CQN key.**

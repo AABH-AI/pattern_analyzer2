@@ -6,7 +6,18 @@ list, so a WFM report renders in the current console with no frontend change.
   rank 2+ -> secondary_contributors
   rejected skeptic challenges -> rejected_hypotheses
   each cause's action -> forecast_improvement_recommendations
+
+...and the LANGUAGE GUARD. The business prompt forbids statistics vocabulary in business-facing
+text ("Avoid phrases like Correlation / Regression / Outlier / Pearson / Z-score / SHAP /
+Isolation Forest"). Asking the model is not enough: a live NVIDIA run produced the executive
+summary "...the actual figure is an extreme outlier compared to all prior weeks...", which breaks
+the rule for a reader who is not supposed to need statistics. The guard rewrites the offending
+words deterministically and records every rewrite in `language_guard_applied`, so the edit is
+visible rather than silent. Technical vocabulary stays allowed in `technical_metrics`, which the
+console renders collapsed -- exactly as the prompt intends.
 """
+import re
+
 from rca_investigate import _observations_from_features
 
 from .common import confidence_level, rnd
@@ -22,6 +33,98 @@ RESPONSE_DEFAULTS = {
     "technical_metrics": [],
     "missing_information": [],
 }
+
+
+# Longest patterns first, so "extreme outlier" wins over "outlier" and reads as English.
+_LANGUAGE_SUBSTITUTIONS = (
+    (r"\bextreme outliers?\b", "extreme value"),
+    (r"\bstatistical outliers?\b", "unusual value"),
+    (r"\boutliers\b", "unusual values"),
+    (r"\boutlier\b", "unusual value"),
+    (r"\bz[\s\-]?scores?\b", "distance from the usual level"),
+    (r"\bstandard deviations?\b", "typical week-to-week variation"),
+    (r"\bsigma\b", "typical variation"),
+    (r"\bcorrelations?\b", "relationship"),
+    (r"\bcorrelated\b", "linked"),
+    (r"\bregressions?\b", "trend fitting"),
+    (r"\bpearson\b", "relationship"),
+    (r"\bmape\b", "average forecast error"),
+    (r"\bshap\b", "driver attribution"),
+    (r"\bisolation forest\b", "anomaly detection"),
+    (r"\btrend slope\b", "direction of travel"),
+)
+
+# Business-facing fields. `technical_metrics` is deliberately NOT in this list.
+_GUARDED_TOP = ("executive_summary", "business_impact")
+_GUARDED_CAUSE = ("title", "explanation", "business_impact", "recommended_action")
+
+
+def _scrub(text):
+    """Rewrite banned vocabulary. Returns (new_text, [what changed])."""
+    if not isinstance(text, str) or not text:
+        return text, []
+    changed, out = [], text
+    for pattern, replacement in _LANGUAGE_SUBSTITUTIONS:
+        for hit in set(m.group(0) for m in re.finditer(pattern, out, flags=re.IGNORECASE)):
+            changed.append(f"{hit} -> {replacement}")
+        out = re.sub(pattern, replacement, out, flags=re.IGNORECASE)
+    if changed:
+        # keep sentence capitalisation if a replacement landed at the very start
+        out = out[:1].upper() + out[1:] if out[:1].islower() and text[:1].isupper() else out
+    return out, changed
+
+
+def apply_language_guard(result):
+    """Enforce the prompt's BUSINESS LANGUAGE rule in code, and log what was rewritten."""
+    log = []
+    for key in _GUARDED_TOP:
+        new, changed = _scrub(result.get(key))
+        if changed:
+            result[key] = new
+            log += [f"{key}: {c}" for c in changed]
+
+    narrative = result.get("reasoning_narrative")
+    if isinstance(narrative, str):
+        new, changed = _scrub(narrative)
+        if changed:
+            result["reasoning_narrative"] = new
+            log += [f"reasoning_narrative: {c}" for c in changed]
+    elif isinstance(narrative, list):
+        rebuilt = []
+        for item in narrative:
+            new, changed = _scrub(item)
+            rebuilt.append(new)
+            log += [f"reasoning_narrative: {c}" for c in changed]
+        result["reasoning_narrative"] = rebuilt
+
+    for i, cause in enumerate(result.get("ranked_root_causes") or [], start=1):
+        if not isinstance(cause, dict):
+            continue
+        for key in _GUARDED_CAUSE:
+            new, changed = _scrub(cause.get(key))
+            if changed:
+                cause[key] = new
+                log += [f"cause{i}.{key}: {c}" for c in changed]
+        for j, ev in enumerate(cause.get("evidence") or [], start=1):
+            if not isinstance(ev, dict):
+                continue
+            new, changed = _scrub(ev.get("text"))
+            if changed:
+                ev["text"] = new
+                log += [f"cause{i}.evidence{j}: {c}" for c in changed]
+
+    findings = result.get("key_findings")
+    if isinstance(findings, list):
+        rebuilt = []
+        for item in findings:
+            new, changed = _scrub(item)
+            rebuilt.append(new)
+            log += [f"key_findings: {c}" for c in changed]
+        result["key_findings"] = rebuilt
+
+    if log:
+        result["language_guard_applied"] = log
+    return result
 
 
 def kpi_status(adherence, band):

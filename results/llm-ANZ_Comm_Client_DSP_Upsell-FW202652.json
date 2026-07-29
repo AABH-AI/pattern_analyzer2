@@ -1,5 +1,5 @@
 {
- "executive_summary": "Forecast adherence was 38.5% (over\u2011forecast) because actual contacts were far lower than predicted. The same over\u2011forecast appears at the Voice channel level for the ANZ region, indicating the miss is inherited from a higher level rather than being unique to this queue. Historical shows the forecast was about average while actual demand was roughly 44% lower than usual, with no evidence of a channel shift or data quality issue. Review the Voice channel forecast assumptions for ANZ to correct the over\u2011forecast.",
+ "executive_summary": "Forecast adherence was 38.5%, indicating a significant over\u2011forecast (actual contacts far below plan). The miss is already visible at the Channel level, so it is not unique to this queue; the primary driver is a lower\u2011than\u2011expected contact rate per warranty unit, while the number of units under warranty was essentially as planned. We are highly confident that the issue stems from the channel\u2011level forecast bias and recommend reviewing the contact\u2011rate assumptions in the Voice forecast plan.",
  "kpi_status": {
   "metric": "Forecast Adherence",
   "adherence_pct": 38.5,
@@ -7,46 +7,86 @@
   "breached": true,
   "direction": "over_forecast"
  },
- "business_impact": "Over\u2011forecast leads to excess staffing, higher operational costs and under\u2011utilisation of agents.",
+ "business_impact": "Over\u2011forecast leads to excess staffing and unnecessary labor costs for the Voice channel in ANZ Comm Client DSP Upsell.",
  "ranked_root_causes": [
   {
    "rank": 1,
    "cause_type": "inherited_from_higher_level",
-   "title": "Forecast miss inherited from Voice channel level",
-   "explanation": "The over\u2011forecast observed at the queue level mirrors the over\u2011forecast already present for the Voice channel in ANZ, showing the root cause lies at the channel forecast rather than the specific queue.",
+   "title": "Miss inherited from Channel level",
+   "explanation": "The same over\u2011forecast is already present when looking at the Voice channel for the whole ANZ CSG business, so the queue\u2011specific forecast is not the root source.",
    "evidence": [
     {
-     "text": "Channel adherence 13.9% (beyond the \u00b110% threshold)",
+     "text": "Channel level adherence is 13.9% (over\u2011forecast)",
      "source_field": "INVESTIGATION_LADDER.levels[4].adherence_pct",
      "value": 13.9
     },
     {
-     "text": "Investigation ladder indicates the miss is inherited from the Channel level",
+     "text": "INVESTIGATION_LADDER indicates inherited_from = Channel",
      "source_field": "INVESTIGATION_LADDER.inherited_from",
      "value": "Channel"
-    },
-    {
-     "text": "Queue actual 106.0 and forecast 172.44 are proportional to Voice channel actual 1560.0 and forecast 1812.4",
-     "source_field": "target_row_fields.Actual_Offered and target_row_fields.fcst_offered",
-     "value": "106.0 / 172.44 \u2248 0.615; channel actual/forecast = 1560.0 / 1812.4 \u2248 0.861 (same direction of under\u2011performance)"
     }
    ],
-   "confidence_pct": 90,
+   "confidence_pct": 95,
    "confidence_level": "High",
-   "business_impact": "Same as overall: excess staffing and cost.",
-   "recommended_action": "Review and adjust the Voice channel forecast model for ANZ region, particularly the planned ASU and contact\u2011per\u2011unit assumptions.",
+   "business_impact": "Excess staffing allocated to the Voice channel across ANZ.",
+   "recommended_action": "Review and adjust the Voice channel forecast plan for the ANZ Comm Client DSP Upsell queue to align with observed contact rates.",
+   "status": "Verified"
+  },
+  {
+   "rank": 2,
+   "cause_type": "systematic_forecast_bias",
+   "title": "Lower contact rate per unit than planned",
+   "explanation": "The forecast assumed each warranty unit would generate more contacts than actually occurred; the planned ASU was close to actual, but the actual contacts per unit were far below plan, driving most of the miss.",
+   "evidence": [
+    {
+     "text": "Planned contacts per unit = 0.00061667",
+     "source_field": "CORRELATIONS.driver_decomposition.planned_contacts_per_unit",
+     "value": 0.00061667
+    },
+    {
+     "text": "Actual contacts per unit = 0.00039375",
+     "source_field": "CORRELATIONS.driver_decomposition.actual_contacts_per_unit",
+     "value": 0.00039375
+    },
+    {
+     "text": "Contacts\u2011per\u2011unit effect on miss = -60.0 contacts",
+     "source_field": "CORRELATIONS.driver_decomposition.contacts_per_unit_effect",
+     "value": -60.0
+    },
+    {
+     "text": "Warranty\u2011base effect on miss = -6.4 contacts (minor)",
+     "source_field": "CORRELATIONS.driver_decomposition.warranty_base_effect",
+     "value": -6.4
+    }
+   ],
+   "confidence_pct": 78,
+   "confidence_level": "High",
+   "business_impact": "Forecast overestimates needed staffing because it expects more calls per device than are realized.",
+   "recommended_action": "Revise the contact\u2011rate assumption (calls per warranty unit) in the forecasting model for this Voice queue, using recent actuals to recalibrate.",
    "status": "Verified"
   }
  ],
  "skeptic_review": [
   {
    "cause": "inherited_from_higher_level",
-   "challenge": "Could the miss be due to queue\u2011specific factors that are not visible at the channel level?",
+   "challenge": "Could the queue still have a unique issue that is masked by channel\u2011level aggregation?",
    "verdict": "retained",
-   "reason": "The channel\u2011level data shows the same direction of error and the investigation ladder explicitly marks the miss as inherited from Channel; no queue\u2011specific anomaly is evident in the provided fields."
+   "reason": "INVESTIGATION_LADDER explicitly sets inherited_from = Channel and shows the Channel level already breaches the threshold, indicating the miss is not specific to the queue."
   },
   {
-   "cause": "Forecast miss inherited from Voice channel level",
+   "cause": "systematic_forecast_bias",
+   "challenge": "Perhaps the low actual is just random week\u2011to\u2011week variation rather than a systematic bias.",
+   "verdict": "retained",
+   "reason": "Driver decomposition shows a large, quantifiable contacts\u2011per\u2011unit effect (-60) that accounts for ~90% of the miss, and the ASU was near plan, making random variation an unlikely sole explanation."
+  },
+  {
+   "cause": "Miss inherited from Channel level",
+   "challenge": "Is this supported by the data, or could something else explain it better?",
+   "verdict": "retained",
+   "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+  },
+  {
+   "cause": "Lower contact rate per unit than planned",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
@@ -58,64 +98,48 @@
    "Region",
    "SubRegion",
    "Country",
-   "Channel",
-   "Forecast Name"
+   "Channel"
   ],
   "inherited_from": "Channel",
-  "narrative": "We examined adherence from the top\u2011level Business Org down to the specific Forecast Name. The miss first appeared at the Channel level (Voice) with an adherence of 13.9%, exceeding the \u00b110% threshold, and was flagged as inherited_from Channel in the investigation ladder, indicating the queue\u2011level over\u2011forecast is not isolated but reflects the channel\u2011level forecast error."
+  "narrative": "Starting at the top, adherence was within tolerance at Business Org, Region, SubRegion and Country levels. At the Channel level the adherence (13.9%) exceeded the +/-10% threshold, and the INVESTIGATION_LADDER flagged the miss as inherited from Channel, so the investigation stopped there."
  },
  "channel_migration": {
   "detected": false,
-  "narrative": "All channels (Chat, Email, Voice) showed decreased actual volume week\u2011over\u2011week, with no offsetting increases, so there is no evidence of demand shifting between channels.",
+  "narrative": "Only the Voice channel is present in this locality; its volume decreased from 937 to 849 week\u2011over\u2011week, with no offsetting gain in other channels, so there is no evidence of demand shifting between channels.",
   "gaining_channels": [],
   "losing_channels": [
-   "Chat",
-   "Email",
    "Voice"
   ],
-  "grouped_by": "Region + SubRegion + Country + business_org",
-  "is_cqn_proxy": true,
-  "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+  "grouped_by": "Combined_Queue_Name (authoritative mapping)",
+  "is_cqn_proxy": false,
+  "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: Client ProSupport ANZ). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
   "detail": {
    "available": true,
-   "grouped_by": "Region + SubRegion + Country + business_org",
-   "is_cqn_proxy": true,
-   "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+   "grouped_by": "Combined_Queue_Name (authoritative mapping)",
+   "combined_queue_names": [
+    "Client ProSupport ANZ"
+   ],
+   "is_cqn_proxy": false,
+   "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: Client ProSupport ANZ). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
    "prior_week": "202651",
    "this_week": "202652",
    "per_channel": [
     {
-     "channel": "Chat",
-     "prior_week_actual": 580.0,
-     "this_week_actual": 553.0,
-     "change": -27.0,
-     "is_target_channel": false
-    },
-    {
-     "channel": "Email",
-     "prior_week_actual": 3726.0,
-     "this_week_actual": 3665.0,
-     "change": -61.0,
-     "is_target_channel": false
-    },
-    {
      "channel": "Voice",
-     "prior_week_actual": 1761.0,
-     "this_week_actual": 1560.0,
-     "change": -201.0,
+     "prior_week_actual": 937.0,
+     "this_week_actual": 849.0,
+     "change": -88.0,
      "is_target_channel": true
     }
    ],
-   "group_total_prior_week": 6067.0,
-   "group_total_this_week": 5778.0,
-   "group_total_change": -289.0,
-   "gross_channel_movement": 289.0,
+   "group_total_prior_week": 937.0,
+   "group_total_this_week": 849.0,
+   "group_total_change": -88.0,
+   "gross_channel_movement": 88.0,
    "offset_share": 0.0,
    "migration_detected": false,
    "gaining_channels": [],
    "losing_channels": [
-    "Chat",
-    "Email",
     "Voice"
    ],
    "note": "Channel movements do not cancel out, so this is not a like-for-like shift between channels."
@@ -183,12 +207,34 @@
    "value": 13.9
   },
   {
-   "label": "Forecast adherence (%): 38.5, Forecast (fcst_offered): 172.44, Actual (Actual_Offered): 106.0, Forecast usual level: 177.7, Actual usual level: 189.5, Holiday count this week: 1.0, Planned ASU: 279626.0, Actual ASU: 269204.0], "
+   "label": "Forecast Adherence (%)",
+   "value": 38.5
+  },
+  {
+   "label": "Forecast Offered",
+   "value": 172.436685138223
+  },
+  {
+   "label": "Actual Offered",
+   "value": 106.0
+  },
+  {
+   "label": "Total Miss (contacts)",
+   "value": -66.436685138223
+  },
+  {
+   "label": "Warranty Base Effect",
+   "value": -6.4
+  },
+  {
+   "label": "Contacts\u2011Per\u2011Unit Effect",
+   "value": -60.0
   }
  ],
  "missing_information": [
-  "Breakdown of the forecast error by individual driver beyond the warranty base and contact\u2011rate effects",
-  "Details of any recent changes to the forecasting methodology or assumptions for the Voice channel in ANZ"
+  "Detail on average handle time or staffing levels that could explain why each unit generated fewer contacts",
+  "Any recent changes in call routing or IVR that might have deflected calls before they reached agents",
+  "Information on promotional or service\u2011change events that could have altered customer contact behaviour"
  ],
  "derived_features": {
   "base_features": {
@@ -345,44 +391,31 @@
   },
   "channel_siblings": {
    "available": true,
-   "grouped_by": "Region + SubRegion + Country + business_org",
-   "is_cqn_proxy": true,
-   "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+   "grouped_by": "Combined_Queue_Name (authoritative mapping)",
+   "combined_queue_names": [
+    "Client ProSupport ANZ"
+   ],
+   "is_cqn_proxy": false,
+   "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: Client ProSupport ANZ). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
    "prior_week": "202651",
    "this_week": "202652",
    "per_channel": [
     {
-     "channel": "Chat",
-     "prior_week_actual": 580.0,
-     "this_week_actual": 553.0,
-     "change": -27.0,
-     "is_target_channel": false
-    },
-    {
-     "channel": "Email",
-     "prior_week_actual": 3726.0,
-     "this_week_actual": 3665.0,
-     "change": -61.0,
-     "is_target_channel": false
-    },
-    {
      "channel": "Voice",
-     "prior_week_actual": 1761.0,
-     "this_week_actual": 1560.0,
-     "change": -201.0,
+     "prior_week_actual": 937.0,
+     "this_week_actual": 849.0,
+     "change": -88.0,
      "is_target_channel": true
     }
    ],
-   "group_total_prior_week": 6067.0,
-   "group_total_this_week": 5778.0,
-   "group_total_change": -289.0,
-   "gross_channel_movement": 289.0,
+   "group_total_prior_week": 937.0,
+   "group_total_this_week": 849.0,
+   "group_total_change": -88.0,
+   "gross_channel_movement": 88.0,
    "offset_share": 0.0,
    "migration_detected": false,
    "gaining_channels": [],
    "losing_channels": [
-    "Chat",
-    "Email",
     "Voice"
    ],
    "note": "Channel movements do not cancel out, so this is not a like-for-like shift between channels."
@@ -519,31 +552,53 @@
   "provider": "nvidia",
   "model": "nvidia/nemotron-3-super-120b-a12b",
   "calls": 1,
-  "generated_at": "2026-07-28T17:42:10.925076+00:00"
+  "generated_at": "2026-07-29T03:57:59.046240+00:00"
  },
  "primary_root_cause": {
-  "statement": "The over\u2011forecast observed at the queue level mirrors the over\u2011forecast already present for the Voice channel in ANZ, showing the root cause lies at the channel forecast rather than the specific queue.",
-  "confidence": 0.9,
+  "statement": "The same over\u2011forecast is already present when looking at the Voice channel for the whole ANZ CSG business, so the queue\u2011specific forecast is not the root source.",
+  "confidence": 0.95,
   "supporting_evidence": [
    {
-    "text": "Channel adherence 13.9% (beyond the \u00b110% threshold)",
+    "text": "Channel level adherence is 13.9% (over\u2011forecast)",
     "source_field": "INVESTIGATION_LADDER.levels[4].adherence_pct",
     "value": 13.9
    },
    {
-    "text": "Investigation ladder indicates the miss is inherited from the Channel level",
+    "text": "INVESTIGATION_LADDER indicates inherited_from = Channel",
     "source_field": "INVESTIGATION_LADDER.inherited_from",
     "value": "Channel"
-   },
-   {
-    "text": "Queue actual 106.0 and forecast 172.44 are proportional to Voice channel actual 1560.0 and forecast 1812.4",
-    "source_field": "target_row_fields.Actual_Offered and target_row_fields.fcst_offered",
-    "value": "106.0 / 172.44 \u2248 0.615; channel actual/forecast = 1560.0 / 1812.4 \u2248 0.861 (same direction of under\u2011performance)"
    }
   ]
  },
- "secondary_contributors": [],
- "confidence_score": 0.9,
+ "secondary_contributors": [
+  {
+   "statement": "The forecast assumed each warranty unit would generate more contacts than actually occurred; the planned ASU was close to actual, but the actual contacts per unit were far below plan, driving most of the miss.",
+   "confidence": 0.78,
+   "supporting_evidence": [
+    {
+     "text": "Planned contacts per unit = 0.00061667",
+     "source_field": "CORRELATIONS.driver_decomposition.planned_contacts_per_unit",
+     "value": 0.00061667
+    },
+    {
+     "text": "Actual contacts per unit = 0.00039375",
+     "source_field": "CORRELATIONS.driver_decomposition.actual_contacts_per_unit",
+     "value": 0.00039375
+    },
+    {
+     "text": "Contacts\u2011per\u2011unit effect on miss = -60.0 contacts",
+     "source_field": "CORRELATIONS.driver_decomposition.contacts_per_unit_effect",
+     "value": -60.0
+    },
+    {
+     "text": "Warranty\u2011base effect on miss = -6.4 contacts (minor)",
+     "source_field": "CORRELATIONS.driver_decomposition.warranty_base_effect",
+     "value": -6.4
+    }
+   ]
+  }
+ ],
+ "confidence_score": 0.95,
  "cause_type": "inherited_from_higher_level",
  "key_findings": [
   "The forecast this week was 172.44, and actual demand was 106.0.",
@@ -553,26 +608,22 @@
  ],
  "supporting_evidence": [
   {
-   "text": "Channel adherence 13.9% (beyond the \u00b110% threshold)",
+   "text": "Channel level adherence is 13.9% (over\u2011forecast)",
    "source_field": "INVESTIGATION_LADDER.levels[4].adherence_pct",
    "value": 13.9
   },
   {
-   "text": "Investigation ladder indicates the miss is inherited from the Channel level",
+   "text": "INVESTIGATION_LADDER indicates inherited_from = Channel",
    "source_field": "INVESTIGATION_LADDER.inherited_from",
    "value": "Channel"
-  },
-  {
-   "text": "Queue actual 106.0 and forecast 172.44 are proportional to Voice channel actual 1560.0 and forecast 1812.4",
-   "source_field": "target_row_fields.Actual_Offered and target_row_fields.fcst_offered",
-   "value": "106.0 / 172.44 \u2248 0.615; channel actual/forecast = 1560.0 / 1812.4 \u2248 0.861 (same direction of under\u2011performance)"
   }
  ],
- "reasoning_narrative": "Forecast adherence was 38.5% (over\u2011forecast) because actual contacts were far lower than predicted. The same over\u2011forecast appears at the Voice channel level for the ANZ region, indicating the miss is inherited from a higher level rather than being unique to this queue. Historical shows the forecast was about average while actual demand was roughly 44% lower than usual, with no evidence of a channel shift or data quality issue. Review the Voice channel forecast assumptions for ANZ to correct the over\u2011forecast.",
+ "reasoning_narrative": "Forecast adherence was 38.5%, indicating a significant over\u2011forecast (actual contacts far below plan). The miss is already visible at the Channel level, so it is not unique to this queue; the primary driver is a lower\u2011than\u2011expected contact rate per warranty unit, while the number of units under warranty was essentially as planned. We are highly confident that the issue stems from the channel\u2011level forecast bias and recommend reviewing the contact\u2011rate assumptions in the Voice forecast plan.",
  "rejected_hypotheses": [],
  "historical_comparison": {},
  "forecast_improvement_recommendations": [
-  "Review and adjust the Voice channel forecast model for ANZ region, particularly the planned ASU and contact\u2011per\u2011unit assumptions."
+  "Review and adjust the Voice channel forecast plan for the ANZ Comm Client DSP Upsell queue to align with observed contact rates.",
+  "Revise the contact\u2011rate assumption (calls per warranty unit) in the forecasting model for this Voice queue, using recent actuals to recalibrate."
  ],
  "forecast_summary": {}
 }

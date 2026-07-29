@@ -26,7 +26,7 @@ _CQN_NOTE = ("Grouped by locality + business org across all channels. The consol
              "for the Combined Queue, not the authoritative mapped CQN.")
 
 
-def analyse(rows, target_week, target_channel):
+def analyse(rows, target_week, target_channel, cqn_names=None, cqn_source="proxy"):
     if not rows:
         return {"available": False,
                 "reason": "No channel-sibling rows returned for this locality."}
@@ -64,11 +64,20 @@ def analyse(rows, target_week, target_channel):
                     and offset_share >= _MIN_OFFSET_SHARE
                     and abs(net) < max(1.0, _MAX_NET_SHARE * abs(total_before or 1)))
 
+    authoritative = (cqn_source == "mapping") and bool(cqn_names)
     return {
         "available": True,
-        "grouped_by": " + ".join(CHANNEL_SIBLING_DIMS),
-        "is_cqn_proxy": True,
-        "cqn_note": _CQN_NOTE,
+        "grouped_by": ("Combined_Queue_Name (authoritative mapping)" if authoritative
+                       else " + ".join(CHANNEL_SIBLING_DIMS)),
+        "combined_queue_names": list(cqn_names or []),
+        "is_cqn_proxy": not authoritative,
+        "cqn_note": (
+            "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping"
+            + (f" ({len(cqn_names)} CQNs: {', '.join(cqn_names[:3])}"
+               + ("..." if len(cqn_names) > 3 else "") + ")" if cqn_names else "")
+            + ". A Forecast_Name can belong to more than one Combined Queue (vendor-site "
+              "splits), in which case the union of its queues is used."
+            if authoritative else _CQN_NOTE),
         "prior_week": prev_wk,
         "this_week": this_wk,
         "per_channel": deltas,

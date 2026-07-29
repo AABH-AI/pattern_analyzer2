@@ -1,5 +1,5 @@
 {
- "executive_summary": "The same miss is already visible at Channel level, so it is not specific to this queue and a queue-level cause cannot explain it.",
+ "executive_summary": "The forecast adherence for the ANZ Comm Client DSP Upsell queue was 38.5%, indicating an over-forecast of 66.4. The investigation suggests that the miss was mainly driven by a contact rate issue, with each unit generating fewer contacts than planned. The adherence issue is not specific to this queue and is inherited from a higher level, specifically the Channel level.",
  "kpi_status": {
   "metric": "Forecast Adherence",
   "adherence_pct": 38.5,
@@ -7,60 +7,66 @@
   "breached": true,
   "direction": "over_forecast"
  },
- "business_impact": "Correcting this queue alone would not fix a miss the whole level shares.",
+ "business_impact": "The over-forecast resulted in excess capacity, potentially leading to wasted resources and decreased efficiency.",
  "ranked_root_causes": [
   {
    "rank": 1,
    "cause_type": "inherited_from_higher_level",
-   "title": "The miss is inherited from Channel level",
-   "explanation": "The same miss is already visible at Channel level, so it is not specific to this queue and a queue-level cause cannot explain it.",
+   "title": "Inherited from Higher Level",
+   "explanation": "The adherence issue is not specific to this queue and is inherited from a higher level, specifically the Channel level.",
    "evidence": [
     {
-     "text": "At Channel level (CSG / APJ / ANZ / Australia / Voice) adherence was 13.9% for the same week.",
-     "source_field": "Actual_Offered",
-     "value": 1560.0
+     "text": "INVESTIGATION_LADDER.inherited_from",
+     "source_field": "INVESTIGATION_LADDER",
+     "value": "Channel"
     }
    ],
-   "confidence_pct": 65,
-   "confidence_level": "Medium",
-   "business_impact": "Correcting this queue alone would not fix a miss the whole level shares.",
-   "recommended_action": "Investigate at Channel level before adjusting this queue's plan.",
+   "confidence_pct": 90,
+   "confidence_level": "High",
+   "business_impact": "The over-forecast resulted in excess capacity, potentially leading to wasted resources and decreased efficiency.",
+   "recommended_action": "Review and adjust the forecast at the Channel level.",
    "status": "Verified"
   },
   {
    "rank": 2,
-   "cause_type": "systematic_forecast_bias",
-   "title": "Systematic forecast bias",
-   "explanation": "This queue is under-forecast almost every week (recently about 189.5 actual against 177.7 forecast), so this week's miss looks like an ongoing pattern \u2014 the plan is consistently set too low \u2014 rather than a one-off event.",
+   "cause_type": "contact_rate_driven",
+   "title": "Contact Rate Issue",
+   "explanation": "The miss came mainly from each unit generating a different number of contacts than the plan assumed.",
    "evidence": [
     {
-     "text": "recently this queue ran about 189.5 actual against 177.7 forecast, under-forecast in most weeks",
-     "source_field": "Actual_Offered",
-     "value": 189.5
+     "text": "Relationship.driver_decomposition",
+     "source_field": "CORRELATIONS",
+     "value": "contact_rate_driven"
     }
    ],
-   "confidence_pct": 50,
-   "confidence_level": "Medium",
-   "business_impact": "See the forecast adherence gap for this queue.",
-   "recommended_action": "Review this queue's forecast inputs and recent accuracy with the planning team.",
+   "confidence_pct": 80,
+   "confidence_level": "High",
+   "business_impact": "The contact rate issue resulted in a significant over-forecast.",
+   "recommended_action": "Review and adjust the contact rate assumptions in the forecast plan.",
    "status": "Verified"
   }
  ],
  "skeptic_review": [
   {
-   "cause": "The miss is inherited from Channel level",
+   "cause": "inherited_from_higher_level",
+   "challenge": "Is the issue specific to this queue or inherited from a higher level?",
+   "verdict": "retained",
+   "reason": "The INVESTIGATION_LADDER indicates that the issue is inherited from the Channel level."
+  },
+  {
+   "cause": "contact_rate_driven",
+   "challenge": "Is the contact rate issue the main driver of the miss?",
+   "verdict": "retained",
+   "reason": "The CORRELATIONS.driver_decomposition indicates that the contact rate issue is the main driver of the miss."
+  },
+  {
+   "cause": "Inherited from Higher Level",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
   },
   {
-   "cause": "Contacts per unit differed from plan",
-   "challenge": "Does the data actually show forecast baseline error?",
-   "verdict": "rejected",
-   "reason": "No. The data shows the forecast was not unusual against its own history, so this cause is not possible for this week."
-  },
-  {
-   "cause": "Systematic forecast bias",
+   "cause": "Contact Rate Issue",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
@@ -75,58 +81,45 @@
    "Channel"
   ],
   "inherited_from": "Channel",
-  "narrative": "The same miss is already visible at Channel level, so it is not specific to this queue and should be attributed there."
+  "narrative": "The investigation started at the Business Org level and checked each level down to the Channel level, where the issue was found to be inherited from."
  },
  "channel_migration": {
   "detected": false,
-  "narrative": "Channel movements do not cancel out, so this is not a like-for-like shift between channels.",
+  "narrative": "No channel migration was detected.",
   "gaining_channels": [],
   "losing_channels": [
-   "Chat",
-   "Email",
    "Voice"
   ],
-  "is_cqn_proxy": true,
+  "grouped_by": "Combined_Queue_Name (authoritative mapping)",
+  "is_cqn_proxy": false,
+  "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: Client ProSupport ANZ). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
   "detail": {
    "available": true,
-   "grouped_by": "Region + SubRegion + Country + business_org",
-   "is_cqn_proxy": true,
-   "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+   "grouped_by": "Combined_Queue_Name (authoritative mapping)",
+   "combined_queue_names": [
+    "Client ProSupport ANZ"
+   ],
+   "is_cqn_proxy": false,
+   "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: Client ProSupport ANZ). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
    "prior_week": "202651",
    "this_week": "202652",
    "per_channel": [
     {
-     "channel": "Chat",
-     "prior_week_actual": 580.0,
-     "this_week_actual": 553.0,
-     "change": -27.0,
-     "is_target_channel": false
-    },
-    {
-     "channel": "Email",
-     "prior_week_actual": 3726.0,
-     "this_week_actual": 3665.0,
-     "change": -61.0,
-     "is_target_channel": false
-    },
-    {
      "channel": "Voice",
-     "prior_week_actual": 1761.0,
-     "this_week_actual": 1560.0,
-     "change": -201.0,
+     "prior_week_actual": 937.0,
+     "this_week_actual": 849.0,
+     "change": -88.0,
      "is_target_channel": true
     }
    ],
-   "group_total_prior_week": 6067.0,
-   "group_total_this_week": 5778.0,
-   "group_total_change": -289.0,
-   "gross_channel_movement": 289.0,
+   "group_total_prior_week": 937.0,
+   "group_total_this_week": 849.0,
+   "group_total_change": -88.0,
+   "gross_channel_movement": 88.0,
    "offset_share": 0.0,
    "migration_detected": false,
    "gaining_channels": [],
    "losing_channels": [
-    "Chat",
-    "Email",
     "Voice"
    ],
    "note": "Channel movements do not cancel out, so this is not a like-for-like shift between channels."
@@ -192,11 +185,17 @@
   {
    "label": "Adherence at Channel level",
    "value": 13.9
+  },
+  {
+   "label": "CORRELATIONS.driver_decomposition.warranty_base_effect",
+   "value": -6.4
+  },
+  {
+   "label": "CORRELATIONS.driver_decomposition.contacts_per_unit_effect",
+   "value": -60.0
   }
  ],
- "missing_information": [
-  "groq/llama-3.3-70b-versatile HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kkrjztjcfcd8h1kwmdh4ymne` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 94657,. This report was built from the deterministic data checks only - it is not the full multi-hypothesis WFM investigation."
- ],
+ "missing_information": [],
  "derived_features": {
   "base_features": {
    "chronic_bias": {
@@ -352,44 +351,31 @@
   },
   "channel_siblings": {
    "available": true,
-   "grouped_by": "Region + SubRegion + Country + business_org",
-   "is_cqn_proxy": true,
-   "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+   "grouped_by": "Combined_Queue_Name (authoritative mapping)",
+   "combined_queue_names": [
+    "Client ProSupport ANZ"
+   ],
+   "is_cqn_proxy": false,
+   "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: Client ProSupport ANZ). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
    "prior_week": "202651",
    "this_week": "202652",
    "per_channel": [
     {
-     "channel": "Chat",
-     "prior_week_actual": 580.0,
-     "this_week_actual": 553.0,
-     "change": -27.0,
-     "is_target_channel": false
-    },
-    {
-     "channel": "Email",
-     "prior_week_actual": 3726.0,
-     "this_week_actual": 3665.0,
-     "change": -61.0,
-     "is_target_channel": false
-    },
-    {
      "channel": "Voice",
-     "prior_week_actual": 1761.0,
-     "this_week_actual": 1560.0,
-     "change": -201.0,
+     "prior_week_actual": 937.0,
+     "this_week_actual": 849.0,
+     "change": -88.0,
      "is_target_channel": true
     }
    ],
-   "group_total_prior_week": 6067.0,
-   "group_total_this_week": 5778.0,
-   "group_total_change": -289.0,
-   "gross_channel_movement": 289.0,
+   "group_total_prior_week": 937.0,
+   "group_total_this_week": 849.0,
+   "group_total_change": -88.0,
+   "gross_channel_movement": 88.0,
    "offset_share": 0.0,
    "migration_detected": false,
    "gaining_channels": [],
    "losing_channels": [
-    "Chat",
-    "Email",
     "Voice"
    ],
    "note": "Channel movements do not cancel out, so this is not a like-for-like shift between channels."
@@ -521,36 +507,39 @@
    }
   }
  },
- "cause_type": "systematic_forecast_bias",
  "investigation_meta": {
-  "engine": "wfm-deterministic-fallback",
-  "generated_at": "2026-07-28T16:58:00.071675+00:00"
+  "engine": "wfm-llm",
+  "provider": "groq",
+  "model": "llama-3.3-70b-versatile",
+  "calls": 1,
+  "generated_at": "2026-07-29T03:53:38.943842+00:00"
  },
  "primary_root_cause": {
-  "statement": "The same miss is already visible at Channel level, so it is not specific to this queue and a queue-level cause cannot explain it.",
-  "confidence": 0.65,
+  "statement": "The adherence issue is not specific to this queue and is inherited from a higher level, specifically the Channel level.",
+  "confidence": 0.9,
   "supporting_evidence": [
    {
-    "text": "At Channel level (CSG / APJ / ANZ / Australia / Voice) adherence was 13.9% for the same week.",
-    "source_field": "Actual_Offered",
-    "value": 1560.0
+    "text": "INVESTIGATION_LADDER.inherited_from",
+    "source_field": "INVESTIGATION_LADDER",
+    "value": "Channel"
    }
   ]
  },
  "secondary_contributors": [
   {
-   "statement": "This queue is under-forecast almost every week (recently about 189.5 actual against 177.7 forecast), so this week's miss looks like an ongoing pattern \u2014 the plan is consistently set too low \u2014 rather than a one-off event.",
-   "confidence": 0.5,
+   "statement": "The miss came mainly from each unit generating a different number of contacts than the plan assumed.",
+   "confidence": 0.8,
    "supporting_evidence": [
     {
-     "text": "recently this queue ran about 189.5 actual against 177.7 forecast, under-forecast in most weeks",
-     "source_field": "Actual_Offered",
-     "value": 189.5
+     "text": "Relationship.driver_decomposition",
+     "source_field": "CORRELATIONS",
+     "value": "contact_rate_driven"
     }
    ]
   }
  ],
- "confidence_score": 0.65,
+ "confidence_score": 0.9,
+ "cause_type": "inherited_from_higher_level",
  "key_findings": [
   "The forecast this week was 172.44, and actual demand was 106.0.",
   "This queue is under-forecast in most recent weeks (typically about 189.5 actual against 177.7 forecast).",
@@ -559,22 +548,20 @@
  ],
  "supporting_evidence": [
   {
-   "text": "At Channel level (CSG / APJ / ANZ / Australia / Voice) adherence was 13.9% for the same week.",
-   "source_field": "Actual_Offered",
-   "value": 1560.0
+   "text": "INVESTIGATION_LADDER.inherited_from",
+   "source_field": "INVESTIGATION_LADDER",
+   "value": "Channel"
   }
  ],
- "reasoning_narrative": "The same miss is already visible at Channel level, so it is not specific to this queue and a queue-level cause cannot explain it.",
- "rejected_hypotheses": [
-  {
-   "hypothesis": "Contacts per unit differed from plan",
-   "reason_rejected": "No. The data shows the forecast was not unusual against its own history, so this cause is not possible for this week."
-  }
- ],
+ "reasoning_narrative": "The forecast adherence for the ANZ Comm Client DSP Upsell queue was 38.5%, indicating an over-forecast of 66.4. The investigation suggests that the miss was mainly driven by a contact rate issue, with each unit generating fewer contacts than planned. The adherence issue is not specific to this queue and is inherited from a higher level, specifically the Channel level.",
+ "rejected_hypotheses": [],
  "historical_comparison": {},
  "forecast_improvement_recommendations": [
-  "Investigate at Channel level before adjusting this queue's plan.",
-  "Review this queue's forecast inputs and recent accuracy with the planning team."
+  "Review and adjust the forecast at the Channel level.",
+  "Review and adjust the contact rate assumptions in the forecast plan."
  ],
- "forecast_summary": {}
+ "forecast_summary": {},
+ "language_guard_applied": [
+  "cause2.evidence1: CORRELATIONS -> relationship"
+ ]
 }

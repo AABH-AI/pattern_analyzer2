@@ -1,5 +1,5 @@
 {
- "executive_summary": "In fiscal week 202719, the NA Core Spanish Voice queue recorded an actual offered volume of 8,805 contacts against a forecast of only 91, resulting in a forecast adherence of -9,599.7%, far beyond the acceptable \u00b110% band. The primary indicator is a data quality anomaly: this week's actual is about 75 times higher than usual and immediately returns to normal in the following weeks, suggesting the figure may be erroneous. Additionally, the same under\u2011forecast pattern is already present at the Region level, indicating the miss is not unique to this queue but reflects a broader regional forecast issue.",
+ "executive_summary": "The Forecast Adherence KPI missed by -9599.7%, indicating a significant under-forecast. The primary cause is likely a data quality issue, as the actual offered volume is far outside the normal range for this queue. The miss is not specific to this queue and is already visible at the Region level.",
  "kpi_status": {
   "metric": "Forecast Adherence",
   "adherence_pct": -9599.7,
@@ -7,97 +7,67 @@
   "breached": true,
   "direction": "under_forecast"
  },
- "business_impact": "Operational staffing plans based on the faulty forecast would severely under\u2011staff the queue, risking service level degradation and customer dissatisfaction if the figure were trusted; validating the data prevents unnecessary staffing adjustments.",
+ "business_impact": "The under-forecast resulted in a significant shortfall in resources, potentially leading to decreased customer satisfaction and increased costs.",
  "ranked_root_causes": [
   {
    "rank": 1,
    "cause_type": "data_quality_issue",
-   "title": "Potential data recording error",
-   "explanation": "The actual offered volume for this week is extraordinarily high compared to all other weeks for this queue and immediately drops back to normal levels, which strongly suggests the number is incorrect rather than a true demand surge.",
+   "title": "Data Quality Issue",
+   "explanation": "The actual offered volume is far outside the normal range for this queue, suggesting a data quality issue.",
    "evidence": [
     {
-     "text": "This week's Actual_Offered is 8,805.0",
-     "source_field": "Actual_Offered",
-     "value": 8805.0
-    },
-    {
-     "text": "Typical week's Actual_Offered for this queue is 117.0",
-     "source_field": "DATA_QUALITY.typical_week_actual",
-     "value": 117.0
-    },
-    {
-     "text": "This week's actual is 75.3 times the typical level",
-     "source_field": "DATA_QUALITY.times_typical",
+     "text": "Actual offered volume is 75.3 times higher than the typical week",
+     "source_field": "DATA_QUALITY",
      "value": 75.3
-    },
-    {
-     "text": "The following three weeks return to normal levels (87.0, 54.0, 39.0)",
-     "source_field": "DATA_QUALITY.next_weeks_actual",
-     "value": 87.0
-    },
-    {
-     "text": "Data quality flag is marked as suspect",
-     "source_field": "DATA_QUALITY.suspect",
-     "value": true
     }
    ],
    "confidence_pct": 90,
    "confidence_level": "High",
-   "business_impact": "If trusted, would cause massive staffing misallocation; validating prevents waste.",
-   "recommended_action": "Validate the Actual_Offered figure at source (e.g., contact center telemetry) before using it for any forecast adjustments.",
+   "business_impact": "Potential decrease in customer satisfaction and increase in costs",
+   "recommended_action": "Validate the actual offered volume at the source",
    "status": "Hypothesis - To be Validated",
    "hypothesis_reason": "the figure has to be validated at source before it can be confirmed"
   },
   {
    "rank": 2,
    "cause_type": "inherited_from_higher_level",
-   "title": "Regional forecast under\u2011estimation",
-   "explanation": "The same under\u2011forecast pattern is already visible at the Region level (\u201113.6% adherence), so the miss for this queue is not unique but reflects a broader regional forecast issue.",
+   "title": "Inherited from Higher Level",
+   "explanation": "The miss is already visible at the Region level, indicating that it is not specific to this queue.",
    "evidence": [
     {
-     "text": "Region-level adherence is -13.6%",
-     "source_field": "INVESTIGATION_LADDER.levels[1].adherence_pct",
-     "value": -13.6
-    },
-    {
-     "text": "Investigation ladder indicates the miss is inherited from Region",
-     "source_field": "INVESTIGATION_LADDER.inherited_from",
+     "text": "The miss is visible at the Region level",
+     "source_field": "INVESTIGATION_LADDER",
      "value": "Region"
-    },
-    {
-     "text": "SubRegion adherence -18.0%, Country -18.3%, Channel -55.0%",
-     "source_field": "INVESTIGATION_LADDER.levels[2].adherence_pct",
-     "value": -18.0
     }
    ],
-   "confidence_pct": 70,
+   "confidence_pct": 80,
    "confidence_level": "High",
-   "business_impact": "Reflects regional forecast underestimation; correcting the regional plan will improve accuracy for all queues in the region.",
-   "recommended_action": "Review and adjust the forecast plan at the Region level (Americas/CSG) for the Voice channel, incorporating recent actual trends.",
+   "business_impact": "The issue is not specific to this queue and may affect other queues at the Region level",
+   "recommended_action": "Investigate the issue at the Region level",
    "status": "Verified"
   }
  ],
  "skeptic_review": [
   {
-   "cause": "data_quality_issue",
-   "challenge": "Could the spike be a genuine demand surge due to an unrecorded event?",
+   "cause": "Data Quality Issue",
+   "challenge": "Is the data quality issue specific to this queue or is it a broader issue?",
    "verdict": "retained",
-   "reason": "Data quality checks show an isolated one\u2011off with immediate reversion, and there are no corresponding changes in ASU, holidays, or plan restatement that would explain such a surge."
+   "reason": "The data quality issue is specific to this queue and is not a broader issue."
   },
   {
-   "cause": "inherited_from_higher_level",
-   "challenge": "Maybe the miss is specific to this queue despite region\u2011level breach?",
+   "cause": "Inherited from Higher Level",
+   "challenge": "Is the issue at the Region level a result of a data quality issue or a genuine demand event?",
    "verdict": "retained",
-   "reason": "INVESTIGATION_LADDER shows the miss is already present at Region level, and the queue\u2019s adherence mirrors the regional trend; no unique queue\u2011level driver is evident."
+   "reason": "The issue at the Region level is likely a result of a genuine demand event, but further investigation is needed."
   },
   {
-   "cause": "Potential data recording error",
+   "cause": "Data Quality Issue",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
   },
   {
-   "cause": "Regional forecast under\u2011estimation",
+   "cause": "Inherited from Higher Level",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
@@ -112,11 +82,11 @@
    "Channel"
   ],
   "inherited_from": "Region",
-  "narrative": "We examined adherence from Business Org down to Channel. The Business Org level was within tolerance (-8.8%), but the Region level already exceeded the threshold (-13.6%). Since the miss is visible at the Region level, the investigation stops there and attributes the cause to a higher\u2011level factor."
+  "narrative": "The miss is already visible at the Region level, indicating that it is not specific to this queue."
  },
  "channel_migration": {
   "detected": false,
-  "narrative": "Channel siblings analysis shows only the Voice channel present; there is no competing channel to which demand could have shifted, and the gross movement does not cancel out, indicating no like\u2011for\u2011like channel migration.",
+  "narrative": "No channel migration detected",
   "gaining_channels": [
    "Voice"
   ],
@@ -198,26 +168,16 @@
    "value": -55.0
   },
   {
-   "label": "Forecast Adherence (%)",
-   "value": -9599.7
-  },
-  {
-   "label": "Actual Offered",
+   "label": "Actual offered volume",
    "value": 8805.0
   },
   {
-   "label": "Typical Actual (historical)",
-   "value": 61.8
-  },
-  {
-   "label": "Times typical",
-   "value": 75.3
+   "label": "Typical week actual",
+   "value": 117.0
   }
  ],
  "missing_information": [
-  "Actual_ASU (needed to decompose miss into warranty\u2011base vs contacts\u2011per\u2011unit effects)",
-  "Details of any external event or marketing campaign that could have driven demand",
-  "Root cause of the regional forecast under\u2011estimation (e.g., plan assumptions, seasonality)"
+  "Actual_ASU"
  ],
  "derived_features": {
   "base_features": {
@@ -529,61 +489,31 @@
  },
  "investigation_meta": {
   "engine": "wfm-llm",
-  "provider": "nvidia",
-  "model": "nvidia/nemotron-3-super-120b-a12b",
+  "provider": "groq",
+  "model": "llama-3.3-70b-versatile",
   "calls": 1,
-  "generated_at": "2026-07-29T03:57:16.167741+00:00"
+  "generated_at": "2026-07-29T03:59:40.133812+00:00"
  },
  "primary_root_cause": {
-  "statement": "The actual offered volume for this week is extraordinarily high compared to all other weeks for this queue and immediately drops back to normal levels, which strongly suggests the number is incorrect rather than a true demand surge.",
+  "statement": "The actual offered volume is far outside the normal range for this queue, suggesting a data quality issue.",
   "confidence": 0.9,
   "supporting_evidence": [
    {
-    "text": "This week's Actual_Offered is 8,805.0",
-    "source_field": "Actual_Offered",
-    "value": 8805.0
-   },
-   {
-    "text": "Typical week's Actual_Offered for this queue is 117.0",
-    "source_field": "DATA_QUALITY.typical_week_actual",
-    "value": 117.0
-   },
-   {
-    "text": "This week's actual is 75.3 times the typical level",
-    "source_field": "DATA_QUALITY.times_typical",
+    "text": "Actual offered volume is 75.3 times higher than the typical week",
+    "source_field": "DATA_QUALITY",
     "value": 75.3
-   },
-   {
-    "text": "The following three weeks return to normal levels (87.0, 54.0, 39.0)",
-    "source_field": "DATA_QUALITY.next_weeks_actual",
-    "value": 87.0
-   },
-   {
-    "text": "Data quality flag is marked as suspect",
-    "source_field": "DATA_QUALITY.suspect",
-    "value": true
    }
   ]
  },
  "secondary_contributors": [
   {
-   "statement": "The same under\u2011forecast pattern is already visible at the Region level (\u201113.6% adherence), so the miss for this queue is not unique but reflects a broader regional forecast issue.",
-   "confidence": 0.7,
+   "statement": "The miss is already visible at the Region level, indicating that it is not specific to this queue.",
+   "confidence": 0.8,
    "supporting_evidence": [
     {
-     "text": "Region-level adherence is -13.6%",
-     "source_field": "INVESTIGATION_LADDER.levels[1].adherence_pct",
-     "value": -13.6
-    },
-    {
-     "text": "Investigation ladder indicates the miss is inherited from Region",
-     "source_field": "INVESTIGATION_LADDER.inherited_from",
+     "text": "The miss is visible at the Region level",
+     "source_field": "INVESTIGATION_LADDER",
      "value": "Region"
-    },
-    {
-     "text": "SubRegion adherence -18.0%, Country -18.3%, Channel -55.0%",
-     "source_field": "INVESTIGATION_LADDER.levels[2].adherence_pct",
-     "value": -18.0
     }
    ]
   }
@@ -599,37 +529,17 @@
  ],
  "supporting_evidence": [
   {
-   "text": "This week's Actual_Offered is 8,805.0",
-   "source_field": "Actual_Offered",
-   "value": 8805.0
-  },
-  {
-   "text": "Typical week's Actual_Offered for this queue is 117.0",
-   "source_field": "DATA_QUALITY.typical_week_actual",
-   "value": 117.0
-  },
-  {
-   "text": "This week's actual is 75.3 times the typical level",
-   "source_field": "DATA_QUALITY.times_typical",
+   "text": "Actual offered volume is 75.3 times higher than the typical week",
+   "source_field": "DATA_QUALITY",
    "value": 75.3
-  },
-  {
-   "text": "The following three weeks return to normal levels (87.0, 54.0, 39.0)",
-   "source_field": "DATA_QUALITY.next_weeks_actual",
-   "value": 87.0
-  },
-  {
-   "text": "Data quality flag is marked as suspect",
-   "source_field": "DATA_QUALITY.suspect",
-   "value": true
   }
  ],
- "reasoning_narrative": "In fiscal week 202719, the NA Core Spanish Voice queue recorded an actual offered volume of 8,805 contacts against a forecast of only 91, resulting in a forecast adherence of -9,599.7%, far beyond the acceptable \u00b110% band. The primary indicator is a data quality anomaly: this week's actual is about 75 times higher than usual and immediately returns to normal in the following weeks, suggesting the figure may be erroneous. Additionally, the same under\u2011forecast pattern is already present at the Region level, indicating the miss is not unique to this queue but reflects a broader regional forecast issue.",
+ "reasoning_narrative": "The Forecast Adherence KPI missed by -9599.7%, indicating a significant under-forecast. The primary cause is likely a data quality issue, as the actual offered volume is far outside the normal range for this queue. The miss is not specific to this queue and is already visible at the Region level.",
  "rejected_hypotheses": [],
  "historical_comparison": {},
  "forecast_improvement_recommendations": [
-  "Validate the Actual_Offered figure at source (e.g., contact center telemetry) before using it for any forecast adjustments.",
-  "Review and adjust the forecast plan at the Region level (Americas/CSG) for the Voice channel, incorporating recent actual trends."
+  "Validate the actual offered volume at the source",
+  "Investigate the issue at the Region level"
  ],
  "forecast_summary": {}
 }

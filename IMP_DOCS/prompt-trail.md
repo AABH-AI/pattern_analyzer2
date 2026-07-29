@@ -397,3 +397,44 @@ midnight rollover from 28 to 29 July 2026.
 Note the two SQL outages inside that window — `10.10.9.75:1433` went unreachable twice (VPN
 drops), once around 19:40 and again around 00:25. Both are visible in the trail as the reason
 certain verifications were deferred and re-run.
+
+---
+
+## Session 23 — 2026-07-29 · CQN mapping loaded; the definition conflict resolved
+**When:** Wed 29 Jul 2026, ~01:00–02:10 IST · **Runtime:** mapping load <5s; full battery
+(12 modules + 40 SQL checks + 27 ranking + 42 spec-clause checks) ~12min end to end.
+
+The client supplied `CQN and FC mapping.xlsx`. Loaded it, and it settled the open question.
+
+1. **Which sheet — measured, not assumed.** Tab order is `Sheet2, Sheet3, Sheet1`, so "the 3rd
+   sheet" is the one *named* `Sheet1`. Sheet2 is a count pivot. **Sheet3 is the same mapping in
+   PIVOT form with 191 of 523 CQN cells blank** (group labels written once). Forward-fill those and
+   Sheet3 and Sheet1 agree on **442/442 names with 0 disagreements**; read naively, Sheet3 maps 167
+   names to blank. `--verify-sheets` proves this on demand. Sheet1 is loaded as authoritative
+   because it needs no blank-inference and carries the 5 dimension columns needed to join.
+2. **Loaded both** — `dbo.CQN_Mapping` (532 rows, Sheet1) and `dbo.CQN_Forecast_Pair` (522 rows,
+   Sheet3 Data Pair), indexed, and cross-checked *in SQL*: 0 pairs differ in either direction.
+3. **THE CONFLICT IS RESOLVED AND THE SPEC WAS RIGHT.** 35 of 331 Combined Queues span more than
+   one channel (`EMEA English ProSupp Client (Multi-Site)` = Case+Chat+Email+Voice over 9
+   forecasts). Channel is NOT in the CQN key; the console's `cqnDimsKey` is a locality key, not the
+   Combined Queue. The engine now groups channel siblings by the real CQN and reports
+   `is_cqn_proxy: false`. Verified live on `Poland Comm Client ProSupport Chat`, whose CQN
+   correctly pulls Chat + Email + Voice into one queue — something the locality proxy could not do.
+4. **"Unmapped" action item CLOSED — 427/427 queues map, 0 unmapped.**
+5. **Language guard added.** A live NVIDIA run put the word "outlier" in the executive summary,
+   breaking the prompt's BUSINESS LANGUAGE rule. Asking the model was not enough, so
+   `business_report_generator.apply_language_guard()` now rewrites banned statistics vocabulary
+   deterministically and logs every rewrite in `language_guard_applied` — visible, not silent.
+6. **New suite: `results/spec_compliance_check.py`** — 21 checks mapped clause-by-clause to the
+   business prompt (KPI, threshold, top-5 ranking, confidence bands, hypothesis marking, skeptic
+   mode, business language, output format, temporal, investigation order, CQN validation,
+   correlation, no-fabrication, numeric traceability, actions). **42 PASS / 0 FAIL / 0 SKIP** across
+   two providers with SQL up.
+
+**Full battery on this branch, all green:** 12/12 modules · 40/40 SQL cross-checks · 42/42 spec
+clauses · LLM ranking 26/27 (the one FAIL is a model-side empty ranking — the engine correctly fell
+back rather than ship a causeless report, and the diagnostic now says "proposed nothing").
+
+**Mistake made and fixed:** `json.dump` without `encoding='utf-8'` corrupted the em-dashes in
+`selectable_models` labels (they feed the UI picker) into mojibake. Repaired by round-tripping
+through cp1252, and the labels render correctly again.

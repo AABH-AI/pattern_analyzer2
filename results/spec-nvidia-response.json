@@ -1,5 +1,5 @@
 {
- "executive_summary": "In fiscal week 202719, the NA Core Spanish Voice queue recorded an actual offered volume of 8,805 contacts against a forecast of only 91, resulting in a forecast adherence of -9,599.7%, far beyond the acceptable \u00b110% band. The primary indicator is a data quality anomaly: this week's actual is about 75 times higher than usual and immediately returns to normal in the following weeks, suggesting the figure may be erroneous. Additionally, the same under\u2011forecast pattern is already present at the Region level, indicating the miss is not unique to this queue but reflects a broader regional forecast issue.",
+ "executive_summary": "Forecast Adherence for NA Core Spanish Voice queue was -9599.7%, indicating actual demand was over 8,800 contacts versus a forecast of about 91. This massive miss is flagged as a data quality issue because the actual figure is far outside historical norms and returns to normal immediately. The same directional miss is also present at the Region level, indicating the queue\u2019s extreme value contributes to a regional under\u2011forecast. The forecast plan was restated this week, but the forecast itself remained near usual levels, making a plan\u2011change effect less likely.",
  "kpi_status": {
   "metric": "Forecast Adherence",
   "adherence_pct": -9599.7,
@@ -7,97 +7,142 @@
   "breached": true,
   "direction": "under_forecast"
  },
- "business_impact": "Operational staffing plans based on the faulty forecast would severely under\u2011staff the queue, risking service level degradation and customer dissatisfaction if the figure were trusted; validating the data prevents unnecessary staffing adjustments.",
+ "business_impact": "If the actual figure is correct, it would imply a severe staffing shortage and long wait times; if it is erroneous, acting on it could trigger unnecessary overtime or hiring costs and distort future forecasts.",
  "ranked_root_causes": [
   {
    "rank": 1,
    "cause_type": "data_quality_issue",
-   "title": "Potential data recording error",
-   "explanation": "The actual offered volume for this week is extraordinarily high compared to all other weeks for this queue and immediately drops back to normal levels, which strongly suggests the number is incorrect rather than a true demand surge.",
+   "title": "Suspect actual volume figure",
+   "explanation": "The actual offered volume for this week is far outside historical norms and returns to normal immediately, indicating a possible data entry or collection error.",
    "evidence": [
     {
-     "text": "This week's Actual_Offered is 8,805.0",
+     "text": "Actual_Offered this week",
      "source_field": "Actual_Offered",
      "value": 8805.0
     },
     {
-     "text": "Typical week's Actual_Offered for this queue is 117.0",
+     "text": "Typical week actual volume",
      "source_field": "DATA_QUALITY.typical_week_actual",
      "value": 117.0
     },
     {
-     "text": "This week's actual is 75.3 times the typical level",
+     "text": "How many times typical this week's actual is",
      "source_field": "DATA_QUALITY.times_typical",
      "value": 75.3
     },
     {
-     "text": "The following three weeks return to normal levels (87.0, 54.0, 39.0)",
+     "text": "Actual volume in the week after this week",
      "source_field": "DATA_QUALITY.next_weeks_actual",
      "value": 87.0
-    },
-    {
-     "text": "Data quality flag is marked as suspect",
-     "source_field": "DATA_QUALITY.suspect",
-     "value": true
     }
    ],
    "confidence_pct": 90,
    "confidence_level": "High",
-   "business_impact": "If trusted, would cause massive staffing misallocation; validating prevents waste.",
-   "recommended_action": "Validate the Actual_Offered figure at source (e.g., contact center telemetry) before using it for any forecast adjustments.",
+   "business_impact": "If the figure is wrong, any staffing or forecast adjustments based on it would be misguided and costly.",
+   "recommended_action": "Validate the Actual_Offered figure at the source system before adjusting forecasts or staffing levels.",
    "status": "Hypothesis - To be Validated",
    "hypothesis_reason": "the figure has to be validated at source before it can be confirmed"
   },
   {
    "rank": 2,
    "cause_type": "inherited_from_higher_level",
-   "title": "Regional forecast under\u2011estimation",
-   "explanation": "The same under\u2011forecast pattern is already visible at the Region level (\u201113.6% adherence), so the miss for this queue is not unique but reflects a broader regional forecast issue.",
+   "title": "Miss inherited from Region-level under-forecast",
+   "explanation": "The Region (CSG / Americas) also shows under-forecast adherence (-13.6%), breaching the +/-10% threshold, indicating the queue's miss is not isolated but reflects a broader regional trend.",
    "evidence": [
     {
-     "text": "Region-level adherence is -13.6%",
+     "text": "Region adherence percentage",
      "source_field": "INVESTIGATION_LADDER.levels[1].adherence_pct",
      "value": -13.6
     },
     {
-     "text": "Investigation ladder indicates the miss is inherited from Region",
-     "source_field": "INVESTIGATION_LADDER.inherited_from",
-     "value": "Region"
+     "text": "Region actual offered volume",
+     "source_field": "INVESTIGATION_LADDER.levels[1].actual_offered",
+     "value": 112660.0
     },
     {
-     "text": "SubRegion adherence -18.0%, Country -18.3%, Channel -55.0%",
-     "source_field": "INVESTIGATION_LADDER.levels[2].adherence_pct",
-     "value": -18.0
+     "text": "Region forecast offered volume",
+     "source_field": "INVESTIGATION_LADDER.levels[1].fcst_offered",
+     "value": 99210.9
     }
    ],
    "confidence_pct": 70,
    "confidence_level": "High",
-   "business_impact": "Reflects regional forecast underestimation; correcting the regional plan will improve accuracy for all queues in the region.",
-   "recommended_action": "Review and adjust the forecast plan at the Region level (Americas/CSG) for the Voice channel, incorporating recent actual trends.",
+   "business_impact": "Regional staffing models may need adjustment; local queue actions may be less effective if the root cause is regional.",
+   "recommended_action": "Investigate regional forecast inputs and staffing assumptions; consider whether the regional plan needs revision.",
    "status": "Verified"
+  },
+  {
+   "rank": 3,
+   "cause_type": "plan_restatement",
+   "title": "Forecast plan restatement may have introduced baseline error",
+   "explanation": "The forecast plan changed from FY27 May Projection to FY27 Jun Projection this week, which could have altered the baseline forecast and contributed to the miss.",
+   "evidence": [
+    {
+     "text": "Forecast plan changed indicator",
+     "source_field": "DERIVED_FEATURES.plan_restatement.changed",
+     "value": true
+    },
+    {
+     "text": "Prior forecast plan",
+     "source_field": "DERIVED_FEATURES.plan_restatement.prior",
+     "value": "FY27 May Projection"
+    },
+    {
+     "text": "Current forecast plan",
+     "source_field": "DERIVED_FEATURES.plan_restatement.current",
+     "value": "FY27 Jun Projection"
+    },
+    {
+     "text": "This week's forecast vs usual forecast",
+     "source_field": "DERIVED_FEATURES.proof[0].this_week",
+     "value": 90.78
+    },
+    {
+     "text": "Usual forecast level",
+     "source_field": "DERIVED_FEATURES.proof[0].usual",
+     "value": 99.7
+    }
+   ],
+   "confidence_pct": 50,
+   "confidence_level": "Medium",
+   "business_impact": "If the plan change caused a misalignment, future forecasts may remain off until the assumption is corrected.",
+   "recommended_action": "Review the forecast plan change assumptions and validate against actual trends; consider adjusting or reverting the plan if warranted.",
+   "status": "Hypothesis - To be Validated"
   }
  ],
  "skeptic_review": [
   {
-   "cause": "data_quality_issue",
-   "challenge": "Could the spike be a genuine demand surge due to an unrecorded event?",
-   "verdict": "retained",
-   "reason": "Data quality checks show an isolated one\u2011off with immediate reversion, and there are no corresponding changes in ASU, holidays, or plan restatement that would explain such a surge."
+   "cause": "Suspect actual volume figure",
+   "challenge": "Could the spike represent a real demand surge, such as a product launch or marketing campaign?",
+   "verdict": "rejected",
+   "reason": "No evidence of a product launch or external event; the value is an isolated one\u2011off and the following weeks return to normal levels, which is inconsistent with a sustained demand event."
   },
   {
-   "cause": "inherited_from_higher_level",
-   "challenge": "Maybe the miss is specific to this queue despite region\u2011level breach?",
+   "cause": "Miss inherited from Region-level under-forecast",
+   "challenge": "Perhaps the region\u2019s miss is driven solely by this queue\u2019s anomaly and not a broader regional issue.",
    "verdict": "retained",
-   "reason": "INVESTIGATION_LADDER shows the miss is already present at Region level, and the queue\u2019s adherence mirrors the regional trend; no unique queue\u2011level driver is evident."
+   "reason": "Even if this queue\u2019s extreme value were removed, the region\u2019s adherence would still be close to the threshold given its baseline under\u2011forecast (-13.6%) and the moderate size of the queue relative to the region total."
   },
   {
-   "cause": "Potential data recording error",
+   "cause": "Forecast plan restatement may have introduced baseline error",
+   "challenge": "The forecast itself remained near its usual level, so the plan change is unlikely to have caused the massive actual spike.",
+   "verdict": "retained",
+   "reason": "The forecast (fcst_offered) was about the same as usual (90.8 vs 99.7), indicating the plan restatement did not significantly alter the forecast; thus it cannot explain the actual outlier."
+  },
+  {
+   "cause": "Suspect actual volume figure",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
   },
   {
-   "cause": "Regional forecast under\u2011estimation",
+   "cause": "Miss inherited from Region-level under-forecast",
+   "challenge": "Is this supported by the data, or could something else explain it better?",
+   "verdict": "retained",
+   "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+  },
+  {
+   "cause": "Forecast plan restatement may have introduced baseline error",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
@@ -109,14 +154,18 @@
    "Region",
    "SubRegion",
    "Country",
-   "Channel"
+   "Channel",
+   "Forecast Name",
+   "Offering",
+   "Channel",
+   "Fiscal Week"
   ],
   "inherited_from": "Region",
-  "narrative": "We examined adherence from Business Org down to Channel. The Business Org level was within tolerance (-8.8%), but the Region level already exceeded the threshold (-13.6%). Since the miss is visible at the Region level, the investigation stops there and attributes the cause to a higher\u2011level factor."
+  "narrative": "Starting at the top level, Business Org adherence (-8.8%) was within tolerance. Moving down, Region adherence (-13.6%) exceeded the threshold, indicating the miss is already visible there. SubRegion, Country and Channel levels also breach the threshold, confirming the issue is not isolated to the queue. The INVESTIGATION_LADDER shows inherited_from = Region, so the queue\u2011level miss is attributed to the regional trend."
  },
  "channel_migration": {
   "detected": false,
-  "narrative": "Channel siblings analysis shows only the Voice channel present; there is no competing channel to which demand could have shifted, and the gross movement does not cancel out, indicating no like\u2011for\u2011like channel migration.",
+  "narrative": "Only the Voice channel is present for this Combined Queue; there is no alternative channel to which demand could have shifted.",
   "gaining_channels": [
    "Voice"
   ],
@@ -198,26 +247,29 @@
    "value": -55.0
   },
   {
-   "label": "Forecast Adherence (%)",
+   "label": "Adherence %",
    "value": -9599.7
   },
   {
-   "label": "Actual Offered",
+   "label": "Forecast z\u2011score vs own history",
+   "value": -0.57
+  },
+  {
+   "label": "Actual z\u2011score vs own history",
+   "value": 1130.08
+  },
+  {
+   "label": "Forecast vs usual forecast",
+   "value": 90.78
+  },
+  {
+   "label": "Actual vs usual actual",
    "value": 8805.0
-  },
-  {
-   "label": "Typical Actual (historical)",
-   "value": 61.8
-  },
-  {
-   "label": "Times typical",
-   "value": 75.3
   }
  ],
  "missing_information": [
-  "Actual_ASU (needed to decompose miss into warranty\u2011base vs contacts\u2011per\u2011unit effects)",
-  "Details of any external event or marketing campaign that could have driven demand",
-  "Root cause of the regional forecast under\u2011estimation (e.g., plan assumptions, seasonality)"
+  "Actual_ASU (needed for driver decomposition to split the miss into warranty\u2011base and contacts\u2011per\u2011unit effects)",
+  "Information on any external events such as product launches, marketing campaigns, or service incidents that could explain a genuine demand surge"
  ],
  "derived_features": {
   "base_features": {
@@ -532,58 +584,84 @@
   "provider": "nvidia",
   "model": "nvidia/nemotron-3-super-120b-a12b",
   "calls": 1,
-  "generated_at": "2026-07-29T03:57:16.167741+00:00"
+  "generated_at": "2026-07-29T03:59:37.076566+00:00"
  },
  "primary_root_cause": {
-  "statement": "The actual offered volume for this week is extraordinarily high compared to all other weeks for this queue and immediately drops back to normal levels, which strongly suggests the number is incorrect rather than a true demand surge.",
+  "statement": "The actual offered volume for this week is far outside historical norms and returns to normal immediately, indicating a possible data entry or collection error.",
   "confidence": 0.9,
   "supporting_evidence": [
    {
-    "text": "This week's Actual_Offered is 8,805.0",
+    "text": "Actual_Offered this week",
     "source_field": "Actual_Offered",
     "value": 8805.0
    },
    {
-    "text": "Typical week's Actual_Offered for this queue is 117.0",
+    "text": "Typical week actual volume",
     "source_field": "DATA_QUALITY.typical_week_actual",
     "value": 117.0
    },
    {
-    "text": "This week's actual is 75.3 times the typical level",
+    "text": "How many times typical this week's actual is",
     "source_field": "DATA_QUALITY.times_typical",
     "value": 75.3
    },
    {
-    "text": "The following three weeks return to normal levels (87.0, 54.0, 39.0)",
+    "text": "Actual volume in the week after this week",
     "source_field": "DATA_QUALITY.next_weeks_actual",
     "value": 87.0
-   },
-   {
-    "text": "Data quality flag is marked as suspect",
-    "source_field": "DATA_QUALITY.suspect",
-    "value": true
    }
   ]
  },
  "secondary_contributors": [
   {
-   "statement": "The same under\u2011forecast pattern is already visible at the Region level (\u201113.6% adherence), so the miss for this queue is not unique but reflects a broader regional forecast issue.",
+   "statement": "The Region (CSG / Americas) also shows under-forecast adherence (-13.6%), breaching the +/-10% threshold, indicating the queue's miss is not isolated but reflects a broader regional trend.",
    "confidence": 0.7,
    "supporting_evidence": [
     {
-     "text": "Region-level adherence is -13.6%",
+     "text": "Region adherence percentage",
      "source_field": "INVESTIGATION_LADDER.levels[1].adherence_pct",
      "value": -13.6
     },
     {
-     "text": "Investigation ladder indicates the miss is inherited from Region",
-     "source_field": "INVESTIGATION_LADDER.inherited_from",
-     "value": "Region"
+     "text": "Region actual offered volume",
+     "source_field": "INVESTIGATION_LADDER.levels[1].actual_offered",
+     "value": 112660.0
     },
     {
-     "text": "SubRegion adherence -18.0%, Country -18.3%, Channel -55.0%",
-     "source_field": "INVESTIGATION_LADDER.levels[2].adherence_pct",
-     "value": -18.0
+     "text": "Region forecast offered volume",
+     "source_field": "INVESTIGATION_LADDER.levels[1].fcst_offered",
+     "value": 99210.9
+    }
+   ]
+  },
+  {
+   "statement": "The forecast plan changed from FY27 May Projection to FY27 Jun Projection this week, which could have altered the baseline forecast and contributed to the miss.",
+   "confidence": 0.5,
+   "supporting_evidence": [
+    {
+     "text": "Forecast plan changed indicator",
+     "source_field": "DERIVED_FEATURES.plan_restatement.changed",
+     "value": true
+    },
+    {
+     "text": "Prior forecast plan",
+     "source_field": "DERIVED_FEATURES.plan_restatement.prior",
+     "value": "FY27 May Projection"
+    },
+    {
+     "text": "Current forecast plan",
+     "source_field": "DERIVED_FEATURES.plan_restatement.current",
+     "value": "FY27 Jun Projection"
+    },
+    {
+     "text": "This week's forecast vs usual forecast",
+     "source_field": "DERIVED_FEATURES.proof[0].this_week",
+     "value": 90.78
+    },
+    {
+     "text": "Usual forecast level",
+     "source_field": "DERIVED_FEATURES.proof[0].usual",
+     "value": 99.7
     }
    ]
   }
@@ -599,37 +677,38 @@
  ],
  "supporting_evidence": [
   {
-   "text": "This week's Actual_Offered is 8,805.0",
+   "text": "Actual_Offered this week",
    "source_field": "Actual_Offered",
    "value": 8805.0
   },
   {
-   "text": "Typical week's Actual_Offered for this queue is 117.0",
+   "text": "Typical week actual volume",
    "source_field": "DATA_QUALITY.typical_week_actual",
    "value": 117.0
   },
   {
-   "text": "This week's actual is 75.3 times the typical level",
+   "text": "How many times typical this week's actual is",
    "source_field": "DATA_QUALITY.times_typical",
    "value": 75.3
   },
   {
-   "text": "The following three weeks return to normal levels (87.0, 54.0, 39.0)",
+   "text": "Actual volume in the week after this week",
    "source_field": "DATA_QUALITY.next_weeks_actual",
    "value": 87.0
-  },
-  {
-   "text": "Data quality flag is marked as suspect",
-   "source_field": "DATA_QUALITY.suspect",
-   "value": true
   }
  ],
- "reasoning_narrative": "In fiscal week 202719, the NA Core Spanish Voice queue recorded an actual offered volume of 8,805 contacts against a forecast of only 91, resulting in a forecast adherence of -9,599.7%, far beyond the acceptable \u00b110% band. The primary indicator is a data quality anomaly: this week's actual is about 75 times higher than usual and immediately returns to normal in the following weeks, suggesting the figure may be erroneous. Additionally, the same under\u2011forecast pattern is already present at the Region level, indicating the miss is not unique to this queue but reflects a broader regional forecast issue.",
- "rejected_hypotheses": [],
+ "reasoning_narrative": "Forecast Adherence for NA Core Spanish Voice queue was -9599.7%, indicating actual demand was over 8,800 contacts versus a forecast of about 91. This massive miss is flagged as a data quality issue because the actual figure is far outside historical norms and returns to normal immediately. The same directional miss is also present at the Region level, indicating the queue\u2019s extreme value contributes to a regional under\u2011forecast. The forecast plan was restated this week, but the forecast itself remained near usual levels, making a plan\u2011change effect less likely.",
+ "rejected_hypotheses": [
+  {
+   "hypothesis": "Suspect actual volume figure",
+   "reason_rejected": "No evidence of a product launch or external event; the value is an isolated one\u2011off and the following weeks return to normal levels, which is inconsistent with a sustained demand event."
+  }
+ ],
  "historical_comparison": {},
  "forecast_improvement_recommendations": [
-  "Validate the Actual_Offered figure at source (e.g., contact center telemetry) before using it for any forecast adjustments.",
-  "Review and adjust the forecast plan at the Region level (Americas/CSG) for the Voice channel, incorporating recent actual trends."
+  "Validate the Actual_Offered figure at the source system before adjusting forecasts or staffing levels.",
+  "Investigate regional forecast inputs and staffing assumptions; consider whether the regional plan needs revision.",
+  "Review the forecast plan change assumptions and validate against actual trends; consider adjusting or reverting the plan if warranted."
  ],
  "forecast_summary": {}
 }

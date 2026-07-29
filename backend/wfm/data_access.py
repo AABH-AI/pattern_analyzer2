@@ -13,6 +13,10 @@ literal and the lookup is a plain IN (?, ?). Measured: 98.19s -> 0.16s.
 """
 from .common import CHANNEL_SIBLING_DIMS, WFM_HISTORY_WEEKS, adherence_pct, prior_year_week
 
+# The authoritative Combined-Queue mapping, loaded by backend/upload_cqn_mapping.py.
+# If the table is absent the engine silently falls back to the locality proxy.
+CQN_MAP_TABLE = "dbo.CQN_Mapping"
+
 # Columns the correlation engine and the temporal reasoner need from history.
 _HISTORY_COLS = ("Fiscal_Week", "Actual_Offered", "fcst_offered", "Holiday_Count",
                  "Projection_plan_name", "Planned_ASU", "Actual_ASU", "Final_Units")
@@ -28,7 +32,7 @@ _LADDER_LEVELS = (
 )
 
 
-def fetch_wfm_context(cur, table, key):
+def fetch_wfm_context(cur, table, key, map_table=CQN_MAP_TABLE):
     """Fetch the deeper context the WFM prompt needs.
 
     key = {"Forecast_name", "Fiscal_Week", "Region", "SubRegion", "Country",
@@ -40,7 +44,8 @@ def fetch_wfm_context(cur, table, key):
     name = key.get("Forecast_name")
     week = key.get("Fiscal_Week")
     out = {"history_104": [], "history_forward": [], "channel_sibling_rows": [],
-           "ladder": [], "prior_week": None, "prior_year_week": prior_year_week(week)}
+           "ladder": [], "prior_week": None, "prior_year_week": prior_year_week(week),
+           "cqn_names": [], "cqn_source": "proxy"}
     if not name or week is None:
         return out
 
@@ -63,25 +68,52 @@ def fetch_wfm_context(cur, table, key):
     cols = [d[0] for d in cur.description]
     out["history_forward"] = [dict(zip(cols, r)) for r in cur.fetchall()]
 
-    # -- 3. channel siblings: same locality, ALL channels, this week + the prior week --
+    # -- 3. channel siblings: this week + the prior week --
     prior = None
     for h in reversed(out["history_104"]):
         if str(h.get("Fiscal_Week")) != str(week):
             prior = h.get("Fiscal_Week")
             break
     out["prior_week"] = prior
+    weeks = [week] if prior is None else [week, prior]
+    marks = ", ".join("?" for _ in weeks)
 
-    dims = [d for d in CHANNEL_SIBLING_DIMS if key.get(d) not in (None, "")]
-    if dims:
-        where = " AND ".join(f"{d} = ?" for d in dims)
-        weeks = [week] if prior is None else [week, prior]
-        marks = ", ".join("?" for _ in weeks)
+    # Prefer the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping when it is loaded. The
+    # mapping workbook settled the definition: 35 of 331 CQNs span more than one channel, so
+    # "migration between channels within a CQN" is real and this is the correct grouping.
+    # A Forecast_Name can belong to MORE THAN ONE CQN (69 of 442 do -- vendor-site splits such
+    # as Concentrix vs CGS), so we take the UNION of every CQN it belongs to and record them.
+    out["cqn_names"] = []
+    out["cqn_source"] = "proxy"
+    try:
+        cur.execute(f"SELECT DISTINCT Combined_Queue_Name FROM {map_table} "
+                    f"WHERE Forecast_Name = ? AND Combined_Queue_Name IS NOT NULL", (name,))
+        out["cqn_names"] = [r[0] for r in cur.fetchall()]
+    except Exception:
+        out["cqn_names"] = []          # mapping table not loaded; fall back to the proxy
+
+    if out["cqn_names"]:
+        cqn_marks = ", ".join("?" for _ in out["cqn_names"])
         cur.execute(
-            f"SELECT Fiscal_Week, channel, Forecast_name, Actual_Offered, fcst_offered "
-            f"FROM {table} WHERE {where} AND Fiscal_Week IN ({marks})",
-            tuple([key[d] for d in dims] + weeks))
+            f"SELECT d.Fiscal_Week, d.channel, d.Forecast_name, d.Actual_Offered, d.fcst_offered "
+            f"FROM {table} d "
+            f"WHERE d.Fiscal_Week IN ({marks}) AND EXISTS ("
+            f"  SELECT 1 FROM {map_table} m WHERE m.Forecast_Name = d.Forecast_name "
+            f"    AND m.Combined_Queue_Name IN ({cqn_marks}))",
+            tuple(weeks + out["cqn_names"]))
         cols = [d[0] for d in cur.description]
         out["channel_sibling_rows"] = [dict(zip(cols, r)) for r in cur.fetchall()]
+        out["cqn_source"] = "mapping"
+    else:
+        dims = [d for d in CHANNEL_SIBLING_DIMS if key.get(d) not in (None, "")]
+        if dims:
+            where = " AND ".join(f"{d} = ?" for d in dims)
+            cur.execute(
+                f"SELECT Fiscal_Week, channel, Forecast_name, Actual_Offered, fcst_offered "
+                f"FROM {table} WHERE {where} AND Fiscal_Week IN ({marks})",
+                tuple([key[d] for d in dims] + weeks))
+            cols = [d[0] for d in cur.description]
+            out["channel_sibling_rows"] = [dict(zip(cols, r)) for r in cur.fetchall()]
 
     # -- 4. the investigation ladder: adherence recomputed at each level, same week --
     ladder = []

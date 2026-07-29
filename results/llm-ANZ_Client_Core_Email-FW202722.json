@@ -1,5 +1,5 @@
 {
- "executive_summary": "Forecast adherence for ANZ Client Core Email was 16.3%, meaning the forecast over\u2011estimated actual demand by more than the allowed 10% threshold. The same over\u2011forecast pattern is already present at the Business Org level (CSG) and propagates down through Region, SubRegion and Country, indicating the miss is not specific to this queue. A contributing factor is an unusually high count of upgrade units (Final_upp_units) this week, though warranty\u2011unit data is missing. Action should focus on revising the Business Org forecast plan and validating the installed\u2011base assumptions that feed it.",
+ "executive_summary": "The same miss is already visible at Business Org level, so it is not specific to this queue and a queue-level cause cannot explain it.",
  "kpi_status": {
   "metric": "Forecast Adherence",
   "adherence_pct": 16.3,
@@ -7,121 +7,54 @@
   "breached": true,
   "direction": "over_forecast"
  },
- "business_impact": "The over\u2011forecast creates excess planned capacity, likely leading to unnecessary staffing costs and lower agent utilization.",
+ "business_impact": "Correcting this queue alone would not fix a miss the whole level shares.",
  "ranked_root_causes": [
   {
    "rank": 1,
    "cause_type": "inherited_from_higher_level",
-   "title": "Business Org\u2011level forecast miss",
-   "explanation": "The forecast for this queue is high because the whole CSG business organisation is over\u2011forecasting demand; the same pattern appears at Region, SubRegion and Country levels.",
+   "title": "The miss is inherited from Business Org level",
+   "explanation": "The same miss is already visible at Business Org level, so it is not specific to this queue and a queue-level cause cannot explain it.",
    "evidence": [
     {
-     "text": "Business Org forecast adherence is 20.5%",
-     "source_field": "INVESTIGATION_LADDER.levels[0].adherence_pct",
-     "value": 20.5
-    },
-    {
-     "text": "Business Org actual offered 185,972 vs forecast 233,909.3",
-     "source_field": "INVESTIGATION_LADDER.levels[0].actual_offered",
+     "text": "At Business Org level (CSG) adherence was 20.5% for the same week.",
+     "source_field": "Actual_Offered",
      "value": 185972.0
-    },
-    {
-     "text": "Business Org forecast offered 233,909.3",
-     "source_field": "INVESTIGATION_LADDER.levels[0].fcst_offered",
-     "value": 233909.3
     }
    ],
-   "confidence_pct": 90,
-   "confidence_level": "High",
-   "business_impact": "Excess capacity and cost across the entire CSG organisation.",
-   "recommended_action": "Review and recalibrate the CSG\u2011level forecast plan (FY27 Jun Projection) and its underlying demand drivers.",
+   "confidence_pct": 65,
+   "confidence_level": "Medium",
+   "business_impact": "Correcting this queue alone would not fix a miss the whole level shares.",
+   "recommended_action": "Investigate at Business Org level before adjusting this queue's plan.",
    "status": "Verified"
   },
   {
    "rank": 2,
-   "cause_type": "installed_base_change",
-   "title": "Unusually high upgrade units",
-   "explanation": "The count of upgrade\u2011protected units (Final_upp_units) is well above its usual level, which may be influencing demand but is not yet reflected in the forecast.",
-   "evidence": [
-    {
-     "text": "Final_upp_units this week is 2,677",
-     "source_field": "target_row_fields.Final_upp_units",
-     "value": 2677.0
-    },
-    {
-     "text": "Usual level of Final_upp_units is about 2,150",
-     "source_field": "DERIVED_FEATURES.installed_base.history_mean",
-     "value": 2149.88
-    },
-    {
-     "text": "Z\u2011score for Final_upp_units is 2.96, indicating an unusual increase",
-     "source_field": "DERIVED_FEATURES.installed_base.z_score",
-     "value": 2.96
-    }
-   ],
-   "confidence_pct": 55,
-   "confidence_level": "Medium",
-   "business_impact": "If upgrade units drive contacts, the forecast may be under\u2011estimating demand from that segment; however, the observed over\u2011forecast suggests other factors dominate.",
-   "recommended_action": "Validate the upgrade\u2011unit forecast assumption and incorporate recent trends into the CSG demand model.",
-   "status": "Hypothesis - To be Validated"
-  },
-  {
-   "rank": 3,
    "cause_type": "volume_routing_shift",
-   "title": "No significant channel shift detected",
-   "explanation": "Overall offered volume across all channels declined versus the prior week, but there is no evidence of demand moving between channels; the change appears to be a general volume decrease rather than a routing shift.",
+   "title": "Volume routing shift",
+   "explanation": "At least one similar queue (another queue in the same region, country and channel) moved the opposite way the same week, so the work most likely shifted between queues rather than total demand going up or down.",
    "evidence": [
     {
-     "text": "Total offered volume across Chat, Email and Voice changed by \u20131,162 versus prior week",
-     "source_field": "CHANNEL_SIBLINGS.group_total_change",
-     "value": -1162.0
-    },
-    {
-     "text": "Combined gross channel movement is 1,162 with no offsetting gains",
-     "source_field": "CHANNEL_SIBLINGS.gross_channel_movement",
-     "value": 1162.0
+     "text": "a similar queue (ANZ Cons Core TS Email) moved the opposite way the same week",
+     "source_field": "peer_divergence",
+     "value": 2
     }
    ],
-   "confidence_pct": 30,
-   "confidence_level": "Low",
-   "business_impact": "Limited; the volume change does not explain the forecast miss through channel migration.",
-   "recommended_action": "Monitor channel trends for any future shifts, but no immediate action required.",
+   "confidence_pct": 45,
+   "confidence_level": "Medium",
+   "business_impact": "See the forecast adherence gap for this queue.",
+   "recommended_action": "Review this queue's forecast inputs and recent accuracy with the planning team.",
    "status": "Verified"
   }
  ],
  "skeptic_review": [
   {
-   "cause": "inherited_from_higher_level",
-   "challenge": "Could the miss be driven solely by a queue\u2011specific anomaly that coincidentally matches the Business Org trend?",
-   "verdict": "rejected",
-   "reason": "The INVESTIGATION_LADDER shows the same adherence breach at Business Org, Region, SubRegion and Country levels, making a queue\u2011only cause unlikely."
-  },
-  {
-   "cause": "installed_base_change",
-   "challenge": "Without Actual_ASU data we cannot confirm that the upgrade\u2011unit increase translates into higher demand; the correlation analysis rejected the relationship between installed base and offered volume.",
-   "verdict": "retained",
-   "reason": "The installed\u2011base signal is strong (z\u2011score 2.96) and material, but the lack of warranty\u2011unit data prevents a verified causal link; therefore it remains a hypothesis."
-  },
-  {
-   "cause": "volume_routing_shift",
-   "challenge": "The overall volume drop could be masking a hidden shift where gains in one channel offset losses in another.",
-   "verdict": "rejected",
-   "reason": "CHANNEL_SIBLINGS reports migration_detected false and all three channels show losses, with gaining_channels empty, indicating no offsetting shift."
-  },
-  {
-   "cause": "Business Org\u2011level forecast miss",
+   "cause": "The miss is inherited from Business Org level",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
   },
   {
-   "cause": "Unusually high upgrade units",
-   "challenge": "Is this supported by the data, or could something else explain it better?",
-   "verdict": "retained",
-   "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
-  },
-  {
-   "cause": "No significant channel shift detected",
+   "cause": "Volume routing shift",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
@@ -136,62 +69,45 @@
    "Channel"
   ],
   "inherited_from": "Business Org",
-  "narrative": "Starting at the queue level, adherence exceeded the threshold. Checking the INVESTIGATION_LADDER revealed the same breach at the Business Org level, so the investigation stopped there as the cause is inherited from higher aggregation."
+  "narrative": "The same miss is already visible at Business Org level, so it is not specific to this queue and should be attributed there."
  },
  "channel_migration": {
   "detected": false,
-  "narrative": "All three channels (Chat, Email, Voice) showed lower offered volume this week versus last week, with no channel gaining volume to offset another's loss, so there is no evidence of demand shifting between channels.",
-  "gaining_channels": [],
-  "losing_channels": [
-   "Chat",
-   "Email",
-   "Voice"
+  "narrative": "Channel movements do not cancel out, so this is not a like-for-like shift between channels.",
+  "gaining_channels": [
+   "Email"
   ],
-  "grouped_by": "Region + SubRegion + Country + business_org",
-  "is_cqn_proxy": true,
-  "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+  "losing_channels": [],
+  "is_cqn_proxy": false,
   "detail": {
    "available": true,
-   "grouped_by": "Region + SubRegion + Country + business_org",
-   "is_cqn_proxy": true,
-   "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+   "grouped_by": "Combined_Queue_Name (authoritative mapping)",
+   "combined_queue_names": [
+    "ANZ Client Core Email Concentrix"
+   ],
+   "is_cqn_proxy": false,
+   "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: ANZ Client Core Email Concentrix). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
    "prior_week": "202721",
    "this_week": "202722",
    "per_channel": [
     {
-     "channel": "Chat",
-     "prior_week_actual": 506.0,
-     "this_week_actual": 493.0,
-     "change": -13.0,
-     "is_target_channel": false
-    },
-    {
      "channel": "Email",
-     "prior_week_actual": 4654.0,
-     "this_week_actual": 4071.0,
-     "change": -583.0,
+     "prior_week_actual": 536.0,
+     "this_week_actual": 586.0,
+     "change": 50.0,
      "is_target_channel": true
-    },
-    {
-     "channel": "Voice",
-     "prior_week_actual": 1364.0,
-     "this_week_actual": 798.0,
-     "change": -566.0,
-     "is_target_channel": false
     }
    ],
-   "group_total_prior_week": 6524.0,
-   "group_total_this_week": 5362.0,
-   "group_total_change": -1162.0,
-   "gross_channel_movement": 1162.0,
+   "group_total_prior_week": 536.0,
+   "group_total_this_week": 586.0,
+   "group_total_change": 50.0,
+   "gross_channel_movement": 50.0,
    "offset_share": 0.0,
    "migration_detected": false,
-   "gaining_channels": [],
-   "losing_channels": [
-    "Chat",
-    "Email",
-    "Voice"
+   "gaining_channels": [
+    "Email"
    ],
+   "losing_channels": [],
    "note": "Channel movements do not cancel out, so this is not a like-for-like shift between channels."
   }
  },
@@ -231,27 +147,10 @@
   {
    "label": "Adherence at Channel level",
    "value": 8.0
-  },
-  {
-   "label": "Forecast adherence (%)",
-   "value": 16.3
-  },
-  {
-   "label": "Actual offered (Actual_Offered)",
-   "value": 586.0
-  },
-  {
-   "label": "Business Org adherence (%)",
-   "value": 20.5
-  },
-  {
-   "label": "Final_upp_units (upgrade units)",
-   "value": 2677.0
   }
  ],
  "missing_information": [
-  "Actual_ASU (actual units under warranty) \u2013 needed to split the miss into warranty\u2011base and contacts\u2011per\u2011unit effects.",
-  "Detailed historical ASU trend to confirm whether the upgrade\u2011unit rise is sustained or a one\u2011off."
+  "nvidia/nvidia/nemotron-3-super-120b-a12b produced no cause the data supports (proposed nothing; the data only supports ['installed_base_change', 'volume_routing_shift', 'inherited_from_higher_level']). This report was built from the deterministic data checks only - it is not the full multi-hypothesis WFM investigation."
  ],
  "derived_features": {
   "base_features": {
@@ -408,46 +307,33 @@
   },
   "channel_siblings": {
    "available": true,
-   "grouped_by": "Region + SubRegion + Country + business_org",
-   "is_cqn_proxy": true,
-   "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+   "grouped_by": "Combined_Queue_Name (authoritative mapping)",
+   "combined_queue_names": [
+    "ANZ Client Core Email Concentrix"
+   ],
+   "is_cqn_proxy": false,
+   "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: ANZ Client Core Email Concentrix). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
    "prior_week": "202721",
    "this_week": "202722",
    "per_channel": [
     {
-     "channel": "Chat",
-     "prior_week_actual": 506.0,
-     "this_week_actual": 493.0,
-     "change": -13.0,
-     "is_target_channel": false
-    },
-    {
      "channel": "Email",
-     "prior_week_actual": 4654.0,
-     "this_week_actual": 4071.0,
-     "change": -583.0,
+     "prior_week_actual": 536.0,
+     "this_week_actual": 586.0,
+     "change": 50.0,
      "is_target_channel": true
-    },
-    {
-     "channel": "Voice",
-     "prior_week_actual": 1364.0,
-     "this_week_actual": 798.0,
-     "change": -566.0,
-     "is_target_channel": false
     }
    ],
-   "group_total_prior_week": 6524.0,
-   "group_total_this_week": 5362.0,
-   "group_total_change": -1162.0,
-   "gross_channel_movement": 1162.0,
+   "group_total_prior_week": 536.0,
+   "group_total_this_week": 586.0,
+   "group_total_change": 50.0,
+   "gross_channel_movement": 50.0,
    "offset_share": 0.0,
    "migration_detected": false,
-   "gaining_channels": [],
-   "losing_channels": [
-    "Chat",
-    "Email",
-    "Voice"
+   "gaining_channels": [
+    "Email"
    ],
+   "losing_channels": [],
    "note": "Channel movements do not cancel out, so this is not a like-for-like shift between channels."
   },
   "investigation_ladder": {
@@ -568,75 +454,36 @@
    }
   }
  },
+ "cause_type": "volume_routing_shift",
  "investigation_meta": {
-  "engine": "wfm-llm",
-  "provider": "nvidia",
-  "model": "nvidia/nemotron-3-super-120b-a12b",
-  "calls": 1,
-  "generated_at": "2026-07-28T17:43:31.061651+00:00"
+  "engine": "wfm-deterministic-fallback",
+  "generated_at": "2026-07-29T03:58:24.113331+00:00"
  },
  "primary_root_cause": {
-  "statement": "The forecast for this queue is high because the whole CSG business organisation is over\u2011forecasting demand; the same pattern appears at Region, SubRegion and Country levels.",
-  "confidence": 0.9,
+  "statement": "The same miss is already visible at Business Org level, so it is not specific to this queue and a queue-level cause cannot explain it.",
+  "confidence": 0.65,
   "supporting_evidence": [
    {
-    "text": "Business Org forecast adherence is 20.5%",
-    "source_field": "INVESTIGATION_LADDER.levels[0].adherence_pct",
-    "value": 20.5
-   },
-   {
-    "text": "Business Org actual offered 185,972 vs forecast 233,909.3",
-    "source_field": "INVESTIGATION_LADDER.levels[0].actual_offered",
+    "text": "At Business Org level (CSG) adherence was 20.5% for the same week.",
+    "source_field": "Actual_Offered",
     "value": 185972.0
-   },
-   {
-    "text": "Business Org forecast offered 233,909.3",
-    "source_field": "INVESTIGATION_LADDER.levels[0].fcst_offered",
-    "value": 233909.3
    }
   ]
  },
  "secondary_contributors": [
   {
-   "statement": "The count of upgrade\u2011protected units (Final_upp_units) is well above its usual level, which may be influencing demand but is not yet reflected in the forecast.",
-   "confidence": 0.55,
+   "statement": "At least one similar queue (another queue in the same region, country and channel) moved the opposite way the same week, so the work most likely shifted between queues rather than total demand going up or down.",
+   "confidence": 0.45,
    "supporting_evidence": [
     {
-     "text": "Final_upp_units this week is 2,677",
-     "source_field": "target_row_fields.Final_upp_units",
-     "value": 2677.0
-    },
-    {
-     "text": "Usual level of Final_upp_units is about 2,150",
-     "source_field": "DERIVED_FEATURES.installed_base.history_mean",
-     "value": 2149.88
-    },
-    {
-     "text": "Z\u2011score for Final_upp_units is 2.96, indicating an unusual increase",
-     "source_field": "DERIVED_FEATURES.installed_base.z_score",
-     "value": 2.96
-    }
-   ]
-  },
-  {
-   "statement": "Overall offered volume across all channels declined versus the prior week, but there is no evidence of demand moving between channels; the change appears to be a general volume decrease rather than a routing shift.",
-   "confidence": 0.3,
-   "supporting_evidence": [
-    {
-     "text": "Total offered volume across Chat, Email and Voice changed by \u20131,162 versus prior week",
-     "source_field": "CHANNEL_SIBLINGS.group_total_change",
-     "value": -1162.0
-    },
-    {
-     "text": "Combined gross channel movement is 1,162 with no offsetting gains",
-     "source_field": "CHANNEL_SIBLINGS.gross_channel_movement",
-     "value": 1162.0
+     "text": "a similar queue (ANZ Cons Core TS Email) moved the opposite way the same week",
+     "source_field": "peer_divergence",
+     "value": 2
     }
    ]
   }
  ],
- "confidence_score": 0.9,
- "cause_type": "inherited_from_higher_level",
+ "confidence_score": 0.65,
  "key_findings": [
   "The forecast this week was 700.51, and actual demand was 586.0.",
   "This queue's misses have no consistent direction over recent weeks.",
@@ -646,37 +493,17 @@
  ],
  "supporting_evidence": [
   {
-   "text": "Business Org forecast adherence is 20.5%",
-   "source_field": "INVESTIGATION_LADDER.levels[0].adherence_pct",
-   "value": 20.5
-  },
-  {
-   "text": "Business Org actual offered 185,972 vs forecast 233,909.3",
-   "source_field": "INVESTIGATION_LADDER.levels[0].actual_offered",
+   "text": "At Business Org level (CSG) adherence was 20.5% for the same week.",
+   "source_field": "Actual_Offered",
    "value": 185972.0
-  },
-  {
-   "text": "Business Org forecast offered 233,909.3",
-   "source_field": "INVESTIGATION_LADDER.levels[0].fcst_offered",
-   "value": 233909.3
   }
  ],
- "reasoning_narrative": "Forecast adherence for ANZ Client Core Email was 16.3%, meaning the forecast over\u2011estimated actual demand by more than the allowed 10% threshold. The same over\u2011forecast pattern is already present at the Business Org level (CSG) and propagates down through Region, SubRegion and Country, indicating the miss is not specific to this queue. A contributing factor is an unusually high count of upgrade units (Final_upp_units) this week, though warranty\u2011unit data is missing. Action should focus on revising the Business Org forecast plan and validating the installed\u2011base assumptions that feed it.",
- "rejected_hypotheses": [
-  {
-   "hypothesis": "inherited_from_higher_level",
-   "reason_rejected": "The INVESTIGATION_LADDER shows the same adherence breach at Business Org, Region, SubRegion and Country levels, making a queue\u2011only cause unlikely."
-  },
-  {
-   "hypothesis": "volume_routing_shift",
-   "reason_rejected": "CHANNEL_SIBLINGS reports migration_detected false and all three channels show losses, with gaining_channels empty, indicating no offsetting shift."
-  }
- ],
+ "reasoning_narrative": "The same miss is already visible at Business Org level, so it is not specific to this queue and a queue-level cause cannot explain it.",
+ "rejected_hypotheses": [],
  "historical_comparison": {},
  "forecast_improvement_recommendations": [
-  "Review and recalibrate the CSG\u2011level forecast plan (FY27 Jun Projection) and its underlying demand drivers.",
-  "Validate the upgrade\u2011unit forecast assumption and incorporate recent trends into the CSG demand model.",
-  "Monitor channel trends for any future shifts, but no immediate action required."
+  "Investigate at Business Org level before adjusting this queue's plan.",
+  "Review this queue's forecast inputs and recent accuracy with the planning team."
  ],
  "forecast_summary": {}
 }

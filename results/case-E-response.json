@@ -160,45 +160,32 @@
   },
   "channel_siblings": {
    "available": true,
-   "grouped_by": "Region + SubRegion + Country + business_org",
-   "is_cqn_proxy": true,
-   "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+   "grouped_by": "Combined_Queue_Name (authoritative mapping)",
+   "combined_queue_names": [
+    "Client ProSupport ANZ Chat"
+   ],
+   "is_cqn_proxy": false,
+   "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: Client ProSupport ANZ Chat). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
    "prior_week": "202721",
    "this_week": "202722",
    "per_channel": [
     {
      "channel": "Chat",
-     "prior_week_actual": 506.0,
-     "this_week_actual": 493.0,
-     "change": -13.0,
+     "prior_week_actual": 341.0,
+     "this_week_actual": 305.0,
+     "change": -36.0,
      "is_target_channel": true
-    },
-    {
-     "channel": "Email",
-     "prior_week_actual": 4654.0,
-     "this_week_actual": 4071.0,
-     "change": -583.0,
-     "is_target_channel": false
-    },
-    {
-     "channel": "Voice",
-     "prior_week_actual": 1364.0,
-     "this_week_actual": 798.0,
-     "change": -566.0,
-     "is_target_channel": false
     }
    ],
-   "group_total_prior_week": 6524.0,
-   "group_total_this_week": 5362.0,
-   "group_total_change": -1162.0,
-   "gross_channel_movement": 1162.0,
+   "group_total_prior_week": 341.0,
+   "group_total_this_week": 305.0,
+   "group_total_change": -36.0,
+   "gross_channel_movement": 36.0,
    "offset_share": 0.0,
    "migration_detected": false,
    "gaining_channels": [],
    "losing_channels": [
-    "Chat",
-    "Email",
-    "Voice"
+    "Chat"
    ],
    "note": "Channel movements do not cancel out, so this is not a like-for-like shift between channels."
   },

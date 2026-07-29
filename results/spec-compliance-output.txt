@@ -1,0 +1,65 @@
+==============================================================================
+SPEC COMPLIANCE CHECK -- does the engine obey the business prompt?
+branch artefacts: wfm/ package      bundle: bundle.json
+==============================================================================
+    SQL deep context: YES
+
+------------------------------------------------------------------------------
+RUN: nvidia / nvidia/nemotron-3-super-120b-a12b
+  engine=wfm-llm  47.9s  causes=3
+    #1 [90% High] Hypothesis - To be Validated :: data_quality_issue :: Suspect actual volume figure
+    #2 [70% High] Verified :: inherited_from_higher_level :: Miss inherited from Region-level under-forecast
+    #3 [50% Medium] Hypothesis - To be Validated :: plan_restatement :: Forecast plan restatement may have introduced baseline error
+      PASS  S1   KPI: Forecast Adherence formula + threshold recorded
+      PASS  S2   KPI: breach flag agrees with |adherence| > threshold
+      PASS  S3   Root causes: multiple explanations, ranked, capped at 5
+      PASS  S4   Root causes: each carries description, evidence, confidence, impact, action
+      PASS  S5   Root causes: best-supported first (confidence descends)
+      PASS  S6   Confidence: percent AND High/Medium/Low, consistent with each other
+      PASS  S7   Hypothesis engine: status is Verified or 'Hypothesis - To be Validated'
+      PASS  S8   Skeptic mode: challenges recorded with verdicts
+      PASS  S9   Business language: no statistics vocabulary in business-facing text
+      PASS  S10  Technical metrics kept in their own (collapsed) section
+      PASS  S11  Output format: executive summary, KPI status, business impact all present
+      PASS  S12  Core principle: observations exist separately from the ranked cause
+      PASS  S13  Temporal: prior week / last 4 / last 13 / same week last year computed
+      PASS  S14  Investigation order: higher levels checked before concluding
+      PASS  S15  Investigation order: an inherited miss is actually reported as inherited
+      PASS  S16  CQN validation: channel migration evaluated before blaming the forecast
+      PASS  S17  Correlation analysis: relationships retained/rejected on evidence
+      PASS  S18  Critical rules: no invented campaigns / product launches asserted
+      PASS  S19  Critical rules: every quoted figure traces to the real data
+      PASS  S20  Critical rules: gaps declared rather than glossed over
+      PASS  S21  Action recommendations: every cause carries a practical action
+
+------------------------------------------------------------------------------
+RUN: groq / llama-3.3-70b-versatile
+  engine=wfm-llm  3.1s  causes=2
+    #1 [90% High] Hypothesis - To be Validated :: data_quality_issue :: Data Quality Issue
+    #2 [80% High] Verified :: inherited_from_higher_level :: Inherited from Higher Level
+      PASS  S1   KPI: Forecast Adherence formula + threshold recorded
+      PASS  S2   KPI: breach flag agrees with |adherence| > threshold
+      PASS  S3   Root causes: multiple explanations, ranked, capped at 5
+      PASS  S4   Root causes: each carries description, evidence, confidence, impact, action
+      PASS  S5   Root causes: best-supported first (confidence descends)
+      PASS  S6   Confidence: percent AND High/Medium/Low, consistent with each other
+      PASS  S7   Hypothesis engine: status is Verified or 'Hypothesis - To be Validated'
+      PASS  S8   Skeptic mode: challenges recorded with verdicts
+      PASS  S9   Business language: no statistics vocabulary in business-facing text
+      PASS  S10  Technical metrics kept in their own (collapsed) section
+      PASS  S11  Output format: executive summary, KPI status, business impact all present
+      PASS  S12  Core principle: observations exist separately from the ranked cause
+      PASS  S13  Temporal: prior week / last 4 / last 13 / same week last year computed
+      PASS  S14  Investigation order: higher levels checked before concluding
+      PASS  S15  Investigation order: an inherited miss is actually reported as inherited
+      PASS  S16  CQN validation: channel migration evaluated before blaming the forecast
+      PASS  S17  Correlation analysis: relationships retained/rejected on evidence
+      PASS  S18  Critical rules: no invented campaigns / product launches asserted
+      PASS  S19  Critical rules: every quoted figure traces to the real data
+      PASS  S20  Critical rules: gaps declared rather than glossed over
+      PASS  S21  Action recommendations: every cause carries a practical action
+
+==============================================================================
+42 PASS / 0 FAIL / 0 SKIP  of 42 clause checks across 2 providers
+report -> results/spec-compliance-report.json
+==============================================================================

@@ -1,5 +1,5 @@
 {
- "executive_summary": "The same miss is already visible at Business Org level, so it is not specific to this queue and a queue-level cause cannot explain it.",
+ "executive_summary": "The forecast adherence KPI for the ANZ Client Core queue was 66.1%, which is below the threshold of 10%. This indicates that the actual offered volume was significantly lower than the forecasted volume. The investigation suggests that the miss is likely due to a systematic forecast bias and an inherited issue from a higher level, specifically the Business Org level.",
  "kpi_status": {
   "metric": "Forecast Adherence",
   "adherence_pct": 66.1,
@@ -7,54 +7,66 @@
   "breached": true,
   "direction": "over_forecast"
  },
- "business_impact": "Correcting this queue alone would not fix a miss the whole level shares.",
+ "business_impact": "The low forecast adherence may result in underutilization of resources and potential loss of revenue.",
  "ranked_root_causes": [
   {
    "rank": 1,
    "cause_type": "inherited_from_higher_level",
-   "title": "The miss is inherited from Business Org level",
-   "explanation": "The same miss is already visible at Business Org level, so it is not specific to this queue and a queue-level cause cannot explain it.",
+   "title": "Inherited Issue from Business Org Level",
+   "explanation": "The same miss is already visible at the Business Org level, indicating that the issue is not specific to this queue but rather a broader problem.",
    "evidence": [
     {
-     "text": "At Business Org level (CSG) adherence was 20.5% for the same week.",
-     "source_field": "Actual_Offered",
-     "value": 185972.0
+     "text": "INVESTIGATION_LADDER levels breaching band",
+     "source_field": "INVESTIGATION_LADDER",
+     "value": "Business Org"
     }
    ],
-   "confidence_pct": 65,
-   "confidence_level": "Medium",
-   "business_impact": "Correcting this queue alone would not fix a miss the whole level shares.",
-   "recommended_action": "Investigate at Business Org level before adjusting this queue's plan.",
+   "confidence_pct": 90,
+   "confidence_level": "High",
+   "business_impact": "The issue may affect multiple queues and require a more comprehensive solution.",
+   "recommended_action": "Investigate and address the issue at the Business Org level.",
    "status": "Verified"
   },
   {
    "rank": 2,
-   "cause_type": "genuine_demand_event",
-   "title": "Genuine demand event",
-   "explanation": "Actual demand this week was 83.0 \u2014 far from this queue's usual level of about 232.38 \u2014 while the forecast (244.6) was about normal. This looks like a real change in demand this week, not a forecasting error.",
+   "cause_type": "systematic_forecast_bias",
+   "title": "Systematic Forecast Bias",
+   "explanation": "The chronic bias feature indicates a consistent over-forecasting issue, which may be contributing to the low adherence.",
    "evidence": [
     {
-     "text": "actual demand was 83.0 vs a usual ~232.38, while the forecast (244.6) was about normal",
-     "source_field": "Actual_Offered",
-     "value": 83.0
+     "text": "DERIVED_FEATURES chronic_bias history_mean_adherence_pct",
+     "source_field": "DERIVED_FEATURES",
+     "value": 18.4
     }
    ],
-   "confidence_pct": 60,
-   "confidence_level": "Medium",
-   "business_impact": "See the forecast adherence gap for this queue.",
-   "recommended_action": "Review this queue's forecast inputs and recent accuracy with the planning team.",
+   "confidence_pct": 80,
+   "confidence_level": "High",
+   "business_impact": "The bias may be affecting multiple forecasts and require adjustments to the forecasting process.",
+   "recommended_action": "Review and adjust the forecasting process to address the systematic bias.",
    "status": "Verified"
   }
  ],
  "skeptic_review": [
   {
-   "cause": "The miss is inherited from Business Org level",
+   "cause": "inherited_from_higher_level",
+   "challenge": "Is the issue specific to this queue or a broader problem?",
+   "verdict": "retained",
+   "reason": "The investigation ladder shows that the miss is already visible at the Business Org level."
+  },
+  {
+   "cause": "systematic_forecast_bias",
+   "challenge": "Is the bias a one-time issue or a consistent problem?",
+   "verdict": "retained",
+   "reason": "The chronic bias feature indicates a consistent over-forecasting issue."
+  },
+  {
+   "cause": "Inherited Issue from Business Org Level",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
   },
   {
-   "cause": "Genuine demand event",
+   "cause": "Systematic Forecast Bias",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
@@ -69,58 +81,45 @@
    "Channel"
   ],
   "inherited_from": "Business Org",
-  "narrative": "The same miss is already visible at Business Org level, so it is not specific to this queue and should be attributed there."
+  "narrative": "The investigation started at the queue level and moved up the hierarchy to identify the root cause."
  },
  "channel_migration": {
   "detected": false,
-  "narrative": "Channel movements do not cancel out, so this is not a like-for-like shift between channels.",
+  "narrative": "No channel migration was detected.",
   "gaining_channels": [],
   "losing_channels": [
-   "Chat",
-   "Email",
    "Voice"
   ],
-  "is_cqn_proxy": true,
+  "grouped_by": "Combined_Queue_Name (authoritative mapping)",
+  "is_cqn_proxy": false,
+  "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: ANZ Commercial Client Concentrix). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
   "detail": {
    "available": true,
-   "grouped_by": "Region + SubRegion + Country + business_org",
-   "is_cqn_proxy": true,
-   "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+   "grouped_by": "Combined_Queue_Name (authoritative mapping)",
+   "combined_queue_names": [
+    "ANZ Commercial Client Concentrix"
+   ],
+   "is_cqn_proxy": false,
+   "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: ANZ Commercial Client Concentrix). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
    "prior_week": "202721",
    "this_week": "202722",
    "per_channel": [
     {
-     "channel": "Chat",
-     "prior_week_actual": 506.0,
-     "this_week_actual": 493.0,
-     "change": -13.0,
-     "is_target_channel": false
-    },
-    {
-     "channel": "Email",
-     "prior_week_actual": 4654.0,
-     "this_week_actual": 4071.0,
-     "change": -583.0,
-     "is_target_channel": false
-    },
-    {
      "channel": "Voice",
-     "prior_week_actual": 1364.0,
-     "this_week_actual": 798.0,
-     "change": -566.0,
+     "prior_week_actual": 126.0,
+     "this_week_actual": 83.0,
+     "change": -43.0,
      "is_target_channel": true
     }
    ],
-   "group_total_prior_week": 6524.0,
-   "group_total_this_week": 5362.0,
-   "group_total_change": -1162.0,
-   "gross_channel_movement": 1162.0,
+   "group_total_prior_week": 126.0,
+   "group_total_this_week": 83.0,
+   "group_total_change": -43.0,
+   "gross_channel_movement": 43.0,
    "offset_share": 0.0,
    "migration_detected": false,
    "gaining_channels": [],
    "losing_channels": [
-    "Chat",
-    "Email",
     "Voice"
    ],
    "note": "Channel movements do not cancel out, so this is not a like-for-like shift between channels."
@@ -170,10 +169,14 @@
   {
    "label": "Adherence at Channel level",
    "value": 49.2
+  },
+  {
+   "label": "DERIVED_FEATURES chronic_bias history_mean_adherence_pct",
+   "value": 18.4
   }
  ],
  "missing_information": [
-  "groq/llama-3.3-70b-versatile HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kkrjztjcfcd8h1kwmdh4ymne` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 94605,. This report was built from the deterministic data checks only - it is not the full multi-hypothesis WFM investigation."
+  "Actual_ASU"
  ],
  "derived_features": {
   "base_features": {
@@ -321,44 +324,31 @@
   },
   "channel_siblings": {
    "available": true,
-   "grouped_by": "Region + SubRegion + Country + business_org",
-   "is_cqn_proxy": true,
-   "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+   "grouped_by": "Combined_Queue_Name (authoritative mapping)",
+   "combined_queue_names": [
+    "ANZ Commercial Client Concentrix"
+   ],
+   "is_cqn_proxy": false,
+   "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: ANZ Commercial Client Concentrix). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
    "prior_week": "202721",
    "this_week": "202722",
    "per_channel": [
     {
-     "channel": "Chat",
-     "prior_week_actual": 506.0,
-     "this_week_actual": 493.0,
-     "change": -13.0,
-     "is_target_channel": false
-    },
-    {
-     "channel": "Email",
-     "prior_week_actual": 4654.0,
-     "this_week_actual": 4071.0,
-     "change": -583.0,
-     "is_target_channel": false
-    },
-    {
      "channel": "Voice",
-     "prior_week_actual": 1364.0,
-     "this_week_actual": 798.0,
-     "change": -566.0,
+     "prior_week_actual": 126.0,
+     "this_week_actual": 83.0,
+     "change": -43.0,
      "is_target_channel": true
     }
    ],
-   "group_total_prior_week": 6524.0,
-   "group_total_this_week": 5362.0,
-   "group_total_change": -1162.0,
-   "gross_channel_movement": 1162.0,
+   "group_total_prior_week": 126.0,
+   "group_total_this_week": 83.0,
+   "group_total_change": -43.0,
+   "gross_channel_movement": 43.0,
    "offset_share": 0.0,
    "migration_detected": false,
    "gaining_channels": [],
    "losing_channels": [
-    "Chat",
-    "Email",
     "Voice"
    ],
    "note": "Channel movements do not cancel out, so this is not a like-for-like shift between channels."
@@ -483,36 +473,39 @@
    }
   }
  },
- "cause_type": "genuine_demand_event",
  "investigation_meta": {
-  "engine": "wfm-deterministic-fallback",
-  "generated_at": "2026-07-28T16:58:44.851598+00:00"
+  "engine": "wfm-llm",
+  "provider": "groq",
+  "model": "llama-3.3-70b-versatile",
+  "calls": 1,
+  "generated_at": "2026-07-29T03:54:26.801027+00:00"
  },
  "primary_root_cause": {
-  "statement": "The same miss is already visible at Business Org level, so it is not specific to this queue and a queue-level cause cannot explain it.",
-  "confidence": 0.65,
+  "statement": "The same miss is already visible at the Business Org level, indicating that the issue is not specific to this queue but rather a broader problem.",
+  "confidence": 0.9,
   "supporting_evidence": [
    {
-    "text": "At Business Org level (CSG) adherence was 20.5% for the same week.",
-    "source_field": "Actual_Offered",
-    "value": 185972.0
+    "text": "INVESTIGATION_LADDER levels breaching band",
+    "source_field": "INVESTIGATION_LADDER",
+    "value": "Business Org"
    }
   ]
  },
  "secondary_contributors": [
   {
-   "statement": "Actual demand this week was 83.0 \u2014 far from this queue's usual level of about 232.38 \u2014 while the forecast (244.6) was about normal. This looks like a real change in demand this week, not a forecasting error.",
-   "confidence": 0.6,
+   "statement": "The chronic bias feature indicates a consistent over-forecasting issue, which may be contributing to the low adherence.",
+   "confidence": 0.8,
    "supporting_evidence": [
     {
-     "text": "actual demand was 83.0 vs a usual ~232.38, while the forecast (244.6) was about normal",
-     "source_field": "Actual_Offered",
-     "value": 83.0
+     "text": "DERIVED_FEATURES chronic_bias history_mean_adherence_pct",
+     "source_field": "DERIVED_FEATURES",
+     "value": 18.4
     }
    ]
   }
  ],
- "confidence_score": 0.65,
+ "confidence_score": 0.9,
+ "cause_type": "inherited_from_higher_level",
  "key_findings": [
   "The forecast this week was 244.6, and actual demand was 83.0.",
   "Actual demand (83.0) was far from this queue's usual level of about 232.38, while the forecast (244.6) was about normal.",
@@ -523,17 +516,17 @@
  ],
  "supporting_evidence": [
   {
-   "text": "At Business Org level (CSG) adherence was 20.5% for the same week.",
-   "source_field": "Actual_Offered",
-   "value": 185972.0
+   "text": "INVESTIGATION_LADDER levels breaching band",
+   "source_field": "INVESTIGATION_LADDER",
+   "value": "Business Org"
   }
  ],
- "reasoning_narrative": "The same miss is already visible at Business Org level, so it is not specific to this queue and a queue-level cause cannot explain it.",
+ "reasoning_narrative": "The forecast adherence KPI for the ANZ Client Core queue was 66.1%, which is below the threshold of 10%. This indicates that the actual offered volume was significantly lower than the forecasted volume. The investigation suggests that the miss is likely due to a systematic forecast bias and an inherited issue from a higher level, specifically the Business Org level.",
  "rejected_hypotheses": [],
  "historical_comparison": {},
  "forecast_improvement_recommendations": [
-  "Investigate at Business Org level before adjusting this queue's plan.",
-  "Review this queue's forecast inputs and recent accuracy with the planning team."
+  "Investigate and address the issue at the Business Org level.",
+  "Review and adjust the forecasting process to address the systematic bias."
  ],
  "forecast_summary": {}
 }

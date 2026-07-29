@@ -1,5 +1,5 @@
 {
- "executive_summary": "The forecast adherence for the Brazil Client Core queue was 75.3%, which is below the threshold of 10%. This indicates that the actual offered volume was significantly lower than the forecasted volume. The investigation suggests that the miss is inherited from a higher level, specifically the Business Org level. The actual offered volume was 28.0, which is about 3x lower than usual, while the forecasted volume was 113.4, which is about 28% lower than usual.",
+ "executive_summary": "The forecast adherence for the Brazil Client Core queue was 75.3%, indicating a significant over-forecast. The actual offered volume was 28.0, which is about 3x lower than usual. The miss is not specific to this queue and is already visible at the Business Org level. The investigation suggests that the cause is likely inherited from a higher level.",
  "kpi_status": {
   "metric": "Forecast Adherence",
   "adherence_pct": 75.3,
@@ -7,57 +7,57 @@
   "breached": true,
   "direction": "over_forecast"
  },
- "business_impact": "The low forecast adherence may lead to over-staffing and reduced productivity, resulting in increased costs and decreased efficiency.",
+ "business_impact": "The over-forecast has resulted in underutilization of resources, potentially leading to wasted capacity and inefficiencies.",
  "ranked_root_causes": [
   {
    "rank": 1,
    "cause_type": "inherited_from_higher_level",
    "title": "Inherited from Business Org level",
-   "explanation": "The same miss is already visible at the Business Org level, so it is not specific to this queue and should be attributed there.",
+   "explanation": "The same miss is already visible at the Business Org level, indicating that the cause is likely inherited from a higher level.",
    "evidence": [
     {
-     "text": "INVESTIGATION_LADDER levels breaching band",
-     "source_field": "INVESTIGATION_LADDER.levels_breaching_band",
+     "text": "INVESTIGATION_LADDER.inherited_from",
+     "source_field": "INVESTIGATION_LADDER",
      "value": "Business Org"
     }
    ],
    "confidence_pct": 90,
    "confidence_level": "High",
-   "business_impact": "The low forecast adherence at the Business Org level may have a significant impact on the overall business, resulting in increased costs and decreased efficiency.",
-   "recommended_action": "Investigate and address the issue at the Business Org level",
+   "business_impact": "The over-forecast has resulted in underutilization of resources, potentially leading to wasted capacity and inefficiencies.",
+   "recommended_action": "Investigate the cause at the Business Org level to identify the root cause of the over-forecast.",
    "status": "Verified"
   },
   {
    "rank": 2,
    "cause_type": "systematic_forecast_bias",
    "title": "Systematic forecast bias",
-   "explanation": "The forecasted volume was 113.4, which is about 28% lower than usual, while the actual offered volume was 28.0, which is about 3x lower than usual. This suggests a systematic bias in the forecasting process.",
+   "explanation": "The chronic bias analysis suggests that the forecast has been consistently over-forecasting, indicating a systematic bias.",
    "evidence": [
     {
-     "text": "DERIVED_FEATURES forecast sanity verdict",
-     "source_field": "DERIVED_FEATURES.forecast_sanity.verdict",
-     "value": "actual_anomalous"
+     "text": "DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct",
+     "source_field": "DERIVED_FEATURES",
+     "value": 39.4
     }
    ],
    "confidence_pct": 70,
    "confidence_level": "High",
-   "business_impact": "The systematic forecast bias may result in consistent over- or under-forecasting, leading to inefficiencies and increased costs.",
-   "recommended_action": "Review and adjust the forecasting process to reduce bias",
+   "business_impact": "The systematic bias has resulted in consistent over-forecasting, leading to inefficiencies and wasted resources.",
+   "recommended_action": "Review the forecasting process to identify and address the systematic bias.",
    "status": "Verified"
   }
  ],
  "skeptic_review": [
   {
    "cause": "inherited_from_higher_level",
-   "challenge": "Is the issue specific to this queue or is it inherited from a higher level?",
+   "challenge": "Is the miss specific to this queue or is it inherited from a higher level?",
    "verdict": "retained",
-   "reason": "The INVESTIGATION_LADDER levels breaching band includes Business Org, indicating that the issue is inherited from a higher level."
+   "reason": "The INVESTIGATION_LADDER indicates that the miss is inherited from the Business Org level."
   },
   {
    "cause": "systematic_forecast_bias",
-   "challenge": "Is the forecast bias due to a systematic issue or a one-time anomaly?",
+   "challenge": "Is the systematic bias a consistent pattern or a one-off event?",
    "verdict": "retained",
-   "reason": "The DERIVED_FEATURES forecast sanity verdict indicates that the actual offered volume is anomalous, suggesting a systematic bias."
+   "reason": "The chronic bias analysis suggests that the systematic bias is a consistent pattern."
   },
   {
    "cause": "Inherited from Business Org level",
@@ -81,71 +81,45 @@
    "Channel"
   ],
   "inherited_from": "Business Org",
-  "narrative": "The investigation started at the queue level and moved up the hierarchy, finding that the issue is inherited from the Business Org level."
+  "narrative": "The investigation started at the Business Org level and found that the miss is inherited from this level."
  },
  "channel_migration": {
   "detected": false,
-  "narrative": "No channel migration was detected, as the CHANNEL_SIBLINGS migration_detected verdict is false.",
-  "gaining_channels": [
-   "Email"
-  ],
+  "narrative": "No channel migration was detected.",
+  "gaining_channels": [],
   "losing_channels": [
-   "Chat",
-   "Social Media",
    "Voice"
   ],
-  "grouped_by": "Region + SubRegion + Country + business_org",
-  "is_cqn_proxy": true,
-  "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+  "grouped_by": "Combined_Queue_Name (authoritative mapping)",
+  "is_cqn_proxy": false,
+  "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: Brazil Client Core SITEL). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
   "detail": {
    "available": true,
-   "grouped_by": "Region + SubRegion + Country + business_org",
-   "is_cqn_proxy": true,
-   "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+   "grouped_by": "Combined_Queue_Name (authoritative mapping)",
+   "combined_queue_names": [
+    "Brazil Client Core SITEL"
+   ],
+   "is_cqn_proxy": false,
+   "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: Brazil Client Core SITEL). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
    "prior_week": "202721",
    "this_week": "202722",
    "per_channel": [
     {
-     "channel": "Chat",
-     "prior_week_actual": 2117.0,
-     "this_week_actual": 2006.0,
-     "change": -111.0,
-     "is_target_channel": false
-    },
-    {
-     "channel": "Email",
-     "prior_week_actual": 2928.0,
-     "this_week_actual": 2979.0,
-     "change": 51.0,
-     "is_target_channel": false
-    },
-    {
-     "channel": "Social Media",
-     "prior_week_actual": 4454.0,
-     "this_week_actual": 4320.0,
-     "change": -134.0,
-     "is_target_channel": false
-    },
-    {
      "channel": "Voice",
-     "prior_week_actual": 2620.0,
-     "this_week_actual": 929.0,
-     "change": -1691.0,
+     "prior_week_actual": 96.0,
+     "this_week_actual": 28.0,
+     "change": -68.0,
      "is_target_channel": true
     }
    ],
-   "group_total_prior_week": 12119.0,
-   "group_total_this_week": 10234.0,
-   "group_total_change": -1885.0,
-   "gross_channel_movement": 1987.0,
-   "offset_share": 0.05,
+   "group_total_prior_week": 96.0,
+   "group_total_this_week": 28.0,
+   "group_total_change": -68.0,
+   "gross_channel_movement": 68.0,
+   "offset_share": 0.0,
    "migration_detected": false,
-   "gaining_channels": [
-    "Email"
-   ],
+   "gaining_channels": [],
    "losing_channels": [
-    "Chat",
-    "Social Media",
     "Voice"
    ],
    "note": "Channel movements do not cancel out, so this is not a like-for-like shift between channels."
@@ -332,53 +306,31 @@
   },
   "channel_siblings": {
    "available": true,
-   "grouped_by": "Region + SubRegion + Country + business_org",
-   "is_cqn_proxy": true,
-   "cqn_note": "Grouped by locality + business org across all channels. The console's signed-off CQN definition includes channel, so this grouping is a PROXY for the Combined Queue, not the authoritative mapped CQN.",
+   "grouped_by": "Combined_Queue_Name (authoritative mapping)",
+   "combined_queue_names": [
+    "Brazil Client Core SITEL"
+   ],
+   "is_cqn_proxy": false,
+   "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: Brazil Client Core SITEL). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
    "prior_week": "202721",
    "this_week": "202722",
    "per_channel": [
     {
-     "channel": "Chat",
-     "prior_week_actual": 2117.0,
-     "this_week_actual": 2006.0,
-     "change": -111.0,
-     "is_target_channel": false
-    },
-    {
-     "channel": "Email",
-     "prior_week_actual": 2928.0,
-     "this_week_actual": 2979.0,
-     "change": 51.0,
-     "is_target_channel": false
-    },
-    {
-     "channel": "Social Media",
-     "prior_week_actual": 4454.0,
-     "this_week_actual": 4320.0,
-     "change": -134.0,
-     "is_target_channel": false
-    },
-    {
      "channel": "Voice",
-     "prior_week_actual": 2620.0,
-     "this_week_actual": 929.0,
-     "change": -1691.0,
+     "prior_week_actual": 96.0,
+     "this_week_actual": 28.0,
+     "change": -68.0,
      "is_target_channel": true
     }
    ],
-   "group_total_prior_week": 12119.0,
-   "group_total_this_week": 10234.0,
-   "group_total_change": -1885.0,
-   "gross_channel_movement": 1987.0,
-   "offset_share": 0.05,
+   "group_total_prior_week": 96.0,
+   "group_total_this_week": 28.0,
+   "group_total_change": -68.0,
+   "gross_channel_movement": 68.0,
+   "offset_share": 0.0,
    "migration_detected": false,
-   "gaining_channels": [
-    "Email"
-   ],
+   "gaining_channels": [],
    "losing_channels": [
-    "Chat",
-    "Social Media",
     "Voice"
    ],
    "note": "Channel movements do not cancel out, so this is not a like-for-like shift between channels."
@@ -508,28 +460,28 @@
   "provider": "groq",
   "model": "llama-3.3-70b-versatile",
   "calls": 1,
-  "generated_at": "2026-07-28T16:59:32.986578+00:00"
+  "generated_at": "2026-07-29T03:55:14.323845+00:00"
  },
  "primary_root_cause": {
-  "statement": "The same miss is already visible at the Business Org level, so it is not specific to this queue and should be attributed there.",
+  "statement": "The same miss is already visible at the Business Org level, indicating that the cause is likely inherited from a higher level.",
   "confidence": 0.9,
   "supporting_evidence": [
    {
-    "text": "INVESTIGATION_LADDER levels breaching band",
-    "source_field": "INVESTIGATION_LADDER.levels_breaching_band",
+    "text": "INVESTIGATION_LADDER.inherited_from",
+    "source_field": "INVESTIGATION_LADDER",
     "value": "Business Org"
    }
   ]
  },
  "secondary_contributors": [
   {
-   "statement": "The forecasted volume was 113.4, which is about 28% lower than usual, while the actual offered volume was 28.0, which is about 3x lower than usual. This suggests a systematic bias in the forecasting process.",
+   "statement": "The chronic bias analysis suggests that the forecast has been consistently over-forecasting, indicating a systematic bias.",
    "confidence": 0.7,
    "supporting_evidence": [
     {
-     "text": "DERIVED_FEATURES forecast sanity verdict",
-     "source_field": "DERIVED_FEATURES.forecast_sanity.verdict",
-     "value": "actual_anomalous"
+     "text": "DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct",
+     "source_field": "DERIVED_FEATURES",
+     "value": 39.4
     }
    ]
   }
@@ -545,17 +497,17 @@
  ],
  "supporting_evidence": [
   {
-   "text": "INVESTIGATION_LADDER levels breaching band",
-   "source_field": "INVESTIGATION_LADDER.levels_breaching_band",
+   "text": "INVESTIGATION_LADDER.inherited_from",
+   "source_field": "INVESTIGATION_LADDER",
    "value": "Business Org"
   }
  ],
- "reasoning_narrative": "The forecast adherence for the Brazil Client Core queue was 75.3%, which is below the threshold of 10%. This indicates that the actual offered volume was significantly lower than the forecasted volume. The investigation suggests that the miss is inherited from a higher level, specifically the Business Org level. The actual offered volume was 28.0, which is about 3x lower than usual, while the forecasted volume was 113.4, which is about 28% lower than usual.",
+ "reasoning_narrative": "The forecast adherence for the Brazil Client Core queue was 75.3%, indicating a significant over-forecast. The actual offered volume was 28.0, which is about 3x lower than usual. The miss is not specific to this queue and is already visible at the Business Org level. The investigation suggests that the cause is likely inherited from a higher level.",
  "rejected_hypotheses": [],
  "historical_comparison": {},
  "forecast_improvement_recommendations": [
-  "Investigate and address the issue at the Business Org level",
-  "Review and adjust the forecasting process to reduce bias"
+  "Investigate the cause at the Business Org level to identify the root cause of the over-forecast.",
+  "Review the forecasting process to identify and address the systematic bias."
  ],
  "forecast_summary": {}
 }

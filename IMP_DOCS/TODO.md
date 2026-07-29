@@ -111,6 +111,45 @@ Recording in `results/canary-v0.2/`, full write-up in `IMP_DOCS/canary-test-log.
 - [ ] **Model picker only exists after a card is selected** (it lives inside `#investigationPanel`,
       built by `selectFlag()`). This is the mechanism behind the V0.1 picker-race finding.
 
+## P1e — CQN mapping (loaded 2026-07-29) and the Data Pair pipeline
+Loader: `backend/upload_cqn_mapping.py`. Source: `CQN and FC mapping.xlsx`.
+- [x] **CQN mapping loaded into SQL** — `dbo.CQN_Mapping` (532 rows, Sheet1: Region, SubRegion,
+      Channel, Offering, Forecast_Name, Combined_Queue_Name, DB_OSP) and
+      `dbo.CQN_Forecast_Pair` (522 rows, Sheet3 Data Pair). Both indexed on Forecast_Name and
+      Combined_Queue_Name. **Coverage: 427/427 queues mapped — 0 unmapped.**
+- [x] **"unmapped" action item CLOSED** — every `Forecast_name` in `Input_To_ML` resolves to at
+      least one Combined Queue. Re-check any time with
+      `python upload_cqn_mapping.py --coverage`.
+- [x] **The CQN definition conflict is RESOLVED — the spec was right.** 35 of 331 Combined Queues
+      span more than one channel (e.g. `EMEA English ProSupp Client (Multi-Site)` = Case + Chat +
+      Email + Voice over 9 forecast names). So channel IS NOT part of the CQN key, migration
+      *within* a CQN is real, and the console's `cqnDimsKey` (`rca_console.html:1653`) is a
+      **locality key, not the Combined Queue**. The WFM engine now groups channel siblings by the
+      authoritative CQN and reports `is_cqn_proxy: false`.
+- [x] **Sheet3 vs Sheet1 settled by measurement.** Sheet3 is the same mapping in PIVOT form with
+      191 of 523 CQN cells blank (group labels written once). Forward-fill those and the two
+      sheets agree on **442/442 names, 0 disagreements** — verifiable with
+      `python upload_cqn_mapping.py --verify-sheets`. Read naively, Sheet3 maps 167 names to blank.
+- [ ] **Rename the console's `cqnDimsKey`.** It is not the CQN — it is a locality key. Leaving the
+      name as-is guarantees someone re-conflates the two concepts. Cosmetic but load-bearing.
+- [ ] **Generalise the Data Pair upload into a reusable pipeline** (requested 2026-07-29). Today
+      `upload_cqn_mapping.py` is hardcoded to this workbook's two sheet shapes. Wanted: one
+      entry point that takes any "pair"-shaped sheet (two key columns, optional dimensions),
+      auto-detects the header row, forward-fills pivot blanks, validates against a target table,
+      reports coverage, and loads it — so future mapping files (site, vendor, LOB, skill) can be
+      onboarded without new code. Should also accept `.csv`, and expose a `--replace` vs
+      `--append` mode instead of always dropping the table.
+- [ ] **Decide how to treat a Forecast_Name that maps to MORE THAN ONE Combined Queue.** 69 of 442
+      do — vendor-site splits (Concentrix vs CGS, Bangalore vs Pune, SITEL, BW, Sykes). `DB_OSP`
+      separates in-house from outsourced but not vendor, so no column in the file disambiguates
+      them. **Current behaviour: the UNION of every CQN the forecast belongs to is used for
+      sibling grouping**, which is why one test queue pulled 54 sibling rows across 2 CQNs.
+      Alternative is to investigate per-CQN and report separately. **Needs a business answer.**
+- [ ] **Wire the mapping into the CONSOLE too.** The UI still shows the `unmapped` badge and reads
+      an uploaded mapping file client-side; it does not know about `dbo.CQN_Mapping`. An endpoint
+      (e.g. `GET /api/cqn-mapping`) would remove the badge and let the dashboard group by real
+      Combined Queue.
+
 ## P2 — dashboard / UX polish (post-deadline OK)
 - [x] High-cardinality dimension cards showed 0% shares — now show row counts; Fiscal_Week dropped from the grid; panel made bolder/cleaner. (2026-07-22)
 - [ ] Trend charts: optional brush/zoom for the 325-week span; shared hover legend across the two trend charts.
