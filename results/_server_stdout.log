@@ -15,3 +15,10 @@ INFO:     127.0.0.1:53270 - "GET /api/queue-context?forecast_name=Brazil%20Clien
 INFO:     127.0.0.1:53272 - "POST /api/rca-investigate?mode=wfm&provider=groq&model=llama-3.3-70b-versatile HTTP/1.1" 200 OK
 INFO:     127.0.0.1:53279 - "GET /api/queue-context?forecast_name=ANZ%20Comm%20Client%20ProSupport%20Chat&fiscal_week=202722&region=APJ&subregion=ANZ&country=Australia&channel=Chat&history_cap=13&peers_cap=15 HTTP/1.1" 200 OK
 INFO:     127.0.0.1:53282 - "POST /api/rca-investigate?mode=wfm&provider=groq&model=llama-3.3-70b-versatile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50066 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50068 - "GET /rca_console.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50070 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50072 - "GET /api/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50074 - "GET /api/cqn-mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50077 - "POST /api/verify-finding HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50079 - "GET /api/data?limit=1 HTTP/1.1" 200 OK

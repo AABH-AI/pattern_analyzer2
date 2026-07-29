@@ -349,6 +349,9 @@
   table.def th,table.def td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
   table.def th{color:var(--muted);text-transform:uppercase;font-size:10.5px;letter-spacing:.5px;}
   table.def td code{background:var(--panel-2);padding:1px 5px;border-radius:4px;font-size:11.5px;}
+  /* cascading-filter count badge: "3 of 16" when a filter above has narrowed this one */
+  .ft .fcount{ font-size:9.5px; font-weight:600; color:var(--muted); margin-left:6px;
+               letter-spacing:.02em; }
 </style>
 </head>
 <body>
@@ -1032,7 +1035,7 @@ function dashFilterChange(sel){
 }
 function dashFwApply(inp){
   const raw=(inp.value||'').trim();
-  if(!raw){ FILTERS['Fiscal_Week']=null; applyAndScan(); return; }
+  if(!raw){ FILTERS['Fiscal_Week']=null; refreshCascade('Fiscal_Week'); applyAndScan(); return; }
   const all=distinctValues('Fiscal_Week'); const sel=new Set();
   raw.split(',').map(s=>s.trim()).filter(Boolean).forEach(tok=>{
     const rng=tok.match(/^(\d+)\s*[-–]\s*(\d+)$/);           // range: 202401-202410 (fixed-width YYYYWW → lexicographic = numeric)
@@ -1040,12 +1043,14 @@ function dashFwApply(inp){
     else { all.forEach(w=>{ if(w===tok || w.indexOf(tok)>=0) sel.add(w); }); }   // exact or partial (type-ahead)
   });
   FILTERS['Fiscal_Week']=sel;   // matched weeks; if nothing matched the set is empty → no rows (Excel behaviour)
+  refreshCascade('Fiscal_Week');
   applyAndScan();
   openAffPopup();               // show the affected queues (real names) for the selected week(s)
 }
 function dashFiltersReset(){
   DASH_FILTER_FIELDS.forEach(([f])=>{ FILTERS[f]=null; });
   FILTERS['Fiscal_Week']=null;
+  if(typeof refreshCascade==='function') refreshCascade(null);
   document.querySelectorAll('#dashFilters select').forEach(s=>s.value='');
   const fwi=document.getElementById('dashFwInput'); if(fwi) fwi.value='';
   applyAndScan();
@@ -1156,7 +1161,7 @@ function buildFilters(){
     FILTERS[field]=null; // null = All
     const vals=distinctValues(field);
     const g=document.createElement('div'); g.className='fgroup';
-    g.innerHTML=`<div class="ft" onclick="this.parentNode.classList.toggle('collapsed')">${label}<span>▾</span></div>
+    g.innerHTML=`<div class="ft" onclick="this.parentNode.classList.toggle('collapsed')">${label}<span class="fcount" id="fcount-${field}"></span><span>▾</span></div>
       <div class="fbody">
         <input class="fsearch" placeholder="Search ${label}…" oninput="filterSearch('${field}',this.value)">
         <label class="fopt"><input type="checkbox" checked onchange="toggleAll('${field}',this.checked)"> <b>(All)</b></label>
@@ -1171,10 +1176,62 @@ function buildFilters(){
     }
   });
 }
+/* ---- Cascading (dependent) filters -------------------------------------------------------
+   FILTER_FIELDS is ordered broad -> narrow (Fiscal Week, Region, Sub-Region, Country, Forecast
+   Name, ...). Choosing a value should narrow every filter BELOW it to the values that actually
+   remain, and drop any selection that no longer applies. Without that you can hold
+   Region=EMEA together with Country=Brazil and get an empty scan with nothing explaining why.
+   Options are HIDDEN rather than removed, so re-widening a filter brings them straight back. ---- */
+function rowsAbove(idx){
+  // rows passing only the filters ABOVE this one, so a filter never narrows itself
+  return ROWS.filter(r=>{
+    if(FOCUS.size && !FOCUS.has(String(r.Forecast_name||'').toLowerCase())) return false;
+    for(let i=0;i<idx;i++){
+      const f=FILTER_FIELDS[i][0], sel=FILTERS[f];
+      if(sel && !sel.has(String(r[f]))) return false;
+    }
+    return true;
+  });
+}
+function refreshCascade(changedField){
+  const start = changedField==null ? -1 : FILTER_FIELDS.findIndex(([f])=>f===changedField);
+  for(let i=Math.max(start+1,0); i<FILTER_FIELDS.length; i++){
+    const field=FILTER_FIELDS[i][0];
+    const avail=new Set();
+    rowsAbove(i).forEach(r=>{ const v=r[field]; if(v!=null&&v!=='') avail.add(String(v)); });
+
+    // a selection that is no longer reachable is dropped, not left to silently zero the scan
+    if(FILTERS[field]){
+      [...FILTERS[field]].forEach(v=>{ if(!avail.has(v)) FILTERS[field].delete(v); });
+      if(FILTERS[field].size===0) FILTERS[field]=null;
+    }
+    const host=document.getElementById('fopts-'+field);
+    if(!host) continue;
+    let shown=0, total=0;
+    host.querySelectorAll('.fopt').forEach(el=>{
+      const v=el.getAttribute('data-v'); total++;
+      const ok=avail.has(v);
+      if(ok) shown++;
+      el.style.display = ok ? 'flex' : 'none';
+      const cb=el.querySelector('input');
+      if(cb) cb.checked = !!(ok && FILTERS[field] && FILTERS[field].has(v));
+    });
+    const allCb=host.parentNode.querySelector('.fopt input');
+    if(allCb) allCb.checked = (FILTERS[field]==null);
+    const badge=document.getElementById('fcount-'+field);
+    if(badge) badge.textContent = (shown<total) ? shown+' of '+total : '';
+    // the Forecast Name datalist should offer only reachable names too
+    if(field==='Forecast_name'){
+      const dl=document.getElementById('fnList');
+      if(dl) dl.innerHTML=[...avail].sort().map(v=>`<option value="${v.replace(/"/g,'&quot;')}">`).join('');
+    }
+  }
+}
 function filterSearch(field,q){ q=q.toLowerCase(); document.querySelectorAll('#fopts-'+field+' .fopt').forEach(el=>{ el.style.display=el.getAttribute('data-v').toLowerCase().includes(q)?'flex':'none'; }); }
 function toggleAll(field,on){
   FILTERS[field]= on?null:new Set();
   document.querySelectorAll('#fopts-'+field+' input').forEach(cb=>cb.checked=false);
+  refreshCascade(field);          // narrow (or re-widen) everything below this filter
   applyAndScan();
 }
 function toggleOpt(field,val,on){
@@ -1183,6 +1240,7 @@ function toggleOpt(field,val,on){
   // if none selected -> treat as All
   const allCb=document.querySelector('#fopts-'+field).parentNode.querySelector('.fopt input');
   if(FILTERS[field].size===0){ FILTERS[field]=null; allCb.checked=true; } else allCb.checked=false;
+  refreshCascade(field);          // narrow (or re-widen) everything below this filter
   applyAndScan();
 }
 function resetFilters(){ buildFilters(); applyAndScan(); }

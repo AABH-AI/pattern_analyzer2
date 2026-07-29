@@ -247,6 +247,32 @@ Measured by `results/full_correlation_survey.py`. See `prompt-trail.md` Session 
       tick/cross per claim with the SQL behind it. Design options were discussed; the endpoint is
       built and working, only the frontend is missing.
 
+## P1i — peer scope, unscoreable weeks, and cascading filters (2026-07-29)
+All three came out of "why did only one queue show?". Measurements in `prompt-trail.md` Session 28.
+- [ ] **DECISION: should peers drop the same-channel restriction?** `/api/queue-context` fetches
+      peers with `AND channel = ?`, so "similar queues" means same locality **and same channel**.
+      Measured consequence: `Nordic Premium Support` (EMEA/NER/Nordics/Voice) gets **1 peer**;
+      without the channel filter it would get **5** (its own Email sibling, Nordic PON Email, two
+      Social Media queues). And this is the common case, not an edge case: **38.3% of
+      locality+channel groups contain exactly one queue (zero peers)** and 21.3% contain two.
+      Dropping the restriction is closer to what a Combined Queue means, but it would compare Voice
+      against Social Media, which behave differently — so it should be labelled "related queues in
+      this locality", never presented as like-for-like. **Needs a business call.**
+- [ ] **Mark or hide unscoreable weeks in the UI.** FY2027 actuals **stop dead at week 202722**:
+      weeks 202723–202752 carry a forecast and **zero** actuals (0 of 427 rows each). Opening one
+      of those weeks gives a queue with nothing to score, no adherence and no comparable peers,
+      with nothing on screen explaining why. Measured density: FY2025 95.5% of rows have actuals,
+      FY2026 98.9%, **FY2027 41.7%**. A "no actuals loaded for this week yet" state past the last
+      scoreable week would prevent the confusion entirely. Cheap and worth doing.
+- [x] **Cascading filters in the RCA Console** (done 2026-07-29). Selecting a filter now narrows
+      every filter BELOW it in `FILTER_FIELDS` order and drops selections that are no longer
+      reachable. Verified on live data: Region=EMEA narrows Sub-Region 16→6, Country 49→28,
+      Forecast Name 427→182, Forecaster 7→4; adding Sub-Region=NER narrows Country to the 7 real
+      ones. Each header shows a "3 of 16" badge when narrowed. Options are hidden rather than
+      removed, so re-widening restores them instantly. This also prevents the impossible
+      combination that used to zero the scan with no explanation (Region=EMEA + Country=Brazil —
+      Brazil is now unselectable and a stale selection is dropped).
+
 ## P2 — dashboard / UX polish (post-deadline OK)
 - [x] High-cardinality dimension cards showed 0% shares — now show row counts; Fiscal_Week dropped from the grid; panel made bolder/cleaner. (2026-07-22)
 - [ ] Trend charts: optional brush/zoom for the 325-week span; shared hover legend across the two trend charts.

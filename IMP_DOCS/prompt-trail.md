@@ -707,3 +707,44 @@ shows rho **+0.98** against demand pooled and only 67% strong per queue — the 
 
 Regression: 12/12 modules, 40/40 SQL cross-checks. Default engine keys intact and `features.cqn`
 present.
+
+---
+
+## Session 28 — 2026-07-29 · why only one queue showed, and cascading filters
+**When:** Wed 29 Jul 2026, ~16:20 – 17:05 IST · **Runtime:** cascade recompute is O(rows x filters)
+in the browser, imperceptible at 66,612 rows; measurement queries ~30s.
+
+The business opened a 2027 queue and saw only one related queue, and asked whether that was driven
+by the CQN. **It was not.** Three separate causes, all measured:
+
+1. **FY2027 is a partly-unwritten year.** Actuals stop dead at week **202722**; weeks
+   202723–202752 carry a forecast and **zero** actuals (0 of 427 rows each). Density by year:
+   FY2025 **95.5%** of rows have an actual, FY2026 **98.9%**, FY2027 **41.7%**. Open a week past
+   202722 and there is nothing to score — no adherence, and no peers with actuals either.
+2. **Peers are NOT the CQN.** `/api/queue-context` filters peers with `AND channel = ?`, so
+   "similar queues" means same locality **and same channel**. `Nordic Premium Support`
+   (EMEA/NER/Nordics/Voice) therefore gets **1** peer (`Nordic Client DSP`); drop the channel
+   restriction and it gets **5**. The channel filter is what shrinks it, not the mapping.
+3. **The CQN would not have helped that queue anyway.** `Nordic Premium Support Turku` has exactly
+   **one** member — the queue itself. Across the mapping, **259 of 331 Combined Queues (78%)
+   contain a single queue**; only 41 have four or more.
+
+And "only one queue" is the most common outcome, not an anomaly: **38.3% of locality+channel groups
+contain exactly one queue (zero peers)** and 21.3% contain two. This also explains part of Session
+27's correlation finding — `volume_routing_shift` and `channel_migration` **cannot fire for 78% of
+queues**, because there is nobody to move work to.
+
+**Cosmetic change delivered: cascading filters.** Selecting a filter in the RCA Console now narrows
+every filter below it and drops selections that are no longer reachable. Verified against live SQL:
+Region=EMEA narrows Sub-Region 16→6, Country 49→28, Forecast Name 427→182, Forecaster 7→4; adding
+Sub-Region=NER narrows Country to exactly the seven real ones (Benelux, Denmark, Finland,
+Netherlands, Nordics, Norway, Sweden). A "3 of 16" badge appears on a narrowed group. Options are
+hidden rather than deleted, so re-widening restores them instantly, and the Forecast Name datalist
+narrows with them.
+
+The real bug this removes: **Region=EMEA + Country=Brazil** was selectable and produced an empty
+scan with nothing explaining why. Brazil is now unselectable under EMEA, and a stale selection is
+dropped automatically.
+
+Verification: `node --check` on the extracted inline script (both blocks, 105 KB) parses clean, and
+the cascade logic was replicated in Python against real SQL to confirm the narrowing counts above.
