@@ -38,23 +38,44 @@ def analyse(rows, target_week, target_channel, cqn_names=None, cqn_source="proxy
                           "migration cannot be tested."}
     prev_wk, this_wk = weeks[0], weeks[-1]
 
-    def by_channel(wk):
+    def by_channel_details(wk):
         agg = {}
+        names_map = {}
         for r in rows:
-            if str(r.get("Fiscal_Week")) != wk:
+            if str(r.get("Fiscal_Week")) != str(wk):
                 continue
             ch = r.get("channel") or "(unknown)"
+            fn = r.get("Forecast_name")
             agg[ch] = agg.get(ch, 0.0) + (num(r.get("Actual_Offered")) or 0.0)
-        return agg
+            if ch not in names_map:
+                names_map[ch] = set()
+            if fn:
+                names_map[ch].add(fn)
+        return agg, names_map
 
-    now, before = by_channel(this_wk), by_channel(prev_wk)
+    now, names_now = by_channel_details(this_wk)
+    before, names_before = by_channel_details(prev_wk)
+
     channels = sorted(set(now) | set(before))
-    deltas = [{"channel": ch,
-               "prior_week_actual": rnd(before.get(ch, 0.0)),
-               "this_week_actual": rnd(now.get(ch, 0.0)),
-               "change": rnd(now.get(ch, 0.0) - before.get(ch, 0.0)),
-               "is_target_channel": ch == target_channel}
-              for ch in channels]
+    deltas = []
+    for ch in channels:
+        c_now = rnd(now.get(ch, 0.0))
+        c_before = rnd(before.get(ch, 0.0))
+        ch_change = rnd(c_now - c_before)
+        s_names = sorted(names_now.get(ch, set()) | names_before.get(ch, set()))
+        s_text = ", ".join(s_names) if s_names else ""
+        c_label = f"{ch} ({s_text})" if s_text else f"{ch} channel"
+        deltas.append({
+            "channel": ch,
+            "sibling_queue_names": s_names,
+            "sibling_queues_text": s_text,
+            "channel_label": c_label,
+            "prior_week_actual": c_before,
+            "this_week_actual": c_now,
+            "change": ch_change,
+            "abs_change": abs(ch_change),
+            "is_target_channel": ch == target_channel
+        })
 
     total_now, total_before = sum(now.values()), sum(before.values())
     net = total_now - total_before
@@ -69,13 +90,13 @@ def analyse(rows, target_week, target_channel, cqn_names=None, cqn_source="proxy
 
     delta_phrases = []
     for d in deltas:
-        ch = d["channel"]
+        c_label = d["channel_label"]
         c = d["change"]
         val = int(abs(round(c)))
         if c < 0:
-            delta_phrases.append(f"{ch} demand reduced by {val} contacts")
+            delta_phrases.append(f"{c_label} demand reduced by {val} contacts")
         elif c > 0:
-            delta_phrases.append(f"{ch} demand increased by {val} contacts")
+            delta_phrases.append(f"{c_label} demand increased by {val} contacts")
 
     if len(delta_phrases) == 1:
         deltas_text = delta_phrases[0]
@@ -102,6 +123,7 @@ def analyse(rows, target_week, target_channel, cqn_names=None, cqn_source="proxy
         f"Because the forecast was generated independently for each Forecast Name instead of the CQN, "
         f"over-forecast and under-forecast errors occurred across individual channels."
     )
+
 
     return {
         "available": True,

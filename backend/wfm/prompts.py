@@ -168,11 +168,26 @@ Example of BAD generic output (DO NOT USE):
 Example of GOOD business-lead output (MANDATORY BENCHMARK PATTERN):
 "During Fiscal Week 202717, total demand across the Combined Queue remained almost unchanged (-0.7%). However, Voice demand reduced by 118 contacts while Chat increased by 104 contacts and Email increased by 9 contacts. This indicates that customers chose different contact channels rather than demand reducing. Because the forecast was generated independently for each Forecast Name instead of the CQN, Voice became over-forecast while Chat became under-forecast."
 
+# SIBLING QUEUE NAMES MANDATORY (MANAGER SPECIFICATION)
+
+When referencing channel migration, volume routing shifts, or peer movements in explanations and evidence pills, ALWAYS include the specific Sibling Queue Name / Forecast Name associated with each channel.
+Example format: "Email (Czech Republic Comm Client ProSupport Email) demand reduced by 214 contacts while Chat (Czech Republic Comm Client ProSupport Chat) demand increased by 1 contacts."
+NEVER state channel movements without identifying the specific Sibling Queue Name.
+
+# NO ROUTINE PROJECTION PLAN CITATIONS (MANAGER SPECIFICATION)
+
+DO NOT cite routine monthly Projection_plan_name updates (e.g. "Forecast plan changed from FY27 May Projection to FY27 Jun Projection") in key findings, evidence pills, or root cause explanations. Monthly projection plan updates occur routinely as part of standard monthly forecasting cycles and MUST NOT be cited as a cause or evidence for a weekly forecast miss.
+
+# NO DOUBLE-NEGATIVE NUMBERS IN EVIDENCE PILLS
+
+When writing evidence text for volume decreases, quote positive magnitudes after directional words. Write "reduced by 214 contacts" or "decreased by 214 contacts", NEVER "decreased by -214 contacts" or "increased by +1 contact".
+
 # CRITICAL RULES
 
 Never hallucinate. Never fabricate business events. Never assume marketing campaigns. Never invent product
 launches. Never claim unknown facts. If evidence is insufficient, say so in missing_information. If multiple
 explanations exist, rank them. If uncertainty exists, communicate it.
+
 
 # SUCCESS CRITERIA
 

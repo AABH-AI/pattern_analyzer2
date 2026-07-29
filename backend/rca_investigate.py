@@ -571,11 +571,6 @@ def _observations_from_features(features):
         obs.append("The one similar queue moved the same way this week.")
     elif pd.get("peers_total"):
         obs.append(f"All {pd.get('peers_total')} similar queues mostly moved the same way this week.")
-    pr = f.get("plan_restatement") or {}
-    if pr.get("changed"):
-        obs.append(f"The forecast plan changed this week (from {pr.get('prior')} to {pr.get('current')}).")
-    else:
-        obs.append("The forecast plan did not change this week.")
     ib = f.get("installed_base")
     if ib and ib.get("material"):
         obs.append(f"The installed base ({ib.get('field')}) was {ib.get('target_value')} this week vs a usual ~{ib.get('history_mean')}.")
@@ -583,6 +578,7 @@ def _observations_from_features(features):
     if hol and hol.get("unusual"):
         obs.append(f"There were {hol.get('holiday_count')} holidays in this week — more than usual.")
     return obs[:6]
+
 
 
 # --- Deterministic fills so every report section has content when the data supports it,
