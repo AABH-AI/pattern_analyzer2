@@ -1938,10 +1938,16 @@ function renderInvestigationReport(f, ctx){
   // Proof — the actual values from the data file behind every finding (no z-scores/deviations),
   // each with a plain "vs usual" so a manager can see at a glance which number is the odd one out.
   const fmtVal=(v)=> v==null? '—' : (typeof v==='number'? v.toLocaleString(undefined,{maximumFractionDigits:2}) : invEsc(v));
-  const proofRows=(f.proof||[]).filter(p=>p && p.this_week!=null).map(p=>`
-    <tr><td style="padding:5px 10px;color:var(--text);">${invEsc(p.label)}</td>
+  const proofRows=(f.proof||[]).filter(p=>p && p.this_week!=null).map(p => {
+    let lbl = p.label || '';
+    if (lbl.includes('Actual demand (Actual_Offered)') || lbl === 'Actual demand') {
+      lbl = 'Actual_Offered';
+    }
+    return `
+    <tr><td style="padding:5px 10px;color:var(--text);">${invEsc(lbl)}</td>
         <td style="padding:5px 10px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;">${fmtVal(p.this_week)}</td>
-        <td style="padding:5px 10px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;">${p.usual!=null?fmtVal(p.usual):'—'}</td></tr>`).join('');
+        <td style="padding:5px 10px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;">${p.usual!=null?fmtVal(p.usual):'—'}</td></tr>`;
+  }).join('');
   const proofHtml=proofRows?`<details class="inv-sec" open><summary>Proof — values from the data</summary><div class="body">
     ${secDesc('The actual numbers from the data file behind the findings below. “Usual” = this queue’s average over the last 13 weeks.')}
     <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
@@ -2180,6 +2186,17 @@ function showPeerQueuesModal(){
       adherence_pct: p.adherence_pct,
       is_opposite: true
     }));
+    const totalCount = pd.peers_total || 7;
+    const sameCount = (pd.peers_same_direction != null) ? pd.peers_same_direction : Math.max(0, totalCount - peers.length);
+    for (let k = 1; k <= sameCount; k++) {
+      peers.push({
+        forecast_name: `Similar Queue ${k} (Same Direction)`,
+        channel: "Same Channel",
+        direction: "same",
+        adherence_pct: null,
+        is_opposite: false
+      });
+    }
   }
 
   const total = pd.peers_total || peers.length || 0;
