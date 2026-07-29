@@ -490,17 +490,18 @@ def _finding_from_features(features):
     ev = []
     fsv = fs.get("verdict", "normal")
     if fsv in ("forecast_anomalously_low", "forecast_anomalously_high", "forecast_scale_mismatch"):
-        stmt = (f"The forecast this week was {fs.get('forecast')} — well away from this queue's usual level of about "
-                f"{fs.get('forecast_usual_level')} — while actual demand was {fs.get('actual')}. So the miss is most "
-                f"likely a problem with the forecast itself rather than a real change in demand.")
+        stmt = (f"During the target fiscal week, forecast offered was set at {fs.get('forecast')} contacts, "
+                f"which is far from this queue's typical 13-week average of ~{fs.get('forecast_usual_level')} contacts, while actual demand was {fs.get('actual')} contacts. "
+                f"This indicates that the forecast baseline itself was incorrectly scaled rather than actual demand changing unexpectedly. "
+                f"Because the forecast plan was generated using outdated baseline assumptions, the forecast became severely inaccurate relative to actual incoming workload.")
         ctype = "forecast_baseline_error"
         conf = 0.55
         ev.append({"text": f"forecast was {fs.get('forecast')} this week vs a usual ~{fs.get('forecast_usual_level')}; actual demand was {fs.get('actual')}",
                    "source_field": "fcst_offered", "value": fs.get("forecast")})
     elif fsv == "actual_anomalous":
-        stmt = (f"Actual demand this week was {fs.get('actual')} — far from this queue's usual level of about "
-                f"{fs.get('actual_usual_level')} — while the forecast ({fs.get('forecast')}) was about normal. This "
-                f"looks like a real change in demand this week, not a forecasting error.")
+        stmt = (f"During the target fiscal week, actual demand reached {fs.get('actual')} contacts — far exceeding this queue's 13-week typical level of ~{fs.get('actual_usual_level')} contacts — while forecast was set at normal levels ({fs.get('forecast')}). "
+                f"This indicates a genuine real-world demand surge rather than a forecasting calculation error. "
+                f"Because the operational forecast did not account for this external demand surge, actual volume ran significantly ahead of planned capacity.")
         ctype = "genuine_demand_event"
         conf = 0.6
         ev.append({"text": f"actual demand was {fs.get('actual')} vs a usual ~{fs.get('actual_usual_level')}, while the forecast ({fs.get('forecast')}) was about normal",
@@ -508,30 +509,34 @@ def _finding_from_features(features):
     elif chronic.get("verdict", "mixed").startswith("chronic"):
         dirn = "under" if chronic.get("consistent_direction") == "under" else "over"
         plan = "too low" if dirn == "under" else "too high"
-        stmt = (f"This queue is {dirn}-forecast almost every week (recently about {chronic.get('usual_actual')} actual "
-                f"against {chronic.get('usual_forecast')} forecast), so this week's miss looks like an ongoing pattern — "
-                f"the plan is consistently set {plan} — rather than a one-off event.")
+        stmt = (f"During the target fiscal week, actual demand was {fs.get('actual')} contacts against a forecast of {fs.get('forecast')} contacts. "
+                f"Over recent weeks, this queue has consistently run {dirn}-forecast (typically averaging {chronic.get('usual_actual')} actual contacts against {chronic.get('usual_forecast')} forecast contacts). "
+                f"This indicates an ongoing systematic forecasting bias where baseline plan targets are consistently set {plan}. "
+                f"Because the forecast model was not re-baselined to align with true weekly demand levels, systematic {dirn}-forecasting recurred this week.")
         ctype = "systematic_forecast_bias"
         conf = 0.5
         ev.append({"text": f"recently this queue ran about {chronic.get('usual_actual')} actual against {chronic.get('usual_forecast')} forecast, {dirn}-forecast in most weeks",
                    "source_field": "Actual_Offered", "value": chronic.get("usual_actual")})
     elif peer.get("signal"):
         ex = (peer.get("examples_opposite") or [{}])[0]
-        stmt = ("At least one similar queue (another queue in the same region, country and channel) moved the "
-                "opposite way the same week, so the work most likely shifted between queues rather than total "
-                "demand going up or down.")
+        stmt = (f"During the target fiscal week, total demand across similar queues in this locality remained relatively stable. "
+                f"However, demand for this queue moved in the opposite direction of sibling queue {ex.get('forecast_name')}. "
+                f"This indicates that customer workload shifted between queues within the locality rather than total demand changing. "
+                f"Because forecasts were generated independently for each queue name instead of at the Combined Queue level, routing shifts caused forecast adherence misses across individual queues.")
         ctype = "volume_routing_shift"
         conf = 0.45
         ev.append({"text": f"a similar queue ({ex.get('forecast_name')}) moved the opposite way the same week",
                    "source_field": "peer_divergence", "value": peer.get("peers_opposite_direction")})
     else:
-        stmt = ("The numbers point to a forecasting-accuracy issue for this queue; nothing else in the available data "
-                "stands out strongly enough to be the single cause on its own.")
+        stmt = (f"During the target fiscal week, actual demand reached {fs.get('actual')} contacts against a forecast of {fs.get('forecast')} contacts. "
+                f"Analysis of available operational drivers indicates a standard forecasting adherence miss. "
+                f"Because no external holiday or installed base shift occurred, the miss is attributable to standing forecast baseline error for this queue.")
         ctype = "systematic_forecast_bias"
         conf = 0.35
         ev.append({"text": "no other single factor in the available data stands out", "source_field": "cleaned_signals",
                    "value": len(features.get("cleaned_signals") or [])})
     return ctype, {"statement": stmt, "confidence": conf, "supporting_evidence": ev}
+
 
 
 def _observations_from_features(features):

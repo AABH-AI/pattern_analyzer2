@@ -1804,12 +1804,13 @@ async function buildContext(r){
    honest placeholder — this caller does not fabricate anything if the call fails either. ---- */
 async function callInvestigationEngine(contextBundle){
   const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:8000':'';
-  // If the user picked a model for this queue, route the investigation to it (?provider=&model=).
-  let q='';
+  // If the user picked a model for this queue, route the investigation to it (?mode=wfm&provider=&model=).
+  let q='?mode=wfm';
   if(window.RCA_MODEL && window.RCA_MODEL.model){
-    q='?provider='+encodeURIComponent(window.RCA_MODEL.provider||'')+'&model='+encodeURIComponent(window.RCA_MODEL.model);
+    q+='&provider='+encodeURIComponent(window.RCA_MODEL.provider||'')+'&model='+encodeURIComponent(window.RCA_MODEL.model);
   }
   const resp=await fetch(API_BASE+'/api/rca-investigate'+q, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(contextBundle)});
+
   if(!resp.ok){ let d; try{ d=(await resp.json()).detail; }catch(_){ d=resp.statusText; } throw new Error(d||('HTTP '+resp.status)); }
   return await resp.json();
 }

@@ -307,8 +307,7 @@ def cqn_mapping(table: str = Query("dbo.CQN_Mapping", description="Mapping table
 @app.post("/api/rca-investigate")
 def rca_investigate(context_bundle: dict, provider: str = Query("", description="Optional model-picker provider"),
                     model: str = Query("", description="Optional model-picker model id"),
-                    mode: str = Query("", description="'wfm' for the WFM cross-functional engine; "
-                                                      "empty (default) = the original engine, unchanged")):
+                    mode: str = Query("wfm", description="'wfm' (default) for the WFM cross-functional engine; 'legacy' = original engine")):
     """
     LLM Investigation Engine proxy. Body = the generic ContextBundle the console
     builds client-side (target row + history + peers + auto-discovered statistical
@@ -317,12 +316,11 @@ def rca_investigate(context_bundle: dict, provider: str = Query("", description=
     output); if that model fails, the engine returns the deterministic best-supported
     finding — it does NOT silently answer with a different model.
 
-    ?mode=wfm selects the WFM cross-functional engine (backend/rca_wfm.py): the
+    ?mode=wfm (default) selects the WFM cross-functional engine (backend/rca_wfm.py): the
     business-authored prompt, a top-5 ranked RCA list, skeptic review, hypothesis
     marking, the investigation ladder (is the miss inherited from a higher level?),
     104-week temporal context and channel-migration detection. It is ADDITIVE — with
-    no mode= parameter this endpoint behaves exactly as it always has, so the console
-    needs no change. The WFM engine fills the original response keys too
+    mode=legacy this endpoint behaves as the original engine. The WFM engine fills the original response keys too
     (primary_root_cause / secondary_contributors / key_findings), so the existing UI
     renders it without modification.
 
@@ -332,7 +330,8 @@ def rca_investigate(context_bundle: dict, provider: str = Query("", description=
     cfg = load_config()
     model_choice = {"provider": provider, "model": model} if model else None
 
-    if (mode or "").lower() == "wfm":
+    if (mode or "wfm").lower() != "legacy":
+
         # The deeper context (104 weeks, channel siblings, higher-level rollups) is
         # fetched here rather than in the browser, so no frontend change is needed.
         # If SQL is unreachable the engine still runs on the posted bundle alone.
