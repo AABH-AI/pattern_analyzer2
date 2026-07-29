@@ -14,3 +14,17 @@ INFO:     127.0.0.1:57363 - "GET /api/queue-context?forecast_name=NA+Core+Spanis
 INFO:     127.0.0.1:57363 - "POST /api/rca-investigate?provider=nvidia&model=nvidia%2Fnemotron-3-super-120b-a12b HTTP/1.1" 200 OK
 INFO:     127.0.0.1:51197 - "GET /api/queue-context?forecast_name=SA+Comm+Client+Bangladesh+Core+Email+English+Standard&fiscal_week=202705&region=APJ&subregion=SA&country=Bangladesh&channel=Email&history_cap=13&peers_cap=15 HTTP/1.1" 200 OK
 INFO:     127.0.0.1:51197 - "POST /api/rca-investigate?provider=nvidia&model=nvidia%2Fnemotron-3-super-120b-a12b HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50871 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62719 - "GET /rca_console.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62719 - "GET /api/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62719 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:64138 - "GET /api/data HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64138 - "GET /api/cqn-mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59679 - "GET /api/queue-context?forecast_name=NA+Core+Spanish&fiscal_week=202719&region=Americas&subregion=NA&country=United+States&channel=Voice&history_cap=13&peers_cap=15 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59679 - "POST /api/rca-investigate?provider=groq&model=llama-3.3-70b-versatile HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56643 - "GET /api/queue-context?forecast_name=NA+Core+Spanish&fiscal_week=202719&region=Americas&subregion=NA&country=United+States&channel=Voice&history_cap=13&peers_cap=15 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56643 - "POST /api/rca-investigate?provider=nvidia&model=nvidia%2Fnemotron-3-super-120b-a12b HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52581 - "GET /api/queue-context?forecast_name=NA+Core+Spanish&fiscal_week=202719&region=Americas&subregion=NA&country=United+States&channel=Voice&history_cap=13&peers_cap=15 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52581 - "POST /api/rca-investigate?provider=nvidia&model=nvidia%2Fllama-3.3-nemotron-super-49b-v1.5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61114 - "GET /api/queue-context?forecast_name=NA+Core+Spanish&fiscal_week=202719&region=Americas&subregion=NA&country=United+States&channel=Voice&history_cap=13&peers_cap=15 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61114 - "POST /api/rca-investigate?provider=nvidia&model=deepseek-ai%2Fdeepseek-v4-flash HTTP/1.1" 200 OK

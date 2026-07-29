@@ -97,6 +97,17 @@ Full detail + report path: `IMP_DOCS/canary-test-log.md`. None introduced by the
       `fcst_offered = 0.34` but reads as garbage. Cap the display or special-case near-zero forecasts.
 - [ ] **Timeline legend hardcodes "today (Wed 22 Jul)"** while the header computes 28 Jul.
 - [ ] No favicon → a 404 on every load (cosmetic; it is the 404 in the console).
+- [ ] **MONITORING TRAP: an LLM outage is invisible at the HTTP status layer.** Canary V0.5 measured
+      `POST /api/rca-investigate?provider=groq` returning **HTTP 200 in 0.4s** while the upstream
+      Groq call had 429'd — the backend deliberately swallows it and returns a successful
+      deterministic payload. Anyone monitoring this endpoint by status code sees 100% success while
+      every investigation is silently falling back. The truth is in
+      `investigation_meta.engine` / `missing_information`. Consider a health signal or a metric
+      that surfaces the fallback rate.
+- [ ] **`_rcaCurrent` stores an INDEX, not a queue key** (`rca_console.html:2002`). Canary V0.5 saw
+      no drift only because no filter or re-sort ran between model switches; apply a filter after
+      an investigation and index 0 points at a different queue, so the next model change
+      investigates the wrong one. Store the queue key instead.
 - [ ] **`/api/data` ships 44.8 MB to the browser on every SQL connect** and takes ~12s (measured,
       Canary V0.4). It works, but it is the heaviest thing in the app: the whole 66,612-row table
       crosses the wire so the browser can aggregate it. Candidate for server-side aggregation or
@@ -147,12 +158,18 @@ Loader: `backend/upload_cqn_mapping.py`. Source: `CQN and FC mapping.xlsx`.
       reports coverage, and loads it — so future mapping files (site, vendor, LOB, skill) can be
       onboarded without new code. Should also accept `.csv`, and expose a `--replace` vs
       `--append` mode instead of always dropping the table.
-- [ ] **Decide how to treat a Forecast_Name that maps to MORE THAN ONE Combined Queue.** 69 of 442
-      do — vendor-site splits (Concentrix vs CGS, Bangalore vs Pune, SITEL, BW, Sykes). `DB_OSP`
-      separates in-house from outsourced but not vendor, so no column in the file disambiguates
-      them. **Current behaviour: the UNION of every CQN the forecast belongs to is used for
-      sibling grouping**, which is why one test queue pulled 54 sibling rows across 2 CQNs.
-      Alternative is to investigate per-CQN and report separately. **Needs a business answer.**
+- [ ] **BUSINESS DECISION NEEDED — 69 names map to MORE THAN ONE Combined Queue, and they carry
+      41.7% of all demand.** Measured by `results/cqn_mapping_integrity.py`: 10,452 rows (15.7%)
+      but **16.2M of 38.9M volume**. So this is not an edge case.
+      Split by shape: **23 differ only by a vendor/site suffix** (ProSupport BRZ Voice vs
+      ...SITEL; CHK Cons Tech Core BW vs ...Sykes; CGS vs Foundever, which is the same vendor
+      rebranded) — those are resolvable by a naming rule. **46 are genuinely different queues**
+      (e.g. `China Client Core Chat` → CCC Client Core Chat BW / CHK Cons Tech Chat Sykes /
+      Hong Kong Client Chat Sykes). `DB_OSP` differs on only 39 of the 69, so it cannot
+      disambiguate the rest.
+      **Current behaviour: the UNION of a name's queues is used for sibling grouping.** The
+      alternative is investigating per-CQN and reporting separately. Needs the business to say
+      which.
 - [ ] **Wire the mapping into the CONSOLE too.** The UI still shows the `unmapped` badge and reads
       an uploaded mapping file client-side; it does not know about `dbo.CQN_Mapping`. An endpoint
       (e.g. `GET /api/cqn-mapping`) would remove the badge and let the dashboard group by real

@@ -383,3 +383,74 @@ dependent) rather than unconditional.
   evidence asked for is in that shared image; the video and trace hold the true per-moment record.
 - Video is captured at **800x600** by Canary regardless of the 1920px screenshot viewport, so fine
   text is easier to read in the screenshots than in the MP4.
+
+---
+
+## Canary Version V0.5-multimodel — 2026-07-29 · same queue, four models (branch `wfm-rca`)
+
+**Scope: RCA Console tab only. Goal: prove the SAME queue yields a real LLM investigation from
+several different models through the UI picker, with the CQN mapping live.**
+
+**Verdict: 3 of 4 models returned `Engine: llm`, and all four agreed on the cause type.**
+
+- Session: `C:\Users\arnav.bhargava\.canary\sessions\rca-console-v05-multimodel-ms5n5sc7-d28888`
+- **In the repo: `results/canary-v0.5-multimodel/`** — `canary-v0.5-multimodel.mp4` (**3.1 MB**, from
+  an 11.1 MB WebM), `report.html` (3.8 MB), screenshots at 1920x1080, HAR, console
+- Engine-footer evidence shot: `screenshots/assert-multimodel-and-cqn-mapping-lpw13u.png`
+
+### Same queue, four models — `NA Core Spanish` FW202719
+
+| Model | Engine | Cause type | Confidence |
+|---|---|---|---|
+| Llama 3.3 70B (Groq) | `deterministic-fallback` (429 quota) | genuine demand event | 60% Medium |
+| Nemotron 3 Super 120B | **`llm · nvidia/nemotron-3-super-120b-a12b`** | genuine demand event | 60% Med (top hyp. 90% High) |
+| Nemotron Super 49B | **`llm · nvidia/llama-3.3-nemotron-super-49b-v1.5`** | genuine demand event | 92% High |
+| DeepSeek V4 Flash | **`llm · deepseek-ai/deepseek-v4-flash`** | genuine demand event | 95% High |
+
+**Unanimous on the cause type**, with identical hard numbers across all four (forecast 90.78,
+actual 8,805, error +8,714, adherence −9599.7%) — as expected, since the deterministic feature
+block is shared. They diverge on *confidence* (60% → 95%) and on how they treat secondaries: the
+49B model surfaced two competing lower hypotheses (plan restatement 40%, volume redistribution 30%)
+before landing at 95%; DeepSeek uniquely quantified the installed-base move
+(`Final_upp_units` 35,029 vs usual 27,297, +28%) and explicitly **rejected** it as too small.
+
+Timings: Groq 0.4s (fallback), Nemotron 3 Super 41.8s, 49B 81.8s, DeepSeek 79.7s.
+
+Groq fell back on its **daily** quota again (97,063 of 100,000; resets in ~1h8m), stated verbatim
+in MISSING INFORMATION. A fourth model was added specifically so the multi-model claim rests on
+three genuine LLM results rather than two.
+
+### CQN mapping confirmed in the UI
+
+`mapBadge` verbatim: **`CQN mapped from SQL · 442 queues 69 multi-queue`**. Rows 66,612.
+**Visible `unmapped` badges: 0.** The single `span.badge.unm` in the DOM is the hidden `#emptyState`
+legend (`offsetParent === null`). Queue detail header shows the green `mapped` badge.
+
+### The `_rcaCurrent` bug — no drift here, but the diagnosis is now sharper
+
+The queue name stayed correct across all three model switches; all four `/api/queue-context` calls
+carry `forecast_name=NA+Core+Spanish&fiscal_week=202719`, so identity is provably stable.
+
+But the tester found the reason it *held*, which matters: **`_rcaCurrent` is an INDEX into `FLAGS`,
+not a queue key** (`rca_console.html:2002`). It survived only because no filter or re-sort ran
+between switches. Apply a filter after an investigation and index 0 points at a different queue —
+the next model change then silently investigates the wrong one. Fix: store the queue key, not the
+index. Also note the guard `if(window._rcaCurrent!=null)` correctly prevented an auto-trigger before
+the first investigation.
+
+### A monitoring trap worth knowing
+
+`POST /api/rca-investigate?provider=groq&...` returned **HTTP 200 in 0.4s** while the upstream Groq
+call had 429'd. The backend deliberately swallows the upstream failure and returns a successful
+deterministic payload, so **a Groq/NVIDIA outage is invisible at the HTTP status layer** — it is
+only detectable in the response body (`investigation_meta.engine` / `missing_information`). Anyone
+monitoring this endpoint by status code will see 100% success while every investigation is falling
+back. Recorded in `TODO.md`.
+
+### Still open
+
+- **`renderProbe` TypeError on every page load** (`rca_console.html:2117`, from `:2143`), fallout
+  from `e432543` "Hide Probing layer from UI". Unfixed since V0.1 and now seen in four consecutive
+  sessions. It is an uncaught page error any client will see in their console.
+- `favicon.ico` 404.
+- Zero failed network requests; all 12 HAR entries 200.

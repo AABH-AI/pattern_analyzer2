@@ -1,0 +1,63 @@
+{
+ "queue": {
+  "Forecast_name": "ANZ Comm Client ProSupport",
+  "Fiscal_Week": "202722",
+  "cqn_names": [
+   "Client ProSupport ANZ",
+   "Client Prosupport ANZ/SA OMNI"
+  ],
+  "cqn_source": "mapping"
+ },
+ "agreement": {
+  "llm_answered": 3,
+  "top_cause_counts": {
+   "inherited_from_higher_level": 3
+  },
+  "unanimous": true
+ },
+ "runs": [
+  {
+   "provider": "nvidia",
+   "model": "nvidia/nemotron-3-super-120b-a12b",
+   "engine": "wfm-llm",
+   "seconds": 29.3,
+   "top_cause_type": "inherited_from_higher_level",
+   "top_confidence": 95,
+   "all_cause_types": [
+    "inherited_from_higher_level",
+    "systematic_forecast_bias"
+   ],
+   "unsupported": [],
+   "executive_summary": "Forecast adherence was 52.6% over\u2011forecast, well beyond the \u00b110% threshold, indicating the forecast was far too high. The same over\u2011forecast pattern is already present at the Business Org level (CSG), so the miss is not unique to this queue but reflects a broader systematic over\u2011forecasting issue. Historically this queue has shown a chronic over\u2011forecast bias, with average adherence of +7.3% and a tendency to over\u2011forecast in 85% of weeks."
+  },
+  {
+   "provider": "groq",
+   "model": "llama-3.3-70b-versatile",
+   "engine": "wfm-llm",
+   "seconds": 3.0,
+   "top_cause_type": "inherited_from_higher_level",
+   "top_confidence": 90,
+   "all_cause_types": [
+    "inherited_from_higher_level",
+    "systematic_forecast_bias"
+   ],
+   "unsupported": [],
+   "executive_summary": "The Forecast Adherence KPI missed the threshold of +/-10% with a value of 52.6%, indicating an over-forecast. The investigation suggests that the miss is inherited from a higher level, specifically the Business Org level. The actual offered volume was 309.0, which is about 48% lower than the usual actual volume. The planned ASU and forecast remained about the same as usual."
+  },
+  {
+   "provider": "nvidia",
+   "model": "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+   "engine": "wfm-llm",
+   "seconds": 84.8,
+   "top_cause_type": "inherited_from_higher_level",
+   "top_confidence": 100,
+   "all_cause_types": [
+    "inherited_from_higher_level",
+    "systematic_forecast_bias",
+    "genuine_demand_event"
+   ],
+   "unsupported": [],
+   "executive_summary": "The Forecast Adherence KPI of 52.6% indicates a significant over-forecast (actual demand was 48% below usual levels). This miss is not specific to the ANZ Comm Client ProSupport queue but is part of a broader issue affecting the entire Business Org (CSG), which also breached the threshold. The primary cause is inherited from higher levels, with potential contributing factors including a sudden unexplained drop in demand and chronic over-forecasting bias."
+  }
+ ]
+}

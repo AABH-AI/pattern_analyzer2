@@ -1,0 +1,49 @@
+==============================================================================
+MULTI-MODEL COMPARISON — same queue, same evidence, different models
+  queue : ANZ Comm Client ProSupport  FW202722
+  scope : APJ / ANZ / Australia / Voice / CSG
+==============================================================================
+
+  CQN(s) resolved : ['Client ProSupport ANZ', 'Client Prosupport ANZ/SA OMNI']  (source=mapping)
+  adherence       : 52.6%
+
+------------------------------------------------------------------------------
+nvidia / nvidia/nemotron-3-super-120b-a12b
+  engine=wfm-llm  29.3s  causes=2
+    #1 [95% High] Verified :: inherited_from_higher_level
+        Miss inherited from Business Org level
+    #2 [80% High] Verified :: systematic_forecast_bias
+        Chronic over‑forecast bias at the queue
+    evidence-supported: YES
+    exec: Forecast adherence was 52.6% over‑forecast, well beyond the ±10% threshold, indicating the forecast was far too high. The same over‑forecast pattern i
+
+------------------------------------------------------------------------------
+groq / llama-3.3-70b-versatile
+  engine=wfm-llm  3.0s  causes=2
+    #1 [90% High] Verified :: inherited_from_higher_level
+        Inherited from Business Org level
+    #2 [70% High] Verified :: systematic_forecast_bias
+        Systematic forecast bias
+    evidence-supported: YES
+    exec: The Forecast Adherence KPI missed the threshold of +/-10% with a value of 52.6%, indicating an over-forecast. The investigation suggests that the miss
+
+------------------------------------------------------------------------------
+nvidia / nvidia/llama-3.3-nemotron-super-49b-v1.5
+  engine=wfm-llm  84.8s  causes=3
+    #1 [100% High] Verified :: inherited_from_higher_level
+        Business Org-Wide Demand Drop
+    #2 [90% High] Verified :: systematic_forecast_bias
+        Chronic Over-Forecasting Pattern
+    #3 [70% High] Hypothesis - To be Validated :: genuine_demand_event
+        Unexplained Demand Drop
+    evidence-supported: YES
+    exec: The Forecast Adherence KPI of 52.6% indicates a significant over-forecast (actual demand was 48% below usual levels). This miss is not specific to the
+
+==============================================================================
+AGREEMENT
+  models that answered on the LLM : 3/3
+    top cause 'inherited_from_higher_level': 3 of 3 model(s)
+  unanimous on the top cause      : True
+  models shipping an unsupported cause: none
+==============================================================================
+report -> results/multi-model-report.json

@@ -218,8 +218,36 @@ Case + Chat + Email + Voice across 9 forecast names. So channel is **not** part 
 migration *within* a CQN is real, and `rca_console.html:1653`'s `cqnDimsKey` is a **locality key**,
 not the Combined Queue.
 
-**Coverage: 427/427 queues mapped — 0 unmapped.** The "unmapped" action item is closed.
-Re-check with `python upload_cqn_mapping.py --coverage`.
+**Coverage: 100% — and verified three ways, not one.** `results/cqn_mapping_integrity.py`
+(6 PASS / 0 FAIL / 4 INFO):
+
+| Check | Result |
+|---|---|
+| M1 every queue name resolves | **427/427** |
+| M2 every data row is behind a mapped name | **66,612/66,612** |
+| M3 every unit of demand is behind a mapped name | **38,923,978/38,923,978** |
+| M4 mapping dimensions agree with the data | **all 4 agree on every name** (Region, SubRegion, Channel, Offering) |
+| M9 engine resolves the authoritative CQN | `is_cqn_proxy=False`, `cqn_source=mapping` |
+| M10 the two mapping tables agree | 0 one-sided differences |
+
+M4 is the one that matters beyond coverage: a mapping can be 100% "covered" and still contradict
+the rows it maps. It does not — 427/427 names agree on all four dimensions.
+
+**But it is NOT 1:1, and that is the honest caveat:**
+
+| | |
+|---|---|
+| names with exactly one Combined Queue | 373 |
+| names with MORE THAN ONE | **69** |
+| data behind the ambiguous names | 10,452 rows (15.7%) but **16.2M volume — 41.7% of all demand** |
+| of those 69: differ only by vendor/site suffix | 23 → resolvable by a naming rule |
+| of those 69: genuinely different queues | **46 → needs a business decision** |
+
+So "100% mapped" is true for coverage and integrity, but ~42% of demand sits behind names whose
+Combined Queue is ambiguous. Current behaviour is the **union** of a name's queues. `DB_OSP` does
+not disambiguate (it differs on only 39 of the 69). Tracked in `TODO.md` P1e.
+
+Re-check any time: `python upload_cqn_mapping.py --coverage` or the integrity suite above.
 
 The engine now groups channel siblings by the authoritative CQN and reports
 `is_cqn_proxy: false` plus `combined_queue_names`. The locality proxy remains only as the

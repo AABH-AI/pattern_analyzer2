@@ -1,0 +1,32 @@
+==============================================================================
+CQN MAPPING INTEGRITY
+  data    : dbo.Input_To_ML
+  mapping : dbo.CQN_Mapping  (+ dbo.CQN_Forecast_Pair)
+==============================================================================
+
+  PASS M1   every queue name resolves to a Combined Queue
+        427/427 names
+  PASS M2   every data row is behind a mapped name
+        66,612/66,612 rows
+  PASS M3   every unit of demand is behind a mapped name
+        38,923,978/38,923,978
+  PASS M4   mapping dimensions agree with the data (Region/SubRegion/Channel/Offering)
+        all 4 dimensions agree on every name
+  INFO M5   mapping is 1:1 (one Combined Queue per name)
+        373 names are 1:1, 69 carry MORE THAN ONE Combined Queue
+  INFO M6   how much data sits behind ambiguous names
+        10,452 rows (15.7%) but 16,233,931 volume (41.7% of all demand)
+  INFO M7   shape of the ambiguity
+        23 differ only by vendor/site suffix (resolvable by a naming rule); 46 are genuinely different queues (needs a business decision)
+  INFO M8   mapping names with no data in the fact table
+        15 (extra rows in the workbook; harmless)
+  PASS M9   engine resolves the authoritative CQN (is_cqn_proxy=False)
+        SA Comm Client Malaysia Workstation English Upsell FW202722: source=mapping, cqns=['Client Prosupport ANZ/SA OMNI'], channels=['Chat', 'Email', 'Voice']
+  PASS M10  dbo.CQN_Mapping and dbo.CQN_Forecast_Pair carry the same pairs
+        0 / 0 one-sided differences
+
+==============================================================================
+6 PASS / 0 FAIL / 4 INFO
+Verdict: coverage is 100% (names, rows AND volume) and the mapping never contradicts
+the data. It is NOT 1:1 -- see M5/M6/M7, which is a property of the client's data.
+==============================================================================

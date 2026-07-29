@@ -438,3 +438,49 @@ back rather than ship a causeless report, and the diagnostic now says "proposed 
 **Mistake made and fixed:** `json.dump` without `encoding='utf-8'` corrupted the em-dashes in
 `selectable_models` labels (they feed the UI picker) into mojibake. Repaired by round-tripping
 through cp1252, and the labels render correctly again.
+
+---
+
+## Session 24 — 2026-07-29 · CQN in the UI, mapping integrity proven, multi-model comparison
+**When:** Wed 29 Jul 2026, **~09:40 – 11:35 IST** (endpoint + console wiring ~09:40-10:05; Canary
+V0.4 10:08-10:16; mapping-integrity analysis 10:25-10:45; multi-model compare 10:50-10:56; Canary
+V0.5 10:57-11:10; docs + commit to ~11:35).
+**Runtime:** `/api/cqn-mapping` **94ms**; `/api/data` 11,957ms / **44.8MB**; NVIDIA investigations
+29-85s; Groq 3.0s; integrity suite ~40s; multi-model compare ~2min; Canary V0.4 6m48s / V0.5 ~12min.
+
+1. **The mapping was in SQL but the CONSOLE could not see it.** `MAP` stayed `null` until someone
+   uploaded a file by hand, so every flagged card rendered `unmapped`. Added
+   **`GET /api/cqn-mapping`** (serves `dbo.CQN_Mapping`, plus `all_queues` and
+   `multi_queue_names`; returns `configured:false` rather than a 500 when the table is absent) and
+   wired `rca_console.html` to call it during `sqlFetch`. **First change to the console in this
+   branch** — additive; the manual upload path still works.
+2. **Zero unmapped, verified three ways** (Canary V0.4 + V0.5): 0 of 250 cards, 0 `.badge.unm` in
+   `#qlist`, and no "unmapped" anywhere in `document.body.innerText`. Badge reads
+   `CQN mapped from SQL · 442 queues` + a `69 multi-queue` chip.
+3. **"Is it 100% mapped?" — answered properly, with a caveat that matters.** New
+   `results/cqn_mapping_integrity.py` (6 PASS / 0 FAIL / 4 INFO) separates the senses of the claim:
+   coverage is **100% by names (427/427), by rows (66,612) AND by volume (38.9M)**, and — the check
+   that goes beyond coverage — the mapping's Region/SubRegion/Channel/Offering **agree with the data
+   on 427/427 names**, so it never contradicts the rows it maps.
+   **But it is not 1:1:** 69 of 442 names carry more than one Combined Queue, and those names hold
+   **41.7% of all demand volume** (16.2M of 38.9M) despite being only 15.7% of rows. Of the 69,
+   **23 differ only by a vendor/site suffix** (resolvable by a rule) and **46 are genuinely
+   different queues** (needs a business answer). `DB_OSP` differs on only 39, so it cannot
+   disambiguate. Current behaviour is the union of a name's queues.
+4. **Multi-model comparison.** New `results/multi_model_compare.py` runs one queue through several
+   models and diffs the rankings. On `ANZ Comm Client ProSupport` FW202722 — itself one of the 69
+   multi-CQN names — **3/3 models answered on the LLM and all three ranked
+   `inherited_from_higher_level` first**, `systematic_forecast_bias` second, none shipping an
+   unsupported cause. In the UI (Canary V0.5) four models on `NA Core Spanish` FW202719 were
+   **unanimous on `genuine demand event`**, diverging only on confidence (60% → 95%).
+5. **A monitoring trap found by Canary V0.5:** `POST /api/rca-investigate?provider=groq` returned
+   **HTTP 200 in 0.4s** while Groq had 429'd upstream. The backend swallows it by design and returns
+   a deterministic payload, so **an LLM outage is invisible to status-code monitoring** — the truth
+   is only in `investigation_meta.engine`. Logged in TODO.
+6. **`_rcaCurrent` diagnosed more precisely:** it stores an INDEX into `FLAGS`, not a queue key
+   (`rca_console.html:2002`). V0.5 saw no drift only because no filter ran between model switches.
+7. **MP4 deliverables** — `winget install Gyan.FFmpeg`, then transcode from WebM (Playwright's
+   bundled ffmpeg has PNG/VP8 encoders only, no MP4 muxer). V0.4 1.8 MB, V0.5 3.1 MB.
+
+Still unfixed and now seen in four consecutive sessions: the `renderProbe` TypeError on every page
+load (`rca_console.html:2117`, from `:2143`) — fallout from `e432543` hiding the Probing layer.
