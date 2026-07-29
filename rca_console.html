@@ -1901,7 +1901,13 @@ function invToPoints(v){
 function invConfMeter(score){
   if(score==null) return '<span class="inv-badge placeholder">Confidence not scored</span>';
   const pct=Math.max(0,Math.min(100,Math.round(score*100))), col=invConfColor(score);
-  return `<div class="inv-conf-meter"><div class="bar"><div class="fill" style="width:${pct}%;background:${col};"></div></div><b style="color:${col};">${pct}%</b> <span style="font-size:11px;color:var(--muted);text-transform:capitalize;">${invConfWord(score)}</span></div>`;
+  return `
+    <div style="display:inline-flex;align-items:center;gap:10px;min-width:170px;">
+      <div style="flex:1;height:8px;background:rgba(128,128,128,0.2);border-radius:99px;overflow:hidden;min-width:90px;">
+        <div style="width:${pct}%;height:100%;background:${col};border-radius:99px;"></div>
+      </div>
+      <span style="font-size:12px;font-weight:700;color:${col};white-space:nowrap;">${pct}% <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:capitalize;">${invConfWord(score)}</span></span>
+    </div>`;
 }
 function invRcCard(rc, cls){
   if(!rc) return '';
@@ -1921,11 +1927,12 @@ function formatBoldText(s) {
   return res;
 }
 
-function getFourOrMoreRootCausePoints(f) {
+function getSixOrMoreRootCausePoints(f) {
   let raw = f.reasoning_points || invToPoints(f.reasoning_narrative);
   if (!Array.isArray(raw)) raw = [];
   const seen = new Set();
   let cleanPts = [];
+
   raw.forEach(p => {
     const str = (p || '').trim();
     if (str && !seen.has(str.toLowerCase())) {
@@ -1934,24 +1941,45 @@ function getFourOrMoreRootCausePoints(f) {
     }
   });
 
-  if (cleanPts.length < 4) {
-    const kf = f.key_findings || [];
-    for (const k of kf) {
-      const kTrim = (k || '').trim();
-      if (kTrim && !seen.has(kTrim.toLowerCase())) {
-        seen.add(kTrim.toLowerCase());
-        cleanPts.push(kTrim);
-        if (cleanPts.length >= 4) break;
-      }
+  if (f.primary_root_cause && f.primary_root_cause.statement) {
+    const stmt = f.primary_root_cause.statement.trim();
+    if (!seen.has(stmt.toLowerCase())) {
+      seen.add(stmt.toLowerCase());
+      cleanPts.unshift(stmt);
     }
   }
-  if (cleanPts.length < 4) {
-    const hc = (f.historical_comparison || {}).narrative;
-    if (hc && !seen.has(hc.toLowerCase())) {
-      cleanPts.push(hc);
+
+  (f.supporting_evidence || []).forEach(e => {
+    const txt = (typeof e === 'string' ? e : e.text || '').trim();
+    if (txt && !seen.has(txt.toLowerCase())) {
+      seen.add(txt.toLowerCase());
+      cleanPts.push(txt);
     }
+  });
+
+  (f.key_findings || []).forEach(k => {
+    const kTrim = (k || '').trim();
+    if (kTrim && !seen.has(kTrim.toLowerCase())) {
+      seen.add(kTrim.toLowerCase());
+      cleanPts.push(kTrim);
+    }
+  });
+
+  const hc = (f.historical_comparison || {}).narrative;
+  if (hc && !seen.has(hc.toLowerCase())) {
+    seen.add(hc.toLowerCase());
+    cleanPts.push(hc);
   }
-  return cleanPts.slice(0, 5);
+
+  (f.secondary_contributors || []).forEach(sc => {
+    const stmt = (sc.statement || '').trim();
+    if (stmt && !seen.has(stmt.toLowerCase())) {
+      seen.add(stmt.toLowerCase());
+      cleanPts.push(stmt);
+    }
+  });
+
+  return cleanPts.slice(0, 7);
 }
 
 function renderInvestigationReport(f, ctx){
@@ -2014,7 +2042,7 @@ function renderInvestigationReport(f, ctx){
       ${invConfMeter(confScore)}
     </div>` : '';
 
-  const rcPoints = getFourOrMoreRootCausePoints(f);
+  const rcPoints = getSixOrMoreRootCausePoints(f);
   const narrativeHtml=`<details class="inv-sec" open>
     <summary style="display:flex;align-items:center;justify-content:space-between;width:100%;">
       <span style="font-weight:700;font-size:13.5px;">Root Cause</span>
