@@ -1595,10 +1595,10 @@ function buildFindings(r){
   d.push({
     s:(r._acc!=null&&Math.abs(r._acc-100)<=band)?'info':'hit',
     b:r._noF?`<b>Forecast accuracy — N/A.</b> fcst_offered is zero/blank, so Actual ÷ Forecast is undefined.`
-            :`<b>Forecast accuracy = ${r._acc.toFixed(1)}%</b> — Actual_Offered ÷ fcst_offered.`,
+            :`<b>Forecast accuracy = ${r._acc.toFixed(1)}%</b>`,
     m:{title:'Forecast Accuracy',
-       formula:'Forecast Accuracy = (Actual_Offered ÷ forecast offered (Simple)) × 100',
-       values:[`Actual_Offered = ${A}`,`forecast offered (Simple) = ${r._noF?'0 / blank':fmt2(F)}`],
+       formula:'Forecast Accuracy = (Actual_Offered ÷ Forecast Offered) × 100',
+       values:[`Actual_Offered = ${A}`,`Forecast Offered = ${r._noF?'0 / blank':fmt2(F)}`],
        result:r._noF?'N/A (fcst_offered ≤ 0)':r._acc.toFixed(1)+'%'}
   });
   // 2) Forecast Adherence = (1 - Actual_Offered/fcst_offered) * 100 ; blank if no actual
@@ -1610,8 +1610,8 @@ function buildFindings(r){
        :r._noF?`<b>Forecast adherence — N/A.</b> fcst_offered is zero/blank → division undefined.`
        :`<b>Forecast adherence = ${r._padh.toFixed(1)}%</b> deviation from forecast (0% = perfect; negative = actual ran above forecast/under-forecast, positive = actual ran below forecast/over-forecast).`,
     m:{title:'Forecast Adherence',
-       formula:'Forecast Adherence = (1 − (Actual offered / forecast offered (Simple))) × 100',
-       values:[`Actual_Offered = ${noActual?'(blank)':A}`,`forecast offered (Simple) = ${r._noF?'0 / blank':fmt2(F)}`],
+       formula:'Forecast Adherence = (1 − (Actual_Offered / Forecast Offered)) × 100',
+       values:[`Actual_Offered = ${noActual?'(blank)':A}`,`Forecast Offered = ${r._noF?'0 / blank':fmt2(F)}`],
        result:noActual?'"" (blank, no actual)':(r._noF?'N/A (÷ by zero)':r._padh.toFixed(1)+'%')}
   });
   return d;
@@ -1630,13 +1630,13 @@ function selectFlag(i){
         <div class="rtitle">${r.Forecast_name} ${r._mapped?'<span class="badge ok">mapped</span>':'<span class="badge unm">unmapped</span>'}</div>
         <div class="rmeta">${r.Region||''} · ${r.SubRegion||''} · ${r.Country||''} · ${r.channel||''}<br>Fiscal Week ${r._wk} · Plan: ${r.Projection_plan_name||'—'} · Forecaster: ${r.Forecaster||'—'}</div>
       </div>
-      <div class="acc"><div class="big" style="color:${accCol}">${r._acc!=null?r._acc.toFixed(1)+'%':'N/A'}</div><div class="lbl">Forecast Adherence</div></div>
+      <div class="acc"><div class="big" style="color:${accCol}">${r._padh!=null?Math.abs(r._padh).toFixed(1)+'%':'N/A'}</div><div class="lbl">Forecast Adherence</div></div>
     </div>
     <div class="subhead">Findings <span style="text-transform:none;font-weight:500;color:var(--muted)">(ⓘ = the exact formula &amp; numbers)</span></div>
     <ul class="rca-bullets">${bullets}</ul>
     <div class="subhead">Inputs used (from file)</div>
     <div class="kv"><span class="k">Actual_Offered</span><span class="val">${r.Actual_Offered===''?'(blank)':(r._ao!=null?r._ao.toLocaleString():r.Actual_Offered)}</span></div>
-    <div class="kv"><span class="k">forecast offered (Simple)</span><span class="val">${r._fo!=null?fmt2(r._fo):(r.fcst_offered||'(blank)')}</span></div>
+    <div class="kv"><span class="k">Forecast Offered</span><span class="val">${r._fo!=null?fmt2(r._fo):(r.fcst_offered||'(blank)')}</span></div>
     <div class="subhead">Root-Cause Investigation</div>
     <div class="rca-cap">Gathers every available field for this queue — target week, history, and CQN peers — and hands it to the LLM Investigation Engine to reason freely: generate hypotheses, weigh evidence, reject what isn't supported, and rank what's left. Nothing here is a fixed rule checklist.</div>
     <div id="investigationPanel"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><button class="filebtn" onclick="triggerRCA(${i})">🔎 Investigate Root Cause</button>${rcaModelPickerHtml()}</div></div>
@@ -1923,13 +1923,13 @@ function renderInvestigationReport(f, ctx){
   const key=ctx.target.key||{};
   const summaryHtml=`<div class="inv-card">
     <div class="rhead" style="margin-bottom:2px;gap:8px;flex-wrap:wrap;"><div class="rtitle" style="font-size:13px;">Forecast Summary</div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-left:auto;">${rcaModelPickerHtml()}${engineBadge}</div></div>
-    <div class="rmeta" style="margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${invEsc(key.Forecast_name||'—')} · Fiscal Week ${invEsc(key.Fiscal_Week||'—')} ${causeTag}</div>
+    <div class="rmeta" style="margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${invEsc(key.Forecast_name||'—')} · Fiscal Week ${invEsc(key.Fiscal_Week||'—')}</div>
     <div class="inv-kv-grid">
       <div class="kvi"><div class="l">Forecast</div><div class="v">${invEsc(fsr.forecast)}</div></div>
       <div class="kvi"><div class="l">Actual</div><div class="v">${invEsc(fsr.actual)}</div></div>
-      <div class="kvi"><div class="l">Forecast error</div><div class="v">${invEsc(fsr.error)}</div></div>
-      <div class="kvi"><div class="l">Forecast adherence</div><div class="v">${invEsc(fsr.adherence_pct)}</div></div>
-      <div class="kvi"><div class="l">Miss type</div><div class="v" style="text-transform:capitalize">${invEsc(fsr.miss_type)}-forecast</div></div>
+      <div class="kvi"><div class="l">Forecast Deviation</div><div class="v">${invEsc(fsr.error)}</div></div>
+      <div class="kvi"><div class="l">Forecast Adherence</div><div class="v">${invEsc(fsr.adherence_pct)}</div></div>
+      <div class="kvi"><div class="l">Miss Type</div><div class="v">${(()=>{const m=(fsr.miss_type||'').toLowerCase().replace(/_/g,' ').replace(/-forecast$/i,'').trim();return m==='over'?'Over-forecast':m==='under'?'Under-forecast':m||'—';})()}</div></div>
     </div>
   </div>`;
 
@@ -1971,30 +1971,9 @@ function renderInvestigationReport(f, ctx){
     ${findingsList?`<ul class="inv-findings">${findingsList}</ul>`:'<div class="inv-empty">No observations recorded.</div>'}
   </div></details>`;
 
-  const rootCausesHtml=`<details class="inv-sec" open><summary>Root Cause</summary><div class="body">
-    ${secDesc('The most likely explanation for WHY the forecast missed (drawn from the findings above).')}
-    ${f.primary_root_cause?invRcCard(f.primary_root_cause,'primary'):'<div class="inv-empty">No primary root cause identified yet.</div>'}
-    ${(f.secondary_contributors||[]).map(c=>invRcCard(c,'secondary')).join('')}
-  </div></details>`;
 
-  const evidenceHtml=`<details class="inv-sec"><summary>Supporting Evidence</summary><div class="body">
-    ${secDesc('The specific data points behind the finding (technical detail in brackets).')}
-    ${f.supporting_evidence.length?`<ul class="inv-findings">${f.supporting_evidence.map(e=>`<li>${invEsc(e.text||'')} <span style="color:var(--muted);font-size:11px;">(${invEsc(e.source_field||'—')}${e.value!=null?' = '+invEsc(e.value):''})</span></li>`).join('')}</ul>`:'<div class="inv-empty">No supporting evidence recorded.</div>'}
-  </div></details>`;
-
-  const rejectedHtml=`<details class="inv-sec"><summary>Rejected Hypotheses</summary><div class="body">
-    ${f.rejected_hypotheses.length?f.rejected_hypotheses.map(h=>`<div class="rej-item"><div class="h">✕ ${invEsc(h.hypothesis)}</div><div class="r">${invEsc(h.reason_rejected)}</div></div>`).join(''):'<div class="inv-empty">No hypotheses recorded as rejected (or none were tested yet — see Missing Information).</div>'}
-  </div></details>`;
-
-  const hist=f.historical_comparison||{};
-  const historyHtml=`<details class="inv-sec"><summary>Historical Comparison</summary><div class="body">
-    ${hist.narrative?`<p style="margin:0 0 8px;">${invEsc(hist.narrative)}</p>`:'<div class="inv-empty">No historical comparison available.</div>'}
-    ${(hist.data_points||[]).map(d=>`<div class="kv"><span class="k">${invEsc(d.label)}</span><span class="val">${invEsc(d.value)}</span></div>`).join('')}
-  </div></details>`;
-
-  const narrativeHtml=`<details class="inv-sec" open><summary>Reasoning Narrative</summary><div class="body">
-    ${secDesc('The story connecting the findings into one logical explanation.')}
-    ${(f.reasoning_points||[]).length?`<ul class="inv-findings">${f.reasoning_points.map(p=>`<li>${invEsc(p)}</li>`).join('')}</ul>`:'<div class="inv-empty">No narrative produced.</div>'}
+  const narrativeHtml=`<details class="inv-sec" open><summary>Root Cause</summary><div class="body">
+    ${(f.reasoning_points||[]).length?`<ul style="list-style:none;padding:0;margin:0;">${f.reasoning_points.map(p=>`<li style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);"><span style="font-size:14px;color:var(--accent);flex-shrink:0;margin-top:2px;">&#9670;</span><span style="font-size:12.5px;line-height:1.6;color:var(--text);">${invEsc(p)}</span></li>`).join('')}</ul>`:'<div class="inv-empty">No root cause narrative produced.</div>'}
   </div></details>`;
 
   const recsHtml=`<details class="inv-sec" open><summary>Forecast Improvement Recommendations</summary><div class="body">
@@ -2009,7 +1988,7 @@ function renderInvestigationReport(f, ctx){
 
   const metaHtml=`<div class="inv-meta">Engine: ${invEsc(meta.engine||'—')}${meta.model?' · '+invEsc(meta.model):''} · generated ${meta.generated_at?new Date(meta.generated_at).toLocaleString():'—'} · based on ${(meta.based_on_fields||[]).length} field(s) gathered generically from the source file</div>`;
 
-  return summaryHtml+proofHtml+findingsHtml+rootCausesHtml+evidenceHtml+rejectedHtml+historyHtml+narrativeHtml+recsHtml+confHtml+missingHtml+metaHtml;
+  return summaryHtml+proofHtml+findingsHtml+evidenceHtml+rejectedHtml+historyHtml+narrativeHtml+recsHtml+confHtml+missingHtml+metaHtml;
 }
 
 /* ---- RCA Trigger — orchestrates the pipeline above; owns nothing except sequencing.
