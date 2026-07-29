@@ -1,7 +1,7 @@
 {
  "run": {
-  "started_utc": "2026-07-29T07:06:55.031972+00:00",
-  "finished_utc": "2026-07-29T07:10:02.905565+00:00",
+  "started_utc": "2026-07-29T08:03:54.800741+00:00",
+  "finished_utc": "2026-07-29T08:07:02.758853+00:00",
   "backend": "http://localhost:8000",
   "server": "10.10.9.75",
   "table": "dbo.Input_To_ML",
@@ -36,8 +36,8 @@
    "provider": null,
    "model": null,
    "timing_seconds": {
-    "queue_context": 2.28,
-    "investigate": 2.41
+    "queue_context": 2.25,
+    "investigate": 2.64
    },
    "adherence_pct": -9599.7,
    "ranked_causes": [
@@ -150,8 +150,8 @@
    "provider": null,
    "model": null,
    "timing_seconds": {
-    "queue_context": 2.16,
-    "investigate": 2.63
+    "queue_context": 2.18,
+    "investigate": 2.41
    },
    "adherence_pct": 38.5,
    "ranked_causes": [
@@ -263,8 +263,8 @@
    "provider": null,
    "model": null,
    "timing_seconds": {
-    "queue_context": 2.18,
-    "investigate": 2.4
+    "queue_context": 2.3,
+    "investigate": 2.59
    },
    "adherence_pct": 66.1,
    "ranked_causes": [
@@ -369,8 +369,8 @@
    "provider": null,
    "model": null,
    "timing_seconds": {
-    "queue_context": 2.22,
-    "investigate": 2.53
+    "queue_context": 2.18,
+    "investigate": 2.43
    },
    "adherence_pct": 75.3,
    "ranked_causes": [
@@ -475,8 +475,8 @@
    "provider": null,
    "model": null,
    "timing_seconds": {
-    "queue_context": 2.21,
-    "investigate": 2.37
+    "queue_context": 2.23,
+    "investigate": 2.48
    },
    "adherence_pct": -0.0,
    "ranked_causes": [],

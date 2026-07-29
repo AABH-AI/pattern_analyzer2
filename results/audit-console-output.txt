@@ -1,6 +1,6 @@
 ==============================================================================
 WFM RCA ENGINE -- END-TO-END VALIDATION RUN
-started (UTC)      : 2026-07-29T07:06:55.031972+00:00
+started (UTC)      : 2026-07-29T08:03:54.800741+00:00
 backend            : http://localhost:8000
 table              : dbo.Input_To_ML  on  10.10.9.75
 model              : groq / llama-3.3-70b-versatile
@@ -15,8 +15,8 @@ queue selection    : DELIBERATE (explicit SQL predicate per engine path), not ra
 CASE A: NA Core Spanish  FW202719
   locality : Americas / NA / United States / Voice
   selected because: Known isolated extreme (8,805 vs ~117 typical); the only queue in the table with a week >50x its own median. Must rank data_quality_issue first.
-  [1] GET /api/queue-context -> 2.28s (history=13, peers=15)
-  [2] POST /api/rca-investigate?mode=wfm -> 2.41s  engine=wfm-deterministic-fallback
+  [1] GET /api/queue-context -> 2.25s (history=13, peers=15)
+  [2] POST /api/rca-investigate?mode=wfm -> 2.64s  engine=wfm-deterministic-fallback
       adherence=-9599.7%  causes=3
         #1 [60% Medium] Hypothesis - To be Validated :: data_quality_issue :: Suspected data quality issue in this week's actual
         #2 [65% Medium] Verified :: inherited_from_higher_level :: The miss is inherited from Region level
@@ -36,8 +36,8 @@ CASE B: ANZ Comm Client DSP Upsell  FW202652
   locality : APJ / ANZ / Australia / Voice
   selected because: Both Planned_ASU and Actual_ASU present with a >30% miss and a non-trivial forecast, so the driver decomposition must be available and must reconcile exactly.
   pacing 40s (Groq on-demand cap is 12,000 tokens/min)...
-  [1] GET /api/queue-context -> 2.16s (history=13, peers=6)
-  [2] POST /api/rca-investigate?mode=wfm -> 2.63s  engine=wfm-deterministic-fallback
+  [1] GET /api/queue-context -> 2.18s (history=13, peers=6)
+  [2] POST /api/rca-investigate?mode=wfm -> 2.41s  engine=wfm-deterministic-fallback
       adherence=38.5%  causes=2
         #1 [65% Medium] Verified :: inherited_from_higher_level :: The miss is inherited from Channel level
         #2 [50% Medium] Verified :: systematic_forecast_bias :: Systematic forecast bias
@@ -56,8 +56,8 @@ CASE C: ANZ Client Core  FW202722
   locality : APJ / ANZ / Australia / Voice
   selected because: Its Country-level rollup also breaches the band in the same week, so the engine must report the miss as inherited from a higher level rather than concluding at the queue.
   pacing 40s (Groq on-demand cap is 12,000 tokens/min)...
-  [1] GET /api/queue-context -> 2.18s (history=13, peers=6)
-  [2] POST /api/rca-investigate?mode=wfm -> 2.40s  engine=wfm-deterministic-fallback
+  [1] GET /api/queue-context -> 2.30s (history=13, peers=6)
+  [2] POST /api/rca-investigate?mode=wfm -> 2.59s  engine=wfm-deterministic-fallback
       adherence=66.1%  causes=2
         #1 [65% Medium] Verified :: inherited_from_higher_level :: The miss is inherited from Business Org level
         #2 [60% Medium] Verified :: genuine_demand_event :: Genuine demand event
@@ -76,8 +76,8 @@ CASE D: Brazil Client Core  FW202722
   locality : Americas / Brazil / Brazil / Voice
   selected because: Sits in a locality carrying 4+ channels, so channel-migration detection has real sibling data to evaluate.
   pacing 40s (Groq on-demand cap is 12,000 tokens/min)...
-  [1] GET /api/queue-context -> 2.22s (history=13, peers=6)
-  [2] POST /api/rca-investigate?mode=wfm -> 2.53s  engine=wfm-deterministic-fallback
+  [1] GET /api/queue-context -> 2.18s (history=13, peers=6)
+  [2] POST /api/rca-investigate?mode=wfm -> 2.43s  engine=wfm-deterministic-fallback
       adherence=75.3%  causes=2
         #1 [65% Medium] Verified :: inherited_from_higher_level :: The miss is inherited from Business Org level
         #2 [60% Medium] Verified :: genuine_demand_event :: Genuine demand event
@@ -96,8 +96,8 @@ CASE E: ANZ Comm Client ProSupport Chat  FW202722
   locality : APJ / ANZ / Australia / Chat
   selected because: CONTROL: adherence inside +/-10%. The business rule forbids investigating, so the engine must return engine=wfm-not-investigated with zero causes.
   pacing 40s (Groq on-demand cap is 12,000 tokens/min)...
-  [1] GET /api/queue-context -> 2.21s (history=13, peers=2)
-  [2] POST /api/rca-investigate?mode=wfm -> 2.37s  engine=wfm-not-investigated
+  [1] GET /api/queue-context -> 2.23s (history=13, peers=2)
+  [2] POST /api/rca-investigate?mode=wfm -> 2.48s  engine=wfm-not-investigated
       adherence=-0.0%  causes=0
   [3] raw response -> results/case-E-response.json
       PASS  V1  KPI adherence matches SQL recomputation

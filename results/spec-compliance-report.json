@@ -12,39 +12,39 @@
    "provider": "nvidia",
    "model": "nvidia/nemotron-3-super-120b-a12b",
    "engine": "wfm-llm",
-   "seconds": 38.2,
+   "seconds": 146.5,
    "raw_file": "spec-nvidia-response.json",
    "ranked": [
     {
      "rank": 1,
      "cause_type": "data_quality_issue",
-     "title": "Questionable actual volume",
-     "confidence_pct": 90,
+     "title": "Potential data\u2011recording error",
+     "confidence_pct": 85,
      "confidence_level": "High",
      "status": "Hypothesis - To be Validated"
     },
     {
      "rank": 2,
      "cause_type": "inherited_from_higher_level",
-     "title": "Miss driven by Region\u2011level demand shift",
-     "confidence_pct": 80,
+     "title": "Miss inherited from Region level",
+     "confidence_pct": 70,
      "confidence_level": "High",
      "status": "Verified"
     },
     {
      "rank": 3,
-     "cause_type": "plan_restatement",
-     "title": "Forecast plan restatement altered baseline",
-     "confidence_pct": 50,
+     "cause_type": "systematic_forecast_bias",
+     "title": "Chronic over\u2011forecast bias on this queue",
+     "confidence_pct": 60,
      "confidence_level": "Medium",
-     "status": "Hypothesis - To be Validated"
+     "status": "Verified"
     },
     {
      "rank": 4,
-     "cause_type": "systematic_forecast_bias",
-     "title": "Queue\u2019s chronic over\u2011forecast bias",
-     "confidence_pct": 30,
-     "confidence_level": "Low",
+     "cause_type": "genuine_demand_event",
+     "title": "Possible genuine surge in customer contacts",
+     "confidence_pct": 40,
+     "confidence_level": "Medium",
      "status": "Hypothesis - To be Validated"
     }
    ],
@@ -77,7 +77,7 @@
      "id": "S5",
      "clause": "Root causes: best-supported first (confidence descends, data-quality override allowed)",
      "status": "PASS",
-     "detail": "confidences=[90, 80, 50, 30] (rank 1 exempt: data_quality_issue is mandated first)"
+     "detail": "confidences=[85, 70, 60, 40] (rank 1 exempt: data_quality_issue is mandated first)"
     },
     {
      "id": "S6",
@@ -95,7 +95,7 @@
      "id": "S8",
      "clause": "Skeptic mode: challenges recorded with verdicts",
      "status": "PASS",
-     "detail": "8 entries, 2 rejected"
+     "detail": "8 entries, 1 rejected"
     },
     {
      "id": "S9",
@@ -107,13 +107,13 @@
      "id": "S10",
      "clause": "Technical metrics kept in their own (collapsed) section",
      "status": "PASS",
-     "detail": "15 rows"
+     "detail": "22 rows"
     },
     {
      "id": "S11",
      "clause": "Output format: executive summary, KPI status, business impact all present",
      "status": "PASS",
-     "detail": "summary=625 chars"
+     "detail": "summary=672 chars"
     },
     {
      "id": "S12",
@@ -137,7 +137,7 @@
      "id": "S15",
      "clause": "Investigation order: an inherited miss is actually reported as inherited",
      "status": "PASS",
-     "detail": "inherited_from=Region, types=['data_quality_issue', 'inherited_from_higher_level', 'plan_restatement', 'systematic_forecast_bias']"
+     "detail": "inherited_from=Region, types=['data_quality_issue', 'inherited_from_higher_level', 'systematic_forecast_bias', 'genuine_demand_event']"
     },
     {
      "id": "S16",
@@ -167,7 +167,7 @@
      "id": "S20",
      "clause": "Critical rules: gaps declared rather than glossed over",
      "status": "PASS",
-     "detail": "1 item(s)"
+     "detail": "2 item(s)"
     },
     {
      "id": "S21",

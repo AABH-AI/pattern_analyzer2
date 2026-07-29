@@ -195,6 +195,31 @@ Built in `backend/wfm/investigation_loop.py`; see `prompt-trail.md` Session 25.
 - [ ] **Precedent counts week-over-week swaps only.** `_q5_precedent` measures how often the Combined
       Queue held flat while its channels moved; it does not yet detect a seasonal or month-end pattern.
 
+## P1g — output-quality fixes and what they expose (2026-07-29)
+From three screenshots of `Nordic Premium Support` FW202718. See `prompt-trail.md` Session 26.
+- [x] **Model-invented `source_field` reaching the UI** — `peers[0].computed.error` with a
+      14-decimal float. Now validated against real columns, path-stripped, rounded, and inferred
+      from the sentence when unresolvable.
+- [x] **Empty secondary contributor rendering as a blank bar** — dropped before it ships.
+- [x] **MATERIALITY** — a 4.5-contact miss no longer carries 80% confidence; it is annotated
+      `immaterial`, stated in contacts, and confidence is capped (0.80 -> 0.42).
+- [x] **Reasoning narrative repeating key findings verbatim** — deduped.
+- [x] **Forecast error rounding** inconsistent with adherence — unified.
+- [ ] **DECISION NEEDED: route the console to the WFM engine, or keep improving the default?**
+      The screenshots show the DEFAULT engine — no investigation loop, no case file, no
+      `data_required_to_go_deeper`. Everything built for the WFM engine is invisible to the user
+      until either the console calls `?mode=wfm` or the two engines converge. This is the single
+      biggest gap between what has been built and what the business sees.
+- [ ] **Use materiality to rank the flagged list.** 33,003 flagged weeks include many like this one
+      — a 4-contact gap at 42.8%. Sorting or filtering by absolute contacts would put the analyst's
+      attention where the volume is. Needs a business call on the threshold (10 contacts is a guess).
+- [ ] **Collapse the duplicated historical metrics.** "Average adherence (history)" and "Typical
+      weekly miss" show the same number whenever a queue misses in one consistent direction, which
+      reads like a bug even though it is correct. Show one, or label why they coincide.
+- [ ] **Small-denominator flagging is systemic.** A queue forecast at 10.49 producing a 42.8% breach
+      is arithmetically correct and operationally meaningless. Consider a volume floor for the
+      ±10% band, or a separate low-volume review track.
+
 ## P2 — dashboard / UX polish (post-deadline OK)
 - [x] High-cardinality dimension cards showed 0% shares — now show row counts; Fiscal_Week dropped from the grid; panel made bolder/cleaner. (2026-07-22)
 - [ ] Trend charts: optional brush/zoom for the 325-week span; shared hover legend across the two trend charts.

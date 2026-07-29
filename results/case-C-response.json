@@ -163,7 +163,7 @@
   }
  ],
  "missing_information": [
-  "groq/llama-3.3-70b-versatile HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kkrjztjcfcd8h1kwmdh4ymne` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 99243,. This report was built from the deterministic data checks only - it is not the full multi-hypothesis WFM investigation."
+  "groq/llama-3.3-70b-versatile HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kkrjztjcfcd8h1kwmdh4ymne` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 95284,. This report was built from the deterministic data checks only - it is not the full multi-hypothesis WFM investigation."
  ],
  "derived_features": {
   "base_features": {
@@ -222,6 +222,14 @@
     "signal": false
    },
    "population_context": null,
+   "materiality": {
+    "absolute_miss_contacts": 161.6,
+    "typical_weekly_volume": 232.4,
+    "min_actionable_contacts": 10,
+    "low_volume_threshold": 25,
+    "verdict": "material",
+    "note": null
+   },
    "cleaned_signals": [
     {
      "field": "installed_base(Final_upp_units)",
@@ -595,7 +603,7 @@
  },
  "investigation_meta": {
   "engine": "wfm-deterministic-fallback",
-  "generated_at": "2026-07-29T07:08:32.825491+00:00"
+  "generated_at": "2026-07-29T08:05:32.892986+00:00"
  },
  "primary_root_cause": {
   "statement": "The same miss is already visible at Business Org level, so it is not specific to this queue and a queue-level cause cannot explain it.",

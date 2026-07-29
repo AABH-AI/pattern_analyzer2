@@ -64,6 +64,13 @@ INSTALLED_BASE_FIELDS = ["Final_Units", "Final_Y1", "Final_Y2", "Final_Y3",
 HANDLED_FIELDS = {"Actual_Handled", "fcst_handled"}
 # Fields that are outliers for EVERY flagged queue by definition — citing them as the
 # primary cause just restates that a miss happened. Used by the verifier.
+# Materiality thresholds. A miss smaller than this many contacts is not actionable however
+# large the percentage looks; a queue whose typical week is below the low-volume threshold has an
+# inherently unstable adherence percentage. Both are display/annotation only -- the two metrics'
+# math is untouched.
+MATERIALITY_MIN_CONTACTS = 10
+MATERIALITY_LOW_VOLUME = 25
+
 DEFINITIONAL_FIELDS = {"Actual_Offered", "Actual_Handled", "fcst_offered", "fcst_handled",
                        "adherence_pct", "accuracy_pct", "error", "forecast", "actual", "severity"}
 
@@ -389,6 +396,36 @@ def derive_features(context_bundle):
     # -- population context (if the console supplied it) --
     feats["population_context"] = (b.get("meta") or {}).get("population")
 
+    # -- MATERIALITY: is this miss big enough to act on, in CONTACTS rather than percent? --
+    #    A percentage is unbounded when the denominator is tiny: forecast 10.49 vs actual 6 is
+    #    "42.8% off" but only 4.5 contacts. Without this, small queues dominate the flagged list
+    #    and burn the analyst's attention on noise. This does NOT change the two metrics -- it
+    #    annotates them.
+    abs_miss = (abs(t_actual - t_forecast)
+                if isinstance(t_actual, (int, float)) and isinstance(t_forecast, (int, float))
+                else None)
+    typical_vol = ao_mean if isinstance(ao_mean, (int, float)) else None
+    mat_verdict, mat_note = "material", None
+    if abs_miss is not None:
+        if abs_miss < MATERIALITY_MIN_CONTACTS:
+            mat_verdict = "immaterial"
+            mat_note = (f"The gap is only about {round(abs_miss)} contact(s). A percentage looks "
+                        f"large because the numbers are small, but a miss this size is not "
+                        f"actionable on its own.")
+        elif typical_vol is not None and typical_vol < MATERIALITY_LOW_VOLUME:
+            mat_verdict = "low_volume"
+            mat_note = (f"This queue handles only about {round(typical_vol)} contacts in a typical "
+                        f"week, so its adherence percentage swings widely on very small changes. "
+                        f"Read the contact counts, not the percentage.")
+    feats["materiality"] = {
+        "absolute_miss_contacts": round(abs_miss, 1) if abs_miss is not None else None,
+        "typical_weekly_volume": round(typical_vol, 1) if typical_vol is not None else None,
+        "min_actionable_contacts": MATERIALITY_MIN_CONTACTS,
+        "low_volume_threshold": MATERIALITY_LOW_VOLUME,
+        "verdict": mat_verdict,
+        "note": mat_note,
+    }
+
     # -- cleaned signals: real outliers, noise removed, installed-base collapsed --
     cleaned = []
     for f, s in numeric.items():
@@ -698,6 +735,144 @@ def _fill_gaps(result, features):
     return result
 
 
+
+# Real columns + the computed metrics -- the only things allowed to appear as a source_field in
+# business-facing evidence. Anything else (a model-invented accessor path such as
+# "peers[0].computed.error") is mapped to the closest real field, or dropped.
+_VALID_SOURCE_FIELDS = set(FIELD_DEFINITIONS) | {
+    "adherence_pct", "accuracy_pct", "error", "forecast", "actual", "severity", "direction"}
+
+# Model-invented paths seen in the wild -> the real field they were talking about.
+_SOURCE_FIELD_ALIASES = {
+    "computed.error": "error", "computed.actual": "Actual_Offered",
+    "computed.forecast": "fcst_offered", "computed.adherence_pct": "adherence_pct",
+    "computed.accuracy_pct": "accuracy_pct",
+    "target.fields.actual_offered": "Actual_Offered",
+    "target.fields.fcst_offered": "fcst_offered",
+    "statistical_summary.actual_offered.history_mean": "Actual_Offered",
+}
+
+
+# When the model gives no usable source_field, infer it from what the sentence is talking about.
+# Better than rendering "(— = 17.6)" in the UI, and it stays honest: these are the only fields the
+# sentence could be describing.
+_TEXT_TO_FIELD = (
+    ("units under warranty", "Actual_ASU"), ("planned asu", "Planned_ASU"),
+    ("actual asu", "Actual_ASU"), ("installed base", "Final_Units"),
+    ("holiday", "Holiday_Count"), ("forecast plan", "Projection_plan_name"),
+    ("typical forecast", "fcst_offered"), ("usual forecast", "fcst_offered"),
+    ("forecast", "fcst_offered"),
+    ("actual demand", "Actual_Offered"), ("demand", "Actual_Offered"),
+    ("adherence", "adherence_pct"), ("accuracy", "accuracy_pct"),
+    ("gap", "error"), ("error", "error"),
+)
+
+
+def _infer_source_field(text):
+    low = str(text or "").lower()
+    for phrase, field in _TEXT_TO_FIELD:
+        if phrase in low:
+            return field
+    return ""
+
+
+def _clean_source_field(raw):
+    """Map whatever the model wrote to a real column name, or return "" if it cannot be resolved.
+    Strips list indices and object paths: 'peers[0].computed.error' -> 'error'."""
+    name = str(raw or "").strip()
+    if not name:
+        return ""
+    if name in _VALID_SOURCE_FIELDS:
+        return name
+    stripped = re.sub(r"\[\s*\d+\s*\]", "", name)           # peers[0].x -> peers.x
+    low = stripped.lower()
+    for path, real in _SOURCE_FIELD_ALIASES.items():
+        if low.endswith(path):
+            return real
+    tail = stripped.split(".")[-1]                             # last path segment
+    if tail in _VALID_SOURCE_FIELDS:
+        return tail
+    for field in _VALID_SOURCE_FIELDS:                         # case-insensitive match
+        if field.lower() == tail.lower():
+            return field
+    return ""
+
+
+def _round_display(value):
+    """Round a cited number for a business reader. -6.19901200335282 -> -6.2."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        try:
+            value = float(str(value).replace(",", "").strip())
+        except (TypeError, ValueError):
+            return value
+    if abs(value) >= 1000:
+        return round(value)
+    return round(value, 1)
+
+
+def _sanitise_evidence(result):
+    """Fix every evidence item in place: real field names, readable numbers. Applied to the whole
+    response, because the model can put evidence in several places."""
+    def fix(items):
+        out = []
+        for ev in (items or []):
+            if not isinstance(ev, dict):
+                continue
+            ev["source_field"] = (_clean_source_field(ev.get("source_field"))
+                                  or _infer_source_field(ev.get("text")))
+            if "value" in ev:
+                ev["value"] = _round_display(ev.get("value"))
+            out.append(ev)
+        return out
+
+    result["supporting_evidence"] = fix(result.get("supporting_evidence"))
+    primary = result.get("primary_root_cause")
+    if isinstance(primary, dict):
+        primary["supporting_evidence"] = fix(primary.get("supporting_evidence"))
+    secondaries = []
+    for sec in (result.get("secondary_contributors") or []):
+        if not isinstance(sec, dict):
+            continue
+        # DROP an empty contributor -- one rendered as a blank blue bar in the UI.
+        if not str(sec.get("statement") or "").strip():
+            continue
+        sec["supporting_evidence"] = fix(sec.get("supporting_evidence"))
+        secondaries.append(sec)
+    result["secondary_contributors"] = secondaries
+    return result
+
+
+def _dedupe_narrative(result):
+    """The reasoning narrative was repeating key findings verbatim -- two identical bullets in the
+    UI. The narrative is supposed to CONNECT the findings, not restate them."""
+    narrative = result.get("reasoning_narrative")
+    findings = {str(k).strip().lower() for k in (result.get("key_findings") or [])}
+    if isinstance(narrative, list) and findings:
+        kept = [n for n in narrative if str(n).strip().lower() not in findings]
+        result["reasoning_narrative"] = kept or narrative[-1:]
+    return result
+
+
+def _apply_materiality(result, features):
+    """Annotate an immaterial or low-volume miss, and stop it wearing a confident root cause."""
+    mat = (features or {}).get("materiality") or {}
+    verdict = mat.get("verdict")
+    if verdict not in ("immaterial", "low_volume") or not mat.get("note"):
+        return result
+    missing = list(result.get("missing_information") or [])
+    missing.insert(0, mat["note"])
+    result["missing_information"] = missing
+    # A miss this small cannot support a high-confidence conclusion.
+    cap = 0.45 if verdict == "immaterial" else 0.6
+    if isinstance(result.get("confidence_score"), (int, float)):
+        result["confidence_score"] = min(result["confidence_score"], cap)
+    primary = result.get("primary_root_cause")
+    if isinstance(primary, dict) and isinstance(primary.get("confidence"), (int, float)):
+        primary["confidence"] = min(primary["confidence"], cap)
+    result["materiality"] = mat
+    return result
+
+
 def _verify_and_fix(result, context_bundle, features):
     """Reject circular primaries; promote a clean secondary or synthesise a
     feature-based finding. Guarantees a non-circular, data-backed primary."""
@@ -738,6 +913,15 @@ def _verify_and_fix(result, context_bundle, features):
         if isinstance(c, (int, float)):
             result["confidence_score"] = c
     _fill_gaps(result, features)   # no blank cards when the data can say something
+    # Display hygiene, enforced in code because the prompt cannot guarantee it:
+    #   * a model-invented source_field like 'peers[0].computed.error' becomes 'error'
+    #   * -6.19901200335282 becomes -6.2
+    #   * an empty secondary contributor (blank bar in the UI) is dropped
+    #   * the narrative stops repeating key findings verbatim
+    #   * a 4-contact miss no longer carries an 80% confidence
+    _sanitise_evidence(result)
+    _dedupe_narrative(result)
+    _apply_materiality(result, features)
     return result
 
 

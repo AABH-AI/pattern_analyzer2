@@ -6,11 +6,11 @@ branch artefacts: wfm/ package      bundle: bundle.json
 
 ------------------------------------------------------------------------------
 RUN: nvidia / nvidia/nemotron-3-super-120b-a12b
-  engine=wfm-llm  38.2s  causes=4
-    #1 [90% High] Hypothesis - To be Validated :: data_quality_issue :: Questionable actual volume
-    #2 [80% High] Verified :: inherited_from_higher_level :: Miss driven by Region‑level demand shift
-    #3 [50% Medium] Hypothesis - To be Validated :: plan_restatement :: Forecast plan restatement altered baseline
-    #4 [30% Low] Hypothesis - To be Validated :: systematic_forecast_bias :: Queue’s chronic over‑forecast bias
+  engine=wfm-llm  146.5s  causes=4
+    #1 [85% High] Hypothesis - To be Validated :: data_quality_issue :: Potential data‑recording error
+    #2 [70% High] Verified :: inherited_from_higher_level :: Miss inherited from Region level
+    #3 [60% Medium] Verified :: systematic_forecast_bias :: Chronic over‑forecast bias on this queue
+    #4 [40% Medium] Hypothesis - To be Validated :: genuine_demand_event :: Possible genuine surge in customer contacts
       PASS  S1   KPI: Forecast Adherence formula + threshold recorded
       PASS  S2   KPI: breach flag agrees with |adherence| > threshold
       PASS  S3   Root causes: multiple explanations, ranked, capped at 5

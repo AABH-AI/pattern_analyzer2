@@ -1,0 +1,248 @@
+{
+ "cause_type": "forecast_baseline_error",
+ "key_findings": [
+  "The forecast for this week was set at about 10.5 contacts, which is roughly 40% lower than the queue's typical forecast of about 17.6 contacts.",
+  "Actual demand came in at about 6.0 contacts, roughly 30% lower than the queue's usual actual level of about 8.8 contacts.",
+  "Because the forecast was still above actual demand, the over\u2011forecast amounted to about 4.5 contacts, which is about half the queue's typical over\u2011forecast of roughly 8.8 contacts.",
+  "The forecast plan name remained unchanged this week, indicating the lower forecast was not due to a plan restatement.",
+  "There were no holidays this week and the holiday count was normal, so a calendar effect does not explain the shift."
+ ],
+ "primary_root_cause": {
+  "statement": "The queue has a chronic tendency to over\u2011forecast, so even with a lower forecast this week the error remains in the same direction.",
+  "confidence": 0.42,
+  "supporting_evidence": [
+   {
+    "text": "Over the past 13 weeks the forecast has been above actual demand every week, giving a consistent over\u2011forecast direction.",
+    "source_field": "",
+    "value": 1.0
+   }
+  ]
+ },
+ "supporting_evidence": [
+  {
+   "text": "The queue's typical forecast over the past 13 weeks averages about 17.6 contacts.",
+   "source_field": "",
+   "value": 17.6
+  },
+  {
+   "text": "The queue's typical actual demand over the past 13 weeks averages about 8.8 contacts.",
+   "source_field": "",
+   "value": 8.8
+  }
+ ],
+ "secondary_contributors": [
+  {
+   "statement": "The forecast was set unusually low compared to its own recent history, which reduced the usual over\u2011forecast but still left a noticeable miss.",
+   "confidence": 0.78,
+   "supporting_evidence": [
+    {
+     "text": "Forecast was about 10.5 contacts this week versus a usual ~17.6 contacts.",
+     "source_field": "fcst_offered",
+     "value": 10.5
+    },
+    {
+     "text": "Actual demand was about 6.0 contacts this week versus a usual ~8.8 contacts.",
+     "source_field": "Actual_Offered",
+     "value": 6.0
+    }
+   ]
+  }
+ ],
+ "rejected_hypotheses": [
+  {
+   "hypothesis": "A genuine surge or drop in demand caused the miss.",
+   "reason_rejected": "The forecast itself was set far from this queue's usual level, so the gap points to the forecast rather than a real demand change."
+  },
+  {
+   "hypothesis": "A change in the forecast plan caused the miss.",
+   "reason_rejected": "The forecast plan did not change for this week."
+  },
+  {
+   "hypothesis": "A holiday or short week distorted the numbers.",
+   "reason_rejected": "This week had no unusual number of holidays."
+  },
+  {
+   "hypothesis": "A change in the installed base (units under warranty) drove demand.",
+   "reason_rejected": "The installed base for this queue did not change materially this week."
+  }
+ ],
+ "historical_comparison": {
+  "narrative": "Over the last 13 weeks this queue typically misses by about 49.0% and usually runs below forecast. This week's miss is 0.9x that typical size.",
+  "data_points": [
+   {
+    "label": "Weeks compared",
+    "value": 13
+   },
+   {
+    "label": "Average adherence (history)",
+    "value": "49.0%"
+   },
+   {
+    "label": "Typical weekly miss",
+    "value": "49.0%"
+   },
+   {
+    "label": "This week vs typical",
+    "value": "0.9x"
+   }
+  ]
+ },
+ "reasoning_narrative": [
+  "The queue has a chronic tendency to over\u2011forecast, so even with a lower forecast this week the error remains in the same direction.",
+  "Other possible explanations were checked against the data and did not fit as well."
+ ],
+ "forecast_improvement_recommendations": [
+  "Re-baseline the forecast for this queue so it reflects its recent typical level.",
+  "Add a check that flags when a new forecast departs sharply from the queue's recent average."
+ ],
+ "confidence_score": 0.42,
+ "missing_information": [
+  "The gap is only about 4 contact(s). A percentage looks large because the numbers are small, but a miss this size is not actionable on its own."
+ ],
+ "forecast_summary": {
+  "forecast": 10.486784,
+  "actual": 6.0,
+  "error": -4.486784,
+  "adherence_pct": 42.78512840542916,
+  "miss_type": "over"
+ },
+ "derived_features": {
+  "chronic_bias": {
+   "history_mean_adherence_pct": 49.0,
+   "typical_abs_deviation_pct": 49.0,
+   "history_weeks": 13,
+   "usual_forecast": 17.6,
+   "usual_actual": 8.8,
+   "consistent_direction": "over",
+   "share_same_direction": 1.0,
+   "verdict": "chronic_over"
+  },
+  "this_week_vs_usual": {
+   "target_adherence_pct": 42.8,
+   "typical_abs_deviation_pct": 49.0,
+   "times_usual": 0.9,
+   "worse_than_usual": false
+  },
+  "forecast_sanity": {
+   "forecast": 10.49,
+   "actual": 6.0,
+   "forecast_usual_level": 17.55,
+   "actual_usual_level": 8.85,
+   "forecast_z_vs_own_history": -2.11,
+   "actual_z_vs_own_history": -0.76,
+   "forecast_over_actual_ratio": 1.748,
+   "verdict": "forecast_anomalously_low"
+  },
+  "installed_base": {
+   "field": "Final_Y4",
+   "z_score": 1.17,
+   "target_value": 2.0,
+   "history_mean": 0.85,
+   "material": false
+  },
+  "holiday": {
+   "holiday_count": 0.0,
+   "z_score": -0.81,
+   "unusual": false
+  },
+  "plan_restatement": {
+   "changed": false
+  },
+  "forecaster_change": {
+   "changed": false
+  },
+  "offering_change": {
+   "changed": false
+  },
+  "peer_divergence": {
+   "peers_total": 0,
+   "peers_opposite_direction": 0,
+   "peers_same_direction": 0,
+   "examples_opposite": [],
+   "signal": false
+  },
+  "population_context": null,
+  "materiality": {
+   "absolute_miss_contacts": 4.5,
+   "typical_weekly_volume": 8.8,
+   "min_actionable_contacts": 10,
+   "low_volume_threshold": 25,
+   "verdict": "immaterial",
+   "note": "The gap is only about 4 contact(s). A percentage looks large because the numbers are small, but a miss this size is not actionable on its own."
+  },
+  "cleaned_signals": [],
+  "proof": [
+   {
+    "label": "Forecast (fcst_offered)",
+    "field": "fcst_offered",
+    "this_week": 10.49,
+    "usual": 17.6,
+    "change": "about 40% lower than usual"
+   },
+   {
+    "label": "Actual demand (Actual_Offered)",
+    "field": "Actual_Offered",
+    "this_week": 6.0,
+    "usual": 8.8,
+    "change": "about 32% lower than usual"
+   },
+   {
+    "label": "Planned ASU",
+    "field": "Planned_ASU",
+    "this_week": 39.0,
+    "usual": 45.0,
+    "change": "about the same as usual"
+   }
+  ]
+ },
+ "verifier_note": "Adjusted automatically: the first explanation simply restated that a miss happened, so the clearest specific finding in the data was used as the main cause instead.",
+ "materiality": {
+  "absolute_miss_contacts": 4.5,
+  "typical_weekly_volume": 8.8,
+  "min_actionable_contacts": 10,
+  "low_volume_threshold": 25,
+  "verdict": "immaterial",
+  "note": "The gap is only about 4 contact(s). A percentage looks large because the numbers are small, but a miss this size is not actionable on its own."
+ },
+ "investigation_meta": {
+  "engine": "llm",
+  "provider": "nvidia",
+  "model": "nvidia/nemotron-3-super-120b-a12b",
+  "generated_at": "2026-07-29T07:27:04.335006+00:00",
+  "based_on_fields": [
+   "Actual_ASU",
+   "Actual_Handled",
+   "Actual_Offered",
+   "Country",
+   "Final_Units",
+   "Final_Y1",
+   "Final_Y2",
+   "Final_Y3",
+   "Final_Y4",
+   "Final_Y5",
+   "Final_upp_units",
+   "Fiscal_Week",
+   "Forecast_name",
+   "Forecaster",
+   "Friday",
+   "Holiday_Count",
+   "Monday",
+   "Offering",
+   "Planned_ASU",
+   "Projection_plan_name",
+   "Region",
+   "Saturday",
+   "SubRegion",
+   "Sunday",
+   "Thursday",
+   "Tuesday",
+   "Volume_Category",
+   "Wednesday",
+   "Week_Ending",
+   "business_org",
+   "channel",
+   "fcst_handled",
+   "fcst_offered"
+  ]
+ }
+}

@@ -85,6 +85,14 @@
     "signal": true
    },
    "population_context": null,
+   "materiality": {
+    "absolute_miss_contacts": 0.0,
+    "typical_weekly_volume": 324.3,
+    "min_actionable_contacts": 10,
+    "low_volume_threshold": 25,
+    "verdict": "immaterial",
+    "note": "The gap is only about 0 contact(s). A percentage looks large because the numbers are small, but a miss this size is not actionable on its own."
+   },
    "cleaned_signals": [],
    "proof": [
     {

@@ -567,3 +567,62 @@ rather than replaced by it.
 **Not done:** renaming "Root Cause" to "Investigation Summary" in the UI. The field now exists in the
 response, but the console still renders the old label — that is a frontend change and a naming
 decision, so it is in TODO rather than done unilaterally.
+
+---
+
+## Session 26 — 2026-07-29 · fixing the output the business actually sees
+**When:** Wed 29 Jul 2026, ~13:15 – 14:20 IST · **Runtime:** fixes are deterministic post-processing
+(<5ms); regression 12/12 modules + 40/40 SQL + 42/42 spec clauses, ~15min.
+
+Three screenshots of a real investigation (`Nordic Premium Support` FW202718, NVIDIA Nemotron 3
+Super). I verified every number against SQL before changing anything, because several things that
+looked wrong were not.
+
+**NOT bugs — the maths was right:**
+- Adherence `42.8%` — recomputed `(1 - 6/10.486784) x 100 = 42.79%`. Correct.
+- *"In each of the past 13 weeks the forecast has been higher than the actual demand"* — checked all
+  13 weeks: **every one over-forecast**. Literally true, not an overstatement.
+- `Average adherence (history) 49.0%` and `Typical weekly miss 49.0%` being identical — correct,
+  because mean signed adherence equals mean absolute deviation when every week shares one sign.
+  Confusing to show twice, but arithmetically sound.
+
+**Six real defects, all fixed in code — the prompt could not be trusted with any of them:**
+
+1. **A model-invented accessor path and a 14-decimal float reached the UI:**
+   `(peers[0].computed.error = -6.19901200335282)`. **Nothing in the codebase emits that** — the
+   prompt only said `"source_field": "string"`, so the model made up a path into its own input.
+   Added `_clean_source_field`, which validates against the 33 real columns plus the computed
+   metrics, strips list indices and object paths (`peers[0].computed.error` -> `error`), and
+   `_round_display`, which renders `-6.19901200335282` as `-6.2`. Where the field cannot be
+   resolved, `_infer_source_field` reads the sentence instead ("typical forecast..." ->
+   `fcst_offered`), so the UI shows a real column rather than a dash.
+2. **An empty secondary contributor rendered as a blank blue bar** in the ROOT CAUSE panel. Now
+   dropped before it reaches the response.
+3. **MATERIALITY — the substantive one.** Forecast 10.49, actual 6: a **4.5-contact gap** on a queue
+   whose entire weekly volume runs 3–19 contacts, reported as a 42.8% breach with **80% confidence**
+   and a chronic-bias root cause. Nothing anywhere measured the miss in *contacts*. Added a
+   materiality check (a miss under 10 contacts is `immaterial`; a queue averaging under 25 contacts
+   a week is `low_volume`) which annotates the finding, states the gap in contacts, and **caps
+   confidence — 0.80 became 0.42** on this queue. The two metrics' math is untouched; this is
+   annotation only.
+4. **"MISSING INFORMATION: Nothing flagged as missing"** on that same queue, when the real caveat was
+   that percentage adherence is unreliable at this volume. The materiality note is now the first
+   entry in `missing_information`.
+5. **REASONING NARRATIVE repeated KEY FINDINGS verbatim** — the first two bullets were identical to
+   findings 1 and 2. `_dedupe_narrative` strips lines that duplicate a key finding; the narrative is
+   meant to connect the findings, not restate them.
+6. **FORECAST ERROR displayed `-4` for a `-4.49` gap**, while adherence showed one decimal.
+   Rounding is now consistent through `_round_display`.
+
+**These are all in `rca_investigate.py` — the DEFAULT engine — because that is what the console
+calls.** The screenshots show no investigation loop and no case file, which confirms the UI is still
+on the default path (`TODO.md` P1f). The WFM engine's richer output is reachable only via
+`?mode=wfm`.
+
+**Verified on the exact queue from the screenshots:** no leaked paths or long floats remain, the
+blank contributor is gone, materiality reads `immaterial` with a 4.5-contact gap, confidence capped
+at 0.42, the missing-information caveat present, and zero verbatim repeats in the narrative.
+Saved to `results/output-fixes-example.json`.
+
+**Regression: 12/12 modules, 40/40 SQL cross-checks, 42/42 spec clauses**, and the default engine
+still returns its original key shape with no WFM keys leaking into it.

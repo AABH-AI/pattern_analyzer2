@@ -184,7 +184,7 @@
   }
  ],
  "missing_information": [
-  "groq/llama-3.3-70b-versatile HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kkrjztjcfcd8h1kwmdh4ymne` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 98933,. This report was built from the deterministic data checks only - it is not the full multi-hypothesis WFM investigation."
+  "groq/llama-3.3-70b-versatile HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kkrjztjcfcd8h1kwmdh4ymne` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 94993,. This report was built from the deterministic data checks only - it is not the full multi-hypothesis WFM investigation."
  ],
  "derived_features": {
   "base_features": {
@@ -266,6 +266,14 @@
     "signal": true
    },
    "population_context": null,
+   "materiality": {
+    "absolute_miss_contacts": 8714.2,
+    "typical_weekly_volume": 61.8,
+    "min_actionable_contacts": 10,
+    "low_volume_threshold": 25,
+    "verdict": "material",
+    "note": null
+   },
    "cleaned_signals": [],
    "proof": [
     {
@@ -631,7 +639,7 @@
  },
  "investigation_meta": {
   "engine": "wfm-deterministic-fallback",
-  "generated_at": "2026-07-29T07:13:00.188879+00:00"
+  "generated_at": "2026-07-29T08:09:44.601420+00:00"
  },
  "primary_root_cause": {
   "statement": "This week's value is far outside everything else this queue has ever recorded, it is the only week anywhere near that level, and the following weeks return to the normal level. Validate the figure at source before treating it as a real demand event.",
