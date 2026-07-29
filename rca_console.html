@@ -914,6 +914,25 @@ function cqn(r){ return [r.Forecast_name,r.Region,r.SubRegion,r.Country,r.channe
 /* ---------------- SQL Server (AA) connect + ingestion pipeline ---------------- */
 function openSQL(){ document.getElementById('sqlModal').classList.add('show'); }
 function closeSQL(){ document.getElementById('sqlModal').classList.remove('show'); }
+// The authoritative CQN mapping, served from SQL by GET /api/cqn-mapping (table dbo.CQN_Mapping,
+// loaded by backend/upload_cqn_mapping.py). Sets the same MAP the file-upload path sets, so the
+// "unmapped" badges resolve with no manual step. Never throws: if the table is missing the console
+// simply behaves as it did before.
+let CQN_ALL=null;              // Forecast_Name -> [every Combined Queue it belongs to]
+async function loadCqnMappingFromSql(apiBase){
+  try{
+    const r=await fetch((apiBase||'')+'/api/cqn-mapping');
+    if(!r.ok) return false;
+    const j=await r.json();
+    if(!j.configured || !j.mapping || !Object.keys(j.mapping).length) return false;
+    MAP=j.mapping; CQN_ALL=j.all_queues||null;
+    const multi=(j.multi_queue_names||[]).length;
+    document.getElementById('mapBadge').innerHTML=
+      '<span class="badge ok">CQN mapped from SQL · '+j.count+' queues</span>'+
+      (multi?' <span class="badge unm" title="These forecast names belong to more than one Combined Queue (vendor-site splits); the first is shown.">'+multi+' multi-queue</span>':'');
+    return true;
+  }catch(_){ return false; }
+}
 // Live: pull the weekly table from the local FastAPI backend (/api/data), which queries SQL Server.
 async function sqlFetch(){
   closeSQL();
@@ -931,6 +950,10 @@ async function sqlFetch(){
     if(!rows.length) throw new Error('query returned 0 rows');
     ingStep(2,58,'Building records…'); await _tick();
     ROWS=rows;
+    // Pull the authoritative CQN mapping from SQL (dbo.CQN_Mapping) so queues are resolved to
+    // their real Combined Queue Name without needing a manual file upload. Silent no-op if the
+    // table has not been loaded — the "Upload CQN mapping" path still works as before.
+    await loadCqnMappingFromSql(API_BASE);
     if(fs) fs.innerHTML='🗄 <b>SQL Server (AA)</b> · '+((j.table)||'dbo.Input_To_ML')+' — '+rows.length.toLocaleString()+' rows';
     document.getElementById('emptyState').style.display='none';
     document.getElementById('consoleArea').style.display='block';

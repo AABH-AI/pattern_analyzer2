@@ -284,3 +284,102 @@ comparison honest. That tension needs a product decision.
 - Viewport note: at ~930px the report column sits off-screen right, so investigation 1's
   screenshot shows the filter column rather than the report. The retry step used 1920px and is
   the usable evidence image.
+
+---
+
+## Canary Version V0.4-llm — 2026-07-29 · RCA Console workflow, CQN mapping live, real LLM
+
+**Scope: the RCA Console tab only**, by request — no time spent on the other seven tabs.
+**Verdict: all three objectives met.** Both SQL sources connected, **zero unmapped**, and both
+completed investigations ran on a real LLM.
+
+- Session: `C:\Users\arnav.bhargava\.canary\sessions\rca-console-v04-llm-e2e-ms5lhp1q-69ba9e`
+- **In the repo: `results/canary-v0.4-llm/`** — **`canary-v0.4-llm.mp4` (1.8 MB, 6m48s, H.264
+  800x600)**, `report.html` (1.7 MB), 9 screenshots at 1920px, `network.har`, `console.log`
+- MP4 this time: `winget install Gyan.FFmpeg` then transcode from the WebM (Playwright's bundled
+  ffmpeg cannot do it — PNG/VP8 encoders only, no MP4 muxer). WebM 5.5 MB → MP4 1.8 MB.
+
+### 1. Both SQL-backed sources connected and fetched
+
+| Request | Status | Time | Body |
+|---|---|---|---|
+| `GET /api/data` → `dbo.Input_To_ML` | **200** | 11,957 ms | **44.8 MB** |
+| `GET /api/cqn-mapping` → `dbo.CQN_Mapping` (NEW) | **200** | **94 ms** | 54 KB |
+
+Row count shown: **66,612** — exact. 51,905 scored, 33,003 flagged, 427 forecast names, 250 cards
+rendered (display cap). Zero failed network requests; zero non-2xx across 10 HAR entries.
+
+Note for later: `/api/data` ships **44.8 MB** to the browser on every connect and takes ~12s. It
+works, but it is the single heaviest thing in the app and an obvious candidate for server-side
+aggregation. Tracked in `TODO.md`.
+
+### 2. Nothing is unmapped — the action item is closed in the UI too
+
+`mapBadge` renders exactly:
+
+```
+CQN mapped from SQL · 442 queues        69 multi-queue
+```
+
+The "69 multi-queue" chip carries a tooltip explaining these forecast names belong to more than one
+Combined Queue (vendor-site splits) and that the first is shown.
+
+Audited three independent ways:
+- flagged cards carrying an `unmapped` badge: **0 of 250**
+- `#qlist .badge.unm` count: **0**
+- `document.body.innerText.match(/unmapped/gi)`: **0** — the word is nowhere visible on the page
+
+Two non-visible occurrences remain and neither is a defect: the pre-load help legend inside
+`#emptyState` (hidden once data loads, `rca_console.html:403`) and the literal string inside the
+inline `<script>` template. Queue detail headers show the green **`mapped`** badge.
+
+### 3. LLM results validated
+
+Investigation 1 — `NA Core Spanish` FW202719. Groq first, which **fell back**:
+
+> `Engine: deterministic-fallback` — `groq HTTP 429 … tokens per day (TPD): Limit 100000, Used 94017 … try again in 24m33s`
+
+Retried on NVIDIA (footer verbatim):
+
+```
+Engine: llm · nvidia/nemotron-3-super-120b-a12b · generated 7/29/2026, 10:13:39 AM
+```
+
+`genuine_demand_event`, primary 90% High, overall 86% High. Proof panel real: forecast 90.78 vs
+usual 99.7; actual 8,805 vs usual 61.8; Planned ASU 14,239,272 vs usual 14,359,670; adherence
+−9599.7%. Two lower hypotheses also returned (plan restatement 40% Medium, volume shift 30% Low).
+
+Investigation 2 — `SA Comm Client Bangladesh Core Email English Standard` FW202705:
+
+```
+Engine: llm · nvidia/nemotron-3-super-120b-a12b · generated 7/29/2026, 10:15:10 AM
+```
+
+`systematic_forecast_bias`, 85% High. Proof real: forecast 4.07 vs usual 14.4; actual 14 vs usual
+12; Planned ASU 75,729 vs usual 77,665; adherence −244.1%.
+
+NVIDIA timings in-browser: **61.0s** and **40.3s**. Groq remains ~10x faster when it has quota.
+
+### Improvement since V0.3
+
+Native `page.click('#q0')` **worked** — no `element.click()` fallback was needed this run, on either
+queue. The click interception seen in V0.2/V0.3 is confirmed intermittent (viewport/scroll
+dependent) rather than unconditional.
+
+### Still open / new
+
+- **`renderProbe` TypeError still fires on every page load** (`rca_console.html:2117`, called from
+  `:2143`). Unfixed since V0.1. Highest-priority UI defect.
+- `favicon.ico` 404 on every load.
+- **New latent bug found by code read, not triggered here:** `onRcaModelChange`
+  (`rca_console.html:1845`) re-runs `triggerRCA(window._rcaCurrent)`, but `_rcaCurrent` is only set
+  inside `triggerRCA` and `selectFlag` never clears it. Select a *different* queue and then change
+  the model, and the console re-investigates the *previous* queue while the new one is on screen.
+  This run avoided it by setting the model before the first Investigate. Same root cause as the
+  V0.2 finding; now located precisely.
+- **Reporting caveat, not an app fault:** three step screenshots are byte-identical and show a
+  slightly later state than their own step (`fetch-…`, `audit-unmapped-badges`,
+  `select-flagged-queue-1` share one PNG; `assert-final-state` == `investigate-…-queue-2`). The
+  evidence asked for is in that shared image; the video and trace hold the true per-moment record.
+- Video is captured at **800x600** by Canary regardless of the 1920px screenshot viewport, so fine
+  text is easier to read in the screenshots than in the MP4.

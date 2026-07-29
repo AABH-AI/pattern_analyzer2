@@ -261,6 +261,49 @@ def models():
     return {"models": available, "providers_configured": sorted(provider_has_key)}
 
 
+@app.get("/api/cqn-mapping")
+def cqn_mapping(table: str = Query("dbo.CQN_Mapping", description="Mapping table to read")):
+    """The authoritative Forecast_Name -> Combined_Queue_Name mapping, from SQL.
+
+    Loaded by backend/upload_cqn_mapping.py from the client's mapping workbook. The console
+    calls this after connecting to SQL so the "unmapped" badge reflects the real mapping
+    instead of requiring a manual file upload.
+
+    A Forecast_Name can belong to MORE THAN ONE Combined Queue (vendor-site splits such as
+    Concentrix vs CGS): `mapping` gives the first for display, `all_queues` gives every one.
+    Returns configured:false rather than an error when the table has not been loaded yet, so
+    the console can degrade quietly.
+    """
+    cfg = load_config()
+    if not cfg.get("sql", {}).get("server"):
+        return {"configured": False, "reason": "SQL not configured.", "mapping": {}, "count": 0}
+    conn = None
+    try:
+        conn = connect(cfg)
+        cur = conn.cursor()
+        cur.execute(f"SELECT Forecast_Name, Combined_Queue_Name FROM {table} "
+                    f"WHERE Forecast_Name IS NOT NULL AND Combined_Queue_Name IS NOT NULL")
+        first, every = {}, {}
+        for name, cqn in cur.fetchall():
+            name, cqn = str(name).strip(), str(cqn).strip()
+            first.setdefault(name, cqn)
+            every.setdefault(name, [])
+            if cqn not in every[name]:
+                every[name].append(cqn)
+        return {"configured": True, "table": table, "mapping": first, "all_queues": every,
+                "count": len(first),
+                "multi_queue_names": sorted(k for k, v in every.items() if len(v) > 1)}
+    except Exception as e:
+        # Not loaded / unreachable is a normal state, not a 500 — the console falls back.
+        return {"configured": False, "reason": str(e)[:200], "mapping": {}, "count": 0}
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
 @app.post("/api/rca-investigate")
 def rca_investigate(context_bundle: dict, provider: str = Query("", description="Optional model-picker provider"),
                     model: str = Query("", description="Optional model-picker model id"),

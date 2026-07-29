@@ -97,6 +97,11 @@ Full detail + report path: `IMP_DOCS/canary-test-log.md`. None introduced by the
       `fcst_offered = 0.34` but reads as garbage. Cap the display or special-case near-zero forecasts.
 - [ ] **Timeline legend hardcodes "today (Wed 22 Jul)"** while the header computes 28 Jul.
 - [ ] No favicon → a 404 on every load (cosmetic; it is the 404 in the console).
+- [ ] **`/api/data` ships 44.8 MB to the browser on every SQL connect** and takes ~12s (measured,
+      Canary V0.4). It works, but it is the heaviest thing in the app: the whole 66,612-row table
+      crosses the wire so the browser can aggregate it. Candidate for server-side aggregation or
+      a paged/summary endpoint — the RCA path already queries SQL per queue via
+      `/api/queue-context` (0.8-0.9s), so the full dump is only needed for the dashboard.
 
 ## P1d — defects found by Canary V0.2 (2026-07-28)
 Recording in `results/canary-v0.2/`, full write-up in `IMP_DOCS/canary-test-log.md`.
@@ -105,9 +110,12 @@ Recording in `results/canary-v0.2/`, full write-up in `IMP_DOCS/canary-test-log.
       intercept pointer events over the queue list. The test only proceeded via `element.click()`.
       **A real user at that viewport may be unable to open a queue.** Highest severity.
 - [ ] **Changing the AI model re-runs the PREVIOUS queue and overwrites the panel.**
-      `onRcaModelChange()` calls `triggerRCA(window._rcaCurrent)`, stale after `selectFlag()`.
-      Observed live: header said `EC Comm Client Israel EUC Chat`, panel rendered
-      `NA Core Spanish · FW 202719` — a real server call for the wrong queue.
+      **Located precisely (Canary V0.4):** `onRcaModelChange` at `rca_console.html:1845` calls
+      `triggerRCA(window._rcaCurrent)`, but `_rcaCurrent` is set ONLY inside `triggerRCA`
+      (`:2002`) and `selectFlag` never clears it. So selecting a different queue and then changing
+      the model re-investigates the previous queue while the new one is on screen. Observed live in
+      V0.2 (header said `EC Comm Client Israel EUC Chat`, panel rendered `NA Core Spanish`).
+      Fix: set/clear `_rcaCurrent` in `selectFlag`, or don't auto-rerun before an investigation exists.
 - [ ] **Model picker only exists after a card is selected** (it lives inside `#investigationPanel`,
       built by `selectFlag()`). This is the mechanism behind the V0.1 picker-race finding.
 

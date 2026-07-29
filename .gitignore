@@ -25,3 +25,7 @@ Thumbs.db
 # are copied into results/canary-*/video/ locally. Force-add if you really want them.
 results/**/video/
 *.webm
+# ...but a transcoded MP4 is small enough to keep (V0.4 is 1.8 MB vs 5.5 MB WebM), so it is
+# committed as the shareable record. Convert with:
+#   ffmpeg -i <session>.webm -c:v libx264 -crf 24 -pix_fmt yuv420p -movflags +faststart out.mp4
+!results/**/*.mp4
