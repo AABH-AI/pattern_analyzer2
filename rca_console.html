@@ -1583,7 +1583,7 @@ function renderList(){
     return `<div class="qitem" id="q${i}" onclick="selectFlag(${i})">
       <div class="qn">${r.Forecast_name} ${r._mapped?'':'<span class="badge unm" style="font-size:8.5px">unmapped</span>'}</div>
       <div class="qmeta">${r.Region||''} · ${r.Country||''} · ${r.channel||''} · FW ${r._wk}</div>
-      <div class="chips"><span class="chip ${sev}">acc ${r._acc.toFixed(0)}%</span><span class="chip ${sev}">${r._padh>0?'+':''}${r._padh.toFixed(0)}% dev</span></div>
+      <div class="chips"><span class="chip ${sev}">acc ${r._acc.toFixed(0)}%</span><span class="chip ${sev}">${r._padh.toFixed(0)}% dev</span></div>
     </div>`;
   }).join('');
   if(FLAGS.length>CAP)h+=`<div class="empty" style="border:none;font-size:11px;">Top ${CAP} of ${FLAGS.length.toLocaleString()} shown</div>`;
@@ -1634,7 +1634,7 @@ function selectFlag(i){
         <div class="rtitle">${r.Forecast_name} ${r._mapped?'<span class="badge ok">mapped</span>':'<span class="badge unm">unmapped</span>'}</div>
         <div class="rmeta">${r.Region||''} · ${r.SubRegion||''} · ${r.Country||''} · ${r.channel||''}<br>Fiscal Week ${r._wk} · Plan: ${r.Projection_plan_name||'—'} · Forecaster: ${r.Forecaster||'—'}</div>
       </div>
-      <div class="acc"><div class="big" style="color:${accCol}">${r._padh!=null?(r._padh>0?'+':'')+r._padh.toFixed(1)+'%':'N/A'}</div><div class="lbl">Forecast Adherence${r._padh!=null?'<div class="adhdir">'+(r._padh<0?'under-forecast · actual ran above plan':(r._padh>0?'over-forecast · actual ran below plan':'on plan'))+'</div>':''}</div></div>
+      <div class="acc"><div class="big" style="color:${accCol}">${r._padh!=null?r._padh.toFixed(1)+'%':'N/A'}</div><div class="lbl">Forecast Adherence${r._padh!=null?'<div class="adhdir">'+(r._padh<0?'Under-forecast — actual came in above plan':(r._padh>0?'Over-forecast — actual came in below plan':'On plan'))+'</div>':''}</div></div>
     </div>
     <div class="subhead">Findings <span style="text-transform:none;font-weight:500;color:var(--muted)">(ⓘ = the exact formula &amp; numbers)</span></div>
     <ul class="rca-bullets">${bullets}</ul>

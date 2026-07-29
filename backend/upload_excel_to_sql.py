@@ -16,6 +16,9 @@ import json
 import sys
 from pathlib import Path
 
+import csv as _csv
+import datetime as _dt
+
 import openpyxl
 
 HERE = Path(__file__).resolve().parent
@@ -46,7 +49,9 @@ def coerce(col, v):
     if v is None or v == "":
         return None
     if col in DATE_COLS:
-        return v  # openpyxl returns a datetime for date cells; pyodbc handles it
+        # parsed explicitly -- a CSV gives a DD-MM-YYYY string, which the driver would
+        # otherwise read as MM-DD-YYYY
+        return parse_date(v)
     if col in INT_COLS:
         try:
             return int(float(v))
@@ -79,6 +84,55 @@ def read_excel(path):
     return headers, rows
 
 
+# ---------------------------------------------------------------------------
+# CSV support. The original loader was Excel-only (openpyxl), and relied on
+# openpyxl handing back real datetime objects for Week_Ending. A CSV gives us the raw
+# string instead -- and the P1 extract writes it DD-MM-YYYY ("10-02-2023"), which SQL Server
+# reads as US MM-DD-YYYY and either silently mis-dates or errors. So dates are parsed
+# explicitly here rather than left to the driver.
+# ---------------------------------------------------------------------------
+_DATE_FORMATS = ("%d-%m-%Y", "%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d", "%m/%d/%Y", "%d-%b-%Y", "%d %b %Y")
+
+
+def parse_date(v):
+    """Return a date, or None. Tries day-first BEFORE month-first: this feed is DD-MM-YYYY, and
+    guessing wrong silently shifts every date that could be read either way."""
+    if v in (None, ""):
+        return None
+    if hasattr(v, "date"):
+        return v.date() if hasattr(v, "hour") else v
+    text = str(v).strip()
+    if not text:
+        return None
+    for fmt in _DATE_FORMATS:
+        try:
+            return _dt.datetime.strptime(text, fmt).date()
+        except ValueError:
+            continue
+    return None      # unparseable -> NULL, never a guess
+
+
+def read_csv_file(path):
+    print(f"Reading {path} (CSV) ...")
+    with open(path, encoding="utf-8-sig", errors="replace", newline="") as fh:
+        sample = fh.read(64 * 1024)
+        fh.seek(0)
+        try:
+            dialect = _csv.Sniffer().sniff(sample, delimiters=",;\t|")
+        except _csv.Error:
+            dialect = _csv.excel
+        reader = _csv.reader(fh, dialect)
+        headers = [str(h).strip() for h in next(reader)]
+        rows = [tuple(r) for r in reader if any(str(x).strip() for x in r)]
+    print(f"  delimiter {dialect.delimiter!r} - {len(headers)} columns, {len(rows):,} data rows")
+    return headers, rows
+
+
+def read_any(path):
+    """Excel or CSV, decided by extension."""
+    return read_csv_file(path) if str(path).lower().endswith((".csv", ".tsv", ".txt")) \
+        else read_excel(path)
+
 def build_create(table, headers):
     cols = ",\n    ".join(f"[{h}] {sql_type(h)}" for h in headers)
     return f"IF OBJECT_ID('{table}','U') IS NOT NULL DROP TABLE {table};\nCREATE TABLE {table} (\n    {cols}\n);"
@@ -89,6 +143,9 @@ def main():
     ap.add_argument("--config", default=str(HERE / "config.json"))
     ap.add_argument("--excel", default=None)
     ap.add_argument("--dry-run", action="store_true", help="Parse + print schema only; no database.")
+    ap.add_argument("--table", default=None,
+                    help="Target table. Defaults to sql.table in config.json. Pass this to load a "
+                         "new dataset into a NEW table without touching the existing one.")
     ap.add_argument("--schema-only", action="store_true", help="Create the table (schema) in SQL only; do not insert any rows.")
     ap.add_argument("--min-week", type=int, default=None, help="Only load rows with Fiscal_Week >= this (e.g. 202500). Overrides config min_fiscal_week.")
     ap.add_argument("--max-week", type=int, default=None, help="Only load rows with Fiscal_Week <= this (e.g. 202799). Overrides config max_fiscal_week.")
@@ -105,10 +162,14 @@ def main():
         except SystemExit:
             if not args.dry_run:
                 raise
+    # --table wins over config, so a new dataset can be loaded into a NEW table while the
+    # existing one is left exactly as it is
+    if args.table:
+        table = args.table
     if not excel_path:
-        sys.exit("No Excel path. Pass --excel PATH or set excel_path in config.json.")
+        sys.exit("No input path. Pass --excel PATH (.xlsx or .csv) or set excel_path in config.json.")
 
-    headers, rows = read_excel(excel_path)
+    headers, rows = read_any(excel_path)
 
     # Optional Fiscal_Week range filter (persists the truncation: e.g. keep only 2025-2027).
     min_wk = args.min_week if args.min_week is not None else cfg.get("min_fiscal_week")

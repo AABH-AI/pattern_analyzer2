@@ -379,7 +379,15 @@ def derive_features(context_bundle):
         if pd is None:
             continue
         is_opp = (t_dir is not None and pd != t_dir)
-        ch_val = fields_info.get("channel") or key_info.get("channel") or p.get("channel") or tgt.get("channel") or "Voice"
+        # NameError guard: `tgt` was never defined in this function -- it exists only in
+        # _bundle_for_model() further down the file. Any peer with a direction therefore raised
+        # "name 'tgt' is not defined" and killed the WHOLE investigation, on both engines, since
+        # derive_features() is shared. The intent was "fall back to the target queue's channel",
+        # and the target is already in scope as `target`.
+        _tgt_channel = ((target.get("fields") or {}).get("channel")
+                        or (target.get("key") or {}).get("channel"))
+        ch_val = (fields_info.get("channel") or key_info.get("channel") or p.get("channel")
+                  or _tgt_channel or "Unknown")
         item = {
             "forecast_name": fname,
             "channel": ch_val,
