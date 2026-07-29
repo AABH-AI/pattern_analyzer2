@@ -176,6 +176,49 @@ def technical_metrics(features):
     return rows
 
 
+def _build_historical_comparison(base_features, temporal):
+    ch = (base_features or {}).get("chronic_bias") or {}
+    tw = (base_features or {}).get("this_week_vs_usual") or {}
+    temp = temporal or {}
+    weeks = ch.get("history_weeks") or temp.get("history_weeks_available") or 13
+    mean_adh = ch.get("history_mean_adherence_pct")
+    typ = ch.get("typical_abs_deviation_pct") or tw.get("typical_abs_deviation_pct")
+    usual_act = ch.get("usual_actual") or temp.get("last_13_week_avg_actual")
+    usual_fc = ch.get("usual_forecast")
+
+    narrative_parts = []
+    if weeks:
+        if usual_act is not None:
+            narrative_parts.append(f"Over the last {weeks} weeks, actual demand for this queue averaged ~{usual_act} contacts per week.")
+        if mean_adh is not None:
+            dir_str = "above" if mean_adh < 0 else "below"
+            narrative_parts.append(f"The queue historically trends {dir_str} forecast with an average adherence of {mean_adh}%.")
+        if typ is not None:
+            narrative_parts.append(f"Typical weekly error magnitude is about ~{typ}%.")
+        if tw.get("times_usual") is not None and tw.get("times_usual") > 1:
+            narrative_parts.append(f"This week's miss magnitude is {tw.get('times_usual')}x its typical historical variation.")
+
+    last_year = temp.get("same_week_last_year")
+    if last_year and last_year.get("actual") is not None:
+        narrative_parts.append(f"In the same fiscal week last year (FW {last_year.get('fiscal_week')}), actual demand was {last_year.get('actual')} contacts.")
+
+    narrative = " ".join(narrative_parts) if narrative_parts else f"Historical baseline evaluated over {weeks} weeks of demand data."
+
+    dp = []
+    if weeks:
+        dp.append({"label": "Historical weeks evaluated", "value": str(weeks)})
+    if usual_act is not None:
+        dp.append({"label": "13-Week avg actual demand", "value": f"{usual_act} contacts"})
+    if usual_fc is not None:
+        dp.append({"label": "13-Week avg forecast", "value": f"{usual_fc} contacts"})
+    if temp.get("last_4_week_avg_actual") is not None:
+        dp.append({"label": "Recent 4-Week avg actual", "value": f"{temp.get('last_4_week_avg_actual')} contacts"})
+    if last_year and last_year.get("actual") is not None:
+        dp.append({"label": f"Same week last year (FW {last_year.get('fiscal_week')}) actual", "value": f"{last_year.get('actual')} contacts"})
+
+    return {"narrative": narrative, "data_points": dp}
+
+
 def back_compat(result, base_features):
     """Fill the ORIGINAL response keys so the existing console renders this unchanged."""
     ranked = result.get("ranked_root_causes") or []
@@ -207,6 +250,11 @@ def back_compat(result, base_features):
          "reason_rejected": s.get("reason") or ""}
         for s in (result.get("skeptic_review") or []) if s.get("verdict") == "rejected"
     ])
+    hc = result.get("historical_comparison")
+    if not isinstance(hc, dict) or not (hc.get("narrative") or hc.get("data_points")):
+        df_all = result.get("derived_features") or {}
+        temp = df_all.get("temporal") if isinstance(df_all, dict) else {}
+        result["historical_comparison"] = _build_historical_comparison(base_features, temp)
     fs = (base_features or {}).get("forecast_sanity") or {}
     fc_val = fs.get("forecast")
     act_val = fs.get("actual")
@@ -232,6 +280,7 @@ def back_compat(result, base_features):
         df.update(base_features)
     result["derived_features"] = df
     return result
+
 
 
 
