@@ -207,13 +207,24 @@ def back_compat(result, base_features):
          "reason_rejected": s.get("reason") or ""}
         for s in (result.get("skeptic_review") or []) if s.get("verdict") == "rejected"
     ])
-    result.setdefault("historical_comparison", {})
-    result.setdefault("forecast_improvement_recommendations",
-                      [r.get("recommended_action") for r in ranked if r.get("recommended_action")])
-    result.setdefault("forecast_summary", {})
+    fs = (base_features or {}).get("forecast_sanity") or {}
+    fc_val = fs.get("forecast")
+    act_val = fs.get("actual")
+    err_val = (round(act_val - fc_val, 2)
+               if isinstance(act_val, (int, float)) and isinstance(fc_val, (int, float))
+               else None)
+    kpi_st = result.get("kpi_status") or {}
+    result["forecast_summary"] = {
+        "forecast": fc_val,
+        "actual": act_val,
+        "error": err_val,
+        "adherence_pct": kpi_st.get("adherence_pct"),
+        "miss_type": kpi_st.get("direction"),
+    }
     result.setdefault("cause_type", None)
     result.setdefault("derived_features", {})
     return result
+
 
 
 def not_investigated(adherence, band, features):
