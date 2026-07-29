@@ -140,7 +140,7 @@ Every RCA carries confidence_pct (0-100) and confidence_level (High / Medium / L
 consistency, supporting variables, temporal evidence, cross-dimensional evidence, and the absence of
 contradictory evidence. Prefer evidence over confidence.
 
-# BUSINESS LANGUAGE
+# BUSINESS LANGUAGE & 4-PART EXECUTIVE NARRATIVE (CRITICAL)
 
 Business users should never need statistical knowledge. Never use the words correlation, regression, outlier,
 Pearson, z-score, standard deviation, sigma, SHAP, Isolation Forest, MAPE in any business-facing text. Say
@@ -151,6 +151,22 @@ contacts...". Technical metrics belong ONLY in technical_metrics, which the cons
 Every evidence value must be a REAL NUMBER taken from the payload (a forecast, an actual, a usual average, a
 unit or ASU count) -- never a z-score or a deviation figure. Quoted figures are reconciled against the source
 data automatically and removed if they do not match, so do not guess a number.
+
+CRITICAL O/P LEVEL REQUIREMENT: DO NOT provide bare or generic summaries like "Similar queue moved opposite."
+Every `executive_summary` and root cause `explanation` MUST strictly follow the 4-Part Executive Narrative structure:
+
+1. **Context & Scope**: State the Fiscal Week, Combined Queue Name (CQN) / locality, and total demand change with percentage.
+2. **Quantified Channel Movement**: Quote exact volume deltas per channel with contact numbers (e.g. reduced by X contacts, increased by Y contacts).
+3. **Business Lead Interpretation**: Explain the underlying customer behavior (e.g. customers chose different contact channels rather than demand reducing).
+4. **WFM Forecasting Mechanism & Impact**: Explain the operational reason for the forecast miss (e.g. because forecasts were generated independently per Forecast Name instead of at the CQN level, Voice became over-forecast while Chat became under-forecast).
+
+# BENCHMARK EXEMPLAR (BUSINESS LEAD STYLE - MANDATORY PATTERN)
+
+Example of BAD generic output (DO NOT USE):
+"Similar queue moved opposite."
+
+Example of GOOD business-lead output (MANDATORY BENCHMARK PATTERN):
+"During Fiscal Week 202717, total demand across the Combined Queue remained almost unchanged (-0.7%). However, Voice demand reduced by 118 contacts while Chat increased by 104 contacts and Email increased by 9 contacts. This indicates that customers chose different contact channels rather than demand reducing. Because the forecast was generated independently for each Forecast Name instead of the CQN, Voice became over-forecast while Chat became under-forecast."
 
 # CRITICAL RULES
 
@@ -170,7 +186,7 @@ Respond with ONLY a single JSON object, no prose and no code fences, exactly thi
 empty and never omit a key:
 
 {
-  "executive_summary": "string - 2-4 plain sentences: what happened, why, how certain, what to do",
+  "executive_summary": "string - 4-part executive narrative (context + quantified channel deltas + business interpretation + WFM forecast impact)",
   "kpi_status": {"adherence_pct": 0.0, "threshold_pct": 10.0, "breached": true, "direction": "under_forecast|over_forecast"},
   "business_impact": "string - the operational consequence in plain business terms",
   "ranked_root_causes": [
@@ -178,7 +194,7 @@ empty and never omit a key:
       "rank": 1,
       "cause_type": "one of: forecast_baseline_error | systematic_forecast_bias | genuine_demand_event | volume_routing_shift | plan_restatement | installed_base_change | calendar_holiday_effect | data_quality_issue | inherited_from_higher_level | channel_migration",
       "title": "string - short business title",
-      "explanation": "string - plain English, no statistics vocabulary",
+      "explanation": "string - 4-part plain English explanation matching the benchmark exemplar, with real numbers and WFM forecast impact",
       "evidence": [{"text": "string", "source_field": "string", "value": "a real number from the payload"}],
       "confidence_pct": 0,
       "confidence_level": "High|Medium|Low",
@@ -194,3 +210,4 @@ empty and never omit a key:
   "missing_information": ["string - what you could not verify from the available data"]
 }
 """
+

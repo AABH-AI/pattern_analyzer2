@@ -64,7 +64,45 @@ def analyse(rows, target_week, target_channel, cqn_names=None, cqn_source="proxy
                     and offset_share >= _MIN_OFFSET_SHARE
                     and abs(net) < max(1.0, _MAX_NET_SHARE * abs(total_before or 1)))
 
+    cqn_pct = rnd((net / total_before) * 100) if total_before else 0.0
+    cqn_pct_str = f"{cqn_pct:+.1f}%" if cqn_pct != 0 else "0.0%"
+
+    delta_phrases = []
+    for d in deltas:
+        ch = d["channel"]
+        c = d["change"]
+        val = int(abs(round(c)))
+        if c < 0:
+            delta_phrases.append(f"{ch} demand reduced by {val} contacts")
+        elif c > 0:
+            delta_phrases.append(f"{ch} demand increased by {val} contacts")
+
+    if len(delta_phrases) == 1:
+        deltas_text = delta_phrases[0]
+    elif len(delta_phrases) == 2:
+        deltas_text = f"{delta_phrases[0]} while {delta_phrases[1]}"
+    elif len(delta_phrases) > 2:
+        deltas_text = f"{delta_phrases[0]} while " + ", ".join(delta_phrases[1:-1]) + f" and {delta_phrases[-1]}"
+    else:
+        deltas_text = "channel volumes remained unchanged"
+
+    cqn_total_phrase = (
+        f"remained almost unchanged ({cqn_pct_str})" if abs(cqn_pct) < 3.0
+        else f"changed by {cqn_pct_str}"
+    )
+
     authoritative = (cqn_source == "mapping") and bool(cqn_names)
+    cqn_label = (f"the Combined Queue ({cqn_names[0]})" if (authoritative and cqn_names)
+                 else "the Combined Queue")
+
+    formatted_narrative = (
+        f"During Fiscal Week {this_wk}, total demand across {cqn_label} {cqn_total_phrase}. "
+        f"However, {deltas_text}. "
+        f"This indicates that customers chose different contact channels rather than demand reducing. "
+        f"Because the forecast was generated independently for each Forecast Name instead of the CQN, "
+        f"over-forecast and under-forecast errors occurred across individual channels."
+    )
+
     return {
         "available": True,
         "grouped_by": ("Combined_Queue_Name (authoritative mapping)" if authoritative
@@ -84,15 +122,16 @@ def analyse(rows, target_week, target_channel, cqn_names=None, cqn_source="proxy
         "group_total_prior_week": rnd(total_before),
         "group_total_this_week": rnd(total_now),
         "group_total_change": rnd(net),
+        "cqn_total_change_pct": cqn_pct,
         "gross_channel_movement": rnd(gross),
         "offset_share": round(offset_share, 2),
         "migration_detected": detected,
         "gaining_channels": [d["channel"] for d in deltas if d["change"] > 0],
         "losing_channels": [d["channel"] for d in deltas if d["change"] < 0],
-        "note": ("Channels moved in opposite directions while the group total stayed close "
-                 "to flat, which points to demand moving between channels rather than "
-                 "total demand changing."
-                 if detected else
+        "deltas_text": deltas_text,
+        "formatted_narrative": formatted_narrative,
+        "note": (formatted_narrative if detected else
                  "Channel movements do not cancel out, so this is not a like-for-like "
                  "shift between channels."),
     }
+
