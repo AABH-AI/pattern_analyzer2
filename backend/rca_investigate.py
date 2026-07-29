@@ -445,7 +445,7 @@ def derive_features(context_bundle):
         return {"label": label, "field": field, "this_week": _tw(tw), "usual": _usual(us), "change": _change(tw, us)}
     proof = [
         _row("Forecast (fcst_offered)", "fcst_offered", t_forecast, (numeric.get("fcst_offered") or {}).get("history_mean")),
-        _row("Actual demand (Actual_Offered)", "Actual_Offered", t_actual, (numeric.get("Actual_Offered") or {}).get("history_mean")),
+        _row("Actual_Offered", "Actual_Offered", t_actual, (numeric.get("Actual_Offered") or {}).get("history_mean")),
     ]
     for fld, label in (("ASU", "Units under warranty (ASU)"), ("Actual_ASU", "Actual ASU"),
                        ("Planned_ASU", "Planned ASU")):   # handled columns intentionally excluded

@@ -2168,8 +2168,19 @@ function showPeerQueuesModal(){
 
   const resp = window.LAST_RCA_RESP || {};
   const df = resp.derived_features || resp.base_features || {};
-  const pd = df.peer_divergence || {};
-  const peers = pd.all_peers || [];
+  const baseF = df.base_features || (resp.base_features) || {};
+  const pd = resp.peer_divergence || df.peer_divergence || baseF.peer_divergence || {};
+  let peers = pd.all_peers || [];
+
+  if(!peers.length && (pd.examples_opposite || []).length){
+    peers = (pd.examples_opposite || []).map(p => ({
+      forecast_name: p.forecast_name,
+      channel: p.channel || "Similar Queue",
+      direction: "opposite",
+      adherence_pct: p.adherence_pct,
+      is_opposite: true
+    }));
+  }
 
   const total = pd.peers_total || peers.length || 0;
   const oppCount = pd.peers_opposite_direction || peers.filter(p=>p.is_opposite).length || 0;
