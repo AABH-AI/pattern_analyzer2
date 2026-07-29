@@ -256,11 +256,13 @@ def back_compat(result, base_features):
         temp = df_all.get("temporal") if isinstance(df_all, dict) else {}
         result["historical_comparison"] = _build_historical_comparison(base_features, temp)
     fs = (base_features or {}).get("forecast_sanity") or {}
-    fc_val = fs.get("forecast")
-    act_val = fs.get("actual")
+    tw = (base_features or {}).get("this_week_vs_usual") or {}
+    fc_val = fs.get("forecast") if fs.get("forecast") is not None else tw.get("target_forecast")
+    act_val = fs.get("actual") if fs.get("actual") is not None else tw.get("target_actual")
     err_val = (round(act_val - fc_val, 2)
                if isinstance(act_val, (int, float)) and isinstance(fc_val, (int, float))
                else None)
+
     kpi_st = result.get("kpi_status") or {}
     adh_val = kpi_st.get("adherence_pct")
     miss_dir = kpi_st.get("direction")
