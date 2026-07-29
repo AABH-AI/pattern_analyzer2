@@ -263,6 +263,39 @@ Measured by `results/full_correlation_survey.py`. See `prompt-trail.md` Session 
 - [ ] Let confirmed KB rules feed back into flag suppression / re-flagging.
 - [ ] Longer-term: swap Groq/NVIDIA for the client's actual on-prem LLaMA endpoint once reachable (same `call_model()`/provider-slot pattern, just a new entry in `PROVIDER_ENDPOINTS`).
 
+## P3b — Phase 2: external data feeds (deferred by the business, 2026-07-29)
+The correlation survey (`prompt-trail.md` Session 27) measured that **no column in the current
+dataset explains the SIZE of a forecast miss** — per queue, 4% for the forecast, 1% for ASU, 0% for
+installed base and 0% for holidays. Real causal attribution therefore needs data the warehouse does
+not yet hold. The business has confirmed these are **later-phase** and unavailable for now.
+
+Until at least one of these lands, the engine's honest ceiling is: *"the plan was off, here is by
+how much, here is what it is NOT, and nothing measurable explains the rest."* That is why
+`investigation_loop` terminates with `data_exhausted` and names what it would need — it is designed
+for exactly this gap, so nothing has to change when a feed does arrive.
+
+- [ ] **Incident / outage records** (deferred to Phase 2). Effective dates + affected
+      product/region. Would let `genuine_demand_event` be attributed to a real service event
+      instead of remaining a labelled unknown. Highest value of the four.
+- [ ] **Campaign / marketing calendar** (deferred to Phase 2). Send dates, channel, audience size.
+      The prompt currently FORBIDS assuming a campaign — with a calendar it could confirm one.
+- [ ] **Product release / recall dates** (deferred to Phase 2). Per offering, so an installed-base
+      or demand step-change can be tied to a launch.
+- [ ] **Routing-rule change history** (deferred to Phase 2). Effective dates per Combined Queue.
+      This is the one that would turn `channel_migration` from a detected pattern into a confirmed
+      cause — the loop can already see work moved between channels, but not *why*.
+- [ ] **Intraday / daily arrival detail** (nice to have). Would show whether a weekly miss was one
+      bad day or the whole week, which changes the remedy entirely.
+
+**When a feed arrives, the work is:** load it (the `upload_cqn_mapping.py` pattern generalises —
+see the Data Pair pipeline item in P1e), add a fetch to `wfm/data_access.py`, add one question to
+`wfm/investigation_loop.py`, and add its precondition to `wfm/skeptic.py`. The architecture already
+expects them; nothing needs redesigning.
+
+- [ ] **Also revisit `Final_upp_units` first** — it is the ONLY existing column related to the miss
+      on a meaningful share of queues (35%) but is just 22% populated. Widening it may be cheaper
+      than acquiring a new feed, and is worth checking before Phase 2 starts.
+
 ## Done ✓ (2026-07-24, session 5 — browse any queue without code changes)
 - [x] The "Test specific Forecast_name(s)" box now has a native `<datalist>` autocomplete populated with every distinct `Forecast_name` in the loaded data (refreshed in `buildFilters()`) — type a few letters to browse, no need to know or spell the exact name.
 - [x] Added a **🎲 Random queue** button (`pickRandomQueue()`) — one click jumps to an arbitrary Forecast_name from the loaded data and focuses it, so any queue (flagged or not) is reachable with zero typing and zero code changes, ever.
