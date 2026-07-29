@@ -1972,18 +1972,32 @@ function renderInvestigationReport(f, ctx){
   </div></details>`;
 
 
+  const evidenceHtml=`<details class="inv-sec"><summary>Supporting Evidence</summary><div class="body">
+    ${(f.supporting_evidence||[]).length?`<ul class="inv-findings">${(f.supporting_evidence||[]).map(e=>`<li>${invEsc(e.text||'')} <span style="color:var(--muted);font-size:11px;">(${invEsc(e.source_field||'—')}${e.value!=null?' = '+invEsc(e.value):''})</span></li>`).join('')}</ul>`:'<div class="inv-empty">No supporting evidence recorded.</div>'}
+  </div></details>`;
+
+  const rejectedHtml=`<details class="inv-sec"><summary>Rejected Hypotheses</summary><div class="body">
+    ${(f.rejected_hypotheses||[]).length?(f.rejected_hypotheses||[]).map(h=>`<div class="rej-item"><div class="h">&#x2715; ${invEsc(h.hypothesis)}</div><div class="r">${invEsc(h.reason_rejected)}</div></div>`).join(''):'<div class="inv-empty">No hypotheses recorded as rejected.</div>'}
+  </div></details>`;
+
+  const hist=f.historical_comparison||{};
+  const historyHtml=`<details class="inv-sec"><summary>Historical Comparison</summary><div class="body">
+    ${hist.narrative?`<p style="margin:0 0 8px;">${invEsc(hist.narrative)}</p>`:'<div class="inv-empty">No historical comparison available.</div>'}
+    ${(hist.data_points||[]).map(d=>`<div class="kv"><span class="k">${invEsc(d.label)}</span><span class="val">${invEsc(d.value)}</span></div>`).join('')}
+  </div></details>`;
+
   const narrativeHtml=`<details class="inv-sec" open><summary>Root Cause</summary><div class="body">
     ${(f.reasoning_points||[]).length?`<ul style="list-style:none;padding:0;margin:0;">${f.reasoning_points.map(p=>`<li style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);"><span style="font-size:14px;color:var(--accent);flex-shrink:0;margin-top:2px;">&#9670;</span><span style="font-size:12.5px;line-height:1.6;color:var(--text);">${invEsc(p)}</span></li>`).join('')}</ul>`:'<div class="inv-empty">No root cause narrative produced.</div>'}
   </div></details>`;
 
   const recsHtml=`<details class="inv-sec" open><summary>Forecast Improvement Recommendations</summary><div class="body">
-    ${f.forecast_improvement_recommendations.length?`<ul class="inv-findings">${f.forecast_improvement_recommendations.map(x=>`<li>${invEsc(x)}</li>`).join('')}</ul>`:'<div class="inv-empty">No recommendations yet.</div>'}
+    ${(f.forecast_improvement_recommendations||[]).length?`<ul class="inv-findings">${(f.forecast_improvement_recommendations||[]).map(x=>`<li>${invEsc(x)}</li>`).join('')}</ul>`:'<div class="inv-empty">No recommendations yet.</div>'}
   </div></details>`;
 
   const confHtml=`<div class="inv-card"><div class="subhead" style="margin:0 0 8px;">Confidence</div>${invConfMeter(f.confidence_score)}</div>`;
 
   const missingHtml=`<details class="inv-sec" open><summary>Missing Information</summary><div class="body">
-    ${f.missing_information.length?`<ul class="inv-findings">${f.missing_information.map(x=>`<li>${invEsc(x)}</li>`).join('')}</ul>`:'<div class="inv-empty">Nothing flagged as missing.</div>'}
+    ${(f.missing_information||[]).length?`<ul class="inv-findings">${(f.missing_information||[]).map(x=>`<li>${invEsc(x)}</li>`).join('')}</ul>`:'<div class="inv-empty">Nothing flagged as missing.</div>'}
   </div></details>`;
 
   const metaHtml=`<div class="inv-meta">Engine: ${invEsc(meta.engine||'—')}${meta.model?' · '+invEsc(meta.model):''} · generated ${meta.generated_at?new Date(meta.generated_at).toLocaleString():'—'} · based on ${(meta.based_on_fields||[]).length} field(s) gathered generically from the source file</div>`;
