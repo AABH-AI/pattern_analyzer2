@@ -306,6 +306,139 @@
     ],
     "reason": "Cannot split the miss into a warranty-base effect and a contacts-per-unit effect because these values are missing or zero for this week: Actual_ASU."
    }
+  },
+  "investigation_loop": {
+   "steps": [
+    {
+     "step": 1,
+     "question": "What changed this week?",
+     "answer": "This queue handled more contacts than the plan expected: 305.0 against a forecast of 304.9, which is about 6% below its normal weekly level.",
+     "evidence": [
+      {
+       "text": "Forecast 304.9 vs actual 305.0.",
+       "source_field": "fcst_offered",
+       "value": 304.95
+      },
+      {
+       "text": "Normal weekly level is about 324.3.",
+       "source_field": "Actual_Offered",
+       "value": 324.3
+      }
+     ],
+     "can_go_deeper": true,
+     "note": ""
+    },
+    {
+     "step": 2,
+     "question": "Is this change local to this queue, or system-wide?",
+     "answer": "Local. No higher level of the business missed in the same direction this week, so whatever happened is specific to this queue or its Combined Queue.",
+     "evidence": [
+      {
+       "text": "Levels checked and none breached in the same direction: Business Org, Region, SubRegion, Country, Channel.",
+       "source_field": "Fiscal_Week",
+       "value": 5
+      }
+     ],
+     "can_go_deeper": true,
+     "note": ""
+    },
+    {
+     "step": 3,
+     "question": "Did total Combined-Queue demand change, or only its distribution?",
+     "answer": "Total demand genuinely fell across the whole Combined Queue, not just this channel \u2014 so this is a real change in customer demand rather than work moving between channels.",
+     "evidence": [
+      {
+       "text": "Across the whole Combined Queue, contacts went from 341.0 to 305.0 (a change of -36.0), while the individual channels moved 36.0 in total.",
+       "source_field": "Actual_Offered",
+       "value": 305.0
+      }
+     ],
+     "can_go_deeper": true,
+     "note": ""
+    },
+    {
+     "step": 4,
+     "question": "Which channels gained and which lost?",
+     "answer": "Within the Combined Queue, handled fewer: Chat (-36.0). This queue's own channel (Chat) went from 341.0 to 305.0.",
+     "evidence": [
+      {
+       "text": "Chat: 341.0 -> 305.0.",
+       "source_field": "Actual_Offered",
+       "value": 305.0
+      }
+     ],
+     "can_go_deeper": true,
+     "note": ""
+    },
+    {
+     "step": 5,
+     "question": "Has this happened before in this Combined Queue?",
+     "answer": "No. Across 25 comparable weeks, the Combined Queue has never before held its total flat while the split between channels moved this much. This week is the first.",
+     "evidence": [
+      {
+       "text": "26 weeks of Combined-Queue history reviewed; the total is typically about 341.5 contacts a week.",
+       "source_field": "Actual_Offered",
+       "value": 341.5
+      },
+      {
+       "text": "This week the Combined Queue total was 305.0.",
+       "source_field": "Actual_Offered",
+       "value": 305.0
+      }
+     ],
+     "can_go_deeper": true,
+     "note": ""
+    },
+    {
+     "step": 6,
+     "question": "What else could explain this, and what does the data eliminate?",
+     "answer": "Ruled out: Holiday or short week \u2014 the week had a normal number of holidays (0.0); Forecast plan change \u2014 the forecast plan did not change this week; Installed base / units under warranty \u2014 the installed base did not move materially; Standing forecast bias \u2014 this queue's misses have no consistent direction. ",
+     "evidence": [
+      {
+       "text": "Holiday or short week ruled out because the week had a normal number of holidays (0.0).",
+       "source_field": "Fiscal_Week",
+       "value": 0
+      },
+      {
+       "text": "Forecast plan change ruled out because the forecast plan did not change this week.",
+       "source_field": "Fiscal_Week",
+       "value": 0
+      },
+      {
+       "text": "Installed base / units under warranty ruled out because the installed base did not move materially.",
+       "source_field": "Fiscal_Week",
+       "value": 0
+      },
+      {
+       "text": "Standing forecast bias ruled out because this queue's misses have no consistent direction.",
+       "source_field": "Fiscal_Week",
+       "value": 0
+      }
+     ],
+     "can_go_deeper": false,
+     "note": "4 ruled out, 0 open"
+    },
+    {
+     "step": 7,
+     "question": "Can a WFM lead act on this tomorrow?",
+     "answer": "Not from this data alone. Everything measurable has been checked and nothing operational explains the gap, so the next step is evidence this system does not hold.",
+     "evidence": [],
+     "can_go_deeper": false,
+     "note": "Data exhausted."
+    }
+   ],
+   "steps_taken": 7,
+   "outcome": "data_exhausted",
+   "stopped_because": "Data exhausted.",
+   "operational_action": null,
+   "data_required_to_go_deeper": [
+    "Incident / outage records for the week, to test whether a service event drove contacts",
+    "Marketing or campaign calendar, to test whether an outbound activity drove contacts",
+    "Product release or recall dates for the affected offering",
+    "Routing-rule change history for the Combined Queue, with effective dates",
+    "Intraday or daily arrival patterns, to show whether the change was one day or the whole week"
+   ],
+   "narrative": "This queue handled more contacts than the plan expected: 305.0 against a forecast of 304.9, which is about 6% below its normal weekly level. Local. No higher level of the business missed in the same direction this week, so whatever happened is specific to this queue or its Combined Queue. Total demand genuinely fell across the whole Combined Queue, not just this channel \u2014 so this is a real change in customer demand rather than work moving between channels. Within the Combined Queue, handled fewer: Chat (-36.0). This queue's own channel (Chat) went from 341.0 to 305.0. No. Across 25 comparable weeks, the Combined Queue has never before held its total flat while the split between channels moved this much. This week is the first. Ruled out: Holiday or short week \u2014 the week had a normal number of holidays (0.0); Forecast plan change \u2014 the forecast plan did not change this week; Installed base / units under warranty \u2014 the installed base did not move materially; Standing forecast bias \u2014 this queue's misses have no consistent direction.  Not from this data alone. Everything measurable has been checked and nothing operational explains the gap, so the next step is evidence this system does not hold."
   }
  },
  "confidence_score": 1.0,

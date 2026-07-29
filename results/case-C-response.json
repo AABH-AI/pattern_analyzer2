@@ -1,5 +1,5 @@
 {
- "executive_summary": "The forecast adherence KPI for the ANZ Client Core queue was 66.1%, which is below the threshold of 10%. This indicates that the actual offered volume was significantly lower than the forecasted volume. The investigation suggests that the miss is likely due to a systematic forecast bias and an inherited issue from a higher level, specifically the Business Org level.",
+ "executive_summary": "The same miss is already visible at Business Org level, so it is not specific to this queue and a queue-level cause cannot explain it.",
  "kpi_status": {
   "metric": "Forecast Adherence",
   "adherence_pct": 66.1,
@@ -7,66 +7,54 @@
   "breached": true,
   "direction": "over_forecast"
  },
- "business_impact": "The low forecast adherence may result in underutilization of resources and potential loss of revenue.",
+ "business_impact": "Correcting this queue alone would not fix a miss the whole level shares.",
  "ranked_root_causes": [
   {
    "rank": 1,
    "cause_type": "inherited_from_higher_level",
-   "title": "Inherited Issue from Business Org Level",
-   "explanation": "The same miss is already visible at the Business Org level, indicating that the issue is not specific to this queue but rather a broader problem.",
+   "title": "The miss is inherited from Business Org level",
+   "explanation": "The same miss is already visible at Business Org level, so it is not specific to this queue and a queue-level cause cannot explain it.",
    "evidence": [
     {
-     "text": "INVESTIGATION_LADDER levels breaching band",
-     "source_field": "INVESTIGATION_LADDER",
-     "value": "Business Org"
+     "text": "At Business Org level (CSG) adherence was 20.5% for the same week.",
+     "source_field": "Actual_Offered",
+     "value": 185972.0
     }
    ],
-   "confidence_pct": 90,
-   "confidence_level": "High",
-   "business_impact": "The issue may affect multiple queues and require a more comprehensive solution.",
-   "recommended_action": "Investigate and address the issue at the Business Org level.",
+   "confidence_pct": 65,
+   "confidence_level": "Medium",
+   "business_impact": "Correcting this queue alone would not fix a miss the whole level shares.",
+   "recommended_action": "Investigate at Business Org level before adjusting this queue's plan.",
    "status": "Verified"
   },
   {
    "rank": 2,
-   "cause_type": "systematic_forecast_bias",
-   "title": "Systematic Forecast Bias",
-   "explanation": "The chronic bias feature indicates a consistent over-forecasting issue, which may be contributing to the low adherence.",
+   "cause_type": "genuine_demand_event",
+   "title": "Genuine demand event",
+   "explanation": "Actual demand this week was 83.0 \u2014 far from this queue's usual level of about 232.38 \u2014 while the forecast (244.6) was about normal. This looks like a real change in demand this week, not a forecasting error.",
    "evidence": [
     {
-     "text": "DERIVED_FEATURES chronic_bias history_mean_adherence_pct",
-     "source_field": "DERIVED_FEATURES",
-     "value": 18.4
+     "text": "actual demand was 83.0 vs a usual ~232.38, while the forecast (244.6) was about normal",
+     "source_field": "Actual_Offered",
+     "value": 83.0
     }
    ],
-   "confidence_pct": 80,
-   "confidence_level": "High",
-   "business_impact": "The bias may be affecting multiple forecasts and require adjustments to the forecasting process.",
-   "recommended_action": "Review and adjust the forecasting process to address the systematic bias.",
+   "confidence_pct": 60,
+   "confidence_level": "Medium",
+   "business_impact": "See the forecast adherence gap for this queue.",
+   "recommended_action": "Review this queue's forecast inputs and recent accuracy with the planning team.",
    "status": "Verified"
   }
  ],
  "skeptic_review": [
   {
-   "cause": "inherited_from_higher_level",
-   "challenge": "Is the issue specific to this queue or a broader problem?",
-   "verdict": "retained",
-   "reason": "The investigation ladder shows that the miss is already visible at the Business Org level."
-  },
-  {
-   "cause": "systematic_forecast_bias",
-   "challenge": "Is the bias a one-time issue or a consistent problem?",
-   "verdict": "retained",
-   "reason": "The chronic bias feature indicates a consistent over-forecasting issue."
-  },
-  {
-   "cause": "Inherited Issue from Business Org Level",
+   "cause": "The miss is inherited from Business Org level",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
   },
   {
-   "cause": "Systematic Forecast Bias",
+   "cause": "Genuine demand event",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
@@ -81,17 +69,20 @@
    "Channel"
   ],
   "inherited_from": "Business Org",
-  "narrative": "The investigation started at the queue level and moved up the hierarchy to identify the root cause."
+  "narrative": "The same miss is already visible at Business Org level, so it is not specific to this queue and should be attributed there."
  },
  "channel_migration": {
   "detected": false,
-  "narrative": "No channel migration was detected.",
+  "narrative": "Channel movements do not cancel out, so this is not a like-for-like shift between channels.",
   "gaining_channels": [],
   "losing_channels": [
    "Voice"
   ],
   "grouped_by": "Combined_Queue_Name (authoritative mapping)",
   "is_cqn_proxy": false,
+  "combined_queue_names": [
+   "ANZ Commercial Client Concentrix"
+  ],
   "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: ANZ Commercial Client Concentrix). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
   "detail": {
    "available": true,
@@ -169,14 +160,10 @@
   {
    "label": "Adherence at Channel level",
    "value": 49.2
-  },
-  {
-   "label": "DERIVED_FEATURES chronic_bias history_mean_adherence_pct",
-   "value": 18.4
   }
  ],
  "missing_information": [
-  "Actual_ASU"
+  "groq/llama-3.3-70b-versatile HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kkrjztjcfcd8h1kwmdh4ymne` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 99243,. This report was built from the deterministic data checks only - it is not the full multi-hypothesis WFM investigation."
  ],
  "derived_features": {
   "base_features": {
@@ -471,41 +458,170 @@
     ],
     "reason": "Cannot split the miss into a warranty-base effect and a contacts-per-unit effect because these values are missing or zero for this week: Actual_ASU."
    }
+  },
+  "investigation_loop": {
+   "steps": [
+    {
+     "step": 1,
+     "question": "What changed this week?",
+     "answer": "This queue handled fewer contacts than the plan expected: 83.0 against a forecast of 244.6, which is about 64% below its normal weekly level.",
+     "evidence": [
+      {
+       "text": "Forecast 244.6 vs actual 83.0.",
+       "source_field": "fcst_offered",
+       "value": 244.6
+      },
+      {
+       "text": "Normal weekly level is about 232.4.",
+       "source_field": "Actual_Offered",
+       "value": 232.4
+      }
+     ],
+     "can_go_deeper": true,
+     "note": ""
+    },
+    {
+     "step": 2,
+     "question": "Is this change local to this queue, or system-wide?",
+     "answer": "System-wide. The same miss is already visible at Business Org level (CSG), so this queue did not cause it and correcting this queue alone would not fix it.",
+     "evidence": [
+      {
+       "text": "At Business Org level the whole scope was off by 20.5% in the same direction this week.",
+       "source_field": "Actual_Offered",
+       "value": 185972.0
+      }
+     ],
+     "can_go_deeper": true,
+     "note": "Inherited from a higher level -- but keep going: how the work moved is more actionable than which level it shows up at."
+    },
+    {
+     "step": 3,
+     "question": "Did total Combined-Queue demand change, or only its distribution?",
+     "answer": "Total demand genuinely fell across the whole Combined Queue, not just this channel \u2014 so this is a real change in customer demand rather than work moving between channels.",
+     "evidence": [
+      {
+       "text": "Across the whole Combined Queue, contacts went from 126.0 to 83.0 (a change of -43.0), while the individual channels moved 43.0 in total.",
+       "source_field": "Actual_Offered",
+       "value": 83.0
+      }
+     ],
+     "can_go_deeper": true,
+     "note": ""
+    },
+    {
+     "step": 4,
+     "question": "Which channels gained and which lost?",
+     "answer": "Within the Combined Queue, handled fewer: Voice (-43.0). This queue's own channel (Voice) went from 126.0 to 83.0.",
+     "evidence": [
+      {
+       "text": "Voice: 126.0 -> 83.0.",
+       "source_field": "Actual_Offered",
+       "value": 83.0
+      }
+     ],
+     "can_go_deeper": true,
+     "note": ""
+    },
+    {
+     "step": 5,
+     "question": "Has this happened before in this Combined Queue?",
+     "answer": "No. Across 25 comparable weeks, the Combined Queue has never before held its total flat while the split between channels moved this much. This week is the first.",
+     "evidence": [
+      {
+       "text": "26 weeks of Combined-Queue history reviewed; the total is typically about 269.5 contacts a week.",
+       "source_field": "Actual_Offered",
+       "value": 269.5
+      },
+      {
+       "text": "This week the Combined Queue total was 83.0.",
+       "source_field": "Actual_Offered",
+       "value": 83.0
+      }
+     ],
+     "can_go_deeper": true,
+     "note": ""
+    },
+    {
+     "step": 6,
+     "question": "What else could explain this, and what does the data eliminate?",
+     "answer": "Ruled out: Holiday or short week \u2014 the week had a normal number of holidays (0.0); Forecast plan change \u2014 the forecast plan did not change this week. Still in play: the installed base moved (Final_upp_units 2677.0 vs usual 2149.88); a standing over-forecast bias on this queue.",
+     "evidence": [
+      {
+       "text": "Holiday or short week ruled out because the week had a normal number of holidays (0.0).",
+       "source_field": "Fiscal_Week",
+       "value": 0
+      },
+      {
+       "text": "Forecast plan change ruled out because the forecast plan did not change this week.",
+       "source_field": "Fiscal_Week",
+       "value": 0
+      }
+     ],
+     "can_go_deeper": true,
+     "note": "2 ruled out, 2 open"
+    },
+    {
+     "step": 7,
+     "question": "Can a WFM lead act on this tomorrow?",
+     "answer": "Yes \u2014 but not on this queue alone. The same miss runs across Business Org level, so take it there; nothing in this queue's own data explains it.",
+     "evidence": [],
+     "can_go_deeper": false,
+     "note": "Act at the higher level."
+    }
+   ],
+   "steps_taken": 7,
+   "outcome": "operational_cause",
+   "stopped_because": "Act at the higher level.",
+   "operational_action": "Yes \u2014 but not on this queue alone. The same miss runs across Business Org level, so take it there; nothing in this queue's own data explains it.",
+   "data_required_to_go_deeper": [],
+   "narrative": "This queue handled fewer contacts than the plan expected: 83.0 against a forecast of 244.6, which is about 64% below its normal weekly level. System-wide. The same miss is already visible at Business Org level (CSG), so this queue did not cause it and correcting this queue alone would not fix it. Total demand genuinely fell across the whole Combined Queue, not just this channel \u2014 so this is a real change in customer demand rather than work moving between channels. Within the Combined Queue, handled fewer: Voice (-43.0). This queue's own channel (Voice) went from 126.0 to 83.0. No. Across 25 comparable weeks, the Combined Queue has never before held its total flat while the split between channels moved this much. This week is the first. Ruled out: Holiday or short week \u2014 the week had a normal number of holidays (0.0); Forecast plan change \u2014 the forecast plan did not change this week. Still in play: the installed base moved (Final_upp_units 2677.0 vs usual 2149.88); a standing over-forecast bias on this queue. Yes \u2014 but not on this queue alone. The same miss runs across Business Org level, so take it there; nothing in this queue's own data explains it."
   }
  },
+ "cause_type": "genuine_demand_event",
+ "investigation_summary": {
+  "what_happened": "This queue handled fewer contacts than the plan expected: 83.0 against a forecast of 244.6, which is about 64% below its normal weekly level.",
+  "why_it_happened": "Total demand genuinely fell across the whole Combined Queue, not just this channel \u2014 so this is a real change in customer demand rather than work moving between channels.",
+  "why_we_believe_it": "Within the Combined Queue, handled fewer: Voice (-43.0). This queue's own channel (Voice) went from 126.0 to 83.0. No. Across 25 comparable weeks, the Combined Queue has never before held its total flat while the split between channels moved this much. This week is the first.",
+  "what_we_eliminated": [
+   "Ruled out: Holiday or short week \u2014 the week had a normal number of holidays (0.0); Forecast plan change \u2014 the forecast plan did not change this week. Still in play: the installed base moved (Final_upp_units 2677.0 vs usual 2149.88); a standing over-forecast bias on this queue."
+  ],
+  "what_forecasting_should_do": [
+   "Yes \u2014 but not on this queue alone. The same miss runs across Business Org level, so take it there; nothing in this queue's own data explains it."
+  ],
+  "how_far_the_investigation_got": "operational_cause",
+  "stopped_because": "Act at the higher level.",
+  "steps_taken": 7,
+  "data_required_to_go_deeper": []
+ },
  "investigation_meta": {
-  "engine": "wfm-llm",
-  "provider": "groq",
-  "model": "llama-3.3-70b-versatile",
-  "calls": 1,
-  "generated_at": "2026-07-29T03:54:26.801027+00:00"
+  "engine": "wfm-deterministic-fallback",
+  "generated_at": "2026-07-29T07:08:32.825491+00:00"
  },
  "primary_root_cause": {
-  "statement": "The same miss is already visible at the Business Org level, indicating that the issue is not specific to this queue but rather a broader problem.",
-  "confidence": 0.9,
+  "statement": "The same miss is already visible at Business Org level, so it is not specific to this queue and a queue-level cause cannot explain it.",
+  "confidence": 0.65,
   "supporting_evidence": [
    {
-    "text": "INVESTIGATION_LADDER levels breaching band",
-    "source_field": "INVESTIGATION_LADDER",
-    "value": "Business Org"
+    "text": "At Business Org level (CSG) adherence was 20.5% for the same week.",
+    "source_field": "Actual_Offered",
+    "value": 185972.0
    }
   ]
  },
  "secondary_contributors": [
   {
-   "statement": "The chronic bias feature indicates a consistent over-forecasting issue, which may be contributing to the low adherence.",
-   "confidence": 0.8,
+   "statement": "Actual demand this week was 83.0 \u2014 far from this queue's usual level of about 232.38 \u2014 while the forecast (244.6) was about normal. This looks like a real change in demand this week, not a forecasting error.",
+   "confidence": 0.6,
    "supporting_evidence": [
     {
-     "text": "DERIVED_FEATURES chronic_bias history_mean_adherence_pct",
-     "source_field": "DERIVED_FEATURES",
-     "value": 18.4
+     "text": "actual demand was 83.0 vs a usual ~232.38, while the forecast (244.6) was about normal",
+     "source_field": "Actual_Offered",
+     "value": 83.0
     }
    ]
   }
  ],
- "confidence_score": 0.9,
- "cause_type": "inherited_from_higher_level",
+ "confidence_score": 0.65,
  "key_findings": [
   "The forecast this week was 244.6, and actual demand was 83.0.",
   "Actual demand (83.0) was far from this queue's usual level of about 232.38, while the forecast (244.6) was about normal.",
@@ -516,17 +632,17 @@
  ],
  "supporting_evidence": [
   {
-   "text": "INVESTIGATION_LADDER levels breaching band",
-   "source_field": "INVESTIGATION_LADDER",
-   "value": "Business Org"
+   "text": "At Business Org level (CSG) adherence was 20.5% for the same week.",
+   "source_field": "Actual_Offered",
+   "value": 185972.0
   }
  ],
- "reasoning_narrative": "The forecast adherence KPI for the ANZ Client Core queue was 66.1%, which is below the threshold of 10%. This indicates that the actual offered volume was significantly lower than the forecasted volume. The investigation suggests that the miss is likely due to a systematic forecast bias and an inherited issue from a higher level, specifically the Business Org level.",
+ "reasoning_narrative": "The same miss is already visible at Business Org level, so it is not specific to this queue and a queue-level cause cannot explain it.",
  "rejected_hypotheses": [],
  "historical_comparison": {},
  "forecast_improvement_recommendations": [
-  "Investigate and address the issue at the Business Org level.",
-  "Review and adjust the forecasting process to address the systematic bias."
+  "Investigate at Business Org level before adjusting this queue's plan.",
+  "Review this queue's forecast inputs and recent accuracy with the planning team."
  ],
  "forecast_summary": {}
 }

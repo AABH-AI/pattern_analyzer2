@@ -35,6 +35,7 @@ from . import (
     data_quality,
     hierarchy_analyzer,
     hypothesis_generator,
+    investigation_loop,
     skeptic,
     temporal_reasoner,
 )
@@ -71,6 +72,9 @@ def derive_wfm_features(context_bundle, wfm_context, band):
                                              week, actual),
         "correlations": correlation_engine.analyse(history, fields),
     }
+    # The WHY-chain runs last, because it reads every block above. It is deterministic: the model
+    # continues from where it stopped rather than inventing the chain itself.
+    features["investigation_loop"] = investigation_loop.run(features, wfm_context, adherence)
     return features, adherence
 
 
@@ -90,6 +94,7 @@ def _payload(context_bundle, features, adherence, band):
         "INVESTIGATION_LADDER": features.get("investigation_ladder"),
         "DATA_QUALITY": features.get("data_quality"),
         "CORRELATIONS": features.get("correlations"),
+        "INVESTIGATION_LOOP": features.get("investigation_loop"),
         "ELIGIBLE_CAUSE_TYPES": skeptic.eligible_cause_types(features),
         "FIELD_GLOSSARY": FIELD_DEFINITIONS,
     }
@@ -135,6 +140,8 @@ def _assemble(parsed, features, adherence, band, provider, model):
                                                   if str(m.get("label")) not in seen]
 
     out["derived_features"] = features
+    out["investigation_summary"] = report.case_file(
+        (parsed.get("investigation_summary") if isinstance(parsed, dict) else None), features)
     out["investigation_meta"] = {"engine": "wfm-llm", "provider": provider, "model": model,
                                 "calls": 1, "generated_at": _now()}
     out = report.back_compat(out, features.get("base_features") or {})
@@ -179,6 +186,7 @@ def _fallback(features, adherence, band, reason):
             f"not the full multi-hypothesis WFM investigation."],
         "derived_features": features,
         "cause_type": ctype,
+        "investigation_summary": report.case_file(None, features),
         "investigation_meta": {"engine": "wfm-deterministic-fallback", "generated_at": _now()},
     }
     return report.apply_language_guard(report.back_compat(out, base))

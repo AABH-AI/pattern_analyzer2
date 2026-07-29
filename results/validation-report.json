@@ -1,7 +1,7 @@
 {
  "run": {
-  "started_utc": "2026-07-29T03:52:38.541866+00:00",
-  "finished_utc": "2026-07-29T03:55:59.306482+00:00",
+  "started_utc": "2026-07-29T07:06:55.031972+00:00",
+  "finished_utc": "2026-07-29T07:10:02.905565+00:00",
   "backend": "http://localhost:8000",
   "server": "10.10.9.75",
   "table": "dbo.Input_To_ML",
@@ -32,29 +32,37 @@
     "Country": "United States",
     "channel": "Voice"
    },
-   "engine": "wfm-llm",
-   "provider": "groq",
-   "model": "llama-3.3-70b-versatile",
+   "engine": "wfm-deterministic-fallback",
+   "provider": null,
+   "model": null,
    "timing_seconds": {
-    "queue_context": 2.44,
-    "investigate": 5.92
+    "queue_context": 2.28,
+    "investigate": 2.41
    },
    "adherence_pct": -9599.7,
    "ranked_causes": [
     {
      "rank": 1,
      "cause_type": "data_quality_issue",
-     "title": "Data Quality Issue",
-     "confidence_pct": 90,
-     "confidence_level": "High",
+     "title": "Suspected data quality issue in this week's actual",
+     "confidence_pct": 60,
+     "confidence_level": "Medium",
      "status": "Hypothesis - To be Validated"
     },
     {
      "rank": 2,
      "cause_type": "inherited_from_higher_level",
-     "title": "Inherited from Higher Level",
-     "confidence_pct": 80,
-     "confidence_level": "High",
+     "title": "The miss is inherited from Region level",
+     "confidence_pct": 65,
+     "confidence_level": "Medium",
+     "status": "Verified"
+    },
+    {
+     "rank": 3,
+     "cause_type": "genuine_demand_event",
+     "title": "Genuine demand event",
+     "confidence_pct": 60,
+     "confidence_level": "Medium",
      "status": "Verified"
     }
    ],
@@ -138,33 +146,40 @@
     "Country": "Australia",
     "channel": "Voice"
    },
-   "engine": "wfm-llm",
-   "provider": "groq",
-   "model": "llama-3.3-70b-versatile",
+   "engine": "wfm-deterministic-fallback",
+   "provider": null,
+   "model": null,
    "timing_seconds": {
-    "queue_context": 2.26,
-    "investigate": 5.87
+    "queue_context": 2.16,
+    "investigate": 2.63
    },
    "adherence_pct": 38.5,
    "ranked_causes": [
     {
      "rank": 1,
      "cause_type": "inherited_from_higher_level",
-     "title": "Inherited from Higher Level",
-     "confidence_pct": 90,
-     "confidence_level": "High",
+     "title": "The miss is inherited from Channel level",
+     "confidence_pct": 65,
+     "confidence_level": "Medium",
      "status": "Verified"
     },
     {
      "rank": 2,
-     "cause_type": "contact_rate_driven",
-     "title": "Contact Rate Issue",
-     "confidence_pct": 80,
-     "confidence_level": "High",
+     "cause_type": "systematic_forecast_bias",
+     "title": "Systematic forecast bias",
+     "confidence_pct": 50,
+     "confidence_level": "Medium",
      "status": "Verified"
     }
    ],
-   "skeptic_rejected": [],
+   "skeptic_rejected": [
+    {
+     "cause": "Contacts per unit differed from plan",
+     "challenge": "Does the data actually show forecast baseline error?",
+     "verdict": "rejected",
+     "reason": "No. The data shows the forecast was not unusual against its own history, so this cause is not possible for this week."
+    }
+   ],
    "checks": [
     {
      "id": "V1",
@@ -244,29 +259,29 @@
     "Country": "Australia",
     "channel": "Voice"
    },
-   "engine": "wfm-llm",
-   "provider": "groq",
-   "model": "llama-3.3-70b-versatile",
+   "engine": "wfm-deterministic-fallback",
+   "provider": null,
+   "model": null,
    "timing_seconds": {
-    "queue_context": 2.21,
-    "investigate": 5.29
+    "queue_context": 2.18,
+    "investigate": 2.4
    },
    "adherence_pct": 66.1,
    "ranked_causes": [
     {
      "rank": 1,
      "cause_type": "inherited_from_higher_level",
-     "title": "Inherited Issue from Business Org Level",
-     "confidence_pct": 90,
-     "confidence_level": "High",
+     "title": "The miss is inherited from Business Org level",
+     "confidence_pct": 65,
+     "confidence_level": "Medium",
      "status": "Verified"
     },
     {
      "rank": 2,
-     "cause_type": "systematic_forecast_bias",
-     "title": "Systematic Forecast Bias",
-     "confidence_pct": 80,
-     "confidence_level": "High",
+     "cause_type": "genuine_demand_event",
+     "title": "Genuine demand event",
+     "confidence_pct": 60,
+     "confidence_level": "Medium",
      "status": "Verified"
     }
    ],
@@ -350,29 +365,29 @@
     "Country": "Brazil",
     "channel": "Voice"
    },
-   "engine": "wfm-llm",
-   "provider": "groq",
-   "model": "llama-3.3-70b-versatile",
+   "engine": "wfm-deterministic-fallback",
+   "provider": null,
+   "model": null,
    "timing_seconds": {
-    "queue_context": 2.19,
-    "investigate": 5.12
+    "queue_context": 2.22,
+    "investigate": 2.53
    },
    "adherence_pct": 75.3,
    "ranked_causes": [
     {
      "rank": 1,
      "cause_type": "inherited_from_higher_level",
-     "title": "Inherited from Business Org level",
-     "confidence_pct": 90,
-     "confidence_level": "High",
+     "title": "The miss is inherited from Business Org level",
+     "confidence_pct": 65,
+     "confidence_level": "Medium",
      "status": "Verified"
     },
     {
      "rank": 2,
-     "cause_type": "systematic_forecast_bias",
-     "title": "Systematic forecast bias",
-     "confidence_pct": 70,
-     "confidence_level": "High",
+     "cause_type": "genuine_demand_event",
+     "title": "Genuine demand event",
+     "confidence_pct": 60,
+     "confidence_level": "Medium",
      "status": "Verified"
     }
    ],
@@ -460,8 +475,8 @@
    "provider": null,
    "model": null,
    "timing_seconds": {
-    "queue_context": 2.17,
-    "investigate": 2.34
+    "queue_context": 2.21,
+    "investigate": 2.37
    },
    "adherence_pct": -0.0,
    "ranked_causes": [],

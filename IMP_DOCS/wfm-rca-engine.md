@@ -19,6 +19,7 @@ Code: the `backend/wfm/` package + a ~40-line opt-in branch in `backend/sql_back
 | `wfm/data_quality.py` | is the number itself credible? |
 | `wfm/data_access.py` | the SQL fetches |
 | `wfm/prompts.py` | the business-authored prompt |
+| `wfm/investigation_loop.py` | **the WHY-chain** — walks 7 investigator questions until it reaches an operational cause or names the data it needs |
 | `wfm/llm_client.py` | LLM transport with a **configurable** timeout (`llm.timeout_seconds`) |
 | `wfm/common.py` | shared primitives |
 
@@ -149,6 +150,7 @@ New keys on top (a future UI can render these directly):
 | `investigation_trail` | `{levels_checked[], inherited_from, narrative}` |
 | `channel_migration` | `{detected, gaining_channels[], losing_channels[], detail}` — `detected` is **computed**, the model only narrates |
 | `technical_metrics[]` | the collapsed-by-default technical section |
+| `investigation_summary` | **the case file** — what happened / why / why we believe it / what we eliminated / what forecasting should do / `how_far_the_investigation_got` (`operational_cause` or `data_exhausted`) / `data_required_to_go_deeper`. The last two always come from the deterministic loop, never the model |
 | `missing_information[]` | what could not be verified |
 
 `status` is `"Verified"` or `"Hypothesis - To be Validated"`.

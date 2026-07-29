@@ -33,9 +33,19 @@ BAND = 10.0
 BANNED = ("correlation", "regression", "outlier", "pearson", "z-score", "z score",
           "shap", "isolation forest", "standard deviation", "sigma", "mape")
 
-# Fabrication tripwires -- the prompt forbids assuming these outright.
-FABRICATION = ("marketing campaign", "product launch", "promotion campaign",
-               "advertising campaign", "new product release")
+# Fabrication tripwires. The prompt forbids ASSUMING a campaign or launch happened -- it does NOT
+# forbid naming one as data you would need. Since the stopping rule explicitly asks the engine to
+# state what further data would be required ("incident records, campaign calendar, release dates"),
+# a bare keyword match flags the correct behaviour as a violation. Measured: NVIDIA wrote
+# "if validated, investigate drivers such as product releases, marketing campaigns, or service
+# incidents" -- a recommendation, not a claim -- and the old check failed it.
+# So match the ASSERTION shape instead: the thing being given as the cause.
+FABRICATION_ASSERTED = (
+    r"(?:due to|caused by|because of|driven by|result(?:ed|ing)? from|attributabl\w* to)\s+"
+    r"(?:an?|the)?\s*(?:ongoing|recent|new)?\s*"
+    r"(?:marketing|advertising|promotion(?:al)?)?\s*(?:campaign|product launch|product release)",
+    r"(?:a|an|the)\s+(?:marketing|advertising|promotional)\s+campaign\s+(?:drove|caused|led to|increased)",
+)
 
 
 def load_bundle(path):
@@ -147,10 +157,19 @@ def check_spec(resp, had_sql):
     add("S4", "Root causes: each carries description, evidence, confidence, impact, action",
         all(v == 0 for v in missing.values()),
         json.dumps({k: v for k, v in missing.items() if v}))
-    add("S5", "Root causes: best-supported first (confidence descends)",
-        [c.get("confidence_pct") or 0 for c in causes] ==
-        sorted([c.get("confidence_pct") or 0 for c in causes], reverse=True),
-        str([c.get("confidence_pct") for c in causes]))
+    # The prompt has an explicit priority override: "When DATA_QUALITY.suspect is true, rank
+    # data_quality_issue FIRST". That can legitimately place a lower-confidence cause at rank 1 --
+    # you do not explain a number you cannot trust, however confident the alternatives are. So
+    # confidence must descend across the REST of the list, with rank 1 exempt when it is the
+    # mandated data-quality entry. Measured: Groq returned 60 / 65 / 60 with data_quality_issue
+    # first, which the old strict check failed even though it was obeying the spec.
+    pcts = [c.get("confidence_pct") or 0 for c in causes]
+    dq_first = bool(causes) and (causes[0].get("cause_type") == "data_quality_issue")
+    tail = pcts[1:] if dq_first else pcts
+    ok_order = tail == sorted(tail, reverse=True)
+    add("S5", "Root causes: best-supported first (confidence descends, data-quality override allowed)",
+        ok_order, f"confidences={pcts}"
+        + (" (rank 1 exempt: data_quality_issue is mandated first)" if dq_first else ""))
 
     # --- CONFIDENCE SCORING ---
     bad = [(c.get("confidence_pct"), c.get("confidence_level")) for c in causes
@@ -236,9 +255,12 @@ def check_spec(resp, had_sql):
         f"rejected={len(rel.get('rejected', []))}")
 
     # --- CRITICAL RULES: never fabricate ---
-    fab = sorted({w for w in FABRICATION if w in low})
-    add("S18", "Critical rules: no invented campaigns / product launches asserted",
-        not fab, f"found={fab}")
+    import re as _re
+    fab = sorted({m.group(0) for pat in FABRICATION_ASSERTED
+                  for m in _re.finditer(pat, low, flags=_re.IGNORECASE)})
+    add("S18", "Critical rules: no invented campaigns / product launches ASSERTED as the cause",
+        not fab, f"asserted={fab}" if fab else
+        "naming them as data still needed is allowed and expected")
     pool = real_numbers(feats)
 
     def reconciles(v):

@@ -175,6 +175,26 @@ Loader: `backend/upload_cqn_mapping.py`. Source: `CQN and FC mapping.xlsx`.
       (e.g. `GET /api/cqn-mapping`) would remove the badge and let the dashboard group by real
       Combined Queue.
 
+## P1f — investigation loop follow-ups (2026-07-29)
+Built in `backend/wfm/investigation_loop.py`; see `prompt-trail.md` Session 25.
+- [ ] **Render the case file in the console.** `investigation_summary` (what happened / why / why we
+      believe it / what we eliminated / what forecasting should do / how far it got) is in the
+      response but the UI still shows the old "Root Cause" block. The business suggested relabelling
+      it **"Investigation Summary"**, on the grounds that leaders trust an investigation more than an
+      AI asserting a cause — worth doing, but it is a frontend + naming decision.
+- [ ] **Surface `data_required_to_go_deeper` in the UI.** When the loop ends `data_exhausted` it names
+      exactly what would let it continue (incident records, campaign calendar, release dates,
+      routing-change history, intraday arrivals). That list is the most actionable thing in a
+      dead-end investigation and is currently invisible to the reader.
+- [ ] **The default engine still emits analyst phrasing.** `rca_investigate.py:564` writes "N of M
+      similar queues moved the opposite way", and the console calls the DEFAULT engine, so the UI can
+      still show it. Either route the console to `?mode=wfm`, or port the operational phrasing across.
+- [ ] **Chase the WHY levels that need data we do not hold.** The loop stops honestly at "customers
+      chose Chat instead of Voice — no evidence why". Getting past that needs incident, campaign,
+      release or routing-change feeds. Worth asking the business which of those exist.
+- [ ] **Precedent counts week-over-week swaps only.** `_q5_precedent` measures how often the Combined
+      Queue held flat while its channels moved; it does not yet detect a seasonal or month-end pattern.
+
 ## P2 — dashboard / UX polish (post-deadline OK)
 - [x] High-cardinality dimension cards showed 0% shares — now show row counts; Fiscal_Week dropped from the grid; panel made bolder/cleaner. (2026-07-22)
 - [ ] Trend charts: optional brush/zoom for the 325-week span; shared hover legend across the two trend charts.

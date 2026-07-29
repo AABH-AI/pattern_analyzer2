@@ -484,3 +484,86 @@ V0.5 10:57-11:10; docs + commit to ~11:35).
 
 Still unfixed and now seen in four consecutive sessions: the `renderProbe` TypeError on every page
 load (`rca_console.html:2117`, from `:2143`) — fallout from `e432543` hiding the Probing layer.
+
+---
+
+## Session 25 — 2026-07-29 · the investigation loop: keep asking WHY until it stops being answerable
+**When:** Wed 29 Jul 2026, ~11:50 – 13:05 IST · **Runtime:** the loop is deterministic (<10ms);
+a full WFM run is unchanged at 3-5s (Groq) / 30-85s (NVIDIA); regression suites ~14min.
+
+The business pushed back on the output, and the critique was right in a specific, checkable way:
+the engine **stopped one level too early**. It reported *"3 of 5 similar queues moved the opposite
+way"* and called that a routing shift — a statistical observation, not something a WFM lead can act
+on. Their words: *"Business asks 'so what?'"*
+
+**What I verified before agreeing.** Two of their claims held, one did not:
+- YES — that phrasing is real: `rca_investigate.py:564`, the DEFAULT engine's deterministic text,
+  which is what the console calls. Their screenshot was the old engine, not the WFM one.
+- YES — `volume_routing_shift` fired on `peer_divergence.signal` alone: **direction only, no
+  conservation test.** An opposite-moving peer was treated as proof that work had moved.
+- NO — "the context only has history, peers and stats, so there isn't enough information to
+  investigate." **Not true any more.** `channel_siblings` already computed which channel gained,
+  which lost, the Combined-Queue total, net vs gross movement and the offset share. The information
+  existed; **nothing walked it into a narrative.** That distinction changed the fix from "gather more
+  data" to "chain what you already have" — plus one genuine data gap (precedent).
+
+**Built:**
+1. **`wfm/investigation_loop.py`** — walks seven investigator questions deterministically, each
+   recording its evidence and whether the chain can go deeper: what changed -> local or system-wide
+   -> did the Combined-Queue total change or only its distribution -> which channels gained/lost ->
+   has this happened before -> what is eliminated -> can a lead act tomorrow. It terminates as
+   `operational_cause` or `data_exhausted`, and when it exhausts it **names the data required to go
+   deeper** (incident records, campaign calendar, release dates, routing-change history, intraday
+   arrivals) instead of inventing a cause.
+2. **`cqn_history` in `data_access`** — 26 weeks of whole-Combined-Queue, per-channel totals. This
+   was the one real data gap: without it a one-week redistribution and a standing pattern looked
+   identical. It answers "has this happened before?" as a frequency rather than a guess.
+3. **`volume_routing_shift` now requires CONSERVATION** — either a computed channel redistribution,
+   or an opposing peer AND the Combined-Queue total holding flat within 10%. An opposite-moving peer
+   is no longer sufficient on its own.
+4. **The stopping rule, verbatim as the business wrote it**, plus a WRITE-FOR-THE-INVESTIGATOR
+   section that bans "3 of 5 similar queues moved the opposite way" from business-facing text and
+   shows the operational rewrite.
+5. **`investigation_summary` — the case file** the business reads first: what happened / why / why we
+   believe it / what we eliminated / what forecasting should do / how far the investigation got.
+   `how_far_the_investigation_got` and `data_required_to_go_deeper` are **always** taken from the
+   deterministic loop, never from the model — how far an investigation got is a fact, not an opinion.
+
+**I made the same mistake in my own code, and caught it on the first live run.** Q2 ("system-wide ->
+go look at Channel level") **terminated the chain**, so a week where `migration_detected` was already
+true never reported the redistribution. My chain stopped at the first plausible explanation — exactly
+the critique. Fixed: Q2 is context, not a conclusion; Q3-Q5 now run whenever Combined-Queue data
+exists; and Q7 prefers a concrete redistribution over "go up a level".
+
+**Live result** on `SA Comm Client Malaysia ProSupport Email English` FW202722 (-50.7%), all seven
+steps, outcome `operational_cause`:
+
+> Q3 Only the distribution — total demand across the Combined Queue barely moved, but the split did.
+> Q4 Email +191; Voice -358, Chat -67. This queue's Email went 1,495 -> 1,686.
+> Q5 Occasionally — 2 of 25 weeks (8%). Not routine, but it has happened before.
+> Q6 Ruled out: holidays, plan change, installed base, standing bias.
+> Q7 Forecast the Combined Queue as a whole first and allocate the channel split afterwards; check
+>    the routing rules that moved work from Chat and Voice to Email. The forecast was not wrong about
+>    total demand — it was wrong about which channel would handle it.
+
+No "3 of 5 similar queues" anywhere in it.
+
+**One more fix from measurement:** the model's `why_we_believe_it` read *"the data suggests a shift in
+customer behavior"* while the computed chain had *"Email +191, Voice -358, Chat -67; 2 of 25 weeks"*.
+The specifics are the reason to believe it, so the chain is now **appended** to the model's prose
+rather than replaced by it.
+
+**Two test failures that were the TEST's fault, not the engine's** — I fixed the tests, not the engine:
+- S18 flagged *"if validated, investigate drivers such as product releases, marketing campaigns"* as
+  fabrication. That is a **recommendation**, and the stopping rule explicitly asks for it. The check
+  now matches the assertion shape ("due to a marketing campaign") rather than any mention.
+- S5 required confidence to descend, but the prompt **mandates** `data_quality_issue` rank first,
+  which can legitimately outrank confidence (Groq returned 60/65/60). Rank 1 is now exempt when it is
+  the mandated data-quality entry.
+
+**Regression: 12/12 modules, 40/40 SQL cross-checks, 42/42 spec clauses.** Example output saved to
+`results/investigation-loop-example.json`.
+
+**Not done:** renaming "Root Cause" to "Investigation Summary" in the UI. The field now exists in the
+response, but the console still renders the old label — that is a frontend change and a naming
+decision, so it is in TODO rather than done unilaterally.

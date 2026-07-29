@@ -1,5 +1,5 @@
 {
- "executive_summary": "The forecast adherence for the ANZ Comm Client DSP Upsell queue was 38.5%, indicating an over-forecast of 66.4. The investigation suggests that the miss was mainly driven by a contact rate issue, with each unit generating fewer contacts than planned. The adherence issue is not specific to this queue and is inherited from a higher level, specifically the Channel level.",
+ "executive_summary": "The same miss is already visible at Channel level, so it is not specific to this queue and a queue-level cause cannot explain it.",
  "kpi_status": {
   "metric": "Forecast Adherence",
   "adherence_pct": 38.5,
@@ -7,66 +7,60 @@
   "breached": true,
   "direction": "over_forecast"
  },
- "business_impact": "The over-forecast resulted in excess capacity, potentially leading to wasted resources and decreased efficiency.",
+ "business_impact": "Correcting this queue alone would not fix a miss the whole level shares.",
  "ranked_root_causes": [
   {
    "rank": 1,
    "cause_type": "inherited_from_higher_level",
-   "title": "Inherited from Higher Level",
-   "explanation": "The adherence issue is not specific to this queue and is inherited from a higher level, specifically the Channel level.",
+   "title": "The miss is inherited from Channel level",
+   "explanation": "The same miss is already visible at Channel level, so it is not specific to this queue and a queue-level cause cannot explain it.",
    "evidence": [
     {
-     "text": "INVESTIGATION_LADDER.inherited_from",
-     "source_field": "INVESTIGATION_LADDER",
-     "value": "Channel"
+     "text": "At Channel level (CSG / APJ / ANZ / Australia / Voice) adherence was 13.9% for the same week.",
+     "source_field": "Actual_Offered",
+     "value": 1560.0
     }
    ],
-   "confidence_pct": 90,
-   "confidence_level": "High",
-   "business_impact": "The over-forecast resulted in excess capacity, potentially leading to wasted resources and decreased efficiency.",
-   "recommended_action": "Review and adjust the forecast at the Channel level.",
+   "confidence_pct": 65,
+   "confidence_level": "Medium",
+   "business_impact": "Correcting this queue alone would not fix a miss the whole level shares.",
+   "recommended_action": "Investigate at Channel level before adjusting this queue's plan.",
    "status": "Verified"
   },
   {
    "rank": 2,
-   "cause_type": "contact_rate_driven",
-   "title": "Contact Rate Issue",
-   "explanation": "The miss came mainly from each unit generating a different number of contacts than the plan assumed.",
+   "cause_type": "systematic_forecast_bias",
+   "title": "Systematic forecast bias",
+   "explanation": "This queue is under-forecast almost every week (recently about 189.5 actual against 177.7 forecast), so this week's miss looks like an ongoing pattern \u2014 the plan is consistently set too low \u2014 rather than a one-off event.",
    "evidence": [
     {
-     "text": "Relationship.driver_decomposition",
-     "source_field": "CORRELATIONS",
-     "value": "contact_rate_driven"
+     "text": "recently this queue ran about 189.5 actual against 177.7 forecast, under-forecast in most weeks",
+     "source_field": "Actual_Offered",
+     "value": 189.5
     }
    ],
-   "confidence_pct": 80,
-   "confidence_level": "High",
-   "business_impact": "The contact rate issue resulted in a significant over-forecast.",
-   "recommended_action": "Review and adjust the contact rate assumptions in the forecast plan.",
+   "confidence_pct": 50,
+   "confidence_level": "Medium",
+   "business_impact": "See the forecast adherence gap for this queue.",
+   "recommended_action": "Review this queue's forecast inputs and recent accuracy with the planning team.",
    "status": "Verified"
   }
  ],
  "skeptic_review": [
   {
-   "cause": "inherited_from_higher_level",
-   "challenge": "Is the issue specific to this queue or inherited from a higher level?",
-   "verdict": "retained",
-   "reason": "The INVESTIGATION_LADDER indicates that the issue is inherited from the Channel level."
-  },
-  {
-   "cause": "contact_rate_driven",
-   "challenge": "Is the contact rate issue the main driver of the miss?",
-   "verdict": "retained",
-   "reason": "The CORRELATIONS.driver_decomposition indicates that the contact rate issue is the main driver of the miss."
-  },
-  {
-   "cause": "Inherited from Higher Level",
+   "cause": "The miss is inherited from Channel level",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
   },
   {
-   "cause": "Contact Rate Issue",
+   "cause": "Contacts per unit differed from plan",
+   "challenge": "Does the data actually show forecast baseline error?",
+   "verdict": "rejected",
+   "reason": "No. The data shows the forecast was not unusual against its own history, so this cause is not possible for this week."
+  },
+  {
+   "cause": "Systematic forecast bias",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
@@ -81,17 +75,20 @@
    "Channel"
   ],
   "inherited_from": "Channel",
-  "narrative": "The investigation started at the Business Org level and checked each level down to the Channel level, where the issue was found to be inherited from."
+  "narrative": "The same miss is already visible at Channel level, so it is not specific to this queue and should be attributed there."
  },
  "channel_migration": {
   "detected": false,
-  "narrative": "No channel migration was detected.",
+  "narrative": "Channel movements do not cancel out, so this is not a like-for-like shift between channels.",
   "gaining_channels": [],
   "losing_channels": [
    "Voice"
   ],
   "grouped_by": "Combined_Queue_Name (authoritative mapping)",
   "is_cqn_proxy": false,
+  "combined_queue_names": [
+   "Client ProSupport ANZ"
+  ],
   "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: Client ProSupport ANZ). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
   "detail": {
    "available": true,
@@ -185,17 +182,11 @@
   {
    "label": "Adherence at Channel level",
    "value": 13.9
-  },
-  {
-   "label": "CORRELATIONS.driver_decomposition.warranty_base_effect",
-   "value": -6.4
-  },
-  {
-   "label": "CORRELATIONS.driver_decomposition.contacts_per_unit_effect",
-   "value": -60.0
   }
  ],
- "missing_information": [],
+ "missing_information": [
+  "groq/llama-3.3-70b-versatile HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kkrjztjcfcd8h1kwmdh4ymne` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 99295,. This report was built from the deterministic data checks only - it is not the full multi-hypothesis WFM investigation."
+ ],
  "derived_features": {
   "base_features": {
    "chronic_bias": {
@@ -505,41 +496,175 @@
     "plain_language": "The units under warranty were close to plan; the miss came mainly from each unit generating a different number of contacts than the plan assumed.",
     "reconciles": true
    }
+  },
+  "investigation_loop": {
+   "steps": [
+    {
+     "step": 1,
+     "question": "What changed this week?",
+     "answer": "This queue handled fewer contacts than the plan expected: 106.0 against a forecast of 172.4, which is about 44% below its normal weekly level.",
+     "evidence": [
+      {
+       "text": "Forecast 172.4 vs actual 106.0.",
+       "source_field": "fcst_offered",
+       "value": 172.44
+      },
+      {
+       "text": "Normal weekly level is about 189.5.",
+       "source_field": "Actual_Offered",
+       "value": 189.5
+      }
+     ],
+     "can_go_deeper": true,
+     "note": ""
+    },
+    {
+     "step": 2,
+     "question": "Is this change local to this queue, or system-wide?",
+     "answer": "System-wide. The same miss is already visible at Channel level (CSG / APJ / ANZ / Australia / Voice), so this queue did not cause it and correcting this queue alone would not fix it.",
+     "evidence": [
+      {
+       "text": "At Channel level the whole scope was off by 13.9% in the same direction this week.",
+       "source_field": "Actual_Offered",
+       "value": 1560.0
+      }
+     ],
+     "can_go_deeper": true,
+     "note": "Inherited from a higher level -- but keep going: how the work moved is more actionable than which level it shows up at."
+    },
+    {
+     "step": 3,
+     "question": "Did total Combined-Queue demand change, or only its distribution?",
+     "answer": "Total demand across the Combined Queue held roughly flat, but the channel movements do not cancel out cleanly, so a straight swap between channels is not established.",
+     "evidence": [
+      {
+       "text": "Across the whole Combined Queue, contacts went from 937.0 to 849.0 (a change of -88.0), while the individual channels moved 88.0 in total.",
+       "source_field": "Actual_Offered",
+       "value": 849.0
+      }
+     ],
+     "can_go_deeper": true,
+     "note": ""
+    },
+    {
+     "step": 4,
+     "question": "Which channels gained and which lost?",
+     "answer": "Within the Combined Queue, handled fewer: Voice (-88.0). This queue's own channel (Voice) went from 937.0 to 849.0.",
+     "evidence": [
+      {
+       "text": "Voice: 937.0 -> 849.0.",
+       "source_field": "Actual_Offered",
+       "value": 849.0
+      }
+     ],
+     "can_go_deeper": true,
+     "note": ""
+    },
+    {
+     "step": 5,
+     "question": "Has this happened before in this Combined Queue?",
+     "answer": "No. Across 25 comparable weeks, the Combined Queue has never before held its total flat while the split between channels moved this much. This week is the first.",
+     "evidence": [
+      {
+       "text": "26 weeks of Combined-Queue history reviewed; the total is typically about 1005.0 contacts a week.",
+       "source_field": "Actual_Offered",
+       "value": 1005.0
+      },
+      {
+       "text": "This week the Combined Queue total was 849.0.",
+       "source_field": "Actual_Offered",
+       "value": 849.0
+      }
+     ],
+     "can_go_deeper": true,
+     "note": ""
+    },
+    {
+     "step": 6,
+     "question": "What else could explain this, and what does the data eliminate?",
+     "answer": "Ruled out: Holiday or short week \u2014 the week had a normal number of holidays (1.0); Forecast plan change \u2014 the forecast plan did not change this week; Installed base / units under warranty \u2014 the installed base did not move materially. Still in play: a standing under-forecast bias on this queue.",
+     "evidence": [
+      {
+       "text": "Holiday or short week ruled out because the week had a normal number of holidays (1.0).",
+       "source_field": "Fiscal_Week",
+       "value": 0
+      },
+      {
+       "text": "Forecast plan change ruled out because the forecast plan did not change this week.",
+       "source_field": "Fiscal_Week",
+       "value": 0
+      },
+      {
+       "text": "Installed base / units under warranty ruled out because the installed base did not move materially.",
+       "source_field": "Fiscal_Week",
+       "value": 0
+      }
+     ],
+     "can_go_deeper": true,
+     "note": "3 ruled out, 1 open"
+    },
+    {
+     "step": 7,
+     "question": "Can a WFM lead act on this tomorrow?",
+     "answer": "Yes \u2014 but not on this queue alone. The same miss runs across Channel level, so take it there; nothing in this queue's own data explains it.",
+     "evidence": [],
+     "can_go_deeper": false,
+     "note": "Act at the higher level."
+    }
+   ],
+   "steps_taken": 7,
+   "outcome": "operational_cause",
+   "stopped_because": "Act at the higher level.",
+   "operational_action": "Yes \u2014 but not on this queue alone. The same miss runs across Channel level, so take it there; nothing in this queue's own data explains it.",
+   "data_required_to_go_deeper": [],
+   "narrative": "This queue handled fewer contacts than the plan expected: 106.0 against a forecast of 172.4, which is about 44% below its normal weekly level. System-wide. The same miss is already visible at Channel level (CSG / APJ / ANZ / Australia / Voice), so this queue did not cause it and correcting this queue alone would not fix it. Total demand across the Combined Queue held roughly flat, but the channel movements do not cancel out cleanly, so a straight swap between channels is not established. Within the Combined Queue, handled fewer: Voice (-88.0). This queue's own channel (Voice) went from 937.0 to 849.0. No. Across 25 comparable weeks, the Combined Queue has never before held its total flat while the split between channels moved this much. This week is the first. Ruled out: Holiday or short week \u2014 the week had a normal number of holidays (1.0); Forecast plan change \u2014 the forecast plan did not change this week; Installed base / units under warranty \u2014 the installed base did not move materially. Still in play: a standing under-forecast bias on this queue. Yes \u2014 but not on this queue alone. The same miss runs across Channel level, so take it there; nothing in this queue's own data explains it."
   }
  },
+ "cause_type": "systematic_forecast_bias",
+ "investigation_summary": {
+  "what_happened": "This queue handled fewer contacts than the plan expected: 106.0 against a forecast of 172.4, which is about 44% below its normal weekly level.",
+  "why_it_happened": "Total demand across the Combined Queue held roughly flat, but the channel movements do not cancel out cleanly, so a straight swap between channels is not established.",
+  "why_we_believe_it": "Within the Combined Queue, handled fewer: Voice (-88.0). This queue's own channel (Voice) went from 937.0 to 849.0. No. Across 25 comparable weeks, the Combined Queue has never before held its total flat while the split between channels moved this much. This week is the first.",
+  "what_we_eliminated": [
+   "Ruled out: Holiday or short week \u2014 the week had a normal number of holidays (1.0); Forecast plan change \u2014 the forecast plan did not change this week; Installed base / units under warranty \u2014 the installed base did not move materially. Still in play: a standing under-forecast bias on this queue."
+  ],
+  "what_forecasting_should_do": [
+   "Yes \u2014 but not on this queue alone. The same miss runs across Channel level, so take it there; nothing in this queue's own data explains it."
+  ],
+  "how_far_the_investigation_got": "operational_cause",
+  "stopped_because": "Act at the higher level.",
+  "steps_taken": 7,
+  "data_required_to_go_deeper": []
+ },
  "investigation_meta": {
-  "engine": "wfm-llm",
-  "provider": "groq",
-  "model": "llama-3.3-70b-versatile",
-  "calls": 1,
-  "generated_at": "2026-07-29T03:53:38.943842+00:00"
+  "engine": "wfm-deterministic-fallback",
+  "generated_at": "2026-07-29T07:07:47.934771+00:00"
  },
  "primary_root_cause": {
-  "statement": "The adherence issue is not specific to this queue and is inherited from a higher level, specifically the Channel level.",
-  "confidence": 0.9,
+  "statement": "The same miss is already visible at Channel level, so it is not specific to this queue and a queue-level cause cannot explain it.",
+  "confidence": 0.65,
   "supporting_evidence": [
    {
-    "text": "INVESTIGATION_LADDER.inherited_from",
-    "source_field": "INVESTIGATION_LADDER",
-    "value": "Channel"
+    "text": "At Channel level (CSG / APJ / ANZ / Australia / Voice) adherence was 13.9% for the same week.",
+    "source_field": "Actual_Offered",
+    "value": 1560.0
    }
   ]
  },
  "secondary_contributors": [
   {
-   "statement": "The miss came mainly from each unit generating a different number of contacts than the plan assumed.",
-   "confidence": 0.8,
+   "statement": "This queue is under-forecast almost every week (recently about 189.5 actual against 177.7 forecast), so this week's miss looks like an ongoing pattern \u2014 the plan is consistently set too low \u2014 rather than a one-off event.",
+   "confidence": 0.5,
    "supporting_evidence": [
     {
-     "text": "Relationship.driver_decomposition",
-     "source_field": "CORRELATIONS",
-     "value": "contact_rate_driven"
+     "text": "recently this queue ran about 189.5 actual against 177.7 forecast, under-forecast in most weeks",
+     "source_field": "Actual_Offered",
+     "value": 189.5
     }
    ]
   }
  ],
- "confidence_score": 0.9,
- "cause_type": "inherited_from_higher_level",
+ "confidence_score": 0.65,
  "key_findings": [
   "The forecast this week was 172.44, and actual demand was 106.0.",
   "This queue is under-forecast in most recent weeks (typically about 189.5 actual against 177.7 forecast).",
@@ -548,20 +673,22 @@
  ],
  "supporting_evidence": [
   {
-   "text": "INVESTIGATION_LADDER.inherited_from",
-   "source_field": "INVESTIGATION_LADDER",
-   "value": "Channel"
+   "text": "At Channel level (CSG / APJ / ANZ / Australia / Voice) adherence was 13.9% for the same week.",
+   "source_field": "Actual_Offered",
+   "value": 1560.0
   }
  ],
- "reasoning_narrative": "The forecast adherence for the ANZ Comm Client DSP Upsell queue was 38.5%, indicating an over-forecast of 66.4. The investigation suggests that the miss was mainly driven by a contact rate issue, with each unit generating fewer contacts than planned. The adherence issue is not specific to this queue and is inherited from a higher level, specifically the Channel level.",
- "rejected_hypotheses": [],
+ "reasoning_narrative": "The same miss is already visible at Channel level, so it is not specific to this queue and a queue-level cause cannot explain it.",
+ "rejected_hypotheses": [
+  {
+   "hypothesis": "Contacts per unit differed from plan",
+   "reason_rejected": "No. The data shows the forecast was not unusual against its own history, so this cause is not possible for this week."
+  }
+ ],
  "historical_comparison": {},
  "forecast_improvement_recommendations": [
-  "Review and adjust the forecast at the Channel level.",
-  "Review and adjust the contact rate assumptions in the forecast plan."
+  "Investigate at Channel level before adjusting this queue's plan.",
+  "Review this queue's forecast inputs and recent accuracy with the planning team."
  ],
- "forecast_summary": {},
- "language_guard_applied": [
-  "cause2.evidence1: CORRELATIONS -> relationship"
- ]
+ "forecast_summary": {}
 }

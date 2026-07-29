@@ -12,13 +12,13 @@
    "provider": "nvidia",
    "model": "nvidia/nemotron-3-super-120b-a12b",
    "engine": "wfm-llm",
-   "seconds": 47.9,
+   "seconds": 38.2,
    "raw_file": "spec-nvidia-response.json",
    "ranked": [
     {
      "rank": 1,
      "cause_type": "data_quality_issue",
-     "title": "Suspect actual volume figure",
+     "title": "Questionable actual volume",
      "confidence_pct": 90,
      "confidence_level": "High",
      "status": "Hypothesis - To be Validated"
@@ -26,18 +26,187 @@
     {
      "rank": 2,
      "cause_type": "inherited_from_higher_level",
-     "title": "Miss inherited from Region-level under-forecast",
-     "confidence_pct": 70,
+     "title": "Miss driven by Region\u2011level demand shift",
+     "confidence_pct": 80,
      "confidence_level": "High",
      "status": "Verified"
     },
     {
      "rank": 3,
      "cause_type": "plan_restatement",
-     "title": "Forecast plan restatement may have introduced baseline error",
+     "title": "Forecast plan restatement altered baseline",
      "confidence_pct": 50,
      "confidence_level": "Medium",
      "status": "Hypothesis - To be Validated"
+    },
+    {
+     "rank": 4,
+     "cause_type": "systematic_forecast_bias",
+     "title": "Queue\u2019s chronic over\u2011forecast bias",
+     "confidence_pct": 30,
+     "confidence_level": "Low",
+     "status": "Hypothesis - To be Validated"
+    }
+   ],
+   "checks": [
+    {
+     "id": "S1",
+     "clause": "KPI: Forecast Adherence formula + threshold recorded",
+     "status": "PASS",
+     "detail": "{\"metric\": \"Forecast Adherence\", \"adherence_pct\": -9599.7, \"threshold_pct\": 10.0, \"breached\": true, \"direction\": \"under_forecast\"}"
+    },
+    {
+     "id": "S2",
+     "clause": "KPI: breach flag agrees with |adherence| > threshold",
+     "status": "PASS",
+     "detail": "adherence=-9599.7 breached=True"
+    },
+    {
+     "id": "S3",
+     "clause": "Root causes: multiple explanations, ranked, capped at 5",
+     "status": "PASS",
+     "detail": "4 causes, ranks=[1, 2, 3, 4]"
+    },
+    {
+     "id": "S4",
+     "clause": "Root causes: each carries description, evidence, confidence, impact, action",
+     "status": "PASS",
+     "detail": "{}"
+    },
+    {
+     "id": "S5",
+     "clause": "Root causes: best-supported first (confidence descends, data-quality override allowed)",
+     "status": "PASS",
+     "detail": "confidences=[90, 80, 50, 30] (rank 1 exempt: data_quality_issue is mandated first)"
+    },
+    {
+     "id": "S6",
+     "clause": "Confidence: percent AND High/Medium/Low, consistent with each other",
+     "status": "PASS",
+     "detail": "mismatches=[]"
+    },
+    {
+     "id": "S7",
+     "clause": "Hypothesis engine: status is Verified or 'Hypothesis - To be Validated'",
+     "status": "PASS",
+     "detail": "['Hypothesis - To be Validated', 'Verified']"
+    },
+    {
+     "id": "S8",
+     "clause": "Skeptic mode: challenges recorded with verdicts",
+     "status": "PASS",
+     "detail": "8 entries, 2 rejected"
+    },
+    {
+     "id": "S9",
+     "clause": "Business language: no statistics vocabulary in business-facing text",
+     "status": "PASS",
+     "detail": "found=[]"
+    },
+    {
+     "id": "S10",
+     "clause": "Technical metrics kept in their own (collapsed) section",
+     "status": "PASS",
+     "detail": "15 rows"
+    },
+    {
+     "id": "S11",
+     "clause": "Output format: executive summary, KPI status, business impact all present",
+     "status": "PASS",
+     "detail": "summary=625 chars"
+    },
+    {
+     "id": "S12",
+     "clause": "Core principle: observations exist separately from the ranked cause",
+     "status": "PASS",
+     "detail": "5 key findings"
+    },
+    {
+     "id": "S13",
+     "clause": "Temporal: prior week / last 4 / last 13 / same week last year computed",
+     "status": "PASS",
+     "detail": "present=['previous_week', 'last_4_week_avg_actual', 'last_13_week_avg_actual', 'same_week_last_year'] (of 4); history weeks=103"
+    },
+    {
+     "id": "S14",
+     "clause": "Investigation order: higher levels checked before concluding",
+     "status": "PASS",
+     "detail": "levels=['Business Org', 'Region', 'SubRegion', 'Country', 'Channel'] inherited_from=Region"
+    },
+    {
+     "id": "S15",
+     "clause": "Investigation order: an inherited miss is actually reported as inherited",
+     "status": "PASS",
+     "detail": "inherited_from=Region, types=['data_quality_issue', 'inherited_from_higher_level', 'plan_restatement', 'systematic_forecast_bias']"
+    },
+    {
+     "id": "S16",
+     "clause": "CQN validation: channel migration evaluated before blaming the forecast",
+     "status": "PASS",
+     "detail": "detected=False channels=1 is_cqn_proxy=False"
+    },
+    {
+     "id": "S17",
+     "clause": "Correlation analysis: relationships retained/rejected on evidence",
+     "status": "PASS",
+     "detail": "retained=['Planned_ASU', 'Actual_ASU'], rejected=2"
+    },
+    {
+     "id": "S18",
+     "clause": "Critical rules: no invented campaigns / product launches ASSERTED as the cause",
+     "status": "PASS",
+     "detail": "naming them as data still needed is allowed and expected"
+    },
+    {
+     "id": "S19",
+     "clause": "Critical rules: every quoted figure traces to the real data",
+     "status": "PASS",
+     "detail": "14 numeric citations checked, 0 unmatched"
+    },
+    {
+     "id": "S20",
+     "clause": "Critical rules: gaps declared rather than glossed over",
+     "status": "PASS",
+     "detail": "1 item(s)"
+    },
+    {
+     "id": "S21",
+     "clause": "Action recommendations: every cause carries a practical action",
+     "status": "PASS",
+     "detail": "too-short=[]"
+    }
+   ]
+  },
+  {
+   "provider": "groq",
+   "model": "llama-3.3-70b-versatile",
+   "engine": "wfm-deterministic-fallback",
+   "seconds": 0.1,
+   "raw_file": "spec-groq-response.json",
+   "ranked": [
+    {
+     "rank": 1,
+     "cause_type": "data_quality_issue",
+     "title": "Suspected data quality issue in this week's actual",
+     "confidence_pct": 60,
+     "confidence_level": "Medium",
+     "status": "Hypothesis - To be Validated"
+    },
+    {
+     "rank": 2,
+     "cause_type": "inherited_from_higher_level",
+     "title": "The miss is inherited from Region level",
+     "confidence_pct": 65,
+     "confidence_level": "Medium",
+     "status": "Verified"
+    },
+    {
+     "rank": 3,
+     "cause_type": "genuine_demand_event",
+     "title": "Genuine demand event",
+     "confidence_pct": 60,
+     "confidence_level": "Medium",
+     "status": "Verified"
     }
    ],
    "checks": [
@@ -67,9 +236,9 @@
     },
     {
      "id": "S5",
-     "clause": "Root causes: best-supported first (confidence descends)",
+     "clause": "Root causes: best-supported first (confidence descends, data-quality override allowed)",
      "status": "PASS",
-     "detail": "[90, 70, 50]"
+     "detail": "confidences=[60, 65, 60] (rank 1 exempt: data_quality_issue is mandated first)"
     },
     {
      "id": "S6",
@@ -87,7 +256,7 @@
      "id": "S8",
      "clause": "Skeptic mode: challenges recorded with verdicts",
      "status": "PASS",
-     "detail": "6 entries, 1 rejected"
+     "detail": "3 entries, 0 rejected"
     },
     {
      "id": "S9",
@@ -99,13 +268,13 @@
      "id": "S10",
      "clause": "Technical metrics kept in their own (collapsed) section",
      "status": "PASS",
-     "detail": "15 rows"
+     "detail": "10 rows"
     },
     {
      "id": "S11",
      "clause": "Output format: executive summary, KPI status, business impact all present",
      "status": "PASS",
-     "detail": "summary=567 chars"
+     "detail": "summary=249 chars"
     },
     {
      "id": "S12",
@@ -129,7 +298,7 @@
      "id": "S15",
      "clause": "Investigation order: an inherited miss is actually reported as inherited",
      "status": "PASS",
-     "detail": "inherited_from=Region, types=['data_quality_issue', 'inherited_from_higher_level', 'plan_restatement']"
+     "detail": "inherited_from=Region, types=['data_quality_issue', 'inherited_from_higher_level', 'genuine_demand_event']"
     },
     {
      "id": "S16",
@@ -145,168 +314,15 @@
     },
     {
      "id": "S18",
-     "clause": "Critical rules: no invented campaigns / product launches asserted",
+     "clause": "Critical rules: no invented campaigns / product launches ASSERTED as the cause",
      "status": "PASS",
-     "detail": "found=[]"
+     "detail": "naming them as data still needed is allowed and expected"
     },
     {
      "id": "S19",
      "clause": "Critical rules: every quoted figure traces to the real data",
      "status": "PASS",
-     "detail": "9 numeric citations checked, 0 unmatched"
-    },
-    {
-     "id": "S20",
-     "clause": "Critical rules: gaps declared rather than glossed over",
-     "status": "PASS",
-     "detail": "2 item(s)"
-    },
-    {
-     "id": "S21",
-     "clause": "Action recommendations: every cause carries a practical action",
-     "status": "PASS",
-     "detail": "too-short=[]"
-    }
-   ]
-  },
-  {
-   "provider": "groq",
-   "model": "llama-3.3-70b-versatile",
-   "engine": "wfm-llm",
-   "seconds": 3.1,
-   "raw_file": "spec-groq-response.json",
-   "ranked": [
-    {
-     "rank": 1,
-     "cause_type": "data_quality_issue",
-     "title": "Data Quality Issue",
-     "confidence_pct": 90,
-     "confidence_level": "High",
-     "status": "Hypothesis - To be Validated"
-    },
-    {
-     "rank": 2,
-     "cause_type": "inherited_from_higher_level",
-     "title": "Inherited from Higher Level",
-     "confidence_pct": 80,
-     "confidence_level": "High",
-     "status": "Verified"
-    }
-   ],
-   "checks": [
-    {
-     "id": "S1",
-     "clause": "KPI: Forecast Adherence formula + threshold recorded",
-     "status": "PASS",
-     "detail": "{\"metric\": \"Forecast Adherence\", \"adherence_pct\": -9599.7, \"threshold_pct\": 10.0, \"breached\": true, \"direction\": \"under_forecast\"}"
-    },
-    {
-     "id": "S2",
-     "clause": "KPI: breach flag agrees with |adherence| > threshold",
-     "status": "PASS",
-     "detail": "adherence=-9599.7 breached=True"
-    },
-    {
-     "id": "S3",
-     "clause": "Root causes: multiple explanations, ranked, capped at 5",
-     "status": "PASS",
-     "detail": "2 causes, ranks=[1, 2]"
-    },
-    {
-     "id": "S4",
-     "clause": "Root causes: each carries description, evidence, confidence, impact, action",
-     "status": "PASS",
-     "detail": "{}"
-    },
-    {
-     "id": "S5",
-     "clause": "Root causes: best-supported first (confidence descends)",
-     "status": "PASS",
-     "detail": "[90, 80]"
-    },
-    {
-     "id": "S6",
-     "clause": "Confidence: percent AND High/Medium/Low, consistent with each other",
-     "status": "PASS",
-     "detail": "mismatches=[]"
-    },
-    {
-     "id": "S7",
-     "clause": "Hypothesis engine: status is Verified or 'Hypothesis - To be Validated'",
-     "status": "PASS",
-     "detail": "['Hypothesis - To be Validated', 'Verified']"
-    },
-    {
-     "id": "S8",
-     "clause": "Skeptic mode: challenges recorded with verdicts",
-     "status": "PASS",
-     "detail": "4 entries, 0 rejected"
-    },
-    {
-     "id": "S9",
-     "clause": "Business language: no statistics vocabulary in business-facing text",
-     "status": "PASS",
-     "detail": "found=[]"
-    },
-    {
-     "id": "S10",
-     "clause": "Technical metrics kept in their own (collapsed) section",
-     "status": "PASS",
-     "detail": "12 rows"
-    },
-    {
-     "id": "S11",
-     "clause": "Output format: executive summary, KPI status, business impact all present",
-     "status": "PASS",
-     "detail": "summary=297 chars"
-    },
-    {
-     "id": "S12",
-     "clause": "Core principle: observations exist separately from the ranked cause",
-     "status": "PASS",
-     "detail": "5 key findings"
-    },
-    {
-     "id": "S13",
-     "clause": "Temporal: prior week / last 4 / last 13 / same week last year computed",
-     "status": "PASS",
-     "detail": "present=['previous_week', 'last_4_week_avg_actual', 'last_13_week_avg_actual', 'same_week_last_year'] (of 4); history weeks=103"
-    },
-    {
-     "id": "S14",
-     "clause": "Investigation order: higher levels checked before concluding",
-     "status": "PASS",
-     "detail": "levels=['Business Org', 'Region', 'SubRegion', 'Country', 'Channel'] inherited_from=Region"
-    },
-    {
-     "id": "S15",
-     "clause": "Investigation order: an inherited miss is actually reported as inherited",
-     "status": "PASS",
-     "detail": "inherited_from=Region, types=['data_quality_issue', 'inherited_from_higher_level']"
-    },
-    {
-     "id": "S16",
-     "clause": "CQN validation: channel migration evaluated before blaming the forecast",
-     "status": "PASS",
-     "detail": "detected=False channels=1 is_cqn_proxy=False"
-    },
-    {
-     "id": "S17",
-     "clause": "Correlation analysis: relationships retained/rejected on evidence",
-     "status": "PASS",
-     "detail": "retained=['Planned_ASU', 'Actual_ASU'], rejected=2"
-    },
-    {
-     "id": "S18",
-     "clause": "Critical rules: no invented campaigns / product launches asserted",
-     "status": "PASS",
-     "detail": "found=[]"
-    },
-    {
-     "id": "S19",
-     "clause": "Critical rules: every quoted figure traces to the real data",
-     "status": "PASS",
-     "detail": "1 numeric citations checked, 0 unmatched"
+     "detail": "3 numeric citations checked, 0 unmatched"
     },
     {
      "id": "S20",

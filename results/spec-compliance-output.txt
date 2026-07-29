@@ -6,15 +6,16 @@ branch artefacts: wfm/ package      bundle: bundle.json
 
 ------------------------------------------------------------------------------
 RUN: nvidia / nvidia/nemotron-3-super-120b-a12b
-  engine=wfm-llm  47.9s  causes=3
-    #1 [90% High] Hypothesis - To be Validated :: data_quality_issue :: Suspect actual volume figure
-    #2 [70% High] Verified :: inherited_from_higher_level :: Miss inherited from Region-level under-forecast
-    #3 [50% Medium] Hypothesis - To be Validated :: plan_restatement :: Forecast plan restatement may have introduced baseline error
+  engine=wfm-llm  38.2s  causes=4
+    #1 [90% High] Hypothesis - To be Validated :: data_quality_issue :: Questionable actual volume
+    #2 [80% High] Verified :: inherited_from_higher_level :: Miss driven by Region‑level demand shift
+    #3 [50% Medium] Hypothesis - To be Validated :: plan_restatement :: Forecast plan restatement altered baseline
+    #4 [30% Low] Hypothesis - To be Validated :: systematic_forecast_bias :: Queue’s chronic over‑forecast bias
       PASS  S1   KPI: Forecast Adherence formula + threshold recorded
       PASS  S2   KPI: breach flag agrees with |adherence| > threshold
       PASS  S3   Root causes: multiple explanations, ranked, capped at 5
       PASS  S4   Root causes: each carries description, evidence, confidence, impact, action
-      PASS  S5   Root causes: best-supported first (confidence descends)
+      PASS  S5   Root causes: best-supported first (confidence descends, data-quality override allowed)
       PASS  S6   Confidence: percent AND High/Medium/Low, consistent with each other
       PASS  S7   Hypothesis engine: status is Verified or 'Hypothesis - To be Validated'
       PASS  S8   Skeptic mode: challenges recorded with verdicts
@@ -27,21 +28,23 @@ RUN: nvidia / nvidia/nemotron-3-super-120b-a12b
       PASS  S15  Investigation order: an inherited miss is actually reported as inherited
       PASS  S16  CQN validation: channel migration evaluated before blaming the forecast
       PASS  S17  Correlation analysis: relationships retained/rejected on evidence
-      PASS  S18  Critical rules: no invented campaigns / product launches asserted
+      PASS  S18  Critical rules: no invented campaigns / product launches ASSERTED as the cause
       PASS  S19  Critical rules: every quoted figure traces to the real data
       PASS  S20  Critical rules: gaps declared rather than glossed over
       PASS  S21  Action recommendations: every cause carries a practical action
 
 ------------------------------------------------------------------------------
 RUN: groq / llama-3.3-70b-versatile
-  engine=wfm-llm  3.1s  causes=2
-    #1 [90% High] Hypothesis - To be Validated :: data_quality_issue :: Data Quality Issue
-    #2 [80% High] Verified :: inherited_from_higher_level :: Inherited from Higher Level
+  engine=wfm-deterministic-fallback  0.1s  causes=3
+  !! not an LLM answer -- groq/llama-3.3-70b-versatile HTTP 429: {"error":{"message":"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kkrjztjcfcd8
+    #1 [60% Medium] Hypothesis - To be Validated :: data_quality_issue :: Suspected data quality issue in this week's actual
+    #2 [65% Medium] Verified :: inherited_from_higher_level :: The miss is inherited from Region level
+    #3 [60% Medium] Verified :: genuine_demand_event :: Genuine demand event
       PASS  S1   KPI: Forecast Adherence formula + threshold recorded
       PASS  S2   KPI: breach flag agrees with |adherence| > threshold
       PASS  S3   Root causes: multiple explanations, ranked, capped at 5
       PASS  S4   Root causes: each carries description, evidence, confidence, impact, action
-      PASS  S5   Root causes: best-supported first (confidence descends)
+      PASS  S5   Root causes: best-supported first (confidence descends, data-quality override allowed)
       PASS  S6   Confidence: percent AND High/Medium/Low, consistent with each other
       PASS  S7   Hypothesis engine: status is Verified or 'Hypothesis - To be Validated'
       PASS  S8   Skeptic mode: challenges recorded with verdicts
@@ -54,7 +57,7 @@ RUN: groq / llama-3.3-70b-versatile
       PASS  S15  Investigation order: an inherited miss is actually reported as inherited
       PASS  S16  CQN validation: channel migration evaluated before blaming the forecast
       PASS  S17  Correlation analysis: relationships retained/rejected on evidence
-      PASS  S18  Critical rules: no invented campaigns / product launches asserted
+      PASS  S18  Critical rules: no invented campaigns / product launches ASSERTED as the cause
       PASS  S19  Critical rules: every quoted figure traces to the real data
       PASS  S20  Critical rules: gaps declared rather than glossed over
       PASS  S21  Action recommendations: every cause carries a practical action

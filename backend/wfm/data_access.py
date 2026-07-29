@@ -17,6 +17,10 @@ from .common import CHANNEL_SIBLING_DIMS, WFM_HISTORY_WEEKS, adherence_pct, prio
 # If the table is absent the engine silently falls back to the locality proxy.
 CQN_MAP_TABLE = "dbo.CQN_Mapping"
 
+# How many weeks of whole-Combined-Queue history to pull, for the "has this happened
+# before?" step of the investigation loop.
+CQN_HISTORY_WEEKS = 26
+
 # Columns the correlation engine and the temporal reasoner need from history.
 _HISTORY_COLS = ("Fiscal_Week", "Actual_Offered", "fcst_offered", "Holiday_Count",
                  "Projection_plan_name", "Planned_ASU", "Actual_ASU", "Final_Units")
@@ -45,7 +49,7 @@ def fetch_wfm_context(cur, table, key, map_table=CQN_MAP_TABLE):
     week = key.get("Fiscal_Week")
     out = {"history_104": [], "history_forward": [], "channel_sibling_rows": [],
            "ladder": [], "prior_week": None, "prior_year_week": prior_year_week(week),
-           "cqn_names": [], "cqn_source": "proxy"}
+           "cqn_names": [], "cqn_source": "proxy", "cqn_history": []}
     if not name or week is None:
         return out
 
@@ -114,6 +118,35 @@ def fetch_wfm_context(cur, table, key, map_table=CQN_MAP_TABLE):
                 tuple([key[d] for d in dims] + weeks))
             cols = [d[0] for d in cur.description]
             out["channel_sibling_rows"] = [dict(zip(cols, r)) for r in cur.fetchall()]
+
+    # -- 3b. CQN HISTORY: per-week, per-channel totals for the whole Combined Queue.
+    #        Needed to answer "has this happened before?" -- without it the investigation can
+    #        detect a redistribution this week but cannot say whether it is normal for this
+    #        queue, which is the difference between a finding and an anecdote.
+    out["cqn_history"] = []
+    if out["cqn_names"]:
+        cqn_marks = ", ".join("?" for _ in out["cqn_names"])
+        cur.execute(
+            f"SELECT d.Fiscal_Week, d.channel, SUM(d.Actual_Offered) AS actual "
+            f"FROM {table} d "
+            f"WHERE d.Fiscal_Week <= ? AND d.Actual_Offered IS NOT NULL AND EXISTS ("
+            f"  SELECT 1 FROM {map_table} m WHERE m.Forecast_Name = d.Forecast_name "
+            f"    AND m.Combined_Queue_Name IN ({cqn_marks})) "
+            f"GROUP BY d.Fiscal_Week, d.channel "
+            f"ORDER BY d.Fiscal_Week DESC",
+            tuple([week] + out["cqn_names"]))
+        cols = [d[0] for d in cur.description]
+        rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+        # keep the most recent CQN_HISTORY_WEEKS distinct weeks, chronological
+        weeks_seen, keep = [], []
+        for r in rows:
+            wk = str(r["Fiscal_Week"])
+            if wk not in weeks_seen:
+                if len(weeks_seen) >= CQN_HISTORY_WEEKS:
+                    break
+                weeks_seen.append(wk)
+            keep.append(r)
+        out["cqn_history"] = keep[::-1]
 
     # -- 4. the investigation ladder: adherence recomputed at each level, same week --
     ladder = []

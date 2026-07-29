@@ -40,9 +40,19 @@ PRECONDITIONS = {
         lambda f: bool(((f.get("base_features") or {}).get("installed_base") or {}).get("material")),
         "the installed base did not move materially this week",
     ),
+    # A routing shift means work MOVED, which implies the total held roughly flat while the split
+    # changed. An opposite-moving peer alone is not evidence of that -- it was the old test, and it
+    # let "3 of 5 queues moved the other way" pass as a routing verdict with no conservation check.
+    # Accept either: the computed channel-migration verdict, or an opposing peer AND a roughly flat
+    # Combined-Queue total.
     "volume_routing_shift": (
-        lambda f: bool(((f.get("base_features") or {}).get("peer_divergence") or {}).get("signal")),
-        "no similar queue moved in the opposite direction this week",
+        lambda f: bool(
+            (f.get("channel_siblings") or {}).get("migration_detected")
+            or (((f.get("base_features") or {}).get("peer_divergence") or {}).get("signal")
+                and _total_roughly_flat(f))),
+        "work did not measurably move: no channel-level redistribution was detected and the "
+        "Combined Queue's total did not hold flat, so there is nothing for a routing change to "
+        "have moved",
     ),
     "systematic_forecast_bias": (
         lambda f: str((((f.get("base_features") or {}).get("chronic_bias") or {}).get("verdict")) or "").startswith("chronic"),
@@ -72,6 +82,17 @@ PRECONDITIONS = {
 }
 
 _TOLERANCE = 0.02        # 2% -- absorbs display rounding in a cited figure
+_FLAT_SHARE = 0.10       # a Combined Queue total is "flat" within 10% of its prior level
+
+
+def _total_roughly_flat(features):
+    """Did the whole Combined Queue hold its level while its parts moved? Without this, an
+    opposite-moving peer is just noise, not evidence that work was redistributed."""
+    cs = (features or {}).get("channel_siblings") or {}
+    before, net = cs.get("group_total_prior_week"), cs.get("group_total_change")
+    if not isinstance(before, (int, float)) or not isinstance(net, (int, float)) or not before:
+        return False
+    return abs(net) <= _FLAT_SHARE * abs(before)
 
 
 def _real_numbers(features):

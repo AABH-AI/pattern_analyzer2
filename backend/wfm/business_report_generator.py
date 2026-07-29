@@ -32,6 +32,7 @@ RESPONSE_DEFAULTS = {
     "channel_migration": {},
     "technical_metrics": [],
     "missing_information": [],
+    "investigation_summary": {},
 }
 
 
@@ -125,6 +126,51 @@ def apply_language_guard(result):
     if log:
         result["language_guard_applied"] = log
     return result
+
+
+def case_file(from_model, features):
+    """The case file the business reads first.
+
+    Answers the five investigator questions. Whatever the model supplied is kept, but every field
+    is BACKFILLED from the deterministic investigation loop, so the case file is never empty and
+    never contradicts the computed chain. `how_far_the_investigation_got` and
+    `data_required_to_go_deeper` are always taken from the loop, never from the model -- how far an
+    investigation actually got is a fact about the data, not a matter of opinion.
+    """
+    loop = (features or {}).get("investigation_loop") or {}
+    steps = loop.get("steps") or []
+    given = from_model if isinstance(from_model, dict) else {}
+
+    def step_answer(n):
+        return next((s.get("answer") for s in steps if s.get("step") == n), "")
+
+    eliminated = []
+    for s in steps:
+        if s.get("step") == 6 and s.get("answer"):
+            eliminated = [s["answer"]]
+    out = {
+        "what_happened": given.get("what_happened") or step_answer(1),
+        "why_it_happened": given.get("why_it_happened") or (step_answer(3) or step_answer(2)),
+        # APPEND the computed chain rather than letting the model's prose replace it. Measured:
+        # the model wrote "the data suggests a shift in customer behavior" while the chain had
+        # "Email +191, Voice -358, Chat -67; seen in 2 of 25 weeks". The specifics are the reason
+        # to believe it, so they must survive.
+        "why_we_believe_it": " ".join(x for x in (
+            given.get("why_we_believe_it"), step_answer(4), step_answer(5)) if x),
+        "what_we_eliminated": given.get("what_we_eliminated") or eliminated,
+        "what_forecasting_should_do": given.get("what_forecasting_should_do")
+                                      or ([loop["operational_action"]] if loop.get("operational_action") else []),
+        # facts about the investigation, not opinions -- always from the loop
+        "how_far_the_investigation_got": loop.get("outcome") or "data_exhausted",
+        "stopped_because": loop.get("stopped_because") or "",
+        "steps_taken": loop.get("steps_taken") or len(steps),
+        "data_required_to_go_deeper": loop.get("data_required_to_go_deeper") or [],
+    }
+    if not isinstance(out["what_we_eliminated"], list):
+        out["what_we_eliminated"] = [str(out["what_we_eliminated"])]
+    if not isinstance(out["what_forecasting_should_do"], list):
+        out["what_forecasting_should_do"] = [str(out["what_forecasting_should_do"])]
+    return out
 
 
 def kpi_status(adherence, band):
