@@ -1851,12 +1851,14 @@ const CAUSE_LABELS={forecast_baseline_error:'Forecast baseline error',systematic
 function formatInvestigation(resp, ctx){
   resp=resp||{};
   const fsr=resp.forecast_summary||{};
+  const proofArr = resp.proof || ((resp.derived_features||{}).proof) || (((resp.derived_features||{}).base_features||{}).proof) || [];
+  const adhVal = fsr.adherence_pct!=null ? (typeof fsr.adherence_pct==='number' ? fsr.adherence_pct.toFixed(1)+'%' : String(fsr.adherence_pct).replace(/%$/,'')+'%') : '—';
   return {
     forecast_summary:{
       forecast: fsr.forecast!=null? fmt2(fsr.forecast) : '—',
       actual: fsr.actual!=null? Number(fsr.actual).toLocaleString() : '—',
       error: fsr.error!=null? ((fsr.error>=0?'+':'')+Math.round(fsr.error).toLocaleString()) : '—',
-      adherence_pct: fsr.adherence_pct!=null? fsr.adherence_pct.toFixed(1)+'%' : '—',
+      adherence_pct: adhVal,
       miss_type: fsr.miss_type||'—'
     },
     cause_type: resp.cause_type||null,
@@ -1871,10 +1873,11 @@ function formatInvestigation(resp, ctx){
     forecast_improvement_recommendations: resp.forecast_improvement_recommendations||[],
     confidence_score: resp.confidence_score!=null? resp.confidence_score : null,
     missing_information: resp.missing_information||[],
-    proof: ((resp.derived_features||{}).proof)||[],
+    proof: proofArr,
     investigation_meta: resp.investigation_meta||{}
   };
 }
+
 
 /* ---- UI Renderer — investigation-report layout, collapsible sections, evidence highlighting. ---- */
 function invEsc(s){ return String(s==null?'':s).replace(/</g,'&lt;'); }

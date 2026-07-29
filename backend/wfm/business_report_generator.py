@@ -214,16 +214,25 @@ def back_compat(result, base_features):
                if isinstance(act_val, (int, float)) and isinstance(fc_val, (int, float))
                else None)
     kpi_st = result.get("kpi_status") or {}
+    adh_val = kpi_st.get("adherence_pct")
+    miss_dir = kpi_st.get("direction")
+    if adh_val is None:
+        adh_val = (base_features or {}).get("this_week_vs_usual", {}).get("target_adherence_pct")
     result["forecast_summary"] = {
         "forecast": fc_val,
         "actual": act_val,
         "error": err_val,
-        "adherence_pct": kpi_st.get("adherence_pct"),
-        "miss_type": kpi_st.get("direction"),
+        "adherence_pct": adh_val,
+        "miss_type": miss_dir,
     }
+    result.setdefault("proof", (base_features or {}).get("proof") or [])
     result.setdefault("cause_type", None)
-    result.setdefault("derived_features", {})
+    df = dict(result.get("derived_features") or {})
+    if base_features:
+        df.update(base_features)
+    result["derived_features"] = df
     return result
+
 
 
 
