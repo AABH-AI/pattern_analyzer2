@@ -1931,56 +1931,53 @@ function formatBoldText(s) {
   return res;
 }
 
+function isRawMetricDump(str) {
+  if (!str) return true;
+  const s = str.trim();
+  // Detect bare metric dumps like "Region adherence 11.9% exceeds threshold" or "Region actual offered 89,746 vs forecast 101,814.9"
+  if (/^Region (adherence|actual offered|forecast offered|offered|actual)/i.test(s)) return true;
+  if (/^(Actual_Offered|fcst_offered|Actual offered|Forecast offered)\s*(exceeds|is|=|vs)/i.test(s)) return true;
+  return false;
+}
+
 function getSixOrMoreRootCausePoints(f) {
   let raw = f.reasoning_points || invToPoints(f.reasoning_narrative);
   if (!Array.isArray(raw)) raw = [];
   const seen = new Set();
   let cleanPts = [];
 
-  raw.forEach(p => {
+  function addPoint(p) {
     const str = (p || '').trim();
-    if (str && !seen.has(str.toLowerCase())) {
-      seen.add(str.toLowerCase());
-      cleanPts.push(str);
+    if (!str || isRawMetricDump(str)) return;
+    const lower = str.toLowerCase();
+    // Prevent exact duplicates or duplicate substrings
+    for (const existing of seen) {
+      if (existing === lower || existing.includes(lower) || lower.includes(existing)) return;
     }
-  });
+    seen.add(lower);
+    cleanPts.push(str);
+  }
+
+  raw.forEach(p => addPoint(p));
 
   if (f.primary_root_cause && f.primary_root_cause.statement) {
-    const stmt = f.primary_root_cause.statement.trim();
-    if (!seen.has(stmt.toLowerCase())) {
-      seen.add(stmt.toLowerCase());
-      cleanPts.unshift(stmt);
-    }
+    addPoint(f.primary_root_cause.statement);
   }
 
   (f.supporting_evidence || []).forEach(e => {
-    const txt = (typeof e === 'string' ? e : e.text || '').trim();
-    if (txt && !seen.has(txt.toLowerCase())) {
-      seen.add(txt.toLowerCase());
-      cleanPts.push(txt);
-    }
+    const txt = typeof e === 'string' ? e : (e.text || '');
+    addPoint(txt);
   });
 
   (f.key_findings || []).forEach(k => {
-    const kTrim = (k || '').trim();
-    if (kTrim && !seen.has(kTrim.toLowerCase())) {
-      seen.add(kTrim.toLowerCase());
-      cleanPts.push(kTrim);
-    }
+    addPoint(k);
   });
 
   const hc = (f.historical_comparison || {}).narrative;
-  if (hc && !seen.has(hc.toLowerCase())) {
-    seen.add(hc.toLowerCase());
-    cleanPts.push(hc);
-  }
+  if (hc) addPoint(hc);
 
   (f.secondary_contributors || []).forEach(sc => {
-    const stmt = (sc.statement || '').trim();
-    if (stmt && !seen.has(stmt.toLowerCase())) {
-      seen.add(stmt.toLowerCase());
-      cleanPts.push(stmt);
-    }
+    if (sc && sc.statement) addPoint(sc.statement);
   });
 
   return cleanPts.slice(0, 7);
