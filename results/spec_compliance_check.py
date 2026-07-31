@@ -20,6 +20,16 @@ import os
 import sys
 import time
 
+# Model output can contain any Unicode (U+2011 NON-BREAKING HYPHEN aborted a run on the Windows
+# cp1252 console). Force UTF-8 on stdout/stderr with replacement so a printable character can never
+# fail a suite that has otherwise passed.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE + "/../backend")
 

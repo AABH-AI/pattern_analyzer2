@@ -1,5 +1,5 @@
 {
- "executive_summary": "During Fiscal Week 202719, the Combined Queue Brazil OOP SITEL experienced a 44.0% increase in total demand, with Voice (Brazil OOP) demand rising by 281 contacts and no other channels present. This indicates a genuine rise in customer demand across the Americas CSG region rather than a shift between channels. Because the forecast was set at the Regional level and did not anticipate this demand uplift, all subordinate queues, including Brazil OOP, appear under\u2011forecast; the miss is therefore inherited from the Region level.",
+ "executive_summary": "During Fiscal Week 202719, the Combined Queue Brazil OOP SITEL (Forecast Name Brazil OOP) recorded an actual offered volume of 920 contacts against a forecast of 742 contacts, resulting in a 24% under-forecast (actual above forecast). Voice (Brazil OOP) demand increased by 281 contacts week-over-week (from 639 to 920); no other channels were present, so the total demand for the queue rose by 281 contacts. This increase reflects a genuine rise in Voice demand across the Americas region, not a shift between channels. Because the Regional forecast for Americas/CSG under-estimated demand (adherence -12.6%), the same under-forecast propagated to the Brazil OOP queue, causing the forecast to miss the actual spike.",
  "kpi_status": {
   "metric": "Forecast Adherence",
   "adherence_pct": -24.0,
@@ -7,23 +7,28 @@
   "breached": true,
   "direction": "under_forecast"
  },
- "business_impact": "Under\u2011forecast at the regional level leads to insufficient staffing across all queues in the Americas CSG business org, resulting in longer wait times and potential SLA breaches.",
+ "business_impact": "Under-staffing risk for Voice support in Brazil, potentially leading to longer wait times and service level breaches.",
  "ranked_root_causes": [
   {
    "rank": 1,
    "cause_type": "systematic_forecast_bias",
-   "title": "No evidence of systematic forecast bias causing this week's under\u2011forecast",
-   "explanation": "The queue\u2019s historical bias is consistently over\u2011forecast (chronic_over), meaning forecasts usually exceed actuals. This week\u2019s actual exceeded the forecast, which is opposite to the historic tendency, so a systematic bias does not explain the miss.",
+   "title": "Chronic forecast bias present in historical data",
+   "explanation": "Historically this queue has shown a consistent over-forecast bias, indicating the forecast baseline may be misaligned; while this week showed an under-forecast, the underlying bias suggests the forecast model may not be adapting to demand shifts.",
    "evidence": [
     {
-     "text": "Historical mean adherence is +24.4% (over\u2011forecast)",
+     "text": "Chronic over-forecast bias with mean adherence +24.4% over last 13 weeks",
      "source_field": "data analysis - history_mean_adherence_pct",
-     "value": "24.4"
+     "value": 24.4
     },
     {
-     "text": "92% of weeks show the same over\u2011forecast direction",
+     "text": "92% of recent weeks showed same direction (over-forecast)",
      "source_field": "data analysis - share_same_direction",
-     "value": "0.92"
+     "value": 0.92
+    },
+    {
+     "text": "This week's actual 920 vs forecast 742 shows a deviation from the typical pattern",
+     "source_field": "forecast_summary.adherence_pct",
+     "value": -24.0
     },
     {
      "text": "The forecast error is drifting, not just noisy: adherence has moved about -3.32 points per week, roughly -43 points across 13 weeks, steadily further into under-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt.",
@@ -33,8 +38,8 @@
    ],
    "confidence_pct": 60,
    "confidence_level": "Medium",
-   "business_impact": "If incorrectly attributed to bias, forecast adjustments could move in the wrong direction, worsening staffing errors.",
-   "recommended_action": "No action needed based on bias; focus on the higher\u2011level investigation.",
+   "business_impact": "Under-staffing risk for Voice support in Brazil, potentially leading to longer wait times and service level breaches.",
+   "recommended_action": "Re-baseline the forecast model using recent actuals and monitor for bias correction each cycle.",
    "status": "Hypothesis - To be Validated",
    "evidence_grade": "statistical (deterministic)",
    "statistically_confirmed_by": "Drift (OLS slope of adherence)"
@@ -43,38 +48,43 @@
    "rank": 2,
    "cause_type": "inherited_from_higher_level",
    "title": "Forecast miss inherited from Region level",
-   "explanation": "The miss is not specific to this queue; the Region (Americas CSG) also shows under\u2011forecast adherence, indicating a broader regional issue that affects all queues under it. Because the same directional miss appears at the Region level, the queue\u2011level forecast cannot be blamed for the deviation; the root cause lies higher in the hierarchy.",
+   "explanation": "Because the Regional forecast for Americas/CSG under-estimated demand, the same under-forecast appears at the Brazil OOP queue level.",
    "evidence": [
     {
-     "text": "Region adherence_pct is -12.6%",
+     "text": "Region adherence -12.6% (breach of +/-10% threshold)",
      "source_field": "higher-level check - adherence_pct",
-     "value": "-12.6"
+     "value": -12.6
     },
     {
-     "text": "The higher-level check indicates the miss is inherited from Region",
-     "source_field": "higher-level check - inherited_from",
-     "value": "Region"
+     "text": "Region actual offered 23,135 vs forecast 20,539.8",
+     "source_field": "higher-level check - actual_offered",
+     "value": 23135
+    },
+    {
+     "text": "Miss visible at SubRegion, Country, and Channel levels (adherence -21.9%)",
+     "source_field": "higher-level check - adherence_pct",
+     "value": -21.9
     }
    ],
    "confidence_pct": 90,
    "confidence_level": "High",
-   "business_impact": "Under\u2011forecast at the regional level leads to insufficient staffing across all queues in the Americas CSG business org, resulting in longer wait times and potential SLA breaches.",
-   "recommended_action": "Review and adjust the regional forecast plan for Americas CSG, examine assumptions driving the regional baseline, and propagate corrections to subordinate queues.",
+   "business_impact": "Under-staffing risk for Voice support in Brazil, potentially leading to longer wait times and service level breaches.",
+   "recommended_action": "Review and adjust the Regional forecast model for Americas/CSG to incorporate recent demand trends; propagate updates to subordinate queues.",
    "status": "Verified"
   }
  ],
  "skeptic_review": [
   {
    "cause": "inherited_from_higher_level",
-   "challenge": "Could the miss still have a queue\u2011specific component that is amplified by the regional effect?",
+   "challenge": "Could the miss be specific to this queue despite Region also showing a miss?",
    "verdict": "retained",
-   "reason": "The higher-level check shows the miss is already present at Region level and the queue\u2019s deviation aligns with the regional direction; no additional queue\u2011specific signal is evident in the data."
+   "reason": "Higher-level check shows the miss is already present at Region level, making a queue-specific cause unlikely."
   },
   {
    "cause": "systematic_forecast_bias",
-   "challenge": "Perhaps the chronic bias has shifted this week due to a change in an unmeasured driver such as ASU or planned units.",
+   "challenge": "The chronic bias is historically over-forecast, while this week is under-forecast, suggesting the bias may not be driving this miss.",
    "verdict": "rejected",
-   "reason": "ASU and planned unit fields are null for this week, and temporal comparisons show no indicator of a driver shift that would flip the bias; the observed actual increase is not sufficient to override the established over\u2011forecast tendency without a measured driver."
+   "reason": "The direction of the historical bias (over-forecast) opposes the observed under-forecast, reducing its explanatory power for this week."
   },
   {
    "cause": "Forecast miss inherited from Region level",
@@ -83,7 +93,7 @@
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
   },
   {
-   "cause": "No evidence of systematic forecast bias causing this week's under\u2011forecast",
+   "cause": "Chronic forecast bias present in historical data",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
@@ -102,11 +112,11 @@
    "Fiscal Week"
   ],
   "inherited_from": "Region",
-  "narrative": "Started at Business Org level (adherence -7.5% within threshold), moved to Region where adherence -12.6% exceeded threshold, indicating the miss is already present there; therefore the investigation stops and attributes the cause to the Region level."
+  "narrative": "We checked adherence from Business Org down to the queue level and found the miss already present at Region level, indicating inheritance."
  },
  "channel_migration": {
   "detected": false,
-  "narrative": "Channel siblings show only the Voice channel present; there are no other channels to shift volume between, so migration did not occur.",
+  "narrative": "Channel siblings analysis shows only Voice channel present; no alternative channels to shift demand, so the miss is not due to channel migration.",
   "gaining_channels": [
    "Voice"
   ],
@@ -186,10 +196,23 @@
   {
    "label": "Adherence at Channel level",
    "value": -21.9
+  },
+  {
+   "label": "Forecast Adherence",
+   "value": "-24.0%"
+  },
+  {
+   "label": "Chronic bias mean adherence",
+   "value": "+24.4%"
+  },
+  {
+   "label": "Share of same-direction weeks",
+   "value": "92%"
   }
  ],
  "missing_information": [
-  "Planned_ASU and Actual_ASU values are null, preventing decomposition of the miss into warranty\u2011base and contacts\u2011per\u2011unit components."
+  "Actual_ASU and Planned_ASU values are missing, preventing driver decomposition of warranty base vs contacts per unit.",
+  "No historical usual levels for forecast and actual in data analysis, limiting comparison to this queue's own norm."
  ],
  "derived_features": {
   "base_features": {
@@ -723,23 +746,28 @@
   "provider": "nvidia",
   "model": "nvidia/nemotron-3-super-120b-a12b",
   "calls": 1,
-  "generated_at": "2026-07-30T13:19:05.515149+00:00"
+  "generated_at": "2026-07-31T08:02:52.633042+00:00"
  },
  "statistical_override_applied": "Statistical evidence (Drift (OLS slope of adherence)) confirms the model's systematic_forecast_bias conclusion; the measured figures were attached and the cause promoted to rank 1.",
  "cause_type": "systematic_forecast_bias",
  "primary_root_cause": {
-  "statement": "The queue\u2019s historical bias is consistently over\u2011forecast (chronic_over), meaning forecasts usually exceed actuals. This week\u2019s actual exceeded the forecast, which is opposite to the historic tendency, so a systematic bias does not explain the miss.",
+  "statement": "Historically this queue has shown a consistent over-forecast bias, indicating the forecast baseline may be misaligned; while this week showed an under-forecast, the underlying bias suggests the forecast model may not be adapting to demand shifts.",
   "confidence": 0.6,
   "supporting_evidence": [
    {
-    "text": "Historical mean adherence is +24.4% (over\u2011forecast)",
+    "text": "Chronic over-forecast bias with mean adherence +24.4% over last 13 weeks",
     "source_field": "data analysis - history_mean_adherence_pct",
-    "value": "24.4"
+    "value": 24.4
    },
    {
-    "text": "92% of weeks show the same over\u2011forecast direction",
+    "text": "92% of recent weeks showed same direction (over-forecast)",
     "source_field": "data analysis - share_same_direction",
-    "value": "0.92"
+    "value": 0.92
+   },
+   {
+    "text": "This week's actual 920 vs forecast 742 shows a deviation from the typical pattern",
+    "source_field": "forecast_summary.adherence_pct",
+    "value": -24.0
    },
    {
     "text": "The forecast error is drifting, not just noisy: adherence has moved about -3.32 points per week, roughly -43 points across 13 weeks, steadily further into under-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt.",
@@ -957,18 +985,23 @@
  },
  "secondary_contributors": [
   {
-   "statement": "The miss is not specific to this queue; the Region (Americas CSG) also shows under\u2011forecast adherence, indicating a broader regional issue that affects all queues under it. Because the same directional miss appears at the Region level, the queue\u2011level forecast cannot be blamed for the deviation; the root cause lies higher in the hierarchy.",
+   "statement": "Because the Regional forecast for Americas/CSG under-estimated demand, the same under-forecast appears at the Brazil OOP queue level.",
    "confidence": 0.9,
    "supporting_evidence": [
     {
-     "text": "Region adherence_pct is -12.6%",
+     "text": "Region adherence -12.6% (breach of +/-10% threshold)",
      "source_field": "higher-level check - adherence_pct",
-     "value": "-12.6"
+     "value": -12.6
     },
     {
-     "text": "The higher-level check indicates the miss is inherited from Region",
-     "source_field": "higher-level check - inherited_from",
-     "value": "Region"
+     "text": "Region actual offered 23,135 vs forecast 20,539.8",
+     "source_field": "higher-level check - actual_offered",
+     "value": 23135
+    },
+    {
+     "text": "Miss visible at SubRegion, Country, and Channel levels (adherence -21.9%)",
+     "source_field": "higher-level check - adherence_pct",
+     "value": -21.9
     }
    ]
   }
@@ -979,14 +1012,19 @@
  ],
  "supporting_evidence": [
   {
-   "text": "Historical mean adherence is +24.4% (over\u2011forecast)",
+   "text": "Chronic over-forecast bias with mean adherence +24.4% over last 13 weeks",
    "source_field": "data analysis - history_mean_adherence_pct",
-   "value": "24.4"
+   "value": 24.4
   },
   {
-   "text": "92% of weeks show the same over\u2011forecast direction",
+   "text": "92% of recent weeks showed same direction (over-forecast)",
    "source_field": "data analysis - share_same_direction",
-   "value": "0.92"
+   "value": 0.92
+  },
+  {
+   "text": "This week's actual 920 vs forecast 742 shows a deviation from the typical pattern",
+   "source_field": "forecast_summary.adherence_pct",
+   "value": -24.0
   },
   {
    "text": "The forecast error is drifting, not just noisy: adherence has moved about -3.32 points per week, roughly -43 points across 13 weeks, steadily further into under-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt.",
@@ -994,11 +1032,11 @@
    "value": "drift"
   }
  ],
- "reasoning_narrative": "Started at Business Org level (adherence -7.5% within threshold), moved to Region where adherence -12.6% exceeded threshold, indicating the miss is already present there; therefore the investigation stops and attributes the cause to the Region level.",
+ "reasoning_narrative": "We checked adherence from Business Org down to the queue level and found the miss already present at Region level, indicating inheritance.",
  "rejected_hypotheses": [
   {
    "hypothesis": "systematic_forecast_bias",
-   "reason_rejected": "ASU and planned unit fields are null for this week, and temporal comparisons show no indicator of a driver shift that would flip the bias; the observed actual increase is not sufficient to override the established over\u2011forecast tendency without a measured driver."
+   "reason_rejected": "The direction of the historical bias (over-forecast) opposes the observed under-forecast, reducing its explanatory power for this week."
   }
  ],
  "historical_comparison": {
@@ -1049,14 +1087,15 @@
   "ranked_root_causes[0].evidence[0].source_field: DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct -> data analysis - history_mean_adherence_pct",
   "ranked_root_causes[0].evidence[1].source_field: DERIVED_FEATURES.chronic_bias.share_same_direction -> data analysis - share_same_direction",
   "ranked_root_causes[1].evidence[0].source_field: INVESTIGATION_LADDER.levels[1].adherence_pct -> higher-level check - adherence_pct",
-  "ranked_root_causes[1].evidence[1].text: INVESTIGATION_LADDER -> higher-level check",
-  "ranked_root_causes[1].evidence[1].source_field: INVESTIGATION_LADDER.inherited_from -> higher-level check - inherited_from",
+  "ranked_root_causes[1].evidence[1].source_field: INVESTIGATION_LADDER.levels[1].actual_offered -> higher-level check - actual_offered",
+  "ranked_root_causes[1].evidence[2].source_field: INVESTIGATION_LADDER.levels[2].adherence_pct -> higher-level check - adherence_pct",
   "skeptic_review[0].reason: INVESTIGATION_LADDER -> higher-level check",
+  "missing_information[1]: DERIVED_FEATURES -> data analysis",
   "primary_root_cause.supporting_evidence[0].source_field: DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct -> data analysis - history_mean_adherence_pct",
   "primary_root_cause.supporting_evidence[1].source_field: DERIVED_FEATURES.chronic_bias.share_same_direction -> data analysis - share_same_direction",
   "secondary_contributors[0].supporting_evidence[0].source_field: INVESTIGATION_LADDER.levels[1].adherence_pct -> higher-level check - adherence_pct",
-  "secondary_contributors[0].supporting_evidence[1].text: INVESTIGATION_LADDER -> higher-level check",
-  "secondary_contributors[0].supporting_evidence[1].source_field: INVESTIGATION_LADDER.inherited_from -> higher-level check - inherited_from",
+  "secondary_contributors[0].supporting_evidence[1].source_field: INVESTIGATION_LADDER.levels[1].actual_offered -> higher-level check - actual_offered",
+  "secondary_contributors[0].supporting_evidence[2].source_field: INVESTIGATION_LADDER.levels[2].adherence_pct -> higher-level check - adherence_pct",
   "supporting_evidence[0].source_field: DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct -> data analysis - history_mean_adherence_pct",
   "supporting_evidence[1].source_field: DERIVED_FEATURES.chronic_bias.share_same_direction -> data analysis - share_same_direction"
  ],
@@ -1064,14 +1103,15 @@
   "ranked_root_causes[0].evidence[0].source_field: DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct -> data analysis - history_mean_adherence_pct",
   "ranked_root_causes[0].evidence[1].source_field: DERIVED_FEATURES.chronic_bias.share_same_direction -> data analysis - share_same_direction",
   "ranked_root_causes[1].evidence[0].source_field: INVESTIGATION_LADDER.levels[1].adherence_pct -> higher-level check - adherence_pct",
-  "ranked_root_causes[1].evidence[1].text: INVESTIGATION_LADDER -> higher-level check",
-  "ranked_root_causes[1].evidence[1].source_field: INVESTIGATION_LADDER.inherited_from -> higher-level check - inherited_from",
+  "ranked_root_causes[1].evidence[1].source_field: INVESTIGATION_LADDER.levels[1].actual_offered -> higher-level check - actual_offered",
+  "ranked_root_causes[1].evidence[2].source_field: INVESTIGATION_LADDER.levels[2].adherence_pct -> higher-level check - adherence_pct",
   "skeptic_review[0].reason: INVESTIGATION_LADDER -> higher-level check",
+  "missing_information[1]: DERIVED_FEATURES -> data analysis",
   "primary_root_cause.supporting_evidence[0].source_field: DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct -> data analysis - history_mean_adherence_pct",
   "primary_root_cause.supporting_evidence[1].source_field: DERIVED_FEATURES.chronic_bias.share_same_direction -> data analysis - share_same_direction",
   "secondary_contributors[0].supporting_evidence[0].source_field: INVESTIGATION_LADDER.levels[1].adherence_pct -> higher-level check - adherence_pct",
-  "secondary_contributors[0].supporting_evidence[1].text: INVESTIGATION_LADDER -> higher-level check",
-  "secondary_contributors[0].supporting_evidence[1].source_field: INVESTIGATION_LADDER.inherited_from -> higher-level check - inherited_from",
+  "secondary_contributors[0].supporting_evidence[1].source_field: INVESTIGATION_LADDER.levels[1].actual_offered -> higher-level check - actual_offered",
+  "secondary_contributors[0].supporting_evidence[2].source_field: INVESTIGATION_LADDER.levels[2].adherence_pct -> higher-level check - adherence_pct",
   "supporting_evidence[0].source_field: DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct -> data analysis - history_mean_adherence_pct",
   "supporting_evidence[1].source_field: DERIVED_FEATURES.chronic_bias.share_same_direction -> data analysis - share_same_direction"
  ]

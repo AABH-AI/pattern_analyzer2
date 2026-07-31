@@ -1,5 +1,5 @@
 {
- "executive_summary": "The same miss is already visible at Region level, so it is not specific to this queue and a queue-level cause cannot explain it.",
+ "executive_summary": "During Fiscal Week 202719, total demand across the Combined Queue (Brazil OOP SITEL) changed by +44.0%. Voice (Brazil OOP) demand increased by 281 contacts. This indicates that the genuine demand for the service increased. Because the forecast baseline was built from the queue's normal weekly level with no event or seasonality signal, it could not anticipate a move of this size.",
  "kpi_status": {
   "metric": "Forecast Adherence",
   "adherence_pct": -24.0,
@@ -7,61 +7,67 @@
   "breached": true,
   "direction": "under_forecast"
  },
- "business_impact": "Correcting this queue alone would not fix a miss the whole level shares.",
+ "business_impact": "The under-forecast resulted in a higher than expected demand, which may impact the service quality and resource allocation.",
  "ranked_root_causes": [
   {
-   "rank": 1,
    "cause_type": "systematic_forecast_bias",
-   "title": "Systematic forecast bias",
-   "explanation": "During the target fiscal week, actual demand was 920.0 contacts against a forecast of 741.99 contacts. Over recent weeks, this queue has consistently run over-forecast (typically averaging None actual contacts against None forecast contacts). This indicates an ongoing systematic forecasting bias where baseline plan targets are consistently set too high. Because the forecast model was not re-baselined to align with true weekly demand levels, systematic over-forecasting recurred this week.",
+   "title": "Forecast baseline is drifting, not just missing",
+   "explanation": "The forecast error is drifting, not just noisy: adherence has moved about -3.32 points per week, roughly -43 points across 13 weeks, steadily further into under-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt.",
+   "confidence_pct": 78,
    "evidence": [
-    {
-     "text": "recently this queue ran about None actual against None forecast, over-forecast in most weeks",
-     "source_field": "Actual_Offered",
-     "value": null
-    },
     {
      "text": "The forecast error is drifting, not just noisy: adherence has moved about -3.32 points per week, roughly -43 points across 13 weeks, steadily further into under-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt.",
      "source_field": "Drift (OLS slope of adherence)",
      "value": "drift"
     }
    ],
-   "confidence_pct": 50,
-   "confidence_level": "Medium",
-   "business_impact": "See the forecast adherence gap for this queue.",
-   "recommended_action": "Review this queue's forecast inputs and recent accuracy with the planning team.",
-   "status": "Verified",
+   "business_impact": "Forecast Adherence for this queue is affected by a measured drift pattern in its own history.",
+   "recommended_action": "Re-baseline this queue's forecast using the measured figures above.",
    "evidence_grade": "statistical (deterministic)",
-   "statistically_confirmed_by": "Drift (OLS slope of adherence)"
+   "rank": 1,
+   "confidence_level": "High",
+   "status": "Verified"
   },
   {
    "rank": 2,
    "cause_type": "inherited_from_higher_level",
-   "title": "The miss is inherited from Region level",
-   "explanation": "The same miss is already visible at Region level, so it is not specific to this queue and a queue-level cause cannot explain it.",
+   "title": "Miss inherited from Region level",
+   "explanation": "The miss is also visible at the Region level, which means that the issue is not specific to this queue. The Region-level forecast may have been under-estimated, resulting in a cascading effect on the lower-level queues.",
    "evidence": [
     {
-     "text": "At Region level (CSG / Americas) adherence was -12.6% for the same week.",
-     "source_field": "Actual_Offered",
-     "value": 23135.0
+     "text": "The Region-level adherence is -12.6%, which indicates a similar under-forecast issue",
+     "source_field": "higher-level check - adherence_pct",
+     "value": -12.6
     }
    ],
-   "confidence_pct": 65,
+   "confidence_pct": 60,
    "confidence_level": "Medium",
-   "business_impact": "Correcting this queue alone would not fix a miss the whole level shares.",
-   "recommended_action": "Investigate at Region level before adjusting this queue's plan.",
+   "business_impact": "The under-forecast at the Region level may have a broader impact on the service quality and resource allocation.",
+   "recommended_action": "Review the Region-level forecast plan and adjust the baseline to reflect the new demand level.",
    "status": "Verified"
   }
  ],
  "skeptic_review": [
   {
-   "cause": "The miss is inherited from Region level",
-   "challenge": "Is this supported by the data, or could something else explain it better?",
+   "cause": "genuine_demand_event",
+   "challenge": "Is the demand surge due to a one-time event or a seasonal trend?",
    "verdict": "retained",
-   "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+   "reason": "The queue's history does not show a similar demand surge in the same fiscal week last year."
   },
   {
-   "cause": "Systematic forecast bias",
+   "cause": "inherited_from_higher_level",
+   "challenge": "Is the Region-level under-forecast due to a similar demand surge or a forecasting issue?",
+   "verdict": "retained",
+   "reason": "The Region-level forecast plan may have been under-estimated, resulting in a cascading effect on the lower-level queues."
+  },
+  {
+   "cause": "Genuine demand surge not in the plan",
+   "challenge": "Does the data actually show genuine demand event?",
+   "verdict": "rejected",
+   "reason": "No. The data shows actual demand was not unusual against its own history while the forecast looked normal, so this cause is not possible for this week."
+  },
+  {
+   "cause": "Miss inherited from Region level",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
@@ -76,11 +82,11 @@
    "Channel"
   ],
   "inherited_from": "Region",
-  "narrative": "The same miss is already visible at Region level, so it is not specific to this queue and should be attributed there."
+  "narrative": "The miss is visible at the Region level, which means that the issue is not specific to this queue."
  },
  "channel_migration": {
   "detected": false,
-  "narrative": "Channel movements do not cancel out, so this is not a like-for-like shift between channels.",
+  "narrative": "The channel movements do not cancel out, so this is not a like-for-like shift between channels.",
   "gaining_channels": [
    "Voice"
   ],
@@ -160,10 +166,15 @@
   {
    "label": "Adherence at Channel level",
    "value": -21.9
+  },
+  {
+   "label": "Forecast Error",
+   "value": 178.01132740000003
   }
  ],
  "missing_information": [
-  "groq/llama-3.3-70b-versatile HTTP 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kkrjztjcfcd8h1kwmdh4ymne` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 96858,. This report was built from the deterministic data checks only - it is not the full multi-hypothesis WFM investigation."
+  "Planned_ASU",
+  "Actual_ASU"
  ],
  "derived_features": {
   "base_features": {
@@ -692,21 +703,19 @@
    }
   ]
  },
- "cause_type": "systematic_forecast_bias",
  "investigation_meta": {
-  "engine": "wfm-deterministic-fallback",
-  "generated_at": "2026-07-30T13:19:07.480856+00:00"
+  "engine": "wfm-llm",
+  "provider": "groq",
+  "model": "llama-3.3-70b-versatile",
+  "calls": 1,
+  "generated_at": "2026-07-31T08:02:56.588959+00:00"
  },
- "statistical_override_applied": "Statistical evidence (Drift (OLS slope of adherence)) confirms the model's systematic_forecast_bias conclusion; the measured figures were attached and the cause promoted to rank 1.",
+ "statistical_override_applied": "Statistical evidence (Drift (OLS slope of adherence)) overrides the model's ranking: systematic_forecast_bias is measured directly from this queue's own history. The model's causes are retained below as contributing factors.",
+ "cause_type": "systematic_forecast_bias",
  "primary_root_cause": {
-  "statement": "During the target fiscal week, actual demand was 920.0 contacts against a forecast of 741.99 contacts. Over recent weeks, this queue has consistently run over-forecast (typically averaging None actual contacts against None forecast contacts). This indicates an ongoing systematic forecasting bias where baseline plan targets are consistently set too high. Because the forecast model was not re-baselined to align with true weekly demand levels, systematic over-forecasting recurred this week.",
-  "confidence": 0.5,
+  "statement": "The forecast error is drifting, not just noisy: adherence has moved about -3.32 points per week, roughly -43 points across 13 weeks, steadily further into under-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt.",
+  "confidence": 0.78,
   "supporting_evidence": [
-   {
-    "text": "recently this queue ran about None actual against None forecast, over-forecast in most weeks",
-    "source_field": "Actual_Offered",
-    "value": null
-   },
    {
     "text": "The forecast error is drifting, not just noisy: adherence has moved about -3.32 points per week, roughly -43 points across 13 weeks, steadily further into under-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt.",
     "source_field": "Drift (OLS slope of adherence)",
@@ -714,7 +723,7 @@
    }
   ]
  },
- "confidence_score": 0.5,
+ "confidence_score": 0.78,
  "statistical_evidence": {
   "available": true,
   "weeks_available": 104,
@@ -923,13 +932,13 @@
  },
  "secondary_contributors": [
   {
-   "statement": "The same miss is already visible at Region level, so it is not specific to this queue and a queue-level cause cannot explain it.",
-   "confidence": 0.65,
+   "statement": "The miss is also visible at the Region level, which means that the issue is not specific to this queue. The Region-level forecast may have been under-estimated, resulting in a cascading effect on the lower-level queues.",
+   "confidence": 0.6,
    "supporting_evidence": [
     {
-     "text": "At Region level (CSG / Americas) adherence was -12.6% for the same week.",
-     "source_field": "Actual_Offered",
-     "value": 23135.0
+     "text": "The Region-level adherence is -12.6%, which indicates a similar under-forecast issue",
+     "source_field": "higher-level check - adherence_pct",
+     "value": -12.6
     }
    ]
   }
@@ -940,18 +949,18 @@
  ],
  "supporting_evidence": [
   {
-   "text": "recently this queue ran about None actual against None forecast, over-forecast in most weeks",
-   "source_field": "Actual_Offered",
-   "value": null
-  },
-  {
    "text": "The forecast error is drifting, not just noisy: adherence has moved about -3.32 points per week, roughly -43 points across 13 weeks, steadily further into under-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt.",
    "source_field": "Drift (OLS slope of adherence)",
    "value": "drift"
   }
  ],
- "reasoning_narrative": "The same miss is already visible at Region level, so it is not specific to this queue and should be attributed there.",
- "rejected_hypotheses": [],
+ "reasoning_narrative": "The miss is visible at the Region level, which means that the issue is not specific to this queue.",
+ "rejected_hypotheses": [
+  {
+   "hypothesis": "Genuine demand surge not in the plan",
+   "reason_rejected": "No. The data shows actual demand was not unusual against its own history while the forecast looked normal, so this cause is not possible for this week."
+  }
+ ],
  "historical_comparison": {
   "narrative": "Over the last 13 weeks, actual demand for this queue averaged ~744.0 contacts per week. The queue historically trends below forecast with an average adherence of 24.4%. Typical weekly error magnitude is about ~26.3%. In the same fiscal week last year (FW 202619), actual demand was 1380.0 contacts.",
   "data_points": [
@@ -995,5 +1004,13 @@
    "usual": null,
    "change": "no historical comparison"
   }
+ ],
+ "terminology_guard_applied": [
+  "ranked_root_causes[1].evidence[0].source_field: INVESTIGATION_LADDER.levels[1].adherence_pct -> higher-level check - adherence_pct",
+  "secondary_contributors[0].supporting_evidence[0].source_field: INVESTIGATION_LADDER.levels[1].adherence_pct -> higher-level check - adherence_pct"
+ ],
+ "language_guard_applied": [
+  "ranked_root_causes[1].evidence[0].source_field: INVESTIGATION_LADDER.levels[1].adherence_pct -> higher-level check - adherence_pct",
+  "secondary_contributors[0].supporting_evidence[0].source_field: INVESTIGATION_LADDER.levels[1].adherence_pct -> higher-level check - adherence_pct"
  ]
 }

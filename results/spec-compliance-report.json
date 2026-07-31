@@ -12,13 +12,13 @@
    "provider": "nvidia",
    "model": "nvidia/nemotron-3-super-120b-a12b",
    "engine": "wfm-llm",
-   "seconds": 56.0,
+   "seconds": 45.7,
    "raw_file": "spec-nvidia-response.json",
    "ranked": [
     {
      "rank": 1,
      "cause_type": "systematic_forecast_bias",
-     "title": "No evidence of systematic forecast bias causing this week's under\u2011forecast",
+     "title": "Chronic forecast bias present in historical data",
      "confidence_pct": 60,
      "confidence_level": "Medium",
      "status": "Hypothesis - To be Validated"
@@ -91,13 +91,13 @@
      "id": "S10",
      "clause": "Technical metrics kept in their own (collapsed) section",
      "status": "PASS",
-     "detail": "7 rows"
+     "detail": "10 rows"
     },
     {
      "id": "S11",
      "clause": "Output format: executive summary, KPI status, business impact all present",
      "status": "PASS",
-     "detail": "summary=529 chars"
+     "detail": "summary=717 chars"
     },
     {
      "id": "S12",
@@ -145,13 +145,13 @@
      "id": "S19",
      "clause": "Critical rules: every quoted figure traces to the real data",
      "status": "PASS",
-     "detail": "3 numeric citations checked, 0 unmatched"
+     "detail": "6 numeric citations checked, 0 unmatched"
     },
     {
      "id": "S20",
      "clause": "Critical rules: gaps declared rather than glossed over",
      "status": "PASS",
-     "detail": "1 item(s)"
+     "detail": "2 item(s)"
     },
     {
      "id": "S21",
@@ -164,23 +164,23 @@
   {
    "provider": "groq",
    "model": "llama-3.3-70b-versatile",
-   "engine": "wfm-deterministic-fallback",
-   "seconds": 1.2,
+   "engine": "wfm-llm",
+   "seconds": 4.0,
    "raw_file": "spec-groq-response.json",
    "ranked": [
     {
      "rank": 1,
      "cause_type": "systematic_forecast_bias",
-     "title": "Systematic forecast bias",
-     "confidence_pct": 50,
-     "confidence_level": "Medium",
+     "title": "Forecast baseline is drifting, not just missing",
+     "confidence_pct": 78,
+     "confidence_level": "High",
      "status": "Verified"
     },
     {
      "rank": 2,
      "cause_type": "inherited_from_higher_level",
-     "title": "The miss is inherited from Region level",
-     "confidence_pct": 65,
+     "title": "Miss inherited from Region level",
+     "confidence_pct": 60,
      "confidence_level": "Medium",
      "status": "Verified"
     }
@@ -214,7 +214,7 @@
      "id": "S5",
      "clause": "Root causes: best-supported first (confidence descends, except mandated-first causes)",
      "status": "PASS",
-     "detail": "all=[50, 65] mandated_first=['systematic_forecast_bias'] checked=[65]"
+     "detail": "all=[78, 60] mandated_first=['systematic_forecast_bias'] checked=[60]"
     },
     {
      "id": "S6",
@@ -232,7 +232,7 @@
      "id": "S8",
      "clause": "Skeptic mode: challenges recorded with verdicts",
      "status": "PASS",
-     "detail": "2 entries, 0 rejected"
+     "detail": "4 entries, 1 rejected"
     },
     {
      "id": "S9",
@@ -244,13 +244,13 @@
      "id": "S10",
      "clause": "Technical metrics kept in their own (collapsed) section",
      "status": "PASS",
-     "detail": "7 rows"
+     "detail": "8 rows"
     },
     {
      "id": "S11",
      "clause": "Output format: executive summary, KPI status, business impact all present",
      "status": "PASS",
-     "detail": "summary=128 chars"
+     "detail": "summary=381 chars"
     },
     {
      "id": "S12",
@@ -304,7 +304,7 @@
      "id": "S20",
      "clause": "Critical rules: gaps declared rather than glossed over",
      "status": "PASS",
-     "detail": "1 item(s)"
+     "detail": "2 item(s)"
     },
     {
      "id": "S21",
