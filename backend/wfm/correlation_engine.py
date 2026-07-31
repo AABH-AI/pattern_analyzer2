@@ -254,8 +254,6 @@ def _holiday_effect(history):
         "avg_demand_holiday_weeks": rnd(mh),
         "avg_demand_normal_weeks": rnd(mn),
         "difference_pct": rnd(diff_pct),
-        "evidence_weight": ("strong" if abs(diff_pct) >= 15 else
-                            "moderate" if abs(diff_pct) >= 8 else "weak"),
         "plain_language": (
             f"Weeks containing a holiday average {rnd(mh)} contacts against {rnd(mn)} in normal "
             f"weeks -- {abs(rnd(diff_pct))}% "
