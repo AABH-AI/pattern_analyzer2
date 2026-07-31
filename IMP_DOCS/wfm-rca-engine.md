@@ -293,6 +293,61 @@ The console also accepts an uploaded CQN mapping file for the authoritative Comb
 Name. When a mapping is loaded, the grouping above remains a proxy — wiring the mapping into
 this engine is not done yet.
 
+## Field terminology — planned units (shipment), NOT the installed base
+
+Settled 2026-07-30 from the business definitions. `Final_Units` is the **number of planned units
+for delivery / production**, also called **Shipment**, and one of the major demand drivers.
+`Final_Y1..Final_Y5` are those same planned units split by the warranty year they fall under.
+
+Two rules matter for the engine:
+
+1. **They are not the installed base.** The installed base is units already in the field — a
+   different quantity. Calling planned units "installed base" sends a forecaster to the wrong lever
+   (review the install base, rather than review the shipment plan).
+2. **Y1..Y5 are NESTED, not additive.** Y5 ⊆ Y4 ⊆ Y3 ⊆ Y2 ⊆ Y1, so
+   `Final_Y1 + ... + Final_Y5 ≠ Final_Units`. They must never be summed. This is also why
+   `INSTALLED_BASE_FIELDS` collapses all seven columns into ONE signal (max |z|) — otherwise a
+   single real movement is counted seven times and manufactures a dominant fake z-score.
+
+### Where the definition lives (four places, kept in sync deliberately)
+
+| Site | Read by |
+|---|---|
+| `rca_console.html` → Definitions & Formulas table | the user |
+| `rca_console.html` → "Domain knowledge" card | the user |
+| `rca_investigate.py` → `FIELD_DEFINITIONS` | **the LLM** (injected as `field_glossary`) |
+| `wfm/prompts.py` → `TERMINOLOGY:` rule | **the LLM** |
+
+### The terminology guard — why a prompt rule was not enough
+
+A live WFM run **still produced "installed base" seven times** after every hardcoded string was
+corrected: in `executive_summary`, `skeptic_review[].cause/.challenge`,
+`investigation_trail.narrative` and `rejected_hypotheses[].hypothesis`. None of it came from our
+code — the model writes the phrase unprompted, because that is the term it has learned for
+warranty-unit fields.
+
+So the term is rewritten **deterministically on the way out**, the same principle already applied
+to the KPI, the migration verdict and the confidence bands: compute it in Python, then overwrite
+whatever the model said. `_fix_terminology()` in `wfm/business_report_generator.py` walks the
+response **recursively** and is wired into the tail of `apply_language_guard()`.
+
+Recursion is the point: the pre-existing guard visited a fixed list of keys, which is exactly why
+those four blocks slipped through. A newly added response key cannot silently reintroduce the term.
+
+Internal identifiers are protected — every pattern requires a literal space, and bare snake_case
+tokens are skipped, so the `installed_base_change` cause type (matched by the skeptic's
+`PRECONDITIONS` and by the spec suite) and the `base_features.installed_base` key are untouched.
+The cause-type key was deliberately **not** renamed: it is never displayed, and renaming it would
+break the skeptic lookup and the compliance tests for no reader-visible gain.
+
+The legacy engine gets the same pass via `_fix_terminology_legacy()` in `rca_investigate.py`
+(lazy import — `wfm` imports `derive_features` from that module, so a top-level import would be
+circular; wrapped in try/except so a cosmetic pass can never fail an investigation).
+
+Verified live on both engines: **0 occurrences** of the old term in either response.
+
+---
+
 ## Cost / limits
 
 Measured on a real investigation: system prompt ~2,300 tokens, payload ~2,100 tokens, so

@@ -147,10 +147,25 @@ def check_spec(resp, had_sql):
     add("S4", "Root causes: each carries description, evidence, confidence, impact, action",
         all(v == 0 for v in missing.values()),
         json.dumps({k: v for k, v in missing.items() if v}))
-    add("S5", "Root causes: best-supported first (confidence descends)",
-        [c.get("confidence_pct") or 0 for c in causes] ==
-        sorted([c.get("confidence_pct") or 0 for c in causes], reverse=True),
-        str([c.get("confidence_pct") for c in causes]))
+    # S5 -- confidence must descend, EXCEPT for causes the spec mandates at the top regardless of
+    # their score. There are two, and both are deliberate:
+    #   * "data_quality_issue"  -- prompts.py "# DATA QUALITY FIRST" requires it ranked FIRST when
+    #     DATA_QUALITY.suspect is true. A pure-descent check has always contradicted that rule; it
+    #     simply had not been hit yet.
+    #   * evidence_grade "statistical (deterministic)" -- per the business decision of 2026-07-30,
+    #     statistical evidence is the strongest evidence available and leads when decisive. A model's
+    #     self-assigned confidence must not veto measured arithmetic; those figures are known to be
+    #     poorly calibrated (see the confidence_level comment in business_report_generator).
+    # Everything NOT mandated-first still has to descend, so a genuinely mis-ordered set is caught.
+    _mandated = [c for c in causes
+                 if c.get("cause_type") == "data_quality_issue"
+                 or str(c.get("evidence_grade", "")).startswith("statistical")]
+    _rest = [c for c in causes if c not in _mandated]
+    _rest_pcts = [c.get("confidence_pct") or 0 for c in _rest]
+    add("S5", "Root causes: best-supported first (confidence descends, except mandated-first causes)",
+        _rest_pcts == sorted(_rest_pcts, reverse=True),
+        f"all={[c.get('confidence_pct') for c in causes]} "
+        f"mandated_first={[c.get('cause_type') for c in _mandated]} checked={_rest_pcts}")
 
     # --- CONFIDENCE SCORING ---
     bad = [(c.get("confidence_pct"), c.get("confidence_level")) for c in causes
@@ -271,6 +286,58 @@ def check_spec(resp, had_sql):
     return out
 
 
+def rebuild_bundle_from_sql(cfg):
+    """Build a fresh bundle from whatever table is configured.
+
+    WHY: the saved bundle is a fixture pinned to one queue. When the dataset changed (the P1
+    extract carries 42 queues, and the old "NA Core Spanish" is not among them) fetch_wfm_context
+    returned ZERO history rows for it, so S13 reported "history weeks=0" and FAILED -- describing
+    a stale fixture, not the engine. The ladder still resolved because Region/Country matched,
+    which is why only the temporal clause broke and the failure looked like an engine bug.
+    """
+    from sql_backend import connect
+    conn = connect(cfg)
+    try:
+        cur = conn.cursor()
+        tbl = cfg["sql"]["table"]
+        # a flagged week with enough prior history to exercise the 4 temporal windows
+        cur.execute(f"""
+            SELECT TOP 1 Forecast_name, Fiscal_Week
+            FROM {tbl}
+            WHERE fcst_offered > 100 AND Actual_Offered > 0
+              AND ABS(1 - Actual_Offered / fcst_offered) * 100 > 15
+            ORDER BY Fiscal_Week DESC
+        """)
+        row = cur.fetchone()
+        if not row:
+            return None
+        qname, week = row[0], int(row[1])
+        cur.execute(f"SELECT * FROM {tbl} WHERE Forecast_name = ? ORDER BY Fiscal_Week", qname)
+        cols = [d[0] for d in cur.description]
+        recs = [dict(zip(cols, [str(v) if hasattr(v, "isoformat") else v for v in r]))
+                for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+    def entry(rec):
+        fo, ao = rec.get("fcst_offered"), rec.get("Actual_Offered")
+        adh = ((1 - ao / fo) * 100) if (fo and ao is not None) else None
+        return {"key": {"Forecast_name": qname, "Fiscal_Week": int(rec["Fiscal_Week"])},
+                "fields": rec,
+                "computed": {"forecast": fo, "actual": ao,
+                             "error": (ao - fo) if (fo is not None and ao is not None) else None,
+                             "adherence_pct": round(adh, 2) if adh is not None else None,
+                             "accuracy_pct": round(ao / fo * 100, 2) if (fo and ao is not None) else None,
+                             "direction": None if adh is None else ("under" if adh < 0 else "over"),
+                             "severity": None if adh is None else round(abs(adh) / 10, 1)}}
+
+    target = next((r for r in recs if int(r["Fiscal_Week"]) == week), None)
+    hist = [entry(r) for r in recs if int(r["Fiscal_Week"]) < week][-13:]
+    print(f"    rebuilt bundle from {tbl}: {qname} FW{week} ({len(hist)} history weeks)")
+    return {"target": entry(target), "history": hist,
+            "rows": [entry(r) for r in recs], "peers": []}
+
+
 def main():
     cfg = load_config()
     tmp = os.environ.get("CLAUDE_JOB_DIR", "")
@@ -286,6 +353,24 @@ def main():
     print("=" * 78)
 
     bundle = load_bundle(bundle_path)
+
+    # Guard against a stale fixture: if the saved bundle's queue no longer exists in the configured
+    # table, the temporal clauses would fail for a data reason and be read as an engine defect.
+    try:
+        from sql_backend import connect as _c
+        _conn = _c(cfg); _cur = _conn.cursor()
+        _cur.execute("SELECT COUNT(*) FROM " + cfg["sql"]["table"] + " WHERE Forecast_name = ?",
+                     ((bundle.get("target") or {}).get("key") or {}).get("Forecast_name"))
+        _n = _cur.fetchone()[0]
+        _conn.close()
+        if _n == 0:
+            print(f"    bundle queue absent from {cfg['sql']['table']} (stale fixture) -- rebuilding")
+            fresh = rebuild_bundle_from_sql(cfg)
+            if fresh:
+                bundle = fresh
+    except Exception as _e:
+        print(f"    [staleness check skipped: {type(_e).__name__}]")
+
     wc, had_sql = context_for(bundle, cfg)
     print(f"    SQL deep context: {'YES' if had_sql else 'NO (ladder + channel clauses will SKIP)'}")
 

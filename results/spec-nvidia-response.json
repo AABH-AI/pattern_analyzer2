@@ -1,148 +1,89 @@
 {
- "executive_summary": "Forecast Adherence for NA Core Spanish Voice queue was -9599.7%, indicating actual demand was over 8,800 contacts versus a forecast of about 91. This massive miss is flagged as a data quality issue because the actual figure is far outside historical norms and returns to normal immediately. The same directional miss is also present at the Region level, indicating the queue\u2019s extreme value contributes to a regional under\u2011forecast. The forecast plan was restated this week, but the forecast itself remained near usual levels, making a plan\u2011change effect less likely.",
+ "executive_summary": "During Fiscal Week 202719, the Combined Queue Brazil OOP SITEL experienced a 44.0% increase in total demand, with Voice (Brazil OOP) demand rising by 281 contacts and no other channels present. This indicates a genuine rise in customer demand across the Americas CSG region rather than a shift between channels. Because the forecast was set at the Regional level and did not anticipate this demand uplift, all subordinate queues, including Brazil OOP, appear under\u2011forecast; the miss is therefore inherited from the Region level.",
  "kpi_status": {
   "metric": "Forecast Adherence",
-  "adherence_pct": -9599.7,
+  "adherence_pct": -24.0,
   "threshold_pct": 10.0,
   "breached": true,
   "direction": "under_forecast"
  },
- "business_impact": "If the actual figure is correct, it would imply a severe staffing shortage and long wait times; if it is erroneous, acting on it could trigger unnecessary overtime or hiring costs and distort future forecasts.",
+ "business_impact": "Under\u2011forecast at the regional level leads to insufficient staffing across all queues in the Americas CSG business org, resulting in longer wait times and potential SLA breaches.",
  "ranked_root_causes": [
   {
    "rank": 1,
-   "cause_type": "data_quality_issue",
-   "title": "Suspect actual volume figure",
-   "explanation": "The actual offered volume for this week is far outside historical norms and returns to normal immediately, indicating a possible data entry or collection error.",
+   "cause_type": "systematic_forecast_bias",
+   "title": "No evidence of systematic forecast bias causing this week's under\u2011forecast",
+   "explanation": "The queue\u2019s historical bias is consistently over\u2011forecast (chronic_over), meaning forecasts usually exceed actuals. This week\u2019s actual exceeded the forecast, which is opposite to the historic tendency, so a systematic bias does not explain the miss.",
    "evidence": [
     {
-     "text": "Actual_Offered this week",
-     "source_field": "Actual_Offered",
-     "value": 8805.0
+     "text": "Historical mean adherence is +24.4% (over\u2011forecast)",
+     "source_field": "data analysis - history_mean_adherence_pct",
+     "value": "24.4"
     },
     {
-     "text": "Typical week actual volume",
-     "source_field": "DATA_QUALITY.typical_week_actual",
-     "value": 117.0
+     "text": "92% of weeks show the same over\u2011forecast direction",
+     "source_field": "data analysis - share_same_direction",
+     "value": "0.92"
     },
     {
-     "text": "How many times typical this week's actual is",
-     "source_field": "DATA_QUALITY.times_typical",
-     "value": 75.3
-    },
-    {
-     "text": "Actual volume in the week after this week",
-     "source_field": "DATA_QUALITY.next_weeks_actual",
-     "value": 87.0
+     "text": "The forecast error is drifting, not just noisy: adherence has moved about -3.32 points per week, roughly -43 points across 13 weeks, steadily further into under-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt.",
+     "source_field": "Drift (OLS slope of adherence)",
+     "value": "drift"
     }
    ],
-   "confidence_pct": 90,
-   "confidence_level": "High",
-   "business_impact": "If the figure is wrong, any staffing or forecast adjustments based on it would be misguided and costly.",
-   "recommended_action": "Validate the Actual_Offered figure at the source system before adjusting forecasts or staffing levels.",
+   "confidence_pct": 60,
+   "confidence_level": "Medium",
+   "business_impact": "If incorrectly attributed to bias, forecast adjustments could move in the wrong direction, worsening staffing errors.",
+   "recommended_action": "No action needed based on bias; focus on the higher\u2011level investigation.",
    "status": "Hypothesis - To be Validated",
-   "hypothesis_reason": "the figure has to be validated at source before it can be confirmed"
+   "evidence_grade": "statistical (deterministic)",
+   "statistically_confirmed_by": "Drift (OLS slope of adherence)"
   },
   {
    "rank": 2,
    "cause_type": "inherited_from_higher_level",
-   "title": "Miss inherited from Region-level under-forecast",
-   "explanation": "The Region (CSG / Americas) also shows under-forecast adherence (-13.6%), breaching the +/-10% threshold, indicating the queue's miss is not isolated but reflects a broader regional trend.",
+   "title": "Forecast miss inherited from Region level",
+   "explanation": "The miss is not specific to this queue; the Region (Americas CSG) also shows under\u2011forecast adherence, indicating a broader regional issue that affects all queues under it. Because the same directional miss appears at the Region level, the queue\u2011level forecast cannot be blamed for the deviation; the root cause lies higher in the hierarchy.",
    "evidence": [
     {
-     "text": "Region adherence percentage",
-     "source_field": "INVESTIGATION_LADDER.levels[1].adherence_pct",
-     "value": -13.6
+     "text": "Region adherence_pct is -12.6%",
+     "source_field": "higher-level check - adherence_pct",
+     "value": "-12.6"
     },
     {
-     "text": "Region actual offered volume",
-     "source_field": "INVESTIGATION_LADDER.levels[1].actual_offered",
-     "value": 112660.0
-    },
-    {
-     "text": "Region forecast offered volume",
-     "source_field": "INVESTIGATION_LADDER.levels[1].fcst_offered",
-     "value": 99210.9
+     "text": "The higher-level check indicates the miss is inherited from Region",
+     "source_field": "higher-level check - inherited_from",
+     "value": "Region"
     }
    ],
-   "confidence_pct": 70,
+   "confidence_pct": 90,
    "confidence_level": "High",
-   "business_impact": "Regional staffing models may need adjustment; local queue actions may be less effective if the root cause is regional.",
-   "recommended_action": "Investigate regional forecast inputs and staffing assumptions; consider whether the regional plan needs revision.",
+   "business_impact": "Under\u2011forecast at the regional level leads to insufficient staffing across all queues in the Americas CSG business org, resulting in longer wait times and potential SLA breaches.",
+   "recommended_action": "Review and adjust the regional forecast plan for Americas CSG, examine assumptions driving the regional baseline, and propagate corrections to subordinate queues.",
    "status": "Verified"
-  },
-  {
-   "rank": 3,
-   "cause_type": "plan_restatement",
-   "title": "Forecast plan restatement may have introduced baseline error",
-   "explanation": "The forecast plan changed from FY27 May Projection to FY27 Jun Projection this week, which could have altered the baseline forecast and contributed to the miss.",
-   "evidence": [
-    {
-     "text": "Forecast plan changed indicator",
-     "source_field": "DERIVED_FEATURES.plan_restatement.changed",
-     "value": true
-    },
-    {
-     "text": "Prior forecast plan",
-     "source_field": "DERIVED_FEATURES.plan_restatement.prior",
-     "value": "FY27 May Projection"
-    },
-    {
-     "text": "Current forecast plan",
-     "source_field": "DERIVED_FEATURES.plan_restatement.current",
-     "value": "FY27 Jun Projection"
-    },
-    {
-     "text": "This week's forecast vs usual forecast",
-     "source_field": "DERIVED_FEATURES.proof[0].this_week",
-     "value": 90.78
-    },
-    {
-     "text": "Usual forecast level",
-     "source_field": "DERIVED_FEATURES.proof[0].usual",
-     "value": 99.7
-    }
-   ],
-   "confidence_pct": 50,
-   "confidence_level": "Medium",
-   "business_impact": "If the plan change caused a misalignment, future forecasts may remain off until the assumption is corrected.",
-   "recommended_action": "Review the forecast plan change assumptions and validate against actual trends; consider adjusting or reverting the plan if warranted.",
-   "status": "Hypothesis - To be Validated"
   }
  ],
  "skeptic_review": [
   {
-   "cause": "Suspect actual volume figure",
-   "challenge": "Could the spike represent a real demand surge, such as a product launch or marketing campaign?",
+   "cause": "inherited_from_higher_level",
+   "challenge": "Could the miss still have a queue\u2011specific component that is amplified by the regional effect?",
+   "verdict": "retained",
+   "reason": "The higher-level check shows the miss is already present at Region level and the queue\u2019s deviation aligns with the regional direction; no additional queue\u2011specific signal is evident in the data."
+  },
+  {
+   "cause": "systematic_forecast_bias",
+   "challenge": "Perhaps the chronic bias has shifted this week due to a change in an unmeasured driver such as ASU or planned units.",
    "verdict": "rejected",
-   "reason": "No evidence of a product launch or external event; the value is an isolated one\u2011off and the following weeks return to normal levels, which is inconsistent with a sustained demand event."
+   "reason": "ASU and planned unit fields are null for this week, and temporal comparisons show no indicator of a driver shift that would flip the bias; the observed actual increase is not sufficient to override the established over\u2011forecast tendency without a measured driver."
   },
   {
-   "cause": "Miss inherited from Region-level under-forecast",
-   "challenge": "Perhaps the region\u2019s miss is driven solely by this queue\u2019s anomaly and not a broader regional issue.",
-   "verdict": "retained",
-   "reason": "Even if this queue\u2019s extreme value were removed, the region\u2019s adherence would still be close to the threshold given its baseline under\u2011forecast (-13.6%) and the moderate size of the queue relative to the region total."
-  },
-  {
-   "cause": "Forecast plan restatement may have introduced baseline error",
-   "challenge": "The forecast itself remained near its usual level, so the plan change is unlikely to have caused the massive actual spike.",
-   "verdict": "retained",
-   "reason": "The forecast (fcst_offered) was about the same as usual (90.8 vs 99.7), indicating the plan restatement did not significantly alter the forecast; thus it cannot explain the actual outlier."
-  },
-  {
-   "cause": "Suspect actual volume figure",
+   "cause": "Forecast miss inherited from Region level",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
   },
   {
-   "cause": "Miss inherited from Region-level under-forecast",
-   "challenge": "Is this supported by the data, or could something else explain it better?",
-   "verdict": "retained",
-   "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
-  },
-  {
-   "cause": "Forecast plan restatement may have introduced baseline error",
+   "cause": "No evidence of systematic forecast bias causing this week's under\u2011forecast",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
@@ -161,240 +102,174 @@
    "Fiscal Week"
   ],
   "inherited_from": "Region",
-  "narrative": "Starting at the top level, Business Org adherence (-8.8%) was within tolerance. Moving down, Region adherence (-13.6%) exceeded the threshold, indicating the miss is already visible there. SubRegion, Country and Channel levels also breach the threshold, confirming the issue is not isolated to the queue. The INVESTIGATION_LADDER shows inherited_from = Region, so the queue\u2011level miss is attributed to the regional trend."
+  "narrative": "Started at Business Org level (adherence -7.5% within threshold), moved to Region where adherence -12.6% exceeded threshold, indicating the miss is already present there; therefore the investigation stops and attributes the cause to the Region level."
  },
  "channel_migration": {
   "detected": false,
-  "narrative": "Only the Voice channel is present for this Combined Queue; there is no alternative channel to which demand could have shifted.",
+  "narrative": "Channel siblings show only the Voice channel present; there are no other channels to shift volume between, so migration did not occur.",
   "gaining_channels": [
    "Voice"
   ],
   "losing_channels": [],
   "grouped_by": "Combined_Queue_Name (authoritative mapping)",
   "is_cqn_proxy": false,
-  "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: NA Basic Spanish SITEL). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
+  "combined_queue_names": [
+   "Brazil OOP SITEL"
+  ],
+  "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: Brazil OOP SITEL). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
   "detail": {
    "available": true,
    "grouped_by": "Combined_Queue_Name (authoritative mapping)",
    "combined_queue_names": [
-    "NA Basic Spanish SITEL"
+    "Brazil OOP SITEL"
    ],
    "is_cqn_proxy": false,
-   "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: NA Basic Spanish SITEL). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
+   "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: Brazil OOP SITEL). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
    "prior_week": "202718",
    "this_week": "202719",
    "per_channel": [
     {
      "channel": "Voice",
-     "prior_week_actual": 54.0,
-     "this_week_actual": 8805.0,
-     "change": 8751.0,
+     "sibling_queue_names": [
+      "Brazil OOP"
+     ],
+     "sibling_queues_text": "Brazil OOP",
+     "channel_label": "Voice (Brazil OOP)",
+     "prior_week_actual": 639.0,
+     "this_week_actual": 920.0,
+     "change": 281.0,
+     "abs_change": 281.0,
      "is_target_channel": true
     }
    ],
-   "group_total_prior_week": 54.0,
-   "group_total_this_week": 8805.0,
-   "group_total_change": 8751.0,
-   "gross_channel_movement": 8751.0,
+   "group_total_prior_week": 639.0,
+   "group_total_this_week": 920.0,
+   "group_total_change": 281.0,
+   "cqn_total_change_pct": 44.0,
+   "gross_channel_movement": 281.0,
    "offset_share": 0.0,
    "migration_detected": false,
    "gaining_channels": [
     "Voice"
    ],
    "losing_channels": [],
+   "deltas_text": "Voice (Brazil OOP) demand increased by 281 contacts",
+   "formatted_narrative": "During Fiscal Week 202719, total demand across the Combined Queue (Brazil OOP SITEL) changed by +44.0%. Voice (Brazil OOP) demand increased by 281 contacts. These channel movements do NOT cancel out, so this is not a like-for-like shift between channels -- total demand for the group genuinely changed. Do NOT explain this week as customers switching channels; the cause lies in the demand level or the forecast itself, not in redistribution between channels.",
    "note": "Channel movements do not cancel out, so this is not a like-for-like shift between channels."
   }
  },
  "technical_metrics": [
   {
-   "label": "Forecast (fcst_offered)",
-   "value": 90.78
+   "label": "Forecast Offered",
+   "value": 741.99
   },
   {
-   "label": "Actual demand (Actual_Offered)",
-   "value": 8805.0
-  },
-  {
-   "label": "Planned ASU",
-   "value": 14239272.0
-  },
-  {
-   "label": "Relationship strength: Planned_ASU vs demand",
-   "value": 0.6
-  },
-  {
-   "label": "Relationship strength: Actual_ASU vs demand",
-   "value": 0.53
+   "label": "Actual_Offered",
+   "value": 920.0
   },
   {
    "label": "Adherence at Business Org level",
-   "value": -8.8
+   "value": -7.5
   },
   {
    "label": "Adherence at Region level",
-   "value": -13.6
+   "value": -12.6
   },
   {
    "label": "Adherence at SubRegion level",
-   "value": -18.0
+   "value": -21.9
   },
   {
    "label": "Adherence at Country level",
-   "value": -18.3
+   "value": -21.9
   },
   {
    "label": "Adherence at Channel level",
-   "value": -55.0
-  },
-  {
-   "label": "Adherence %",
-   "value": -9599.7
-  },
-  {
-   "label": "Forecast z\u2011score vs own history",
-   "value": -0.57
-  },
-  {
-   "label": "Actual z\u2011score vs own history",
-   "value": 1130.08
-  },
-  {
-   "label": "Forecast vs usual forecast",
-   "value": 90.78
-  },
-  {
-   "label": "Actual vs usual actual",
-   "value": 8805.0
+   "value": -21.9
   }
  ],
  "missing_information": [
-  "Actual_ASU (needed for driver decomposition to split the miss into warranty\u2011base and contacts\u2011per\u2011unit effects)",
-  "Information on any external events such as product launches, marketing campaigns, or service incidents that could explain a genuine demand surge"
+  "Planned_ASU and Actual_ASU values are null, preventing decomposition of the miss into warranty\u2011base and contacts\u2011per\u2011unit components."
  ],
  "derived_features": {
   "base_features": {
    "chronic_bias": {
-    "history_mean_adherence_pct": 36.6,
-    "typical_abs_deviation_pct": 36.6,
+    "history_mean_adherence_pct": 24.4,
+    "typical_abs_deviation_pct": 26.3,
     "history_weeks": 13,
-    "usual_forecast": 99.7,
-    "usual_actual": 61.8,
+    "usual_forecast": null,
+    "usual_actual": null,
     "consistent_direction": "over",
-    "share_same_direction": 1.0,
+    "share_same_direction": 0.92,
     "verdict": "chronic_over"
    },
    "this_week_vs_usual": {
-    "target_adherence_pct": -9599.7,
-    "typical_abs_deviation_pct": 36.6,
-    "times_usual": 262.6,
-    "worse_than_usual": true
+    "target_adherence_pct": -24.0,
+    "typical_abs_deviation_pct": 26.3,
+    "times_usual": 0.9,
+    "worse_than_usual": false
    },
    "forecast_sanity": {
-    "forecast": 90.78,
-    "actual": 8805.0,
-    "forecast_usual_level": 99.66,
-    "actual_usual_level": 61.77,
-    "forecast_z_vs_own_history": -0.57,
-    "actual_z_vs_own_history": 1130.08,
-    "forecast_over_actual_ratio": 0.01,
-    "verdict": "actual_anomalous"
+    "forecast": 741.99,
+    "actual": 920.0,
+    "forecast_usual_level": null,
+    "actual_usual_level": null,
+    "forecast_z_vs_own_history": null,
+    "actual_z_vs_own_history": null,
+    "forecast_over_actual_ratio": 0.807,
+    "verdict": "normal"
    },
-   "installed_base": {
-    "field": "Final_upp_units",
-    "z_score": 1.6,
-    "target_value": 35029.0,
-    "history_mean": 27297.0,
-    "material": false
-   },
-   "holiday": {
-    "holiday_count": 0.0,
-    "z_score": -0.28,
-    "unusual": false
-   },
-   "plan_restatement": {
-    "changed": true,
-    "prior": "FY27 May Projection",
-    "current": "FY27 Jun Projection"
-   },
-   "forecaster_change": {
-    "changed": false
-   },
-   "offering_change": {
-    "changed": false
-   },
+   "installed_base": null,
+   "holiday": null,
+   "plan_restatement": null,
+   "forecaster_change": null,
+   "offering_change": null,
    "peer_divergence": {
-    "peers_total": 15,
-    "peers_opposite_direction": 6,
-    "peers_same_direction": 8,
-    "examples_opposite": [
-     {
-      "forecast_name": "NA AW Premium Elite",
-      "adherence_pct": 39.2
-     },
-     {
-      "forecast_name": "NA Enterprise Wyse Standard",
-      "adherence_pct": 31.5
-     },
-     {
-      "forecast_name": "NA Comm Client ProSupport",
-      "adherence_pct": 3.0
-     },
-     {
-      "forecast_name": "NA Cons DSP",
-      "adherence_pct": 0.6
-     },
-     {
-      "forecast_name": "NA Core",
-      "adherence_pct": 2.9
-     }
-    ],
-    "signal": true
+    "peers_total": 0,
+    "peers_opposite_direction": 0,
+    "peers_same_direction": 0,
+    "examples_opposite": [],
+    "all_peers": [],
+    "signal": false
    },
    "population_context": null,
    "cleaned_signals": [],
    "proof": [
     {
-     "label": "Forecast (fcst_offered)",
+     "label": "Forecast Offered",
      "field": "fcst_offered",
-     "this_week": 90.78,
-     "usual": 99.7,
-     "change": "about the same as usual"
+     "this_week": 741.99,
+     "usual": null,
+     "change": "no historical comparison"
     },
     {
-     "label": "Actual demand (Actual_Offered)",
+     "label": "Actual_Offered",
      "field": "Actual_Offered",
-     "this_week": 8805.0,
-     "usual": 61.8,
-     "change": "about 143x higher than usual"
-    },
-    {
-     "label": "Planned ASU",
-     "field": "Planned_ASU",
-     "this_week": 14239272.0,
-     "usual": 14359670,
-     "change": "about the same as usual"
+     "this_week": 920.0,
+     "usual": null,
+     "change": "no historical comparison"
     }
    ]
   },
   "temporal": {
    "this_week": {
-    "fiscal_week": "202719",
-    "actual": 8805.0,
-    "forecast": 90.7763949888044,
-    "adherence_pct": -9599.7
+    "fiscal_week": 202719,
+    "actual": 920.0,
+    "forecast": 741.9886726,
+    "adherence_pct": -24.0
    },
    "previous_week": {
     "fiscal_week": 202718,
-    "actual": 54.0
+    "actual": 639.0
    },
-   "last_4_week_avg_actual": 60.2,
-   "last_13_week_avg_actual": 61.8,
-   "full_history_avg_actual": 111.8,
+   "last_4_week_avg_actual": 732.5,
+   "last_13_week_avg_actual": 744.0,
+   "full_history_avg_actual": 1258.4,
    "history_weeks_available": 103,
    "same_week_last_year": {
     "fiscal_week": 202619,
-    "actual": 144.0,
-    "forecast": 128.1683164513714
+    "actual": 1380.0,
+    "forecast": 1430.453329
    },
    "same_week_last_year_note": null,
    "distinct_forecast_plans_in_window": [
@@ -429,31 +304,40 @@
    "available": true,
    "grouped_by": "Combined_Queue_Name (authoritative mapping)",
    "combined_queue_names": [
-    "NA Basic Spanish SITEL"
+    "Brazil OOP SITEL"
    ],
    "is_cqn_proxy": false,
-   "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: NA Basic Spanish SITEL). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
+   "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: Brazil OOP SITEL). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
    "prior_week": "202718",
    "this_week": "202719",
    "per_channel": [
     {
      "channel": "Voice",
-     "prior_week_actual": 54.0,
-     "this_week_actual": 8805.0,
-     "change": 8751.0,
+     "sibling_queue_names": [
+      "Brazil OOP"
+     ],
+     "sibling_queues_text": "Brazil OOP",
+     "channel_label": "Voice (Brazil OOP)",
+     "prior_week_actual": 639.0,
+     "this_week_actual": 920.0,
+     "change": 281.0,
+     "abs_change": 281.0,
      "is_target_channel": true
     }
    ],
-   "group_total_prior_week": 54.0,
-   "group_total_this_week": 8805.0,
-   "group_total_change": 8751.0,
-   "gross_channel_movement": 8751.0,
+   "group_total_prior_week": 639.0,
+   "group_total_this_week": 920.0,
+   "group_total_change": 281.0,
+   "cqn_total_change_pct": 44.0,
+   "gross_channel_movement": 281.0,
    "offset_share": 0.0,
    "migration_detected": false,
    "gaining_channels": [
     "Voice"
    ],
    "losing_channels": [],
+   "deltas_text": "Voice (Brazil OOP) demand increased by 281 contacts",
+   "formatted_narrative": "During Fiscal Week 202719, total demand across the Combined Queue (Brazil OOP SITEL) changed by +44.0%. Voice (Brazil OOP) demand increased by 281 contacts. These channel movements do NOT cancel out, so this is not a like-for-like shift between channels -- total demand for the group genuinely changed. Do NOT explain this week as customers switching channels; the cause lies in the demand level or the forecast itself, not in redistribution between channels.",
    "note": "Channel movements do not cancel out, so this is not a like-for-like shift between channels."
   },
   "investigation_ladder": {
@@ -463,42 +347,42 @@
     {
      "level": "Business Org",
      "scope": "CSG",
-     "actual_offered": 263288.0,
-     "fcst_offered": 242008.2,
-     "adherence_pct": -8.8,
-     "queue_weeks_in_scope": 424
+     "actual_offered": 63506.0,
+     "fcst_offered": 59083.1,
+     "adherence_pct": -7.5,
+     "queue_weeks_in_scope": 42
     },
     {
      "level": "Region",
      "scope": "CSG / Americas",
-     "actual_offered": 112660.0,
-     "fcst_offered": 99210.9,
-     "adherence_pct": -13.6,
-     "queue_weeks_in_scope": 85
+     "actual_offered": 23135.0,
+     "fcst_offered": 20539.8,
+     "adherence_pct": -12.6,
+     "queue_weeks_in_scope": 12
     },
     {
      "level": "SubRegion",
-     "scope": "CSG / Americas / NA",
-     "actual_offered": 89227.0,
-     "fcst_offered": 75609.7,
-     "adherence_pct": -18.0,
-     "queue_weeks_in_scope": 49
+     "scope": "CSG / Americas / Brazil",
+     "actual_offered": 3047.0,
+     "fcst_offered": 2499.0,
+     "adherence_pct": -21.9,
+     "queue_weeks_in_scope": 4
     },
     {
      "level": "Country",
-     "scope": "CSG / Americas / NA / United States",
-     "actual_offered": 88785.0,
-     "fcst_offered": 75054.3,
-     "adherence_pct": -18.3,
-     "queue_weeks_in_scope": 45
+     "scope": "CSG / Americas / Brazil / Brazil",
+     "actual_offered": 3047.0,
+     "fcst_offered": 2499.0,
+     "adherence_pct": -21.9,
+     "queue_weeks_in_scope": 4
     },
     {
      "level": "Channel",
-     "scope": "CSG / Americas / NA / United States / Voice",
-     "actual_offered": 30427.0,
-     "fcst_offered": 19632.7,
-     "adherence_pct": -55.0,
-     "queue_weeks_in_scope": 16
+     "scope": "CSG / Americas / Brazil / Brazil / Voice",
+     "actual_offered": 3047.0,
+     "fcst_offered": 2499.0,
+     "adherence_pct": -21.9,
+     "queue_weeks_in_scope": 4
     }
    ],
    "levels_breaching_band": [
@@ -512,50 +396,41 @@
   },
   "data_quality": {
    "available": true,
-   "this_week_actual": 8805.0,
-   "typical_week_actual": 117.0,
-   "times_typical": 75.3,
+   "this_week_actual": 920.0,
+   "typical_week_actual": 1279.0,
+   "times_typical": 0.7,
    "weeks_compared": 103,
-   "is_isolated_one_off": true,
-   "next_weeks_actual": [
-    87.0,
-    54.0,
-    39.0
-   ],
-   "returns_to_normal_immediately": true,
-   "reversion_testable": true,
-   "suspect": true,
-   "note": "This week's value is far outside everything else this queue has ever recorded, it is the only week anywhere near that level, and the following weeks return to the normal level. Validate the figure at source before treating it as a real demand event."
+   "is_isolated_one_off": false,
+   "next_weeks_actual": [],
+   "returns_to_normal_immediately": false,
+   "reversion_testable": false,
+   "suspect": false,
+   "note": "Nothing about the value itself looks implausible."
   },
   "correlations": {
    "relationships": {
     "available": true,
     "min_weeks_required": 12,
     "min_strength_required": 0.5,
-    "retained": [
-     {
-      "driver": "Planned_ASU",
-      "subject": "the planned number of units under warranty",
-      "weeks": 104,
-      "technical_strength": 0.6,
-      "direction": "same",
-      "plain_language": "Historically, when the planned number of units under warranty went up, this queue's demand more often than not went higher too."
-     },
+    "retained": [],
+    "rejected": [
      {
       "driver": "Actual_ASU",
       "subject": "the number of units under warranty",
-      "weeks": 85,
-      "technical_strength": 0.53,
-      "direction": "same",
-      "plain_language": "Historically, when the number of units under warranty went up, this queue's demand more often than not went higher too."
-     }
-    ],
-    "rejected": [
+      "weeks": 0,
+      "reason": "Not enough usable values in this queue's history to judge the relationship."
+     },
+     {
+      "driver": "Planned_ASU",
+      "subject": "the planned number of units under warranty",
+      "weeks": 0,
+      "reason": "Not enough usable values in this queue's history to judge the relationship."
+     },
      {
       "driver": "Final_Units",
-      "subject": "the installed base",
+      "subject": "planned units for delivery (shipment)",
       "weeks": 104,
-      "technical_strength": 0.11,
+      "technical_strength": 0.3,
       "direction": "same",
       "reason": "Relationship too weak or too little history to rely on (104 weeks)."
      },
@@ -563,7 +438,7 @@
       "driver": "Holiday_Count",
       "subject": "the number of holidays in the week",
       "weeks": 104,
-      "technical_strength": -0.15,
+      "technical_strength": -0.39,
       "direction": "opposite",
       "reason": "Relationship too weak or too little history to rely on (104 weeks)."
      }
@@ -573,142 +448,631 @@
    "driver_decomposition": {
     "available": false,
     "missing_fields": [
+     "Planned_ASU",
      "Actual_ASU"
     ],
-    "reason": "Cannot split the miss into a warranty-base effect and a contacts-per-unit effect because these values are missing or zero for this week: Actual_ASU."
+    "reason": "Cannot split the miss into a warranty-base effect and a contacts-per-unit effect because these values are missing or zero for this week: Planned_ASU, Actual_ASU."
    }
-  }
+  },
+  "statistical_evidence": {
+   "available": true,
+   "weeks_available": 104,
+   "weeks_supplied": 104,
+   "weeks_after_target_ignored": 0,
+   "weeks_used_excluding_target": 103,
+   "windows": {
+    "recent": 13,
+    "year": 52,
+    "long": 104
+   },
+   "metrics": {
+    "accuracy_recent": {
+     "window": "last 13 weeks",
+     "n": 13,
+     "available": true,
+     "forecast_variance": 43943.62,
+     "forecast_error_std_dev": 209.63,
+     "mae": 288.83,
+     "mape_pct": 40.74,
+     "wape_pct": 38.82,
+     "rmse": 343.36,
+     "bias": -278.08,
+     "bias_pct": -37.38,
+     "bias_direction": "over-forecast",
+     "bias_material": true,
+     "mean_actual": 744.0,
+     "reading": "Over the last 13 weeks this queue's forecast was off by an average of 289 contacts (38.8% of the volume it handled). It leans over-forecast: on average 278 contacts (37.4% of typical volume) below plan."
+    },
+    "accuracy_year": {
+     "window": "last 52 weeks",
+     "n": 52,
+     "available": true,
+     "forecast_variance": 30475.86,
+     "forecast_error_std_dev": 174.57,
+     "mae": 198.3,
+     "mape_pct": 23.37,
+     "wape_pct": 19.41,
+     "rmse": 243.11,
+     "bias": -170.91,
+     "bias_pct": -16.73,
+     "bias_direction": "over-forecast",
+     "bias_material": true,
+     "mean_actual": 1021.54,
+     "reading": "Over the last 52 weeks this queue's forecast was off by an average of 198 contacts (19.4% of the volume it handled). It leans over-forecast: on average 171 contacts (16.7% of typical volume) below plan."
+    },
+    "accuracy_long": {
+     "window": "last 104 weeks",
+     "n": 103,
+     "available": true,
+     "forecast_variance": 36823.3,
+     "forecast_error_std_dev": 191.89,
+     "mae": 174.75,
+     "mape_pct": 17.53,
+     "wape_pct": 13.89,
+     "rmse": 220.94,
+     "bias": -111.12,
+     "bias_pct": -8.83,
+     "bias_direction": "over-forecast",
+     "bias_material": true,
+     "mean_actual": 1258.45,
+     "reading": "Over the last 103 weeks this queue's forecast was off by an average of 175 contacts (13.9% of the volume it handled). It leans over-forecast: on average 111 contacts (8.8% of typical volume) below plan."
+    },
+    "coefficient_of_variation_recent": {
+     "window": "last 13 weeks",
+     "n": 13,
+     "available": true,
+     "coefficient_of_variation": 0.1953,
+     "coefficient_of_variation_pct": 19.53,
+     "mean_actual": 744.0,
+     "std_dev_actual": 145.3,
+     "volatility_class": "moderate",
+     "reading": "This queue's demand varies moderately (20% of a 744-contact mean)."
+    },
+    "coefficient_of_variation_long": {
+     "window": "last 104 weeks",
+     "n": 103,
+     "available": true,
+     "coefficient_of_variation": 0.2711,
+     "coefficient_of_variation_pct": 27.11,
+     "mean_actual": 1258.45,
+     "std_dev_actual": 341.15,
+     "volatility_class": "moderate",
+     "reading": "This queue's demand varies moderately (27% of a 1,258-contact mean)."
+    },
+    "trend_recent": {
+     "window": "last 13 weeks",
+     "n": 13,
+     "available": true,
+     "coefficient_of_regression_per_week": -15.48,
+     "coefficient_of_regression_pct_per_week": -2.08,
+     "r_squared": 0.172,
+     "direction": "falling",
+     "trend_meaningful": false,
+     "reading": "No dependable trend: the week-to-week movement does not line up (fit 0.17), so recent moves are noise rather than direction."
+    },
+    "trend_year": {
+     "window": "last 52 weeks",
+     "n": 52,
+     "available": true,
+     "coefficient_of_regression_per_week": -11.52,
+     "coefficient_of_regression_pct_per_week": -1.13,
+     "r_squared": 0.473,
+     "direction": "falling",
+     "trend_meaningful": true,
+     "reading": "Demand has been falling steadily over the last 52 weeks, by about 12 contacts per week (1.1% of the mean). Over 52 weeks that is a shift of roughly 599 contacts, so a forecast built on the older level would now be systematically wrong."
+    },
+    "drift_recent": {
+     "window": "last 13 weeks",
+     "n": 13,
+     "available": true,
+     "adherence_drift_pts_per_week": -3.315,
+     "adherence_drift_total_pts": -43.1,
+     "r_squared": 0.515,
+     "direction": "worsening_under",
+     "drift_material": true,
+     "reading": "The forecast error is drifting, not just noisy: adherence has moved about -3.32 points per week, roughly -43 points across 13 weeks, steadily further into under-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt."
+    },
+    "drift_year": {
+     "window": "last 52 weeks",
+     "n": 52,
+     "available": true,
+     "adherence_drift_pts_per_week": 0.334,
+     "adherence_drift_total_pts": 17.35,
+     "r_squared": 0.101,
+     "direction": "worsening_over",
+     "drift_material": true,
+     "reading": "The forecast error is drifting, not just noisy: adherence has moved about +0.33 points per week, roughly +17 points across 52 weeks, steadily further into over-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt."
+    },
+    "momentum": {
+     "available": true,
+     "recent_weeks": 4,
+     "prior_weeks": 8,
+     "recent_mean_actual": 732.5,
+     "prior_mean_actual": 701.0,
+     "change_pct": 4.49,
+     "direction": "accelerating",
+     "momentum_material": false,
+     "reading": "No build-up going in: the last 4 weeks (732) sit close to the previous 8 (701, +4.5%)."
+    },
+    "seasonality": {
+     "available": false,
+     "week_of_fiscal_year": 19,
+     "prior_years_found": 1,
+     "note": "week 19 appears in only 1 earlier year(s); a seasonal index needs at least 2 for the pattern to be real"
+    },
+    "outliers": {
+     "available": true,
+     "n": 104,
+     "median_actual": 1277.0,
+     "mad": 219.0,
+     "outlier_weeks": [],
+     "outlier_count": 0,
+     "target_week_is_outlier": false,
+     "target_week_detail": null,
+     "reading": "This week is not an outlier for this queue (typical level 1,277 contacts). No outlier weeks in the last 104."
+    },
+    "correlations_pearson": [
+     {
+      "field": "Holiday_Count",
+      "subject": "holidays in the week",
+      "pearson_r": -0.437,
+      "n": 104,
+      "strength": "moderate",
+      "direction": "moves opposite",
+      "reading": "Demand and holidays in the week show a moderate negative relationship (r=-0.44 over 104 weeks)."
+     },
+     {
+      "field": "Final_Units",
+      "subject": "planned units for delivery (shipment)",
+      "pearson_r": 0.365,
+      "n": 104,
+      "strength": "moderate",
+      "direction": "moves together",
+      "reading": "Demand and planned units for delivery (shipment) show a moderate positive relationship (r=+0.37 over 104 weeks)."
+     }
+    ]
+   },
+   "findings": [
+    {
+     "cause_type": "systematic_forecast_bias",
+     "rank_basis": "drift",
+     "confidence_pct": 78,
+     "title": "Forecast baseline is drifting, not just missing",
+     "statement": "The forecast error is drifting, not just noisy: adherence has moved about -3.32 points per week, roughly -43 points across 13 weeks, steadily further into under-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt.",
+     "metric": "Drift (OLS slope of adherence)"
+    },
+    {
+     "cause_type": "systematic_forecast_bias",
+     "rank_basis": "bias",
+     "confidence_pct": 70,
+     "title": "Standing over-forecast bias on this queue",
+     "statement": "Over the last 13 weeks this queue's forecast was off by an average of 289 contacts (38.8% of the volume it handled). It leans over-forecast: on average 278 contacts (37.4% of typical volume) below plan.",
+     "metric": "Bias / MAE / WAPE"
+    }
+   ],
+   "strongest_finding": {
+    "cause_type": "systematic_forecast_bias",
+    "rank_basis": "drift",
+    "confidence_pct": 78,
+    "title": "Forecast baseline is drifting, not just missing",
+    "statement": "The forecast error is drifting, not just noisy: adherence has moved about -3.32 points per week, roughly -43 points across 13 weeks, steadily further into under-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt.",
+    "metric": "Drift (OLS slope of adherence)"
+   },
+   "note": "Deterministic arithmetic on this queue's own history -- no model involved. Runs regardless of whether the miss is also visible at a higher level, so the queue is always characterised rather than the investigation stopping upstream."
+  },
+  "chronic_bias": {
+   "history_mean_adherence_pct": 24.4,
+   "typical_abs_deviation_pct": 26.3,
+   "history_weeks": 13,
+   "usual_forecast": null,
+   "usual_actual": null,
+   "consistent_direction": "over",
+   "share_same_direction": 0.92,
+   "verdict": "chronic_over"
+  },
+  "this_week_vs_usual": {
+   "target_adherence_pct": -24.0,
+   "typical_abs_deviation_pct": 26.3,
+   "times_usual": 0.9,
+   "worse_than_usual": false
+  },
+  "forecast_sanity": {
+   "forecast": 741.99,
+   "actual": 920.0,
+   "forecast_usual_level": null,
+   "actual_usual_level": null,
+   "forecast_z_vs_own_history": null,
+   "actual_z_vs_own_history": null,
+   "forecast_over_actual_ratio": 0.807,
+   "verdict": "normal"
+  },
+  "installed_base": null,
+  "holiday": null,
+  "plan_restatement": null,
+  "forecaster_change": null,
+  "offering_change": null,
+  "peer_divergence": {
+   "peers_total": 0,
+   "peers_opposite_direction": 0,
+   "peers_same_direction": 0,
+   "examples_opposite": [],
+   "all_peers": [],
+   "signal": false
+  },
+  "population_context": null,
+  "cleaned_signals": [],
+  "proof": [
+   {
+    "label": "Forecast Offered",
+    "field": "fcst_offered",
+    "this_week": 741.99,
+    "usual": null,
+    "change": "no historical comparison"
+   },
+   {
+    "label": "Actual_Offered",
+    "field": "Actual_Offered",
+    "this_week": 920.0,
+    "usual": null,
+    "change": "no historical comparison"
+   }
+  ]
  },
  "investigation_meta": {
   "engine": "wfm-llm",
   "provider": "nvidia",
   "model": "nvidia/nemotron-3-super-120b-a12b",
   "calls": 1,
-  "generated_at": "2026-07-29T03:59:37.076566+00:00"
+  "generated_at": "2026-07-30T13:19:05.515149+00:00"
  },
+ "statistical_override_applied": "Statistical evidence (Drift (OLS slope of adherence)) confirms the model's systematic_forecast_bias conclusion; the measured figures were attached and the cause promoted to rank 1.",
+ "cause_type": "systematic_forecast_bias",
  "primary_root_cause": {
-  "statement": "The actual offered volume for this week is far outside historical norms and returns to normal immediately, indicating a possible data entry or collection error.",
-  "confidence": 0.9,
+  "statement": "The queue\u2019s historical bias is consistently over\u2011forecast (chronic_over), meaning forecasts usually exceed actuals. This week\u2019s actual exceeded the forecast, which is opposite to the historic tendency, so a systematic bias does not explain the miss.",
+  "confidence": 0.6,
   "supporting_evidence": [
    {
-    "text": "Actual_Offered this week",
-    "source_field": "Actual_Offered",
-    "value": 8805.0
+    "text": "Historical mean adherence is +24.4% (over\u2011forecast)",
+    "source_field": "data analysis - history_mean_adherence_pct",
+    "value": "24.4"
    },
    {
-    "text": "Typical week actual volume",
-    "source_field": "DATA_QUALITY.typical_week_actual",
-    "value": 117.0
+    "text": "92% of weeks show the same over\u2011forecast direction",
+    "source_field": "data analysis - share_same_direction",
+    "value": "0.92"
    },
    {
-    "text": "How many times typical this week's actual is",
-    "source_field": "DATA_QUALITY.times_typical",
-    "value": 75.3
-   },
-   {
-    "text": "Actual volume in the week after this week",
-    "source_field": "DATA_QUALITY.next_weeks_actual",
-    "value": 87.0
+    "text": "The forecast error is drifting, not just noisy: adherence has moved about -3.32 points per week, roughly -43 points across 13 weeks, steadily further into under-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt.",
+    "source_field": "Drift (OLS slope of adherence)",
+    "value": "drift"
    }
   ]
  },
- "secondary_contributors": [
-  {
-   "statement": "The Region (CSG / Americas) also shows under-forecast adherence (-13.6%), breaching the +/-10% threshold, indicating the queue's miss is not isolated but reflects a broader regional trend.",
-   "confidence": 0.7,
-   "supporting_evidence": [
+ "confidence_score": 0.6,
+ "statistical_evidence": {
+  "available": true,
+  "weeks_available": 104,
+  "weeks_supplied": 104,
+  "weeks_after_target_ignored": 0,
+  "weeks_used_excluding_target": 103,
+  "windows": {
+   "recent": 13,
+   "year": 52,
+   "long": 104
+  },
+  "metrics": {
+   "accuracy_recent": {
+    "window": "last 13 weeks",
+    "n": 13,
+    "available": true,
+    "forecast_variance": 43943.62,
+    "forecast_error_std_dev": 209.63,
+    "mae": 288.83,
+    "mape_pct": 40.74,
+    "wape_pct": 38.82,
+    "rmse": 343.36,
+    "bias": -278.08,
+    "bias_pct": -37.38,
+    "bias_direction": "over-forecast",
+    "bias_material": true,
+    "mean_actual": 744.0,
+    "reading": "Over the last 13 weeks this queue's forecast was off by an average of 289 contacts (38.8% of the volume it handled). It leans over-forecast: on average 278 contacts (37.4% of typical volume) below plan."
+   },
+   "accuracy_year": {
+    "window": "last 52 weeks",
+    "n": 52,
+    "available": true,
+    "forecast_variance": 30475.86,
+    "forecast_error_std_dev": 174.57,
+    "mae": 198.3,
+    "mape_pct": 23.37,
+    "wape_pct": 19.41,
+    "rmse": 243.11,
+    "bias": -170.91,
+    "bias_pct": -16.73,
+    "bias_direction": "over-forecast",
+    "bias_material": true,
+    "mean_actual": 1021.54,
+    "reading": "Over the last 52 weeks this queue's forecast was off by an average of 198 contacts (19.4% of the volume it handled). It leans over-forecast: on average 171 contacts (16.7% of typical volume) below plan."
+   },
+   "accuracy_long": {
+    "window": "last 104 weeks",
+    "n": 103,
+    "available": true,
+    "forecast_variance": 36823.3,
+    "forecast_error_std_dev": 191.89,
+    "mae": 174.75,
+    "mape_pct": 17.53,
+    "wape_pct": 13.89,
+    "rmse": 220.94,
+    "bias": -111.12,
+    "bias_pct": -8.83,
+    "bias_direction": "over-forecast",
+    "bias_material": true,
+    "mean_actual": 1258.45,
+    "reading": "Over the last 103 weeks this queue's forecast was off by an average of 175 contacts (13.9% of the volume it handled). It leans over-forecast: on average 111 contacts (8.8% of typical volume) below plan."
+   },
+   "coefficient_of_variation_recent": {
+    "window": "last 13 weeks",
+    "n": 13,
+    "available": true,
+    "coefficient_of_variation": 0.1953,
+    "coefficient_of_variation_pct": 19.53,
+    "mean_actual": 744.0,
+    "std_dev_actual": 145.3,
+    "volatility_class": "moderate",
+    "reading": "This queue's demand varies moderately (20% of a 744-contact mean)."
+   },
+   "coefficient_of_variation_long": {
+    "window": "last 104 weeks",
+    "n": 103,
+    "available": true,
+    "coefficient_of_variation": 0.2711,
+    "coefficient_of_variation_pct": 27.11,
+    "mean_actual": 1258.45,
+    "std_dev_actual": 341.15,
+    "volatility_class": "moderate",
+    "reading": "This queue's demand varies moderately (27% of a 1,258-contact mean)."
+   },
+   "trend_recent": {
+    "window": "last 13 weeks",
+    "n": 13,
+    "available": true,
+    "coefficient_of_regression_per_week": -15.48,
+    "coefficient_of_regression_pct_per_week": -2.08,
+    "r_squared": 0.172,
+    "direction": "falling",
+    "trend_meaningful": false,
+    "reading": "No dependable trend: the week-to-week movement does not line up (fit 0.17), so recent moves are noise rather than direction."
+   },
+   "trend_year": {
+    "window": "last 52 weeks",
+    "n": 52,
+    "available": true,
+    "coefficient_of_regression_per_week": -11.52,
+    "coefficient_of_regression_pct_per_week": -1.13,
+    "r_squared": 0.473,
+    "direction": "falling",
+    "trend_meaningful": true,
+    "reading": "Demand has been falling steadily over the last 52 weeks, by about 12 contacts per week (1.1% of the mean). Over 52 weeks that is a shift of roughly 599 contacts, so a forecast built on the older level would now be systematically wrong."
+   },
+   "drift_recent": {
+    "window": "last 13 weeks",
+    "n": 13,
+    "available": true,
+    "adherence_drift_pts_per_week": -3.315,
+    "adherence_drift_total_pts": -43.1,
+    "r_squared": 0.515,
+    "direction": "worsening_under",
+    "drift_material": true,
+    "reading": "The forecast error is drifting, not just noisy: adherence has moved about -3.32 points per week, roughly -43 points across 13 weeks, steadily further into under-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt."
+   },
+   "drift_year": {
+    "window": "last 52 weeks",
+    "n": 52,
+    "available": true,
+    "adherence_drift_pts_per_week": 0.334,
+    "adherence_drift_total_pts": 17.35,
+    "r_squared": 0.101,
+    "direction": "worsening_over",
+    "drift_material": true,
+    "reading": "The forecast error is drifting, not just noisy: adherence has moved about +0.33 points per week, roughly +17 points across 52 weeks, steadily further into over-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt."
+   },
+   "momentum": {
+    "available": true,
+    "recent_weeks": 4,
+    "prior_weeks": 8,
+    "recent_mean_actual": 732.5,
+    "prior_mean_actual": 701.0,
+    "change_pct": 4.49,
+    "direction": "accelerating",
+    "momentum_material": false,
+    "reading": "No build-up going in: the last 4 weeks (732) sit close to the previous 8 (701, +4.5%)."
+   },
+   "seasonality": {
+    "available": false,
+    "week_of_fiscal_year": 19,
+    "prior_years_found": 1,
+    "note": "week 19 appears in only 1 earlier year(s); a seasonal index needs at least 2 for the pattern to be real"
+   },
+   "outliers": {
+    "available": true,
+    "n": 104,
+    "median_actual": 1277.0,
+    "mad": 219.0,
+    "outlier_weeks": [],
+    "outlier_count": 0,
+    "target_week_is_outlier": false,
+    "target_week_detail": null,
+    "reading": "This week is not an outlier for this queue (typical level 1,277 contacts). No outlier weeks in the last 104."
+   },
+   "correlations_pearson": [
     {
-     "text": "Region adherence percentage",
-     "source_field": "INVESTIGATION_LADDER.levels[1].adherence_pct",
-     "value": -13.6
+     "field": "Holiday_Count",
+     "subject": "holidays in the week",
+     "pearson_r": -0.437,
+     "n": 104,
+     "strength": "moderate",
+     "direction": "moves opposite",
+     "reading": "Demand and holidays in the week show a moderate negative relationship (r=-0.44 over 104 weeks)."
     },
     {
-     "text": "Region actual offered volume",
-     "source_field": "INVESTIGATION_LADDER.levels[1].actual_offered",
-     "value": 112660.0
-    },
-    {
-     "text": "Region forecast offered volume",
-     "source_field": "INVESTIGATION_LADDER.levels[1].fcst_offered",
-     "value": 99210.9
+     "field": "Final_Units",
+     "subject": "planned units for delivery (shipment)",
+     "pearson_r": 0.365,
+     "n": 104,
+     "strength": "moderate",
+     "direction": "moves together",
+     "reading": "Demand and planned units for delivery (shipment) show a moderate positive relationship (r=+0.37 over 104 weeks)."
     }
    ]
   },
+  "findings": [
+   {
+    "cause_type": "systematic_forecast_bias",
+    "rank_basis": "drift",
+    "confidence_pct": 78,
+    "title": "Forecast baseline is drifting, not just missing",
+    "statement": "The forecast error is drifting, not just noisy: adherence has moved about -3.32 points per week, roughly -43 points across 13 weeks, steadily further into under-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt.",
+    "metric": "Drift (OLS slope of adherence)"
+   },
+   {
+    "cause_type": "systematic_forecast_bias",
+    "rank_basis": "bias",
+    "confidence_pct": 70,
+    "title": "Standing over-forecast bias on this queue",
+    "statement": "Over the last 13 weeks this queue's forecast was off by an average of 289 contacts (38.8% of the volume it handled). It leans over-forecast: on average 278 contacts (37.4% of typical volume) below plan.",
+    "metric": "Bias / MAE / WAPE"
+   }
+  ],
+  "strongest_finding": {
+   "cause_type": "systematic_forecast_bias",
+   "rank_basis": "drift",
+   "confidence_pct": 78,
+   "title": "Forecast baseline is drifting, not just missing",
+   "statement": "The forecast error is drifting, not just noisy: adherence has moved about -3.32 points per week, roughly -43 points across 13 weeks, steadily further into under-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt.",
+   "metric": "Drift (OLS slope of adherence)"
+  },
+  "note": "Deterministic arithmetic on this queue's own history -- no model involved. Runs regardless of whether the miss is also visible at a higher level, so the queue is always characterised rather than the investigation stopping upstream."
+ },
+ "secondary_contributors": [
   {
-   "statement": "The forecast plan changed from FY27 May Projection to FY27 Jun Projection this week, which could have altered the baseline forecast and contributed to the miss.",
-   "confidence": 0.5,
+   "statement": "The miss is not specific to this queue; the Region (Americas CSG) also shows under\u2011forecast adherence, indicating a broader regional issue that affects all queues under it. Because the same directional miss appears at the Region level, the queue\u2011level forecast cannot be blamed for the deviation; the root cause lies higher in the hierarchy.",
+   "confidence": 0.9,
    "supporting_evidence": [
     {
-     "text": "Forecast plan changed indicator",
-     "source_field": "DERIVED_FEATURES.plan_restatement.changed",
-     "value": true
+     "text": "Region adherence_pct is -12.6%",
+     "source_field": "higher-level check - adherence_pct",
+     "value": "-12.6"
     },
     {
-     "text": "Prior forecast plan",
-     "source_field": "DERIVED_FEATURES.plan_restatement.prior",
-     "value": "FY27 May Projection"
-    },
-    {
-     "text": "Current forecast plan",
-     "source_field": "DERIVED_FEATURES.plan_restatement.current",
-     "value": "FY27 Jun Projection"
-    },
-    {
-     "text": "This week's forecast vs usual forecast",
-     "source_field": "DERIVED_FEATURES.proof[0].this_week",
-     "value": 90.78
-    },
-    {
-     "text": "Usual forecast level",
-     "source_field": "DERIVED_FEATURES.proof[0].usual",
-     "value": 99.7
+     "text": "The higher-level check indicates the miss is inherited from Region",
+     "source_field": "higher-level check - inherited_from",
+     "value": "Region"
     }
    ]
   }
  ],
- "confidence_score": 0.9,
- "cause_type": "data_quality_issue",
  "key_findings": [
-  "The forecast this week was 90.78, and actual demand was 8805.0.",
-  "Actual demand (8805.0) was far from this queue's usual level of about 61.77, while the forecast (90.78) was about normal.",
-  "This queue is over-forecast in most recent weeks (typically about 61.8 actual against 99.7 forecast).",
-  "6 of 15 similar queues (same region, country and channel) moved the opposite way this week.",
-  "The forecast plan changed this week (from FY27 May Projection to FY27 Jun Projection)."
+  "The forecast this week was 741.99, and actual demand was 920.0.",
+  "This queue is over-forecast in most recent weeks (typically about None actual against None forecast)."
  ],
  "supporting_evidence": [
   {
-   "text": "Actual_Offered this week",
-   "source_field": "Actual_Offered",
-   "value": 8805.0
+   "text": "Historical mean adherence is +24.4% (over\u2011forecast)",
+   "source_field": "data analysis - history_mean_adherence_pct",
+   "value": "24.4"
   },
   {
-   "text": "Typical week actual volume",
-   "source_field": "DATA_QUALITY.typical_week_actual",
-   "value": 117.0
+   "text": "92% of weeks show the same over\u2011forecast direction",
+   "source_field": "data analysis - share_same_direction",
+   "value": "0.92"
   },
   {
-   "text": "How many times typical this week's actual is",
-   "source_field": "DATA_QUALITY.times_typical",
-   "value": 75.3
-  },
-  {
-   "text": "Actual volume in the week after this week",
-   "source_field": "DATA_QUALITY.next_weeks_actual",
-   "value": 87.0
+   "text": "The forecast error is drifting, not just noisy: adherence has moved about -3.32 points per week, roughly -43 points across 13 weeks, steadily further into under-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt.",
+   "source_field": "Drift (OLS slope of adherence)",
+   "value": "drift"
   }
  ],
- "reasoning_narrative": "Forecast Adherence for NA Core Spanish Voice queue was -9599.7%, indicating actual demand was over 8,800 contacts versus a forecast of about 91. This massive miss is flagged as a data quality issue because the actual figure is far outside historical norms and returns to normal immediately. The same directional miss is also present at the Region level, indicating the queue\u2019s extreme value contributes to a regional under\u2011forecast. The forecast plan was restated this week, but the forecast itself remained near usual levels, making a plan\u2011change effect less likely.",
+ "reasoning_narrative": "Started at Business Org level (adherence -7.5% within threshold), moved to Region where adherence -12.6% exceeded threshold, indicating the miss is already present there; therefore the investigation stops and attributes the cause to the Region level.",
  "rejected_hypotheses": [
   {
-   "hypothesis": "Suspect actual volume figure",
-   "reason_rejected": "No evidence of a product launch or external event; the value is an isolated one\u2011off and the following weeks return to normal levels, which is inconsistent with a sustained demand event."
+   "hypothesis": "systematic_forecast_bias",
+   "reason_rejected": "ASU and planned unit fields are null for this week, and temporal comparisons show no indicator of a driver shift that would flip the bias; the observed actual increase is not sufficient to override the established over\u2011forecast tendency without a measured driver."
   }
  ],
- "historical_comparison": {},
- "forecast_improvement_recommendations": [
-  "Validate the Actual_Offered figure at the source system before adjusting forecasts or staffing levels.",
-  "Investigate regional forecast inputs and staffing assumptions; consider whether the regional plan needs revision.",
-  "Review the forecast plan change assumptions and validate against actual trends; consider adjusting or reverting the plan if warranted."
+ "historical_comparison": {
+  "narrative": "Over the last 13 weeks, actual demand for this queue averaged ~744.0 contacts per week. The queue historically trends below forecast with an average adherence of 24.4%. Typical weekly error magnitude is about ~26.3%. In the same fiscal week last year (FW 202619), actual demand was 1380.0 contacts.",
+  "data_points": [
+   {
+    "label": "Historical weeks evaluated",
+    "value": "13"
+   },
+   {
+    "label": "13-Week avg actual demand",
+    "value": "744.0 contacts"
+   },
+   {
+    "label": "Recent 4-Week avg actual",
+    "value": "732.5 contacts"
+   },
+   {
+    "label": "Same week last year (FW 202619) actual",
+    "value": "1380.0 contacts"
+   }
+  ]
+ },
+ "forecast_summary": {
+  "forecast": 741.99,
+  "actual": 920.0,
+  "error": 178.01,
+  "adherence_pct": -24.0,
+  "miss_type": "under_forecast"
+ },
+ "proof": [
+  {
+   "label": "Forecast Offered",
+   "field": "fcst_offered",
+   "this_week": 741.99,
+   "usual": null,
+   "change": "no historical comparison"
+  },
+  {
+   "label": "Actual_Offered",
+   "field": "Actual_Offered",
+   "this_week": 920.0,
+   "usual": null,
+   "change": "no historical comparison"
+  }
  ],
- "forecast_summary": {}
+ "terminology_guard_applied": [
+  "ranked_root_causes[0].evidence[0].source_field: DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct -> data analysis - history_mean_adherence_pct",
+  "ranked_root_causes[0].evidence[1].source_field: DERIVED_FEATURES.chronic_bias.share_same_direction -> data analysis - share_same_direction",
+  "ranked_root_causes[1].evidence[0].source_field: INVESTIGATION_LADDER.levels[1].adherence_pct -> higher-level check - adherence_pct",
+  "ranked_root_causes[1].evidence[1].text: INVESTIGATION_LADDER -> higher-level check",
+  "ranked_root_causes[1].evidence[1].source_field: INVESTIGATION_LADDER.inherited_from -> higher-level check - inherited_from",
+  "skeptic_review[0].reason: INVESTIGATION_LADDER -> higher-level check",
+  "primary_root_cause.supporting_evidence[0].source_field: DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct -> data analysis - history_mean_adherence_pct",
+  "primary_root_cause.supporting_evidence[1].source_field: DERIVED_FEATURES.chronic_bias.share_same_direction -> data analysis - share_same_direction",
+  "secondary_contributors[0].supporting_evidence[0].source_field: INVESTIGATION_LADDER.levels[1].adherence_pct -> higher-level check - adherence_pct",
+  "secondary_contributors[0].supporting_evidence[1].text: INVESTIGATION_LADDER -> higher-level check",
+  "secondary_contributors[0].supporting_evidence[1].source_field: INVESTIGATION_LADDER.inherited_from -> higher-level check - inherited_from",
+  "supporting_evidence[0].source_field: DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct -> data analysis - history_mean_adherence_pct",
+  "supporting_evidence[1].source_field: DERIVED_FEATURES.chronic_bias.share_same_direction -> data analysis - share_same_direction"
+ ],
+ "language_guard_applied": [
+  "ranked_root_causes[0].evidence[0].source_field: DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct -> data analysis - history_mean_adherence_pct",
+  "ranked_root_causes[0].evidence[1].source_field: DERIVED_FEATURES.chronic_bias.share_same_direction -> data analysis - share_same_direction",
+  "ranked_root_causes[1].evidence[0].source_field: INVESTIGATION_LADDER.levels[1].adherence_pct -> higher-level check - adherence_pct",
+  "ranked_root_causes[1].evidence[1].text: INVESTIGATION_LADDER -> higher-level check",
+  "ranked_root_causes[1].evidence[1].source_field: INVESTIGATION_LADDER.inherited_from -> higher-level check - inherited_from",
+  "skeptic_review[0].reason: INVESTIGATION_LADDER -> higher-level check",
+  "primary_root_cause.supporting_evidence[0].source_field: DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct -> data analysis - history_mean_adherence_pct",
+  "primary_root_cause.supporting_evidence[1].source_field: DERIVED_FEATURES.chronic_bias.share_same_direction -> data analysis - share_same_direction",
+  "secondary_contributors[0].supporting_evidence[0].source_field: INVESTIGATION_LADDER.levels[1].adherence_pct -> higher-level check - adherence_pct",
+  "secondary_contributors[0].supporting_evidence[1].text: INVESTIGATION_LADDER -> higher-level check",
+  "secondary_contributors[0].supporting_evidence[1].source_field: INVESTIGATION_LADDER.inherited_from -> higher-level check - inherited_from",
+  "supporting_evidence[0].source_field: DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct -> data analysis - history_mean_adherence_pct",
+  "supporting_evidence[1].source_field: DERIVED_FEATURES.chronic_bias.share_same_direction -> data analysis - share_same_direction"
+ ]
 }

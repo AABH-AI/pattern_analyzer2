@@ -1,7 +1,7 @@
 """Correlation engine -- the module that was missing.
 
 The prompt asks the model to identify "business relationships consistently supported by
-historical evidence" (ASU vs demand, installed base vs demand, holidays vs demand) and to
+historical evidence" (ASU vs demand, planned units vs demand, holidays vs demand) and to
 "ignore weak or accidental correlations". Nothing computed them, so the model was being
 asked for relationships it had no numbers for -- an invitation to invent one, which the
 CRITICAL RULES forbid. This closes that gap.
@@ -30,7 +30,7 @@ Two independent things live here:
    exact on all 22,003 flagged misses in this table that carry both columns (60.7%
    rate-driven, 9.8% base-driven, 29.6% mixed).
 
-   That answers a genuinely causal question -- did we miss because the installed base was
+   That answers a genuinely causal question -- did we miss because planned units were
    not what we planned, or because contacts per unit moved? -- instead of choosing a label.
 
 NOTE ON LANGUAGE: the prompt forbids the word "correlation" and friends in business-facing
@@ -47,7 +47,7 @@ _MIN_STRENGTH = 0.5
 _DRIVERS = (
     ("Actual_ASU", "the number of units under warranty"),
     ("Planned_ASU", "the planned number of units under warranty"),
-    ("Final_Units", "the installed base"),
+    ("Final_Units", "planned units for delivery (shipment)"),
     ("Holiday_Count", "the number of holidays in the week"),
 )
 

@@ -36,6 +36,7 @@ from . import (
     hierarchy_analyzer,
     hypothesis_generator,
     skeptic,
+    statistical_evidence as stats_engine,
     temporal_reasoner,
 )
 from .common import DEFAULT_BAND_PCT, adherence_pct
@@ -70,6 +71,10 @@ def derive_wfm_features(context_bundle, wfm_context, band):
         "data_quality": data_quality.analyse(history, wfm_context.get("history_forward") or [],
                                              week, actual),
         "correlations": correlation_engine.analyse(history, fields),
+        # Queue-level deterministic statistics. ALWAYS computed -- deliberately NOT gated on whether
+        # a higher level also missed, because that gate is exactly what made the investigation stop
+        # at "inherited from SubRegion" without ever characterising the queue itself.
+        "statistical_evidence": stats_engine.statistical_evidence(history, week, adherence, band),
     }
     return features, adherence
 
@@ -137,6 +142,10 @@ def _assemble(parsed, features, adherence, band, provider, model):
     out["derived_features"] = features
     out["investigation_meta"] = {"engine": "wfm-llm", "provider": provider, "model": model,
                                 "calls": 1, "generated_at": _now()}
+    # Statistical evidence is the strongest evidence available, so it is applied BEFORE back_compat
+    # -- back_compat derives primary_root_cause/confidence from ranked_root_causes[0], and the
+    # override is what decides who holds rank 1.
+    out = report.apply_statistical_override(out, features)
     out = report.back_compat(out, features.get("base_features") or {})
     # The prompt's BUSINESS LANGUAGE rule, enforced rather than requested.
     return report.apply_language_guard(out)
@@ -181,6 +190,7 @@ def _fallback(features, adherence, band, reason):
         "cause_type": ctype,
         "investigation_meta": {"engine": "wfm-deterministic-fallback", "generated_at": _now()},
     }
+    out = report.apply_statistical_override(out, features)
     return report.apply_language_guard(report.back_compat(out, base))
 
 

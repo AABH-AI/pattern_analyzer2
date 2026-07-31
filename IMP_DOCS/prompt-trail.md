@@ -379,6 +379,83 @@ faster but its daily quota is easily exhausted.
 
 ---
 
+## Session 25 — 2026-07-30 · Field definitions corrected; terminology guard; suites green
+
+**Time (IST):** ~12:05 – 13:45, Thu 30 Jul 2026.
+
+**Ask.** Update the `Final_Units` / `Final_Y1..Y5` definitions for the UI from the business
+wording, open the app to verify, then "fix if something important in the rca output".
+
+### 1. The definitions were not just reworded — they were wrong
+
+The old text called these fields the **"installed base (warranty units)"**. The business definition
+is **planned units for delivery / production**, also called **Shipment**. Those are different
+quantities: one is units already in the field, the other is forward supply. A reader acting on the
+old wording would go and review the install base instead of the shipment plan.
+
+Updated in four places, because the definition was duplicated where the user cannot see it:
+the Definitions & Formulas table, the "Domain knowledge" card, `FIELD_DEFINITIONS` in
+`rca_investigate.py` (injected into every prompt as `field_glossary`), and a new explicit
+`TERMINOLOGY:` rule in `wfm/prompts.py` that also states Y1..Y5 must never be summed.
+
+Two editorial calls: the supplied Y1/Y2 lines read "will fall Year N warranty" while Y3–Y5 read
+"fall **under** Year N warranty" — "under" was used for all five; and the domain card was split so
+`Final_Units` gets its own line and the nesting rule (Y5⊆Y4⊆Y3⊆Y2⊆Y1) is stated explicitly.
+
+### 2. Fixing our strings was not enough — the model writes the term itself
+
+A live WFM run still emitted "installed base" **seven times** from the model's own prose
+(`executive_summary`, `skeptic_review[].cause/.challenge`, `investigation_trail.narrative`,
+`rejected_hypotheses[].hypothesis`). Fixed with a recursive `_fix_terminology()` pass wired into
+the tail of `apply_language_guard()`, plus `_fix_terminology_legacy()` for the legacy engine.
+Internal identifiers are protected by requiring a literal space in every pattern and skipping bare
+snake_case tokens — `installed_base_change` and `base_features.installed_base` survive intact.
+**Verified: 0 occurrences on both engines after the change.**
+
+### 3. Two of my own claims had to be corrected mid-session
+
+- **"None contacts" was my test harness, not the engine.** My first scan showed
+  `actual demand reached None contacts against a forecast of None contacts`. Cause: the engine reads
+  forecast/actual **only** from `target.computed` (`rca_investigate.py:263-264`), and my synthetic
+  bundle omitted that block. The UI always sends it (`rcaComputedBlock`). Not a defect.
+- **S13 "history weeks=0" was a stale fixture, not an engine bug.** The spec suite reuses a saved
+  bundle pinned to `NA Core Spanish`, which has **0 rows** in the current 42-queue P1 extract, so
+  `fetch_wfm_context` returned no history. The ladder still resolved (Region/Country matched),
+  which is why only the temporal clause broke and it read like an engine fault. This is the **second
+  stale fixture of the same class** this week, after the smoke test's hardcoded queue — so the fix
+  was made self-healing rather than re-pinned: `spec_compliance_check.py` now detects that the
+  bundle's queue is absent from the configured table and rebuilds a fresh bundle from SQL.
+
+### 4. A real break found and repaired
+
+`HANDLED_FIELDS` was **commented out** on disk at `rca_investigate.py:64` while its three-line
+explanatory comment was left in place, and `DEFINITIONAL_FIELDS` had lost its two handled entries.
+The name is referenced at four other sites (423, 475, 483, 489), so `derive_features()` raised
+`NameError: name 'HANDLED_FIELDS' is not defined` as soon as a handled column was reached. HEAD was
+authoritative; both were restored to match it. Not reproduced since.
+
+### State at end of session
+
+| Check | Result |
+|---|---|
+| Module smoke test | **12 / 12 pass** |
+| Spec compliance (2 providers) | **42 PASS / 0 FAIL / 0 SKIP** of 42 clause checks |
+| CQN mapping integrity | **6 PASS / 0 FAIL** (4 INFO) |
+| Old term in RCA output, both engines | **0 occurrences** |
+
+SQL, on `dbo.Input_To_ML_P1` (the load from `file1.csv` + `CQN and FC mapping (1).xlsx`):
+
+| Table | Rows |
+|---|---|
+| `dbo.Input_To_ML` (original, untouched) | 66,612 |
+| `dbo.Input_To_ML_P1` | 7,350 · 42 queues · weeks 202401–202719 |
+| `dbo.CQN_Mapping` | 532 |
+| `dbo.CQN_Forecast_Pair` | 522 |
+
+Nothing committed or pushed — the standing instruction is to hold until explicitly asked.
+
+---
+
 ## Session clock log
 
 Wall-clock windows for the sessions on branch `wfm-rca`, all `Asia/Kolkata (IST, UTC+05:30)`.

@@ -74,6 +74,221 @@ def _scrub(text):
     return out, changed
 
 
+# ---------------------------------------------------------------------------
+# TERMINOLOGY: Final_Units and Final_Y1..Y5 are PLANNED UNITS FOR DELIVERY / PRODUCTION
+# (the business also calls them "Shipment"). They are NOT the installed base -- that would be
+# units already in the field, a different quantity that points a reader at the wrong lever.
+# The model reliably writes "installed base" anyway, so the term is rewritten on the way out.
+# Longest phrase first: "the installed base" must be consumed before "installed base".
+# Every pattern needs a literal space, so `installed_base_change` (a cause_type value) is safe.
+# ---------------------------------------------------------------------------
+_TERMINOLOGY = (
+    (r"\bthe\s+installed\s+base\b", "planned units for delivery (shipment)"),
+    (r"\ban\s+installed\s+base\b", "a planned-unit (shipment)"),
+    (r"\binstalled\s+base\b", "planned units (shipment)"),
+    (r"\binstalled\s+units\s+under\s+warranty\b", "planned units falling under warranty"),
+    (r"\binstalled\s+units\b", "planned units"),
+)
+
+# Internal payload block names. These are OUR structure, not the business's vocabulary, and they
+# reach the reader two ways: inside prose, and as supporting_evidence[].source_field, which the
+# console prints as a technical chip. "INVESTIGATION_LADDER.levels[2].adherence_pct" is where the
+# word "investigate" appeared on screen next to a finding -- meaningless to a forecaster.
+_BLOCK_LABELS = (
+    (r"\bINVESTIGATION_LADDER\b", "higher-level check"),
+    (r"\bCHANNEL_SIBLINGS\b", "similar queues"),
+    (r"\bDERIVED_FEATURES\b", "data analysis"),
+    (r"\bCLEANED_SIGNALS\b", "data analysis"),
+    (r"\bDATA_QUALITY\b", "data quality check"),
+    (r"\bTEMPORAL\b", "history"),
+    (r"\bHIERARCHY\b", "reporting hierarchy"),
+)
+
+_BLOCK_NAME_MAP = {
+    "INVESTIGATION_LADDER": "higher-level check",
+    "CHANNEL_SIBLINGS": "similar queues",
+    "DERIVED_FEATURES": "data analysis",
+    "CLEANED_SIGNALS": "data analysis",
+    "DATA_QUALITY": "data quality check",
+    "TEMPORAL": "history",
+    "HIERARCHY": "reporting hierarchy",
+}
+
+_SNAKE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")     # a bare identifier, never prose
+
+
+def _relabel_block(value):
+    """Turn an internal payload reference into a business label, or return None if it is not one.
+
+    Two shapes reach the reader:
+      "CHANNEL_SIBLINGS"                             -> "similar queues"
+      "INVESTIGATION_LADDER.levels[2].adherence_pct" -> "higher-level check - adherence_pct"
+    The second is a supporting_evidence[].source_field, which the console renders as a chip beside
+    the finding. The trailing field name is kept because it is the one part an analyst can act on;
+    the block name and the array indices are ours, not theirs.
+    """
+    text = (value or "").strip()
+    if not text:
+        return None
+    head = re.split(r"[.\[]", text, 1)[0]
+    label = _BLOCK_NAME_MAP.get(head)
+    if label is None:
+        return None
+    if head == text:
+        return label
+    leaf = re.split(r"[.\[]", text)
+    leaf = [p for p in leaf if p and not p.rstrip("]").isdigit()]
+    tail = leaf[-1].rstrip("]") if len(leaf) > 1 else ""
+    return f"{label} - {tail}" if tail and tail != head else label
+
+
+def _fix_terminology(value, path="", log=None):
+    """Recursively rewrite the banned term in every string value. Returns the new value."""
+    if log is None:
+        log = []
+    if isinstance(value, dict):
+        return {k: _fix_terminology(v, f"{path}.{k}", log) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_fix_terminology(v, f"{path}[{i}]", log) for i, v in enumerate(value)]
+    if not isinstance(value, str) or not value:
+        return value
+    # Internal block names are handled BEFORE the identifier guard below. A bare "CHANNEL_SIBLINGS"
+    # or "DATA_QUALITY" matches _SNAKE, so the guard would otherwise protect exactly the tokens that
+    # were being printed at the reader (they appeared verbatim in MISSING INFORMATION). None of the
+    # patterns can match a real field name -- they are specific upper-case block names.
+    block = _relabel_block(value)
+    if block is not None:
+        log.append(f"{path.lstrip('.')}: {value} -> {block}")
+        return block
+
+    if _SNAKE.match(value):          # identifier such as installed_base_change -- leave alone
+        return value
+    out = value
+    for pattern, replacement in _BLOCK_LABELS:
+        if re.search(pattern, out):
+            hits = set(m.group(0) for m in re.finditer(pattern, out))
+            out = re.sub(pattern, replacement, out)
+            for h in hits:
+                log.append(f"{path.lstrip('.')}: {h} -> {replacement}")
+    for pattern, replacement in _TERMINOLOGY:
+        if re.search(pattern, out, flags=re.IGNORECASE):
+            hits = set(m.group(0) for m in re.finditer(pattern, out, flags=re.IGNORECASE))
+            out = re.sub(pattern, replacement, out, flags=re.IGNORECASE)
+            for h in hits:
+                log.append(f"{path.lstrip('.')}: {h} -> {replacement}")
+    if out != value and value[:1].isupper() and out[:1].islower():
+        out = out[:1].upper() + out[1:]              # keep sentence capitalisation
+    return out
+
+
+# A statistical finding outranks the model only at or above this confidence. The verdict's weaker
+# branches (inherent volatility at 65, stable-demand at 68) are measurements worth reporting but are
+# not better ANSWERS than a strongly evidenced model conclusion.
+STAT_LEAD_MIN_CONFIDENCE = 70
+
+
+def apply_statistical_override(result, features):
+    """Insert the strongest DETERMINISTIC statistical finding at rank 1.
+
+    Statistical evidence is the strongest evidence available, so it leads. The model's causes are
+    demoted, not discarded: they remain in ranked_root_causes below, and what happened is recorded in
+    `statistical_override_applied` so the change is auditable rather than invisible.
+
+    No-ops when the arithmetic produced no finding, which is the common case for a well-behaved queue.
+    """
+    stats = (features or {}).get("statistical_evidence") or {}
+    top = stats.get("strongest_finding")
+    if not top:
+        return result
+
+    ranked = [c for c in (result.get("ranked_root_causes") or []) if isinstance(c, dict)]
+
+    # Statistical evidence LEADS only when it is decisive. The verdict scores its own findings, and
+    # the weak branches score below this line -- "the queue is volatile" (65) is a real measurement
+    # but it is not a stronger answer than a well-evidenced 90% model conclusion. Putting a 60%
+    # finding at rank 1 above a 90% one also broke the report's own contract that confidence
+    # descends (results/spec_compliance_check.py S5), which is a fair complaint, not a test artefact.
+    # Below the line the finding is still added -- never hidden -- but it takes its place on merit.
+    decisive = (top.get("confidence_pct") or 0) >= STAT_LEAD_MIN_CONFIDENCE
+
+    # Do not duplicate: if the model already reached the same cause_type, keep ITS wording (it has
+    # the business context) and merely attach the measured figures as the evidence behind it.
+    same = next((c for c in ranked if c.get("cause_type") == top.get("cause_type")), None)
+
+    stat_evidence = [{
+        "text": top.get("statement") or "",
+        "source_field": top.get("metric") or "statistical evidence",
+        "value": top.get("rank_basis"),
+    }]
+
+    if same is not None:
+        same["evidence"] = list(same.get("evidence") or []) + stat_evidence
+        if decisive:
+            # Mark it as statistically backed BEFORE promoting. Without this the cause is promoted
+            # above a higher-confidence one while still looking like an ordinary model cause, so the
+            # ordering appears arbitrary to anything reading the report (spec S5 flagged exactly
+            # that: a 45%-confidence cause sitting above a 90% one with no stated reason).
+            same["evidence_grade"] = "statistical (deterministic)"
+            same["statistically_confirmed_by"] = top.get("metric")
+            ranked = [same] + [c for c in ranked if c is not same]
+        note = (f"Statistical evidence ({top.get('metric')}) confirms the model's "
+                f"{top.get('cause_type')} conclusion; the measured figures were attached and the "
+                f"cause promoted to rank 1.")
+    else:
+        entry = {
+            "cause_type": top.get("cause_type"),
+            "title": top.get("title"),
+            "explanation": top.get("statement"),
+            "confidence_pct": top.get("confidence_pct"),
+            "evidence": stat_evidence,
+            # required by the report contract on EVERY cause (spec S4)
+            "business_impact": (f"Forecast Adherence for this queue is affected by a measured "
+                                f"{top.get('rank_basis')} pattern in its own history."),
+            "recommended_action": top.get("recommended_action")
+                                  or "Re-baseline this queue's forecast using the measured figures above.",
+            "evidence_grade": "statistical (deterministic)",
+        }
+        if decisive:
+            ranked.insert(0, entry)
+            note = (f"Statistical evidence ({top.get('metric')}) overrides the model's ranking: "
+                    f"{top.get('cause_type')} is measured directly from this queue's own history. The "
+                    f"model's causes are retained below as contributing factors.")
+        else:
+            # added, then ordered by confidence with everything else -- reported, not promoted
+            ranked.append(entry)
+            ranked.sort(key=lambda c: (c.get("confidence_pct") or 0), reverse=True)
+            note = (f"Statistical evidence ({top.get('metric')}) was added as a contributing cause. "
+                    f"It did not lead: at {top.get('confidence_pct')}% it is below the "
+                    f"{STAT_LEAD_MIN_CONFIDENCE}% bar for overriding a model conclusion.")
+
+    # Reuse normalise_causes rather than assigning ranks by hand: it also derives confidence_level
+    # from confidence_pct, and every consumer (the UI badge, the spec suite) expects that key on
+    # every cause. Setting rank alone left the inserted statistical cause without it and crashed
+    # results/spec_compliance_check.py.
+    result["ranked_root_causes"] = normalise_causes(ranked)
+    # Apply the SAME Verified / Hypothesis marking every other cause goes through, rather than
+    # stamping a status by hand. hypothesis_generator only imports .common, so there is no cycle.
+    # A statistical cause normally lands on "Verified" -- it is arithmetic on the queue's own data
+    # and carries its evidence -- but it must earn that from the same rules, not by assertion.
+    from .hypothesis_generator import mark as _mark_status
+    result["ranked_root_causes"] = _mark_status(result["ranked_root_causes"], features or {})
+    ranked = result["ranked_root_causes"]
+    result["statistical_override_applied"] = note
+
+    # The panel headline and the primary cause must follow the new rank 1, otherwise the report
+    # would show the statistical cause in the list while still headlining the model's.
+    lead = ranked[0]
+    result["cause_type"] = lead.get("cause_type")
+    result["primary_root_cause"] = {
+        "statement": lead.get("explanation") or lead.get("title") or "",
+        "confidence": (lead.get("confidence_pct") or 0) / 100.0,
+        "supporting_evidence": lead.get("evidence") or [],
+    }
+    result["confidence_score"] = (lead.get("confidence_pct") or 0) / 100.0
+    result["statistical_evidence"] = stats          # rendered as its own panel
+    return result
+
+
 def apply_language_guard(result):
     """Enforce the prompt's BUSINESS LANGUAGE rule in code, and log what was rewritten."""
     log = []
@@ -121,6 +336,17 @@ def apply_language_guard(result):
             rebuilt.append(new)
             log += [f"key_findings: {c}" for c in changed]
         result["key_findings"] = rebuilt
+
+    # Recursive terminology pass LAST, so it also covers the blocks the key-by-key guard above
+    # never visits -- executive_summary, skeptic_review, investigation_trail, rejected_hypotheses.
+    term_log = []
+    for key, value in list(result.items()):
+        if key in ("derived_features", "language_guard_applied"):
+            continue                     # internal payload, not shown as prose
+        result[key] = _fix_terminology(value, key, term_log)
+    if term_log:
+        log += term_log
+        result["terminology_guard_applied"] = term_log
 
     if log:
         result["language_guard_applied"] = log
@@ -241,10 +467,26 @@ def back_compat(result, base_features):
 
     # Must be set even when there are NO ranked causes (the within-band response), otherwise
     # the existing UI reads an undefined key. Caught by results/run_validation.py check V7.
+    # Always expose the statistics, whether or not they overrode anything -- the drill-down is the
+    # point, so the panel must be populated even for a queue whose numbers are unremarkable.
+    if "statistical_evidence" not in result:
+        _se = (result.get("derived_features") or {})
+        _se = _se.get("statistical_evidence") if isinstance(_se, dict) else None
+        if _se:
+            result["statistical_evidence"] = _se
+
     result.setdefault("secondary_contributors", [])
     result.setdefault("key_findings", _observations_from_features(base_features or {}))
     result.setdefault("supporting_evidence", (ranked[0].get("evidence") if ranked else []) or [])
-    result.setdefault("reasoning_narrative", result.get("executive_summary") or "")
+    # The ROOT CAUSE panel renders reasoning_narrative. It must carry the REASONING -- what was
+    # checked and why this conclusion -- not the executive summary, whose first half is the fiscal
+    # week and the volume deltas. Those numbers are already in KEY FINDINGS and the PROOF table, and
+    # putting them here pushed the actual answer to the bottom of the panel.
+    # investigation_trail.narrative is the genuine reasoning and has NO other render site in the
+    # console (0 references), so it was being computed and discarded.
+    _trail = ((result.get("investigation_trail") or {}).get("narrative") or "").strip()
+    _why = ((ranked[0].get("explanation") if ranked else "") or "").strip()
+    result.setdefault("reasoning_narrative", _trail or _why or result.get("executive_summary") or "")
     result.setdefault("rejected_hypotheses", [
         {"hypothesis": s.get("cause") or s.get("challenge") or "",
          "reason_rejected": s.get("reason") or ""}
@@ -298,14 +540,24 @@ def not_investigated(adherence, band, features):
         "ranked_root_causes": [],
         "skeptic_review": [],
         "investigation_trail": {"levels_checked": [], "inherited_from": "",
-                               "narrative": "Not investigated: within threshold."},
+                               "narrative": ""},
+        # Set explicitly (not left to back_compat's setdefault) so the ROOT CAUSE panel does NOT
+        # fall back to executive_summary, whose text is "No investigation was run." -- the word
+        # "investigation" has no business appearing inside a ROOT CAUSE panel. The single honest
+        # statement above is the whole content for an in-band week.
+        "reasoning_narrative": "",
         "channel_migration": {"detected": False, "narrative": "", "gaining_channels": [],
                               "losing_channels": []},
         "technical_metrics": [],
         "missing_information": [],
         "derived_features": features,
-        "confidence_score": 1.0,
-        "primary_root_cause": {"statement": "Within threshold - not investigated.",
-                               "confidence": 1.0, "supporting_evidence": []},
+        # NOT 1.0. This is a week that was never analysed, and 1.0 rendered as a "90-100% High"
+        # confidence ROOT CAUSE card -- a confident-looking cause whose text admits no analysis was
+        # done. None makes the console show "Confidence not scored", which is the truth.
+        "confidence_score": None,
+        "primary_root_cause": {
+            "statement": (f"No root cause applies: Forecast Adherence of {shown}% is inside the "
+                          f"accepted +/-{band}% tolerance, so this queue-week is not a miss."),
+            "confidence": None, "supporting_evidence": []},
         "investigation_meta": {"engine": "wfm-not-investigated"},
     }, features.get("base_features") or {})

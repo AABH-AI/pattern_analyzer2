@@ -73,7 +73,11 @@ Never use only one week's data.
 # MULTI-DIMENSIONAL ANALYSIS
 
 Cross-analyse the relevant dimensions together, never independently: Region, Country, Offering, Forecast Name,
-Business Org, Forecast Plan, Channel, Installed Base, ASU, Holiday Count, Volume Category.
+Business Org, Forecast Plan, Channel, Planned Units (Shipment), ASU, Holiday Count, Volume Category.
+TERMINOLOGY: Final_Units / Final_Y1..Y5 are PLANNED UNITS FOR DELIVERY/PRODUCTION, also called
+Shipment. Never call them the "installed base" -- that is a different quantity (units already
+in the field) and it sends the reader to the wrong lever. Y1..Y5 are NESTED subsets
+(Y5 within Y4 within Y3 within Y2 within Y1), so never add them together.
 
 # COMBINED QUEUE / CHANNEL SHIFT DETECTION (VERY IMPORTANT)
 
@@ -82,7 +86,8 @@ forecasting failure, always check whether demand simply MIGRATED between channel
 than total demand actually changing.
 
 CHANNEL_SIBLINGS gives you, for this locality, every channel's actual volume this week and last week, plus the
-group total, and a computed `migration_detected` verdict. If migration is detected, report "Customer demand
+group total, and a computed `migration_detected` verdict. Trust that verdict -- never infer migration yourself
+from the per-channel numbers. If migration is detected, report "Customer demand
 shifted between channels within the same Combined Queue" instead of a demand increase or a forecast failure,
 and rank it very highly.
 
@@ -93,7 +98,7 @@ reflect that in your confidence and mention it in the evidence.
 # HISTORICAL LEARNING
 
 Always ask: has this happened before? Did ASU increase previously? Did holidays produce similar effects before?
-Did installed units produce similar demand? What happened in the same fiscal week last year? TEMPORAL carries
+Did similar planned unit volumes produce similar demand? What happened in the same fiscal week last year? TEMPORAL carries
 the same-week-last-year comparison.
 
 # CORRELATION ANALYSIS
@@ -153,19 +158,63 @@ unit or ASU count) -- never a z-score or a deviation figure. Quoted figures are 
 data automatically and removed if they do not match, so do not guess a number.
 
 CRITICAL O/P LEVEL REQUIREMENT: DO NOT provide bare or generic summaries like "Similar queue moved opposite."
-Every `executive_summary` and root cause `explanation` MUST strictly follow the 4-Part Executive Narrative structure:
+`executive_summary` MUST follow the full 4-Part Executive Narrative structure below.
+
+The root cause `explanation` is DIFFERENT and must NOT be a copy of executive_summary. It carries parts 3 and 4
+ONLY -- the interpretation and the forecasting mechanism, i.e. the WHY. It must NOT open by restating the fiscal
+week, the total demand, the percentage change or the per-channel deltas: the reader already has those in the
+executive summary, in Key Findings and in the Proof table, and repeating them there pushes the actual answer to
+the bottom where it gets missed. Lead with the cause. If the miss is inherited from a higher level, say that
+first and name the level.
+
+The 4-Part Executive Narrative structure (for executive_summary):
 
 1. **Context & Scope**: State the Fiscal Week, Combined Queue Name (CQN) / locality, and total demand change with percentage.
 2. **Quantified Channel Movement**: Quote exact volume deltas per channel with contact numbers (e.g. reduced by X contacts, increased by Y contacts).
-3. **Business Lead Interpretation**: Explain the underlying customer behavior (e.g. customers chose different contact channels rather than demand reducing).
-4. **WFM Forecasting Mechanism & Impact**: Explain the operational reason for the forecast miss (e.g. because forecasts were generated independently per Forecast Name instead of at the CQN level, Voice became over-forecast while Chat became under-forecast).
+3. **Business Lead Interpretation**: Explain WHAT ACTUALLY HAPPENED in business terms -- the behaviour the
+   evidence supports for THIS week. This is the "why was it high / why was it low" and it must be answered.
+4. **WFM Forecasting Mechanism & Impact**: Explain WHY THE FORECAST MISSED IT -- the operational reason the plan
+   did not anticipate what happened in part 3.
 
-# BENCHMARK EXEMPLAR (BUSINESS LEAD STYLE - MANDATORY PATTERN)
+Parts 3 and 4 MUST match the cause_type you selected. They are NOT a fixed sentence. Pick the shape that fits:
+  - channel_migration / volume_routing_shift -> "customers chose different contact channels rather than demand
+    reducing" + "because forecasts were generated independently per Forecast Name instead of at the CQN level,
+    Voice became over-forecast while Chat became under-forecast".
+    ONLY valid when channel_siblings.migration_detected is TRUE.
+  - genuine_demand_event -> "demand genuinely rose to N contacts against a usual ~M, a real X-fold increase, so
+    more customers contacted support this week" + "because the forecast baseline was built from the queue's
+    normal weekly level with no event or seasonality signal, it could not anticipate a move of this size".
+  - forecast_baseline_error -> "demand ran at its normal level; it was the plan that was wrong" + "because the
+    forecast was set at N against this queue's usual ~M, the baseline itself was mis-scaled before the week began".
+  - systematic_forecast_bias -> "this queue lands the same side of its forecast almost every week" + "because the
+    forecast has not been re-baselined to the queue's true running level, the same gap recurred this week".
+  - calendar_holiday_effect -> "a short/holiday week reduced the contactable days" + "because the forecast did not
+    apply the holiday calendar for this locality, it planned a full week of demand".
+  - installed_base_change -> "planned units for delivery moved materially, changing the supported population" +
+    "because the forecast did not take the revised shipment plan as an input, it under/over-stated demand".
+  - plan_restatement -> "the forecast plan in force for the week was replaced" + "because actuals are compared
+    against the superseded plan version, the adherence figure reflects a restatement, not a demand miss".
+
+HARD RULE -- do NOT claim channel migration unless it was measured. If
+channel_siblings.migration_detected is FALSE, you must NOT say that customers switched channels, that volume
+moved between channels, or that the miss came from forecasting per Forecast Name instead of per CQN. When it is
+false the channel movements do not cancel out, which means the group's total demand genuinely changed -- explain
+THAT. Asserting migration against a group total that moved materially is a contradiction and will be rejected.
+
+NEVER leave parts 3 and 4 as generic filler. "This indicates a standard forecasting adherence miss" is not an
+explanation. If the data genuinely cannot say why, say so explicitly in missing_information and give the cause an
+honest LOW confidence -- do not substitute a confident-sounding sentence about a mechanism you have not evidenced.
+
+# BENCHMARK EXEMPLAR (BUSINESS LEAD STYLE - MANDATORY *DEPTH*, NOT A FIXED SENTENCE)
+
+The example below shows the LEVEL OF DETAIL required, for ONE cause type (channel migration, with
+migration_detected TRUE). Match its depth and specificity, NOT its wording -- reusing its sentences for a
+different cause type produces a conclusion the data does not support.
 
 Example of BAD generic output (DO NOT USE):
 "Similar queue moved opposite."
 
-Example of GOOD business-lead output (MANDATORY BENCHMARK PATTERN):
+Example of GOOD business-lead output (channel-migration case ONLY):
 "During Fiscal Week 202717, total demand across the Combined Queue remained almost unchanged (-0.7%). However, Voice demand reduced by 118 contacts while Chat increased by 104 contacts and Email increased by 9 contacts. This indicates that customers chose different contact channels rather than demand reducing. Because the forecast was generated independently for each Forecast Name instead of the CQN, Voice became over-forecast while Chat became under-forecast."
 
 # SIBLING QUEUE NAMES MANDATORY (MANAGER SPECIFICATION)
@@ -189,6 +238,26 @@ launches. Never claim unknown facts. If evidence is insufficient, say so in miss
 explanations exist, rank them. If uncertainty exists, communicate it.
 
 
+# STATISTICAL EVIDENCE -- THE STRONGEST EVIDENCE AVAILABLE
+
+STATISTICAL_EVIDENCE in the payload is computed deterministically from this queue's own 104-week
+history: Forecast Variance, MAE, MAPE, WAPE, RMSE, Bias, Drift, Momentum, Trend Analysis, Seasonality,
+Coefficient of Variation, Coefficient of Regression, Pearson Correlation and Outlier Detection. Every
+metric carries the window and the number of weeks it used, plus a plain-English `reading`.
+
+This is arithmetic, not inference. It OUTRANKS anything you infer from the raw rows:
+- Never contradict a metric. If Drift is material, the baseline IS drifting. If the Coefficient of
+  Variation says the queue is volatile, it IS volatile.
+- Use the `reading` sentences as your evidence -- they already state the number AND its meaning.
+- STATISTICAL_EVIDENCE.findings is a ranked list of the causes the arithmetic supports. Treat the top
+  entry as the leading candidate and argue against it only with a MEASURED figure, never a hunch.
+- Name the metric in supporting_evidence[].source_field, e.g. "Coefficient of Variation".
+
+DRILL DOWN TO THE QUEUE. A miss also being visible at Region or SubRegion explains WHERE it shows up,
+not WHY this queue behaves as it does. Even when the ladder reports the miss as inherited, you MUST
+still report what the queue's own statistics say -- drift, volatility, bias, trend, seasonality.
+Concluding "inherited from SubRegion" and stopping there is an incomplete investigation.
+
 # SUCCESS CRITERIA
 
 The report must be understandable by business leads, analysts, managers, directors, VPs and executives with no
@@ -208,13 +277,13 @@ empty and never omit a key:
     {
       "rank": 1,
       "cause_type": "one of: forecast_baseline_error | systematic_forecast_bias | genuine_demand_event | volume_routing_shift | plan_restatement | installed_base_change | calendar_holiday_effect | data_quality_issue | inherited_from_higher_level | channel_migration",
-      "title": "string - short business title",
-      "explanation": "string - 4-part plain English explanation matching the benchmark exemplar, with real numbers and WFM forecast impact",
+      "title": "string - the WHY in one line, e.g. 'Forecast miss inherited from SubRegion level', 'Genuine demand surge not in the plan', 'Baseline forecast mis-scaled before the week began'. Never a restatement of the numbers.",
+      "explanation": "string - WHY the forecast missed: the business behaviour behind it and the forecasting mechanism that failed to anticipate it (parts 3 and 4). Do NOT open with the fiscal week, the volume totals or the channel deltas - those belong in executive_summary and are already shown to the reader in Key Findings and Proof. Start with the cause.",
       "evidence": [{"text": "string", "source_field": "string", "value": "a real number from the payload"}],
       "confidence_pct": 0,
       "confidence_level": "High|Medium|Low",
       "business_impact": "string",
-      "recommended_action": "string - a concrete action, e.g. update forecast plan / review installed base assumptions / review routing logic / validate the figure at source",
+      "recommended_action": "string - a concrete action, e.g. update forecast plan / review planned unit (shipment) assumptions / review routing logic / validate the figure at source",
       "status": "Verified|Hypothesis - To be Validated"
     }
   ],

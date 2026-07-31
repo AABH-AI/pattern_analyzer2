@@ -199,14 +199,28 @@ def t_data_access():
         return SKIP
     try:
         cur = conn.cursor()
-        wc = fetch_wfm_context(cur, cfg["sql"]["table"], {
-            "Forecast_name": "NA Core Spanish", "Fiscal_Week": "202719", "Region": "Americas",
-            "SubRegion": "NA", "Country": "United States", "channel": "Voice", "business_org": "CSG"})
+        # Pick a queue that actually EXISTS in the CONFIGURED table rather than hardcoding one.
+        # This previously hardcoded "NA Core Spanish", which vanished when sql.table was pointed at
+        # the 42-queue P1 extract -- the test then reported FAIL ("no history") and read as a
+        # data_access bug when the module was fine and SQL was reachable.
+        table = cfg["sql"]["table"]
+        cur.execute(f"SELECT TOP 1 Forecast_name, Fiscal_Week, Region, SubRegion, Country, "
+                    f"channel, business_org FROM {table} "
+                    f"WHERE fcst_offered > 20 AND Actual_Offered IS NOT NULL "
+                    f"ORDER BY Fiscal_Week DESC")
+        row = cur.fetchone()
+        if not row:
+            return SKIP
+        key = dict(zip(("Forecast_name", "Fiscal_Week", "Region", "SubRegion", "Country",
+                        "channel", "business_org"), row))
+        key["Fiscal_Week"] = str(key["Fiscal_Week"])
+        wc = fetch_wfm_context(cur, table, key)
         assert wc["history_104"], "no history"
         assert wc["ladder"], "no ladder"
         assert wc["prior_week"], "no prior week"
-        return (f"{len(wc['history_104'])} history, {len(wc['history_forward'])} forward, "
-                f"{len(wc['channel_sibling_rows'])} siblings, {len(wc['ladder'])} ladder levels")
+        return (f"{key['Forecast_name']} FW{key['Fiscal_Week']}: {len(wc['history_104'])} history, "
+                f"{len(wc['history_forward'])} forward, {len(wc['channel_sibling_rows'])} siblings, "
+                f"{len(wc['ladder'])} ladder levels")
     finally:
         conn.close()
 

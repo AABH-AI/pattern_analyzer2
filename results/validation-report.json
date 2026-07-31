@@ -1,32 +1,32 @@
 {
  "run": {
-  "started_utc": "2026-07-29T03:52:38.541866+00:00",
-  "finished_utc": "2026-07-29T03:55:59.306482+00:00",
+  "started_utc": "2026-07-30T07:03:18.301391+00:00",
+  "finished_utc": "2026-07-30T07:05:00.155600+00:00",
   "backend": "http://localhost:8000",
   "server": "10.10.9.75",
-  "table": "dbo.Input_To_ML",
+  "table": "dbo.Input_To_ML_P1",
   "model": "groq/llama-3.3-70b-versatile",
   "band_pct": 10.0,
   "selection": "deliberate, one explicit SQL predicate per engine path",
   "health": {
    "status": "ok",
    "configured": true,
-   "table": "dbo.Input_To_ML"
+   "table": "dbo.Input_To_ML_P1"
   }
  },
  "totals": {
-  "cases": 5,
-  "checks": 40,
-  "passed": 40,
-  "failed": 0
+  "cases": 3,
+  "checks": 24,
+  "passed": 21,
+  "failed": 3
  },
  "cases": [
   {
    "case": {
-    "case": "A",
-    "why_selected": "Known isolated extreme (8,805 vs ~117 typical); the only queue in the table with a week >50x its own median. Must rank data_quality_issue first.",
-    "Forecast_name": "NA Core Spanish",
-    "Fiscal_Week": "202719",
+    "case": "B",
+    "why_selected": "Both Planned_ASU and Actual_ASU present with a >30% miss and a non-trivial forecast, so the driver decomposition must be available and must reconcile exactly.",
+    "Forecast_name": "NA Cons DSP",
+    "Fiscal_Week": "202652",
     "Region": "Americas",
     "SubRegion": "NA",
     "Country": "United States",
@@ -36,24 +36,16 @@
    "provider": "groq",
    "model": "llama-3.3-70b-versatile",
    "timing_seconds": {
-    "queue_context": 2.44,
-    "investigate": 5.92
+    "queue_context": 2.13,
+    "investigate": 4.99
    },
-   "adherence_pct": -9599.7,
+   "adherence_pct": 34.3,
    "ranked_causes": [
     {
      "rank": 1,
-     "cause_type": "data_quality_issue",
-     "title": "Data Quality Issue",
-     "confidence_pct": 90,
-     "confidence_level": "High",
-     "status": "Hypothesis - To be Validated"
-    },
-    {
-     "rank": 2,
      "cause_type": "inherited_from_higher_level",
      "title": "Inherited from Higher Level",
-     "confidence_pct": 80,
+     "confidence_pct": 90,
      "confidence_level": "High",
      "status": "Verified"
     }
@@ -64,122 +56,16 @@
      "id": "V1",
      "check": "KPI adherence matches SQL recomputation",
      "pass": true,
-     "expected": -9599.7,
-     "got": -9599.7,
-     "note": "raw Actual=8805.0, Forecast=90.7763949888044"
-    },
-    {
-     "id": "V2",
-     "check": "Driver decomposition correctly unavailable",
-     "pass": true,
-     "expected": "unavailable",
-     "got": "unavailable",
-     "note": "missing=['Actual_ASU']"
-    },
-    {
-     "id": "V3",
-     "check": "All 5 ladder levels match independent SQL aggregates",
-     "pass": true,
-     "expected": "all levels equal",
-     "got": "0 mismatch(es)",
-     "note": "[]"
-    },
-    {
-     "id": "V4",
-     "check": "Data-quality typical week == median of SQL history",
-     "pass": true,
-     "expected": 117.0,
-     "got": 117.0,
-     "note": "suspect=True, times_typical=75.3, n=103"
-    },
-    {
-     "id": "V5",
-     "check": "Temporal last-13-week average matches SQL",
-     "pass": true,
-     "expected": 61.8,
-     "got": 61.8,
-     "note": "n=13"
-    },
-    {
-     "id": "V6",
-     "check": "Every shipped cause_type satisfies its precondition",
-     "pass": true,
-     "expected": "no unsupported cause ships",
-     "got": "0 unsupported",
-     "note": "[]"
-    },
-    {
-     "id": "V7",
-     "check": "All legacy response keys present (existing UI renders it)",
-     "pass": true,
-     "expected": "11 keys",
-     "got": "11 present",
-     "note": "[]"
-    },
-    {
-     "id": "V8",
-     "check": "No banned statistics vocabulary in business-facing text",
-     "pass": true,
-     "expected": "none",
-     "got": "none",
-     "note": ""
-    }
-   ],
-   "raw_response_file": "case-A-response.json"
-  },
-  {
-   "case": {
-    "case": "B",
-    "why_selected": "Both Planned_ASU and Actual_ASU present with a >30% miss and a non-trivial forecast, so the driver decomposition must be available and must reconcile exactly.",
-    "Forecast_name": "ANZ Comm Client DSP Upsell",
-    "Fiscal_Week": "202652",
-    "Region": "APJ",
-    "SubRegion": "ANZ",
-    "Country": "Australia",
-    "channel": "Voice"
-   },
-   "engine": "wfm-llm",
-   "provider": "groq",
-   "model": "llama-3.3-70b-versatile",
-   "timing_seconds": {
-    "queue_context": 2.26,
-    "investigate": 5.87
-   },
-   "adherence_pct": 38.5,
-   "ranked_causes": [
-    {
-     "rank": 1,
-     "cause_type": "inherited_from_higher_level",
-     "title": "Inherited from Higher Level",
-     "confidence_pct": 90,
-     "confidence_level": "High",
-     "status": "Verified"
-    },
-    {
-     "rank": 2,
-     "cause_type": "contact_rate_driven",
-     "title": "Contact Rate Issue",
-     "confidence_pct": 80,
-     "confidence_level": "High",
-     "status": "Verified"
-    }
-   ],
-   "skeptic_rejected": [],
-   "checks": [
-    {
-     "id": "V1",
-     "check": "KPI adherence matches SQL recomputation",
-     "pass": true,
-     "expected": 38.5,
-     "got": 38.5,
-     "note": "raw Actual=106.0, Forecast=172.436685138223"
+     "expected": 34.3,
+     "got": 34.3,
+     "note": "raw Actual=1092.0, Forecast=1661.633809"
     },
     {
      "id": "V2",
      "check": "Driver decomposition sums to the total miss",
      "pass": true,
-     "expected": -66.4,
-     "got": -66.4,
+     "expected": -569.6,
+     "got": -569.7,
      "note": "verdict=contact_rate_driven, reconciles_flag=True"
     },
     {
@@ -194,16 +80,16 @@
      "id": "V4",
      "check": "Data-quality typical week == median of SQL history",
      "pass": true,
-     "expected": 217.0,
-     "got": 217.0,
-     "note": "suspect=False, times_typical=0.5, n=103"
+     "expected": 1509.0,
+     "got": 1509.0,
+     "note": "suspect=False, times_typical=0.7, n=103"
     },
     {
      "id": "V5",
      "check": "Temporal last-13-week average matches SQL",
      "pass": true,
-     "expected": 189.5,
-     "got": 189.5,
+     "expected": 1320.5,
+     "got": 1320.5,
      "note": "n=13"
     },
     {
@@ -217,10 +103,10 @@
     {
      "id": "V7",
      "check": "All legacy response keys present (existing UI renders it)",
-     "pass": true,
+     "pass": false,
      "expected": "11 keys",
-     "got": "11 present",
-     "note": "[]"
+     "got": "10 present",
+     "note": "[\"forecast_improvement_recommendations\"]"
     },
     {
      "id": "V8",
@@ -237,37 +123,37 @@
    "case": {
     "case": "C",
     "why_selected": "Its Country-level rollup also breaches the band in the same week, so the engine must report the miss as inherited from a higher level rather than concluding at the queue.",
-    "Forecast_name": "ANZ Client Core",
-    "Fiscal_Week": "202722",
-    "Region": "APJ",
-    "SubRegion": "ANZ",
-    "Country": "Australia",
+    "Forecast_name": "Brazil Cons Basic",
+    "Fiscal_Week": "202719",
+    "Region": "Americas",
+    "SubRegion": "Brazil",
+    "Country": "Brazil",
     "channel": "Voice"
    },
    "engine": "wfm-llm",
    "provider": "groq",
    "model": "llama-3.3-70b-versatile",
    "timing_seconds": {
-    "queue_context": 2.21,
-    "investigate": 5.29
+    "queue_context": 2.13,
+    "investigate": 5.66
    },
-   "adherence_pct": 66.1,
+   "adherence_pct": -22.7,
    "ranked_causes": [
     {
      "rank": 1,
      "cause_type": "inherited_from_higher_level",
-     "title": "Inherited Issue from Business Org Level",
+     "title": "Inherited from Higher Level",
      "confidence_pct": 90,
      "confidence_level": "High",
      "status": "Verified"
     },
     {
      "rank": 2,
-     "cause_type": "systematic_forecast_bias",
-     "title": "Systematic Forecast Bias",
+     "cause_type": "installed_base_change",
+     "title": "Installed Base Change",
      "confidence_pct": 80,
      "confidence_level": "High",
-     "status": "Verified"
+     "status": "Hypothesis - To be Validated"
     }
    ],
    "skeptic_rejected": [],
@@ -276,9 +162,9 @@
      "id": "V1",
      "check": "KPI adherence matches SQL recomputation",
      "pass": true,
-     "expected": 66.1,
-     "got": 66.1,
-     "note": "raw Actual=83.0, Forecast=244.59627875767"
+     "expected": -22.7,
+     "got": -22.7,
+     "note": "raw Actual=617.0, Forecast=503.0"
     },
     {
      "id": "V2",
@@ -300,16 +186,16 @@
      "id": "V4",
      "check": "Data-quality typical week == median of SQL history",
      "pass": true,
-     "expected": 351.0,
-     "got": 351.0,
-     "note": "suspect=False, times_typical=0.2, n=103"
+     "expected": 916.0,
+     "got": 916.0,
+     "note": "suspect=False, times_typical=0.7, n=103"
     },
     {
      "id": "V5",
      "check": "Temporal last-13-week average matches SQL",
      "pass": true,
-     "expected": 232.4,
-     "got": 232.4,
+     "expected": 602.1,
+     "got": 602.1,
      "note": "n=13"
     },
     {
@@ -323,10 +209,10 @@
     {
      "id": "V7",
      "check": "All legacy response keys present (existing UI renders it)",
-     "pass": true,
+     "pass": false,
      "expected": "11 keys",
-     "got": "11 present",
-     "note": "[]"
+     "got": "10 present",
+     "note": "[\"forecast_improvement_recommendations\"]"
     },
     {
      "id": "V8",
@@ -341,129 +227,23 @@
   },
   {
    "case": {
-    "case": "D",
-    "why_selected": "Sits in a locality carrying 4+ channels, so channel-migration detection has real sibling data to evaluate.",
-    "Forecast_name": "Brazil Client Core",
-    "Fiscal_Week": "202722",
+    "case": "E",
+    "why_selected": "CONTROL: adherence inside +/-10%. The business rule forbids investigating, so the engine must return engine=wfm-not-investigated with zero causes.",
+    "Forecast_name": "Brazil Comm Client ProSupport",
+    "Fiscal_Week": "202719",
     "Region": "Americas",
     "SubRegion": "Brazil",
     "Country": "Brazil",
     "channel": "Voice"
-   },
-   "engine": "wfm-llm",
-   "provider": "groq",
-   "model": "llama-3.3-70b-versatile",
-   "timing_seconds": {
-    "queue_context": 2.19,
-    "investigate": 5.12
-   },
-   "adherence_pct": 75.3,
-   "ranked_causes": [
-    {
-     "rank": 1,
-     "cause_type": "inherited_from_higher_level",
-     "title": "Inherited from Business Org level",
-     "confidence_pct": 90,
-     "confidence_level": "High",
-     "status": "Verified"
-    },
-    {
-     "rank": 2,
-     "cause_type": "systematic_forecast_bias",
-     "title": "Systematic forecast bias",
-     "confidence_pct": 70,
-     "confidence_level": "High",
-     "status": "Verified"
-    }
-   ],
-   "skeptic_rejected": [],
-   "checks": [
-    {
-     "id": "V1",
-     "check": "KPI adherence matches SQL recomputation",
-     "pass": true,
-     "expected": 75.3,
-     "got": 75.3,
-     "note": "raw Actual=28.0, Forecast=113.4"
-    },
-    {
-     "id": "V2",
-     "check": "Driver decomposition correctly unavailable",
-     "pass": true,
-     "expected": "unavailable",
-     "got": "unavailable",
-     "note": "missing=['Actual_ASU']"
-    },
-    {
-     "id": "V3",
-     "check": "All 5 ladder levels match independent SQL aggregates",
-     "pass": true,
-     "expected": "all levels equal",
-     "got": "0 mismatch(es)",
-     "note": "[]"
-    },
-    {
-     "id": "V4",
-     "check": "Data-quality typical week == median of SQL history",
-     "pass": true,
-     "expected": 233.0,
-     "got": 233.0,
-     "note": "suspect=False, times_typical=0.1, n=103"
-    },
-    {
-     "id": "V5",
-     "check": "Temporal last-13-week average matches SQL",
-     "pass": true,
-     "expected": 90.2,
-     "got": 90.2,
-     "note": "n=13"
-    },
-    {
-     "id": "V6",
-     "check": "Every shipped cause_type satisfies its precondition",
-     "pass": true,
-     "expected": "no unsupported cause ships",
-     "got": "0 unsupported",
-     "note": "[]"
-    },
-    {
-     "id": "V7",
-     "check": "All legacy response keys present (existing UI renders it)",
-     "pass": true,
-     "expected": "11 keys",
-     "got": "11 present",
-     "note": "[]"
-    },
-    {
-     "id": "V8",
-     "check": "No banned statistics vocabulary in business-facing text",
-     "pass": true,
-     "expected": "none",
-     "got": "none",
-     "note": ""
-    }
-   ],
-   "raw_response_file": "case-D-response.json"
-  },
-  {
-   "case": {
-    "case": "E",
-    "why_selected": "CONTROL: adherence inside +/-10%. The business rule forbids investigating, so the engine must return engine=wfm-not-investigated with zero causes.",
-    "Forecast_name": "ANZ Comm Client ProSupport Chat",
-    "Fiscal_Week": "202722",
-    "Region": "APJ",
-    "SubRegion": "ANZ",
-    "Country": "Australia",
-    "channel": "Chat"
    },
    "engine": "wfm-not-investigated",
    "provider": null,
    "model": null,
    "timing_seconds": {
     "queue_context": 2.17,
-    "investigate": 2.34
+    "investigate": 2.18
    },
-   "adherence_pct": -0.0,
+   "adherence_pct": -0.7,
    "ranked_causes": [],
    "skeptic_rejected": [],
    "checks": [
@@ -471,9 +251,9 @@
      "id": "V1",
      "check": "KPI adherence matches SQL recomputation",
      "pass": true,
-     "expected": -0.0,
-     "got": -0.0,
-     "note": "raw Actual=305.0, Forecast=304.950559439822"
+     "expected": -0.7,
+     "got": -0.7,
+     "note": "raw Actual=568.0, Forecast=564.0"
     },
     {
      "id": "V2",
@@ -495,16 +275,16 @@
      "id": "V4",
      "check": "Data-quality typical week == median of SQL history",
      "pass": true,
-     "expected": 446.0,
-     "got": 446.0,
-     "note": "suspect=False, times_typical=0.7, n=103"
+     "expected": 893.0,
+     "got": 893.0,
+     "note": "suspect=False, times_typical=0.6, n=103"
     },
     {
      "id": "V5",
      "check": "Temporal last-13-week average matches SQL",
      "pass": true,
-     "expected": 324.3,
-     "got": 324.3,
+     "expected": 583.0,
+     "got": 583.0,
      "note": "n=13"
     },
     {
@@ -518,10 +298,10 @@
     {
      "id": "V7",
      "check": "All legacy response keys present (existing UI renders it)",
-     "pass": true,
+     "pass": false,
      "expected": "11 keys",
-     "got": "11 present",
-     "note": "[]"
+     "got": "10 present",
+     "note": "[\"forecast_improvement_recommendations\"]"
     },
     {
      "id": "V8",

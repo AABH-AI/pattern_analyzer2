@@ -116,13 +116,32 @@ def analyse(rows, target_week, target_channel, cqn_names=None, cqn_source="proxy
     cqn_label = (f"the Combined Queue ({cqn_names[0]})" if (authoritative and cqn_names)
                  else "the Combined Queue")
 
-    formatted_narrative = (
-        f"During Fiscal Week {this_wk}, total demand across {cqn_label} {cqn_total_phrase}. "
-        f"However, {deltas_text}. "
-        f"This indicates that customers chose different contact channels rather than demand reducing. "
-        f"Because the forecast was generated independently for each Forecast Name instead of the CQN, "
-        f"over-forecast and under-forecast errors occurred across individual channels."
-    )
+    # The migration CONCLUSION is only written when migration was actually detected.
+    #
+    # This narrative used to be built with the "customers chose different contact channels" and
+    # "forecast generated independently per Forecast Name" sentences hardcoded, and returned
+    # unconditionally -- so a week whose group total moved +360.7% was still handed a ready-made
+    # channel-migration explanation, which the model then reported as the root cause. `detected`
+    # already encodes whether the channels genuinely cancel out; it now gates the prose too.
+    if detected:
+        formatted_narrative = (
+            f"During Fiscal Week {this_wk}, total demand across {cqn_label} {cqn_total_phrase}. "
+            f"However, {deltas_text}. "
+            f"This indicates that customers chose different contact channels rather than demand reducing. "
+            f"Because the forecast was generated independently for each Forecast Name instead of the CQN, "
+            f"over-forecast and under-forecast errors occurred across individual channels."
+        )
+    else:
+        # State the facts, and say plainly what CANNOT be concluded, so the model does not reach
+        # for the migration story by default.
+        formatted_narrative = (
+            f"During Fiscal Week {this_wk}, total demand across {cqn_label} {cqn_total_phrase}. "
+            f"{deltas_text[:1].upper() + deltas_text[1:]}. "
+            f"These channel movements do NOT cancel out, so this is not a like-for-like shift "
+            f"between channels -- total demand for the group genuinely changed. "
+            f"Do NOT explain this week as customers switching channels; the cause lies in the "
+            f"demand level or the forecast itself, not in redistribution between channels."
+        )
 
 
     return {

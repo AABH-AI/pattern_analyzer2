@@ -1,0 +1,308 @@
+{
+  "table": "dbo.Input_To_ML_P1",
+  "cases": [
+    [
+      "most stable",
+      "India Comm Client Workstation English Upsell"
+    ],
+    [
+      "most volatile",
+      "India Cons IW"
+    ],
+    [
+      "largest volume",
+      "NA Cons CMG"
+    ]
+  ],
+  "checks": [
+    {
+      "check": "[India Comm Client Workstation English Upsell] target week excluded from the baseline window",
+      "status": "PASS",
+      "detail": "engine=174 independent=174"
+    },
+    {
+      "check": "[India Comm Client Workstation English Upsell] mae (13 wks)",
+      "status": "PASS",
+      "detail": "engine=42.63 independent=42.6283"
+    },
+    {
+      "check": "[India Comm Client Workstation English Upsell] mape_pct (13 wks)",
+      "status": "PASS",
+      "detail": "engine=7.74 independent=7.7407"
+    },
+    {
+      "check": "[India Comm Client Workstation English Upsell] wape_pct (13 wks)",
+      "status": "PASS",
+      "detail": "engine=7.71 independent=7.7107"
+    },
+    {
+      "check": "[India Comm Client Workstation English Upsell] rmse (13 wks)",
+      "status": "PASS",
+      "detail": "engine=46.26 independent=46.2578"
+    },
+    {
+      "check": "[India Comm Client Workstation English Upsell] bias (13 wks)",
+      "status": "PASS",
+      "detail": "engine=-8.78 independent=-8.7779"
+    },
+    {
+      "check": "[India Comm Client Workstation English Upsell] forecast_variance (13 wks)",
+      "status": "PASS",
+      "detail": "engine=2234.63 independent=2234.6251"
+    },
+    {
+      "check": "[India Comm Client Workstation English Upsell] coefficient_of_variation (104 wks)",
+      "status": "PASS",
+      "detail": "engine=0.1813 independent=0.1813"
+    },
+    {
+      "check": "[India Comm Client Workstation English Upsell] coefficient_of_regression per week (13 wks)",
+      "status": "PASS",
+      "detail": "engine=2.14 independent=2.1429"
+    },
+    {
+      "check": "[India Comm Client Workstation English Upsell] drift pts per week (13 wks)",
+      "status": "PASS",
+      "detail": "engine=-0.134 independent=-0.1344"
+    },
+    {
+      "check": "[India Comm Client Workstation English Upsell] momentum change_pct",
+      "status": "PASS",
+      "detail": "engine=8.78 independent=8.784"
+    },
+    {
+      "check": "[India Comm Client Workstation English Upsell] pearson_r for Holiday_Count",
+      "status": "PASS",
+      "detail": "engine=-0.283 independent=-0.2827"
+    },
+    {
+      "check": "[India Comm Client Workstation English Upsell] pearson_r within [-1, 1]",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "[India Comm Client Workstation English Upsell] RMSE >= MAE (Jensen)",
+      "status": "PASS",
+      "detail": "rmse=46.26 mae=42.63"
+    },
+    {
+      "check": "[India Comm Client Workstation English Upsell] |bias| <= MAE",
+      "status": "PASS",
+      "detail": "bias=-8.78 mae=42.63"
+    },
+    {
+      "check": "[India Comm Client Workstation English Upsell] WAPE > 0 and finite",
+      "status": "PASS",
+      "detail": "wape=7.71"
+    },
+    {
+      "check": "[India Comm Client Workstation English Upsell] every metric block reports its window and n",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "[India Comm Client Workstation English Upsell] findings only cite measured preconditions",
+      "status": "PASS",
+      "detail": "[]"
+    },
+    {
+      "check": "[India Cons IW] target week excluded from the baseline window",
+      "status": "PASS",
+      "detail": "engine=174 independent=174"
+    },
+    {
+      "check": "[India Cons IW] mae (13 wks)",
+      "status": "PASS",
+      "detail": "engine=230.43 independent=230.4315"
+    },
+    {
+      "check": "[India Cons IW] mape_pct (13 wks)",
+      "status": "PASS",
+      "detail": "engine=6.9 independent=6.8986"
+    },
+    {
+      "check": "[India Cons IW] wape_pct (13 wks)",
+      "status": "PASS",
+      "detail": "engine=6.66 independent=6.6636"
+    },
+    {
+      "check": "[India Cons IW] rmse (13 wks)",
+      "status": "PASS",
+      "detail": "engine=294.81 independent=294.8091"
+    },
+    {
+      "check": "[India Cons IW] bias (13 wks)",
+      "status": "PASS",
+      "detail": "engine=-210.27 independent=-210.2734"
+    },
+    {
+      "check": "[India Cons IW] forecast_variance (13 wks)",
+      "status": "PASS",
+      "detail": "engine=46255.67 independent=46255.6676"
+    },
+    {
+      "check": "[India Cons IW] coefficient_of_variation (104 wks)",
+      "status": "PASS",
+      "detail": "engine=0.6726 independent=0.6726"
+    },
+    {
+      "check": "[India Cons IW] coefficient_of_regression per week (13 wks)",
+      "status": "PASS",
+      "detail": "engine=-39.08 independent=-39.0824"
+    },
+    {
+      "check": "[India Cons IW] drift pts per week (13 wks)",
+      "status": "PASS",
+      "detail": "engine=0.346 independent=0.3465"
+    },
+    {
+      "check": "[India Cons IW] momentum change_pct",
+      "status": "PASS",
+      "detail": "engine=-4.13 independent=-4.127"
+    },
+    {
+      "check": "[India Cons IW] pearson_r for Actual_ASU",
+      "status": "PASS",
+      "detail": "engine=-0.209 independent=-0.2087"
+    },
+    {
+      "check": "[India Cons IW] pearson_r within [-1, 1]",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "[India Cons IW] RMSE >= MAE (Jensen)",
+      "status": "PASS",
+      "detail": "rmse=294.81 mae=230.43"
+    },
+    {
+      "check": "[India Cons IW] |bias| <= MAE",
+      "status": "PASS",
+      "detail": "bias=-210.27 mae=230.43"
+    },
+    {
+      "check": "[India Cons IW] WAPE > 0 and finite",
+      "status": "PASS",
+      "detail": "wape=6.66"
+    },
+    {
+      "check": "[India Cons IW] every metric block reports its window and n",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "[India Cons IW] findings only cite measured preconditions",
+      "status": "PASS",
+      "detail": "['drift', 'seasonality', 'bias', 'coefficient_of_variation']"
+    },
+    {
+      "check": "[NA Cons CMG] target week excluded from the baseline window",
+      "status": "PASS",
+      "detail": "engine=174 independent=174"
+    },
+    {
+      "check": "[NA Cons CMG] mae (13 wks)",
+      "status": "PASS",
+      "detail": "engine=612.98 independent=612.9785"
+    },
+    {
+      "check": "[NA Cons CMG] mape_pct (13 wks)",
+      "status": "PASS",
+      "detail": "engine=17.2 independent=17.1996"
+    },
+    {
+      "check": "[NA Cons CMG] wape_pct (13 wks)",
+      "status": "PASS",
+      "detail": "engine=17.11 independent=17.108"
+    },
+    {
+      "check": "[NA Cons CMG] rmse (13 wks)",
+      "status": "PASS",
+      "detail": "engine=702.92 independent=702.9201"
+    },
+    {
+      "check": "[NA Cons CMG] bias (13 wks)",
+      "status": "PASS",
+      "detail": "engine=-557.87 independent=-557.8704"
+    },
+    {
+      "check": "[NA Cons CMG] forecast_variance (13 wks)",
+      "status": "PASS",
+      "detail": "engine=198117.0 independent=198116.9978"
+    },
+    {
+      "check": "[NA Cons CMG] coefficient_of_variation (104 wks)",
+      "status": "PASS",
+      "detail": "engine=0.372 independent=0.372"
+    },
+    {
+      "check": "[NA Cons CMG] coefficient_of_regression per week (13 wks)",
+      "status": "PASS",
+      "detail": "engine=-47.82 independent=-47.8242"
+    },
+    {
+      "check": "[NA Cons CMG] drift pts per week (13 wks)",
+      "status": "PASS",
+      "detail": "engine=-1.741 independent=-1.7411"
+    },
+    {
+      "check": "[NA Cons CMG] momentum change_pct",
+      "status": "PASS",
+      "detail": "engine=-9.41 independent=-9.407"
+    },
+    {
+      "check": "[NA Cons CMG] pearson_r for Planned_ASU",
+      "status": "PASS",
+      "detail": "engine=0.965 independent=0.9649"
+    },
+    {
+      "check": "[NA Cons CMG] pearson_r within [-1, 1]",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "[NA Cons CMG] RMSE >= MAE (Jensen)",
+      "status": "PASS",
+      "detail": "rmse=702.92 mae=612.98"
+    },
+    {
+      "check": "[NA Cons CMG] |bias| <= MAE",
+      "status": "PASS",
+      "detail": "bias=-557.87 mae=612.98"
+    },
+    {
+      "check": "[NA Cons CMG] WAPE > 0 and finite",
+      "status": "PASS",
+      "detail": "wape=17.11"
+    },
+    {
+      "check": "[NA Cons CMG] every metric block reports its window and n",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "[NA Cons CMG] findings only cite measured preconditions",
+      "status": "PASS",
+      "detail": "['drift', 'bias', 'coefficient_of_variation']"
+    },
+    {
+      "check": "thin history degrades without raising",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "thin history states WHY it is unavailable",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "empty history returns available=False",
+      "status": "PASS",
+      "detail": ""
+    }
+  ],
+  "totals": {
+    "pass": 57,
+    "fail": 0
+  }
+}

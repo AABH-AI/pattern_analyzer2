@@ -751,7 +751,7 @@
       <div class="card"><h4>File types accepted</h4><ul><li><b>.xlsx</b> (Excel) — parsed in-browser, no libraries</li><li><b>.csv / .tsv</b> — delimiter auto-detected</li><li>Weekly demand file + optional <b>CQN mapping file</b></li></ul></div>
       <div class="card"><h4>Grain &amp; key</h4><ul><li>Keyed on <b>Forecast_name × Fiscal_Week</b></li><li>Forecasting is based on <b>Forecast_name</b></li><li>Mapping file (optional) resolves sequence → Forecast_name</li></ul></div>
       <div class="card"><h4>Scale</h4><ul><li>~100 queues scanned weekly</li><li>Handles 100k+ rows with chunked parsing</li><li>Top-N affected queues surfaced</li></ul></div>
-      <div class="card"><h4>Domain knowledge</h4><ul><li><b>Final_Y1–Y5</b> = installed units under warranty year 1–5 (demand driver, <i>not</i> prior-year actuals)</li><li><b>ASU</b> = Planned/Actual service driver (exact acronym to confirm)</li><li><b>Mon–Sun</b> = day-level holiday/weekend flags</li></ul></div>
+      <div class="card"><h4>Domain knowledge</h4><ul><li><b>Final_Units</b> = planned units for delivery/production (a.k.a. <b>Shipment</b>) — a major demand driver, <i>not</i> prior-year actuals</li><li><b>Final_Y1–Y5</b> = those planned units falling under warranty year 1–5. <b>Nested, not additive</b>: Y5⊆Y4⊆Y3⊆Y2⊆Y1, so they do <i>not</i> sum to Final_Units</li><li><b>ASU</b> = Planned/Actual service driver (exact acronym to confirm)</li><li><b>Mon–Sun</b> = day-level holiday/weekend flags</li></ul></div>
       <div class="card"><h4>Scope</h4><ul><li>Keyed on <b>Forecast_name</b> — forecasting is per forecast_name</li><li>Priority: <b>2–3 forecast_names</b>, not the whole file</li><li>Filter to the target forecast_names, then read RCA</li></ul></div>
       <div class="card"><h4>Metrics (only these two)</h4><ul><li><b>Forecast Accuracy</b> = (Actual_Offered ÷ fcst_offered) × 100</li><li><b>Plan Adherence</b> = (1 − Actual_Offered ÷ fcst_offered) × 100 — signed (negative = under-forecast, positive = over-forecast)</li><li>Flag when |Plan Adherence deviation| &gt; band %</li></ul></div>
     </div>
@@ -789,12 +789,12 @@
       <tr><td><code>ASU</code></td><td>Active Serviceable Units currently in the market and covered under warranty.</td></tr>
       <tr><td><code>Planned_ASU</code></td><td>Planned Active Serviceable Units (as per ASU plan).</td></tr>
       <tr><td><code>Actual_ASU</code></td><td>Actual ASUs.</td></tr>
-      <tr><td><code>Final_Units</code></td><td>Installed base (warranty units) — a demand driver. Final_Y1 to Y5 overlap, so the sum of Final_Y1..Y5 is not equal to Final_Units: Y2 is a subset of Y1, Y3 a subset of Y2, Y4 a subset of Y3, and so on through Y5.</td></tr>
-      <tr><td><code>Final_Y5</code></td><td>Installed units under warranty in year 5.</td></tr>
-      <tr><td><code>Final_Y4</code></td><td>Installed units under warranty in year 4.</td></tr>
-      <tr><td><code>Final_Y3</code></td><td>Installed units under warranty in year 3.</td></tr>
-      <tr><td><code>Final_Y2</code></td><td>Installed units under warranty in year 2.</td></tr>
-      <tr><td><code>Final_Y1</code></td><td>Installed units under warranty in year 1.</td></tr>
+      <tr><td><code>Final_Units</code></td><td>No. of planned units for delivery/production. It may also be referred to as <b>Shipment</b>. Represents one of the major demand drivers. Final_Y1 through Final_Y5 overlap, therefore Final_Units is <b>not equal</b> to the sum of Final_Y1 to Final_Y5 — Y2 is a subset of Y1, Y3 is a subset of Y2, Y4 is a subset of Y3, and Y5 is a subset of Y4.</td></tr>
+      <tr><td><code>Final_Y5</code></td><td>No. of planned units for delivery/production which will fall under Year 5 warranty.</td></tr>
+      <tr><td><code>Final_Y4</code></td><td>No. of planned units for delivery/production which will fall under Year 4 warranty.</td></tr>
+      <tr><td><code>Final_Y3</code></td><td>No. of planned units for delivery/production which will fall under Year 3 warranty.</td></tr>
+      <tr><td><code>Final_Y2</code></td><td>No. of planned units for delivery/production which will fall under Year 2 warranty.</td></tr>
+      <tr><td><code>Final_Y1</code></td><td>No. of planned units for delivery/production which will fall under Year 1 warranty.</td></tr>
       <tr><td><code>Final_upp_units</code></td><td>Additional installed units under an upgrade / extended-protection plan (&ldquo;upp&rdquo; — confirm with business).</td></tr>
       <tr><td><code>Holiday_Count</code></td><td>Number of holidays falling in the fiscal week.</td></tr>
       <tr><td><code>Monday–Sunday</code></td><td>Day-level flag for each day of the week (holiday).</td></tr>
@@ -1872,6 +1872,7 @@ function formatInvestigation(resp, ctx){
     secondary_contributors: resp.secondary_contributors||[],
     rejected_hypotheses: resp.rejected_hypotheses||[],
     historical_comparison: resp.historical_comparison||{narrative:'',data_points:[]},
+    statistical_evidence: resp.statistical_evidence||null,   // deterministic queue-level drill-down
     reasoning_narrative: resp.reasoning_narrative||'',
     reasoning_points: invToPoints(resp.reasoning_narrative),
     forecast_improvement_recommendations: resp.forecast_improvement_recommendations||[],
@@ -1931,59 +1932,70 @@ function formatBoldText(s) {
   return res;
 }
 
-function getSixOrMoreRootCausePoints(f) {
-  let raw = f.reasoning_points || invToPoints(f.reasoning_narrative);
-  if (!Array.isArray(raw)) raw = [];
+// Root-cause points. Deliberately NOT padded.
+//
+// This used to be getSixOrMoreRootCausePoints(), which appended key_findings, the supporting
+// evidence and the historical narrative until it had seven bullets. All three of those already
+// have their own panels, so ROOT CAUSE restated them verbatim for every queue -- volume dressed
+// up as analysis. Only genuine analysis belongs here; the panel is short when the analysis is.
+function rcNormKey(s){
+  return (s || '').toLowerCase().replace(/\*\*/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function getRootCausePoints(f){
   const seen = new Set();
-  let cleanPts = [];
+  const out = [];
 
-  raw.forEach(p => {
-    const str = (p || '').trim();
-    if (str && !seen.has(str.toLowerCase())) {
-      seen.add(str.toLowerCase());
-      cleanPts.push(str);
-    }
-  });
-
-  if (f.primary_root_cause && f.primary_root_cause.statement) {
-    const stmt = f.primary_root_cause.statement.trim();
-    if (!seen.has(stmt.toLowerCase())) {
-      seen.add(stmt.toLowerCase());
-      cleanPts.unshift(stmt);
-    }
-  }
-
+  // Text already visible in another panel -- repeating it here is the padding we are removing.
+  //   key_findings          -> KEY FINDINGS
+  //   supporting_evidence   -> SUPPORTING EVIDENCE
+  //   historical_comparison -> HISTORICAL COMPARISON
+  const elsewhere = new Set();
+  (f.key_findings || []).forEach(k => { const n = rcNormKey(k); if (n) elsewhere.add(n); });
   (f.supporting_evidence || []).forEach(e => {
-    const txt = (typeof e === 'string' ? e : e.text || '').trim();
-    if (txt && !seen.has(txt.toLowerCase())) {
-      seen.add(txt.toLowerCase());
-      cleanPts.push(txt);
-    }
+    const n = rcNormKey(typeof e === 'string' ? e : (e || {}).text);
+    if (n) elsewhere.add(n);
   });
+  const hcN = rcNormKey((f.historical_comparison || {}).narrative);
+  if (hcN) elsewhere.add(hcN);
 
-  (f.key_findings || []).forEach(k => {
-    const kTrim = (k || '').trim();
-    if (kTrim && !seen.has(kTrim.toLowerCase())) {
-      seen.add(kTrim.toLowerCase());
-      cleanPts.push(kTrim);
+  // force=true bypasses the "shown elsewhere" filter -- used only for the cause itself, so the
+  // panel can never end up empty just because the cause also reads like a finding.
+  // Dedupe is by CONTAINMENT, not equality: the backend often sets reasoning_narrative to the
+  // primary statement itself, which invToPoints() then splits on sentence boundaries. The
+  // paragraph and its own sentences are different strings, so an equality check let the same idea
+  // through five times -- the exact "nothing new is being said" effect.
+  const add = (txt, force) => {
+    const str = (txt || '').trim();
+    if (!str) return;
+    const k = rcNormKey(str);
+    if (!k || seen.has(k)) return;
+    if (!force && elsewhere.has(k)) return;
+    for (const prev of seen) {
+      if (prev.includes(k) || k.includes(prev)) return;   // one already contains the other
     }
-  });
+    seen.add(k);
+    out.push(str);
+  };
 
-  const hc = (f.historical_comparison || {}).narrative;
-  if (hc && !seen.has(hc.toLowerCase())) {
-    seen.add(hc.toLowerCase());
-    cleanPts.push(hc);
-  }
+  const stmt = (((f.primary_root_cause || {}).statement) || '').trim();
+  let pts = f.reasoning_points || invToPoints(f.reasoning_narrative);
+  if (!Array.isArray(pts)) pts = [];
 
-  (f.secondary_contributors || []).forEach(sc => {
-    const stmt = (sc.statement || '').trim();
-    if (stmt && !seen.has(stmt.toLowerCase())) {
-      seen.add(stmt.toLowerCase());
-      cleanPts.push(stmt);
-    }
-  });
+  // When the narrative is just the statement re-split, prefer the SENTENCES over the paragraph:
+  // same content, but it reads as discrete points instead of one wall of text. Only when every
+  // point really is part of the statement -- otherwise the statement leads, as the cause should.
+  const stmtKey = rcNormKey(stmt);
+  const narrativeIsStatement = !!stmtKey && pts.length > 1 &&
+    pts.every(p => { const k = rcNormKey(p); return k && stmtKey.includes(k); });
 
-  return cleanPts.slice(0, 7);
+  if (!narrativeIsStatement) add(stmt, true);   // 1. the cause
+  pts.forEach(p => add(p));                     // 2. the reasoning that led to it
+  if (narrativeIsStatement && !out.length) add(stmt, true);   // never end up empty
+  // 3. genuine additional causes -- these have no other panel
+  (f.secondary_contributors || []).forEach(sc => add((sc || {}).statement));
+
+  return out.slice(0, 8);   // runaway guard, NOT a target
 }
 
 function renderInvestigationReport(f, ctx){
@@ -2046,7 +2058,14 @@ function renderInvestigationReport(f, ctx){
       ${invConfMeter(confScore)}
     </div>` : '';
 
-  const rcPoints = getSixOrMoreRootCausePoints(f);
+  const rcPoints = getRootCausePoints(f);
+  // The one-line WHY. ranked_root_causes[0].title holds exactly that ("Forecast miss inherited from
+  // SubRegion level") and was rendered nowhere, so the crispest answer in the whole response was
+  // invisible while the panel opened with volume restatement. Shown as the headline.
+  const rcTitle = (((f.ranked_root_causes || [])[0] || {}).title || '').trim();
+  const rcTitleHtml = rcTitle
+    ? `<div style="font-size:13.5px;font-weight:800;color:var(--text);margin:2px 0 10px;line-height:1.45;">${invEsc(rcTitle)}</div>`
+    : '';
   const narrativeHtml=`<details class="inv-sec" open>
     <summary style="display:flex;align-items:center;justify-content:space-between;width:100%;">
       <span style="font-weight:800;font-size:13.5px;text-transform:uppercase;letter-spacing:.6px;">Root Cause</span>
@@ -2054,6 +2073,7 @@ function renderInvestigationReport(f, ctx){
     </summary>
     <div class="body">
       ${secDesc('The most likely explanation for WHY the forecast missed (drawn from data findings and model analysis).')}
+      ${rcTitleHtml}
       ${rcPoints.length?`<ul style="list-style:none;padding:0;margin:0;">${rcPoints.map(p=>`<li style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);"><span style="font-size:14px;color:var(--accent);flex-shrink:0;margin-top:2px;">&#9670;</span><span style="font-size:12.5px;line-height:1.6;color:var(--text);">${formatBoldText(p)}</span></li>`).join('')}</ul>`:'<div class="inv-empty">No root cause narrative produced.</div>'}
     </div>
   </details>`;
@@ -2065,6 +2085,45 @@ function renderInvestigationReport(f, ctx){
   const rejectedHtml=`<details class="inv-sec"><summary>Rejected Hypotheses</summary><div class="body">
     ${(f.rejected_hypotheses||[]).length?(f.rejected_hypotheses||[]).map(h=>`<div class="rej-item"><div class="h">&#x2715; ${invEsc(h.hypothesis)}</div><div class="r">${invEsc(h.reason_rejected)}</div></div>`).join(''):'<div class="inv-empty">No hypotheses recorded as rejected.</div>'}
   </div></details>`;
+
+  // STATISTICAL EVIDENCE -- the deterministic queue-level drill-down. Every metric already carries a
+  // plain-English `reading` computed in Python, so the UI only lays them out and never recomputes a
+  // figure. That matters: the browser's own z-scores use 13 weeks, the engine uses up to 104, and
+  // two stat engines with different windows would quietly disagree in front of the reader.
+  const se = f.statistical_evidence || {};
+  const seMetrics = se.metrics || {};
+  const seOrder = [
+    ['accuracy_recent', 'Forecast accuracy \u2014 recent'],
+    ['accuracy_year', 'Forecast accuracy \u2014 52 weeks'],
+    ['coefficient_of_variation_long', 'Coefficient of Variation'],
+    ['trend_recent', 'Trend & Coefficient of Regression'],
+    ['drift_recent', 'Drift'],
+    ['momentum', 'Momentum'],
+    ['seasonality', 'Seasonality'],
+    ['outliers', 'Outlier detection']
+  ];
+  const seRows = seOrder.map(function(pair){
+    const b = seMetrics[pair[0]]; if (!b) return '';
+    const txt = (b.available === false) ? (b.note || 'not available') : (b.reading || '');
+    const dim = (b.available === false) ? 'color:var(--muted);font-style:italic;' : '';
+    return '<li style="padding:8px 0;border-bottom:1px solid var(--border);">'
+      + '<b style="font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);">' + invEsc(pair[1]) + '</b>'
+      + '<div style="font-size:12.5px;line-height:1.6;margin-top:3px;' + dim + '">' + formatBoldText(txt) + '</div></li>';
+  }).join('');
+  const seCorr = (seMetrics.correlations_pearson || []).map(function(c){
+    return '<li style="padding:6px 0;font-size:12.5px;">' + formatBoldText(c.reading || '') + '</li>';
+  }).join('');
+  const seFindings = (se.findings || []).map(function(fd){
+    return '<li style="padding:7px 0;font-size:12.5px;"><b>' + invEsc(fd.title || '') + '</b> \u2014 '
+      + invEsc(fd.metric || '') + ' <span style="color:var(--muted);">(' + invEsc(fd.confidence_pct) + '%)</span></li>';
+  }).join('');
+  const statsHtml = se.available ? ('<details class="inv-sec" open><summary>Statistical Evidence \u2014 queue level</summary><div class="body">'
+      + secDesc('Deterministic arithmetic on this queue\u2019s own ' + invEsc(se.weeks_available || 0)
+                + ' weeks of history \u2014 no model involved. Runs even when the miss also appears at a higher level.')
+      + (seFindings ? '<div style="margin:0 0 10px;"><div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">What the numbers point to</div><ul style="list-style:none;padding:0;margin:0;">' + seFindings + '</ul></div>' : '')
+      + '<ul style="list-style:none;padding:0;margin:0;">' + seRows + '</ul>'
+      + (seCorr ? '<div style="margin-top:10px;"><div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">Correlation with demand drivers</div><ul style="list-style:none;padding:0;margin:0;">' + seCorr + '</ul></div>' : '')
+      + '</div></details>') : '';
 
   const hist=f.historical_comparison||{};
   const historyHtml=`<details class="inv-sec"><summary>Historical Comparison</summary><div class="body">
@@ -2082,7 +2141,7 @@ function renderInvestigationReport(f, ctx){
 
   const metaHtml=`<div class="inv-meta">Engine: ${invEsc(meta.engine||'—')}${meta.model?' · '+invEsc(meta.model):''} · generated ${meta.generated_at?new Date(meta.generated_at).toLocaleString():'—'} · based on ${(meta.based_on_fields||[]).length} field(s) gathered generically from the source file</div>`;
 
-  return summaryHtml+proofHtml+findingsHtml+narrativeHtml+evidenceHtml+rejectedHtml+historyHtml+recsHtml+missingHtml+metaHtml;
+  return summaryHtml+proofHtml+findingsHtml+narrativeHtml+statsHtml+evidenceHtml+rejectedHtml+historyHtml+recsHtml+missingHtml+metaHtml;
 }
 
 /* ---- RCA Trigger — orchestrates the pipeline above; owns nothing except sequencing.

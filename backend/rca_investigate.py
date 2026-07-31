@@ -91,12 +91,12 @@ FIELD_DEFINITIONS = {
     "ASU": "Active Serviceable Units currently in the market and covered under warranty.",
     "Planned_ASU": "Planned Active Serviceable Units (as per the ASU plan).",
     "Actual_ASU": "Actual Active Serviceable Units.",
-    "Final_Units": "Installed base (warranty units), a demand driver. Final_Y1..Y5 OVERLAP (nested): Y2 is a subset of Y1, Y3 of Y2, and so on — so their sum is NOT Final_Units.",
-    "Final_Y5": "Installed units under warranty in year 5 (nested subset — see Final_Units).",
-    "Final_Y4": "Installed units under warranty in year 4 (nested subset — see Final_Units).",
-    "Final_Y3": "Installed units under warranty in year 3 (nested subset — see Final_Units).",
-    "Final_Y2": "Installed units under warranty in year 2 (nested subset — see Final_Units).",
-    "Final_Y1": "Installed units under warranty in year 1 (nested subset — see Final_Units).",
+    "Final_Units": "Planned units for delivery/production, also called Shipment — one of the major demand drivers. Final_Y1..Y5 OVERLAP (nested): Y5 is a subset of Y4, Y4 of Y3, Y3 of Y2, Y2 of Y1 — so their sum is NOT Final_Units. Never add them together.",
+    "Final_Y5": "Planned units for delivery/production which fall under Year 5 warranty (nested subset — see Final_Units).",
+    "Final_Y4": "Planned units for delivery/production which fall under Year 4 warranty (nested subset — see Final_Units).",
+    "Final_Y3": "Planned units for delivery/production which fall under Year 3 warranty (nested subset — see Final_Units).",
+    "Final_Y2": "Planned units for delivery/production which fall under Year 2 warranty (nested subset — see Final_Units).",
+    "Final_Y1": "Planned units for delivery/production which fall under Year 1 warranty (nested subset — see Final_Units).",
     "Final_upp_units": "Additional installed units under an upgrade / extended-protection plan.",
     "Holiday_Count": "Number of holidays in the fiscal week.",
     "Monday": "Holiday flag for Monday.", "Tuesday": "Holiday flag for Tuesday.",
@@ -161,7 +161,7 @@ Classify the miss into ONE primary cause_type from this taxonomy, then explain i
                                     other queues in the SAME region, sub-region, country and channel that week;
                                     always call them "similar queues", not "peer queues".)
 - "plan_restatement"             : Projection_plan_name changed this week (see plan_restatement).
-- "installed_base_change"        : installed base (Final_* / units) shifted materially and plausibly drives demand.
+- "installed_base_change"        : planned units for delivery/production (Final_* / shipment) shifted materially and plausibly drive demand.
 - "calendar_holiday_effect"      : a holiday/short week plausibly explains the magnitude (see holiday).
 
 How to reason:
@@ -332,7 +332,7 @@ def derive_features(context_bundle):
         "verdict": verdict,
     }
 
-    # -- installed base (collapse correlated Final_* columns to one signal) --
+    # -- planned units / shipment (collapse correlated Final_* columns to one signal) --
     ib = None
     best = None
     for f in INSTALLED_BASE_FIELDS:
@@ -460,7 +460,7 @@ def derive_features(context_bundle):
         if s and s.get("target_value") is not None:
             proof.append(_row(label, fld, s.get("target_value"), s.get("history_mean")))
     if ib and ib.get("material"):
-        proof.append(_row("Installed base (" + ib["field"] + ")", ib["field"], ib["target_value"], ib["history_mean"]))
+        proof.append(_row("Planned units / shipment (" + ib["field"] + ")", ib["field"], ib["target_value"], ib["history_mean"]))
     if hc and (hc.get("target_value") or hc.get("unusual")):   # skip the noisy "0 holidays (usual ~0.08)" row
         proof.append(_row("Holidays in the week", "Holiday_Count", hc.get("target_value"), hc.get("history_mean")))
     feats["proof"] = proof
@@ -556,7 +556,7 @@ def _finding_from_features(features):
     else:
         stmt = (f"During the target fiscal week, actual demand reached {fs.get('actual')} contacts against a forecast of {fs.get('forecast')} contacts. "
                 f"Analysis of available operational drivers indicates a standard forecasting adherence miss. "
-                f"Because no external holiday or installed base shift occurred, the miss is attributable to standing forecast baseline error for this queue.")
+                f"Because no external holiday or planned-unit (shipment) shift occurred, the miss is attributable to standing forecast baseline error for this queue.")
         ctype = "systematic_forecast_bias"
         conf = 0.35
         ev.append({"text": "no other single factor in the available data stands out", "source_field": "cleaned_signals",
@@ -599,7 +599,7 @@ def _observations_from_features(features):
         obs.append(f"All {pd.get('peers_total')} similar queues mostly moved the same way this week.")
     ib = f.get("installed_base")
     if ib and ib.get("material"):
-        obs.append(f"The installed base ({ib.get('field')}) was {ib.get('target_value')} this week vs a usual ~{ib.get('history_mean')}.")
+        obs.append(f"Planned units for delivery ({ib.get('field')}) were {ib.get('target_value')} this week vs a usual ~{ib.get('history_mean')}.")
     hol = f.get("holiday")
     if hol and hol.get("unusual"):
         obs.append(f"There were {hol.get('holiday_count')} holidays in this week — more than usual.")
@@ -668,8 +668,8 @@ def _deterministic_rejected(features, selected):
         out.append({"hypothesis": "A holiday or short week distorted the numbers.",
                     "reason_rejected": "This week had no unusual number of holidays."})
     if selected != "installed_base_change" and ib and not ib.get("material"):
-        out.append({"hypothesis": "A change in the installed base (units under warranty) drove demand.",
-                    "reason_rejected": "The installed base for this queue did not change materially this week."})
+        out.append({"hypothesis": "A change in planned units for delivery (shipment) drove demand.",
+                    "reason_rejected": "Planned units for this queue did not change materially this week."})
     return out[:5]
 
 
@@ -892,6 +892,24 @@ def _coerce_response(parsed, context_bundle, features):
     return out
 
 
+def _fix_terminology_legacy(result):
+    """Rewrite "installed base" -> planned units (shipment) in the legacy engine's output too.
+
+    The model writes the term unprompted (a live run put it in missing_information), and the legacy
+    engine does not run the WFM language guard. The pass is imported lazily: wfm imports
+    derive_features from THIS module, so a module-level import would be circular.
+    """
+    try:
+        from wfm.business_report_generator import _fix_terminology
+    except Exception:
+        return result                      # never let a cosmetic pass break an investigation
+    try:
+        return {k: (v if k == "investigation_meta" else _fix_terminology(v, k))
+                for k, v in result.items()}
+    except Exception:
+        return result
+
+
 def _call_provider(slot_cfg, context_bundle, features, model_bundle, timeout=None):
     slot_cfg = slot_cfg or {}
     provider = slot_cfg.get("provider")
@@ -925,6 +943,7 @@ def _call_provider(slot_cfg, context_bundle, features, model_bundle, timeout=Non
         return None, f"{provider} error: {e}"
     result = _coerce_response(parsed, context_bundle, features)
     result = _verify_and_fix(result, context_bundle, features)
+    result = _fix_terminology_legacy(result)
     result["investigation_meta"] = {
         "engine": "llm", "provider": provider, "model": model, "generated_at": _now(),
         "based_on_fields": sorted(set(((context_bundle or {}).get("target") or {}).get("fields", {}).keys())),

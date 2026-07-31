@@ -1,75 +1,65 @@
 {
- "executive_summary": "The forecast adherence KPI for the ANZ Client Core queue was 66.1%, which is below the threshold of 10%. This indicates that the actual offered volume was significantly lower than the forecasted volume. The investigation suggests that the miss is likely due to a systematic forecast bias and an inherited issue from a higher level, specifically the Business Org level.",
+ "executive_summary": "During Fiscal Week 202719, total demand across the Combined Queue (Brazil Cons Basic SITEL) changed by +22.2%. However, Voice (Brazil Cons Basic) demand increased by 112 contacts. This indicates that customers chose different contact channels rather than demand reducing. Because the forecast was generated independently for each Forecast Name instead of the CQN, over-forecast and under-forecast errors occurred across individual channels.",
  "kpi_status": {
   "metric": "Forecast Adherence",
-  "adherence_pct": 66.1,
+  "adherence_pct": -22.7,
   "threshold_pct": 10.0,
   "breached": true,
-  "direction": "over_forecast"
+  "direction": "under_forecast"
  },
- "business_impact": "The low forecast adherence may result in underutilization of resources and potential loss of revenue.",
+ "business_impact": "The under-forecast error resulted in a higher than expected volume of 617 contacts, which may impact the queue's ability to handle the increased demand efficiently.",
  "ranked_root_causes": [
   {
    "rank": 1,
    "cause_type": "inherited_from_higher_level",
-   "title": "Inherited Issue from Business Org Level",
-   "explanation": "The same miss is already visible at the Business Org level, indicating that the issue is not specific to this queue but rather a broader problem.",
+   "title": "Inherited from Higher Level",
+   "explanation": "The miss is already visible at the Region level, so it is not specific to this queue and should be attributed there. During Fiscal Week 202719, the Region (CSG / Americas) had an actual offered volume of 23135.0 and a forecasted offered volume of 20539.8, resulting in an adherence percentage of -12.6%. This indicates that the under-forecast error is not specific to the Brazil Cons Basic queue but is a broader issue affecting the Region.",
    "evidence": [
     {
-     "text": "INVESTIGATION_LADDER levels breaching band",
+     "text": "The INVESTIGATION_LADDER shows that the miss is already visible at the Region level.",
      "source_field": "INVESTIGATION_LADDER",
-     "value": "Business Org"
+     "value": "Region"
     }
    ],
    "confidence_pct": 90,
    "confidence_level": "High",
-   "business_impact": "The issue may affect multiple queues and require a more comprehensive solution.",
-   "recommended_action": "Investigate and address the issue at the Business Org level.",
+   "business_impact": "The under-forecast error at the Region level may impact the ability of the queues within the Region to handle the increased demand efficiently.",
+   "recommended_action": "Review the forecast at the Region level to identify the root cause of the under-forecast error.",
    "status": "Verified"
   },
   {
    "rank": 2,
-   "cause_type": "systematic_forecast_bias",
-   "title": "Systematic Forecast Bias",
-   "explanation": "The chronic bias feature indicates a consistent over-forecasting issue, which may be contributing to the low adherence.",
-   "evidence": [
-    {
-     "text": "DERIVED_FEATURES chronic_bias history_mean_adherence_pct",
-     "source_field": "DERIVED_FEATURES",
-     "value": 18.4
-    }
-   ],
+   "cause_type": "installed_base_change",
+   "title": "Installed Base Change",
+   "explanation": "The installed base (Final_upp_units) has increased by 28% compared to the usual level, which may have contributed to the under-forecast error. During Fiscal Week 202719, the installed base was 6768.0, which is higher than the usual level of 5293.4. This increase in installed base may have led to a higher than expected volume of 617 contacts.",
+   "evidence": [],
    "confidence_pct": 80,
    "confidence_level": "High",
-   "business_impact": "The bias may be affecting multiple forecasts and require adjustments to the forecasting process.",
-   "recommended_action": "Review and adjust the forecasting process to address the systematic bias.",
-   "status": "Verified"
+   "business_impact": "The increase in installed base may have contributed to the under-forecast error, and reviewing the installed base assumptions may help to improve the forecast accuracy.",
+   "recommended_action": "Review the installed base assumptions to ensure they are accurate and up-to-date.",
+   "status": "Hypothesis - To be Validated",
+   "evidence_note": "1 cited figure(s) could not be reconciled against the source data and were removed.",
+   "hypothesis_reason": "no supporting figure survived reconciliation against the source data"
   }
  ],
  "skeptic_review": [
   {
    "cause": "inherited_from_higher_level",
-   "challenge": "Is the issue specific to this queue or a broader problem?",
+   "challenge": "Is the under-forecast error specific to the Brazil Cons Basic queue or is it a broader issue affecting the Region?",
    "verdict": "retained",
-   "reason": "The investigation ladder shows that the miss is already visible at the Business Org level."
+   "reason": "The INVESTIGATION_LADDER shows that the miss is already visible at the Region level, which suggests that the under-forecast error is not specific to the Brazil Cons Basic queue."
   },
   {
-   "cause": "systematic_forecast_bias",
-   "challenge": "Is the bias a one-time issue or a consistent problem?",
-   "verdict": "retained",
-   "reason": "The chronic bias feature indicates a consistent over-forecasting issue."
-  },
-  {
-   "cause": "Inherited Issue from Business Org Level",
+   "cause": "Inherited from Higher Level",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
   },
   {
-   "cause": "Systematic Forecast Bias",
-   "challenge": "Is this supported by the data, or could something else explain it better?",
+   "cause": "Installed Base Change",
+   "challenge": "Does every number quoted here appear in the source data?",
    "verdict": "retained",
-   "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+   "reason": "Mostly. 1 figure(s) did not reconcile and were dropped; the remaining 0 check out."
   }
  ],
  "investigation_trail": {
@@ -78,101 +68,109 @@
    "Region",
    "SubRegion",
    "Country",
-   "Channel"
+   "Combined Queue"
   ],
-  "inherited_from": "Business Org",
-  "narrative": "The investigation started at the queue level and moved up the hierarchy to identify the root cause."
+  "inherited_from": "Region",
+  "narrative": "The under-forecast error is not specific to the Brazil Cons Basic queue but is a broader issue affecting the Region."
  },
  "channel_migration": {
   "detected": false,
-  "narrative": "No channel migration was detected.",
-  "gaining_channels": [],
-  "losing_channels": [
+  "narrative": "No channel migration detected.",
+  "gaining_channels": [
    "Voice"
   ],
+  "losing_channels": [],
   "grouped_by": "Combined_Queue_Name (authoritative mapping)",
   "is_cqn_proxy": false,
-  "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: ANZ Commercial Client Concentrix). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
+  "combined_queue_names": [
+   "Brazil Cons Basic SITEL"
+  ],
+  "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: Brazil Cons Basic SITEL). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
   "detail": {
    "available": true,
    "grouped_by": "Combined_Queue_Name (authoritative mapping)",
    "combined_queue_names": [
-    "ANZ Commercial Client Concentrix"
+    "Brazil Cons Basic SITEL"
    ],
    "is_cqn_proxy": false,
-   "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: ANZ Commercial Client Concentrix). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
-   "prior_week": "202721",
-   "this_week": "202722",
+   "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: Brazil Cons Basic SITEL). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
+   "prior_week": "202718",
+   "this_week": "202719",
    "per_channel": [
     {
      "channel": "Voice",
-     "prior_week_actual": 126.0,
-     "this_week_actual": 83.0,
-     "change": -43.0,
+     "sibling_queue_names": [
+      "Brazil Cons Basic"
+     ],
+     "sibling_queues_text": "Brazil Cons Basic",
+     "channel_label": "Voice (Brazil Cons Basic)",
+     "prior_week_actual": 505.0,
+     "this_week_actual": 617.0,
+     "change": 112.0,
+     "abs_change": 112.0,
      "is_target_channel": true
     }
    ],
-   "group_total_prior_week": 126.0,
-   "group_total_this_week": 83.0,
-   "group_total_change": -43.0,
-   "gross_channel_movement": 43.0,
+   "group_total_prior_week": 505.0,
+   "group_total_this_week": 617.0,
+   "group_total_change": 112.0,
+   "cqn_total_change_pct": 22.2,
+   "gross_channel_movement": 112.0,
    "offset_share": 0.0,
    "migration_detected": false,
-   "gaining_channels": [],
-   "losing_channels": [
+   "gaining_channels": [
     "Voice"
    ],
+   "losing_channels": [],
+   "deltas_text": "Voice (Brazil Cons Basic) demand increased by 112 contacts",
+   "formatted_narrative": "During Fiscal Week 202719, total demand across the Combined Queue (Brazil Cons Basic SITEL) changed by +22.2%. However, Voice (Brazil Cons Basic) demand increased by 112 contacts. This indicates that customers chose different contact channels rather than demand reducing. Because the forecast was generated independently for each Forecast Name instead of the CQN, over-forecast and under-forecast errors occurred across individual channels.",
    "note": "Channel movements do not cancel out, so this is not a like-for-like shift between channels."
   }
  },
  "technical_metrics": [
   {
-   "label": "Forecast (fcst_offered)",
-   "value": 244.6
+   "label": "Forecast Offered",
+   "value": 503.0
   },
   {
-   "label": "Actual demand (Actual_Offered)",
-   "value": 83.0
+   "label": "Actual_Offered",
+   "value": 617.0
   },
   {
    "label": "Planned ASU",
-   "value": 124187.0
+   "value": 1308919.0
   },
   {
    "label": "Installed base (Final_upp_units)",
-   "value": 2677.0
+   "value": 6768.0
   },
   {
    "label": "Relationship strength: Actual_ASU vs demand",
-   "value": 0.63
-  },
-  {
-   "label": "Relationship strength: Holiday_Count vs demand",
-   "value": -0.52
+   "value": 0.75
   },
   {
    "label": "Adherence at Business Org level",
-   "value": 20.5
+   "value": -7.5
   },
   {
    "label": "Adherence at Region level",
-   "value": 27.3
+   "value": -12.6
   },
   {
    "label": "Adherence at SubRegion level",
-   "value": 17.2
+   "value": -21.9
   },
   {
    "label": "Adherence at Country level",
-   "value": 17.2
+   "value": -21.9
   },
   {
    "label": "Adherence at Channel level",
-   "value": 49.2
+   "value": -21.9
   },
   {
-   "label": "DERIVED_FEATURES chronic_bias history_mean_adherence_pct",
-   "value": 18.4
+   "label": "Actual Offered",
+   "value": 617.0
   }
  ],
  "missing_information": [
@@ -181,45 +179,47 @@
  "derived_features": {
   "base_features": {
    "chronic_bias": {
-    "history_mean_adherence_pct": 18.4,
-    "typical_abs_deviation_pct": 20.2,
+    "history_mean_adherence_pct": 7.8,
+    "typical_abs_deviation_pct": 19.5,
     "history_weeks": 13,
-    "usual_forecast": 283.4,
-    "usual_actual": 232.4,
-    "consistent_direction": "over",
-    "share_same_direction": 0.85,
-    "verdict": "chronic_over"
+    "usual_forecast": 673.1,
+    "usual_actual": 602.1,
+    "consistent_direction": null,
+    "share_same_direction": 0.62,
+    "verdict": "mixed"
    },
    "this_week_vs_usual": {
-    "target_adherence_pct": 66.1,
-    "typical_abs_deviation_pct": 20.2,
-    "times_usual": 3.3,
-    "worse_than_usual": true
+    "target_adherence_pct": -22.7,
+    "typical_abs_deviation_pct": 19.5,
+    "times_usual": 1.2,
+    "worse_than_usual": false
    },
    "forecast_sanity": {
-    "forecast": 244.6,
-    "actual": 83.0,
-    "forecast_usual_level": 283.44,
-    "actual_usual_level": 232.38,
-    "forecast_z_vs_own_history": -1.35,
-    "actual_z_vs_own_history": -2.2,
-    "forecast_over_actual_ratio": 2.947,
-    "verdict": "actual_anomalous"
+    "forecast": 503.0,
+    "actual": 617.0,
+    "forecast_usual_level": 673.06,
+    "actual_usual_level": 602.08,
+    "forecast_z_vs_own_history": -1.39,
+    "actual_z_vs_own_history": 0.12,
+    "forecast_over_actual_ratio": 0.815,
+    "verdict": "normal"
    },
    "installed_base": {
     "field": "Final_upp_units",
-    "z_score": 2.96,
-    "target_value": 2677.0,
-    "history_mean": 2149.88,
+    "z_score": 2.88,
+    "target_value": 6768.0,
+    "history_mean": 5293.4,
     "material": true
    },
    "holiday": {
     "holiday_count": 0.0,
-    "z_score": -0.7,
+    "z_score": -0.64,
     "unusual": false
    },
    "plan_restatement": {
-    "changed": false
+    "changed": true,
+    "prior": "FY27 May Projection",
+    "current": "FY27 Jun Projection"
    },
    "forecaster_change": {
     "changed": false
@@ -228,74 +228,110 @@
     "changed": false
    },
    "peer_divergence": {
-    "peers_total": 6,
+    "peers_total": 3,
     "peers_opposite_direction": 0,
-    "peers_same_direction": 6,
+    "peers_same_direction": 3,
     "examples_opposite": [],
+    "all_peers": [
+     {
+      "forecast_name": "Brazil OOP",
+      "channel": "Voice",
+      "direction": "under",
+      "adherence_pct": -24.0,
+      "actual": 920.0,
+      "forecast": 741.9886726,
+      "is_opposite": false
+     },
+     {
+      "forecast_name": "Brazil Comm Client ProSupport",
+      "channel": "Voice",
+      "direction": "under",
+      "adherence_pct": -0.7,
+      "actual": 568.0,
+      "forecast": 564.0,
+      "is_opposite": false
+     },
+     {
+      "forecast_name": "Brazil Cons Call Director",
+      "channel": "Voice",
+      "direction": "under",
+      "adherence_pct": -36.5,
+      "actual": 942.0,
+      "forecast": 690.0,
+      "is_opposite": false
+     }
+    ],
     "signal": false
    },
    "population_context": null,
    "cleaned_signals": [
     {
      "field": "installed_base(Final_upp_units)",
-     "z_score": 2.96,
-     "target_value": 2677.0,
-     "history_mean": 2149.88
+     "z_score": 2.88,
+     "target_value": 6768.0,
+     "history_mean": 5293.4
+    },
+    {
+     "field": "Planned_ASU",
+     "z_score": 2.12,
+     "target_value": 1308919.0,
+     "history_mean": 1294552.15
     }
    ],
    "proof": [
     {
-     "label": "Forecast (fcst_offered)",
+     "label": "Forecast Offered",
      "field": "fcst_offered",
-     "this_week": 244.6,
-     "usual": 283.4,
-     "change": "about the same as usual"
+     "this_week": 503.0,
+     "usual": 673.06,
+     "change": "about 25% lower than usual"
     },
     {
-     "label": "Actual demand (Actual_Offered)",
+     "label": "Actual_Offered",
      "field": "Actual_Offered",
-     "this_week": 83.0,
-     "usual": 232.4,
-     "change": "about 3x lower than usual"
+     "this_week": 617.0,
+     "usual": 602.08,
+     "change": "about the same as usual"
     },
     {
      "label": "Planned ASU",
      "field": "Planned_ASU",
-     "this_week": 124187.0,
-     "usual": 126444,
+     "this_week": 1308919.0,
+     "usual": 1294552.15,
      "change": "about the same as usual"
     },
     {
      "label": "Installed base (Final_upp_units)",
      "field": "Final_upp_units",
-     "this_week": 2677.0,
-     "usual": 2150,
-     "change": "about the same as usual"
+     "this_week": 6768.0,
+     "usual": 5293.4,
+     "change": "about 28% higher than usual"
     }
    ]
   },
   "temporal": {
    "this_week": {
-    "fiscal_week": "202722",
-    "actual": 83.0,
-    "forecast": 244.59627875767,
-    "adherence_pct": 66.1
+    "fiscal_week": "202719",
+    "actual": 617.0,
+    "forecast": 503.0,
+    "adherence_pct": -22.7
    },
    "previous_week": {
-    "fiscal_week": 202721,
-    "actual": 126.0
+    "fiscal_week": 202718,
+    "actual": 505.0
    },
-   "last_4_week_avg_actual": 164.8,
-   "last_13_week_avg_actual": 232.4,
-   "full_history_avg_actual": 336.6,
+   "last_4_week_avg_actual": 608.8,
+   "last_13_week_avg_actual": 602.1,
+   "full_history_avg_actual": 919.0,
    "history_weeks_available": 103,
    "same_week_last_year": {
-    "fiscal_week": 202622,
-    "actual": 365.0,
-    "forecast": 380.619701689802
+    "fiscal_week": 202619,
+    "actual": 1043.0,
+    "forecast": 1097.1870109008619
    },
    "same_week_last_year_note": null,
    "distinct_forecast_plans_in_window": [
+    "FY25 Jun Projection",
     "FY25 Jul Projection",
     "FY25 Aug Projection",
     "FY25 Sep Projection",
@@ -326,31 +362,40 @@
    "available": true,
    "grouped_by": "Combined_Queue_Name (authoritative mapping)",
    "combined_queue_names": [
-    "ANZ Commercial Client Concentrix"
+    "Brazil Cons Basic SITEL"
    ],
    "is_cqn_proxy": false,
-   "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: ANZ Commercial Client Concentrix). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
-   "prior_week": "202721",
-   "this_week": "202722",
+   "cqn_note": "Grouped by the AUTHORITATIVE Combined Queue from dbo.CQN_Mapping (1 CQNs: Brazil Cons Basic SITEL). A Forecast_Name can belong to more than one Combined Queue (vendor-site splits), in which case the union of its queues is used.",
+   "prior_week": "202718",
+   "this_week": "202719",
    "per_channel": [
     {
      "channel": "Voice",
-     "prior_week_actual": 126.0,
-     "this_week_actual": 83.0,
-     "change": -43.0,
+     "sibling_queue_names": [
+      "Brazil Cons Basic"
+     ],
+     "sibling_queues_text": "Brazil Cons Basic",
+     "channel_label": "Voice (Brazil Cons Basic)",
+     "prior_week_actual": 505.0,
+     "this_week_actual": 617.0,
+     "change": 112.0,
+     "abs_change": 112.0,
      "is_target_channel": true
     }
    ],
-   "group_total_prior_week": 126.0,
-   "group_total_this_week": 83.0,
-   "group_total_change": -43.0,
-   "gross_channel_movement": 43.0,
+   "group_total_prior_week": 505.0,
+   "group_total_this_week": 617.0,
+   "group_total_change": 112.0,
+   "cqn_total_change_pct": 22.2,
+   "gross_channel_movement": 112.0,
    "offset_share": 0.0,
    "migration_detected": false,
-   "gaining_channels": [],
-   "losing_channels": [
+   "gaining_channels": [
     "Voice"
    ],
+   "losing_channels": [],
+   "deltas_text": "Voice (Brazil Cons Basic) demand increased by 112 contacts",
+   "formatted_narrative": "During Fiscal Week 202719, total demand across the Combined Queue (Brazil Cons Basic SITEL) changed by +22.2%. However, Voice (Brazil Cons Basic) demand increased by 112 contacts. This indicates that customers chose different contact channels rather than demand reducing. Because the forecast was generated independently for each Forecast Name instead of the CQN, over-forecast and under-forecast errors occurred across individual channels.",
    "note": "Channel movements do not cancel out, so this is not a like-for-like shift between channels."
   },
   "investigation_ladder": {
@@ -360,59 +405,58 @@
     {
      "level": "Business Org",
      "scope": "CSG",
-     "actual_offered": 185972.0,
-     "fcst_offered": 233909.3,
-     "adherence_pct": 20.5,
-     "queue_weeks_in_scope": 423
+     "actual_offered": 63506.0,
+     "fcst_offered": 59083.1,
+     "adherence_pct": -7.5,
+     "queue_weeks_in_scope": 42
     },
     {
      "level": "Region",
-     "scope": "CSG / APJ",
-     "actual_offered": 73956.0,
-     "fcst_offered": 101691.7,
-     "adherence_pct": 27.3,
-     "queue_weeks_in_scope": 157
+     "scope": "CSG / Americas",
+     "actual_offered": 23135.0,
+     "fcst_offered": 20539.8,
+     "adherence_pct": -12.6,
+     "queue_weeks_in_scope": 12
     },
     {
      "level": "SubRegion",
-     "scope": "CSG / APJ / ANZ",
-     "actual_offered": 5362.0,
-     "fcst_offered": 6472.1,
-     "adherence_pct": 17.2,
-     "queue_weeks_in_scope": 15
+     "scope": "CSG / Americas / Brazil",
+     "actual_offered": 3047.0,
+     "fcst_offered": 2499.0,
+     "adherence_pct": -21.9,
+     "queue_weeks_in_scope": 4
     },
     {
      "level": "Country",
-     "scope": "CSG / APJ / ANZ / Australia",
-     "actual_offered": 5362.0,
-     "fcst_offered": 6472.1,
-     "adherence_pct": 17.2,
-     "queue_weeks_in_scope": 15
+     "scope": "CSG / Americas / Brazil / Brazil",
+     "actual_offered": 3047.0,
+     "fcst_offered": 2499.0,
+     "adherence_pct": -21.9,
+     "queue_weeks_in_scope": 4
     },
     {
      "level": "Channel",
-     "scope": "CSG / APJ / ANZ / Australia / Voice",
-     "actual_offered": 798.0,
-     "fcst_offered": 1570.2,
-     "adherence_pct": 49.2,
-     "queue_weeks_in_scope": 7
+     "scope": "CSG / Americas / Brazil / Brazil / Voice",
+     "actual_offered": 3047.0,
+     "fcst_offered": 2499.0,
+     "adherence_pct": -21.9,
+     "queue_weeks_in_scope": 4
     }
    ],
    "levels_breaching_band": [
-    "Business Org",
     "Region",
     "SubRegion",
     "Country",
     "Channel"
    ],
-   "inherited_from": "Business Org",
-   "note": "The same miss is already visible at Business Org level, so it is not specific to this queue and should be attributed there."
+   "inherited_from": "Region",
+   "note": "The same miss is already visible at Region level, so it is not specific to this queue and should be attributed there."
   },
   "data_quality": {
    "available": true,
-   "this_week_actual": 83.0,
-   "typical_week_actual": 351.0,
-   "times_typical": 0.2,
+   "this_week_actual": 617.0,
+   "typical_week_actual": 916.0,
+   "times_typical": 0.7,
    "weeks_compared": 103,
    "is_isolated_one_off": false,
    "next_weeks_actual": [],
@@ -430,18 +474,10 @@
      {
       "driver": "Actual_ASU",
       "subject": "the number of units under warranty",
-      "weeks": 82,
-      "technical_strength": 0.63,
+      "weeks": 85,
+      "technical_strength": 0.75,
       "direction": "same",
-      "plain_language": "Historically, when the number of units under warranty went up, this queue's demand more often than not went higher too."
-     },
-     {
-      "driver": "Holiday_Count",
-      "subject": "the number of holidays in the week",
-      "weeks": 104,
-      "technical_strength": -0.52,
-      "direction": "opposite",
-      "plain_language": "Historically, when the number of holidays in the week went up, this queue's demand more often than not went lower too."
+      "plain_language": "Historically, when the number of units under warranty went up, this queue's demand usually went higher too."
      }
     ],
     "rejected": [
@@ -449,7 +485,7 @@
       "driver": "Planned_ASU",
       "subject": "the planned number of units under warranty",
       "weeks": 104,
-      "technical_strength": 0.39,
+      "technical_strength": 0.48,
       "direction": "same",
       "reason": "Relationship too weak or too little history to rely on (104 weeks)."
      },
@@ -457,7 +493,15 @@
       "driver": "Final_Units",
       "subject": "the installed base",
       "weeks": 104,
-      "technical_strength": -0.11,
+      "technical_strength": 0.17,
+      "direction": "same",
+      "reason": "Relationship too weak or too little history to rely on (104 weeks)."
+     },
+     {
+      "driver": "Holiday_Count",
+      "subject": "the number of holidays in the week",
+      "weeks": 104,
+      "technical_strength": -0.32,
       "direction": "opposite",
       "reason": "Relationship too weak or too little history to rely on (104 weeks)."
      }
@@ -471,62 +515,240 @@
     ],
     "reason": "Cannot split the miss into a warranty-base effect and a contacts-per-unit effect because these values are missing or zero for this week: Actual_ASU."
    }
-  }
+  },
+  "chronic_bias": {
+   "history_mean_adherence_pct": 7.8,
+   "typical_abs_deviation_pct": 19.5,
+   "history_weeks": 13,
+   "usual_forecast": 673.1,
+   "usual_actual": 602.1,
+   "consistent_direction": null,
+   "share_same_direction": 0.62,
+   "verdict": "mixed"
+  },
+  "this_week_vs_usual": {
+   "target_adherence_pct": -22.7,
+   "typical_abs_deviation_pct": 19.5,
+   "times_usual": 1.2,
+   "worse_than_usual": false
+  },
+  "forecast_sanity": {
+   "forecast": 503.0,
+   "actual": 617.0,
+   "forecast_usual_level": 673.06,
+   "actual_usual_level": 602.08,
+   "forecast_z_vs_own_history": -1.39,
+   "actual_z_vs_own_history": 0.12,
+   "forecast_over_actual_ratio": 0.815,
+   "verdict": "normal"
+  },
+  "installed_base": {
+   "field": "Final_upp_units",
+   "z_score": 2.88,
+   "target_value": 6768.0,
+   "history_mean": 5293.4,
+   "material": true
+  },
+  "holiday": {
+   "holiday_count": 0.0,
+   "z_score": -0.64,
+   "unusual": false
+  },
+  "plan_restatement": {
+   "changed": true,
+   "prior": "FY27 May Projection",
+   "current": "FY27 Jun Projection"
+  },
+  "forecaster_change": {
+   "changed": false
+  },
+  "offering_change": {
+   "changed": false
+  },
+  "peer_divergence": {
+   "peers_total": 3,
+   "peers_opposite_direction": 0,
+   "peers_same_direction": 3,
+   "examples_opposite": [],
+   "all_peers": [
+    {
+     "forecast_name": "Brazil OOP",
+     "channel": "Voice",
+     "direction": "under",
+     "adherence_pct": -24.0,
+     "actual": 920.0,
+     "forecast": 741.9886726,
+     "is_opposite": false
+    },
+    {
+     "forecast_name": "Brazil Comm Client ProSupport",
+     "channel": "Voice",
+     "direction": "under",
+     "adherence_pct": -0.7,
+     "actual": 568.0,
+     "forecast": 564.0,
+     "is_opposite": false
+    },
+    {
+     "forecast_name": "Brazil Cons Call Director",
+     "channel": "Voice",
+     "direction": "under",
+     "adherence_pct": -36.5,
+     "actual": 942.0,
+     "forecast": 690.0,
+     "is_opposite": false
+    }
+   ],
+   "signal": false
+  },
+  "population_context": null,
+  "cleaned_signals": [
+   {
+    "field": "installed_base(Final_upp_units)",
+    "z_score": 2.88,
+    "target_value": 6768.0,
+    "history_mean": 5293.4
+   },
+   {
+    "field": "Planned_ASU",
+    "z_score": 2.12,
+    "target_value": 1308919.0,
+    "history_mean": 1294552.15
+   }
+  ],
+  "proof": [
+   {
+    "label": "Forecast Offered",
+    "field": "fcst_offered",
+    "this_week": 503.0,
+    "usual": 673.06,
+    "change": "about 25% lower than usual"
+   },
+   {
+    "label": "Actual_Offered",
+    "field": "Actual_Offered",
+    "this_week": 617.0,
+    "usual": 602.08,
+    "change": "about the same as usual"
+   },
+   {
+    "label": "Planned ASU",
+    "field": "Planned_ASU",
+    "this_week": 1308919.0,
+    "usual": 1294552.15,
+    "change": "about the same as usual"
+   },
+   {
+    "label": "Installed base (Final_upp_units)",
+    "field": "Final_upp_units",
+    "this_week": 6768.0,
+    "usual": 5293.4,
+    "change": "about 28% higher than usual"
+   }
+  ]
  },
  "investigation_meta": {
   "engine": "wfm-llm",
   "provider": "groq",
   "model": "llama-3.3-70b-versatile",
   "calls": 1,
-  "generated_at": "2026-07-29T03:54:26.801027+00:00"
+  "generated_at": "2026-07-30T07:04:15.594999+00:00"
  },
  "primary_root_cause": {
-  "statement": "The same miss is already visible at the Business Org level, indicating that the issue is not specific to this queue but rather a broader problem.",
+  "statement": "The miss is already visible at the Region level, so it is not specific to this queue and should be attributed there. During Fiscal Week 202719, the Region (CSG / Americas) had an actual offered volume of 23135.0 and a forecasted offered volume of 20539.8, resulting in an adherence percentage of -12.6%. This indicates that the under-forecast error is not specific to the Brazil Cons Basic queue but is a broader issue affecting the Region.",
   "confidence": 0.9,
   "supporting_evidence": [
    {
-    "text": "INVESTIGATION_LADDER levels breaching band",
+    "text": "The INVESTIGATION_LADDER shows that the miss is already visible at the Region level.",
     "source_field": "INVESTIGATION_LADDER",
-    "value": "Business Org"
+    "value": "Region"
    }
   ]
  },
  "secondary_contributors": [
   {
-   "statement": "The chronic bias feature indicates a consistent over-forecasting issue, which may be contributing to the low adherence.",
+   "statement": "The installed base (Final_upp_units) has increased by 28% compared to the usual level, which may have contributed to the under-forecast error. During Fiscal Week 202719, the installed base was 6768.0, which is higher than the usual level of 5293.4. This increase in installed base may have led to a higher than expected volume of 617 contacts.",
    "confidence": 0.8,
-   "supporting_evidence": [
-    {
-     "text": "DERIVED_FEATURES chronic_bias history_mean_adherence_pct",
-     "source_field": "DERIVED_FEATURES",
-     "value": 18.4
-    }
-   ]
+   "supporting_evidence": []
   }
  ],
  "confidence_score": 0.9,
  "cause_type": "inherited_from_higher_level",
  "key_findings": [
-  "The forecast this week was 244.6, and actual demand was 83.0.",
-  "Actual demand (83.0) was far from this queue's usual level of about 232.38, while the forecast (244.6) was about normal.",
-  "This queue is over-forecast in most recent weeks (typically about 232.4 actual against 283.4 forecast).",
-  "All 6 similar queues mostly moved the same way this week.",
-  "The forecast plan did not change this week.",
-  "The installed base (Final_upp_units) was 2677.0 this week vs a usual ~2149.88."
+  "The forecast this week was 503.0, and actual demand was 617.0.",
+  "This queue's misses have no consistent direction over recent weeks.",
+  "All 3 similar queues mostly moved the same way this week.",
+  "The installed base (Final_upp_units) was 6768.0 this week vs a usual ~5293.4."
  ],
  "supporting_evidence": [
   {
-   "text": "INVESTIGATION_LADDER levels breaching band",
+   "text": "The INVESTIGATION_LADDER shows that the miss is already visible at the Region level.",
    "source_field": "INVESTIGATION_LADDER",
-   "value": "Business Org"
+   "value": "Region"
   }
  ],
- "reasoning_narrative": "The forecast adherence KPI for the ANZ Client Core queue was 66.1%, which is below the threshold of 10%. This indicates that the actual offered volume was significantly lower than the forecasted volume. The investigation suggests that the miss is likely due to a systematic forecast bias and an inherited issue from a higher level, specifically the Business Org level.",
+ "reasoning_narrative": "During Fiscal Week 202719, total demand across the Combined Queue (Brazil Cons Basic SITEL) changed by +22.2%. However, Voice (Brazil Cons Basic) demand increased by 112 contacts. This indicates that customers chose different contact channels rather than demand reducing. Because the forecast was generated independently for each Forecast Name instead of the CQN, over-forecast and under-forecast errors occurred across individual channels.",
  "rejected_hypotheses": [],
- "historical_comparison": {},
- "forecast_improvement_recommendations": [
-  "Investigate and address the issue at the Business Org level.",
-  "Review and adjust the forecasting process to address the systematic bias."
- ],
- "forecast_summary": {}
+ "historical_comparison": {
+  "narrative": "Over the last 13 weeks, actual demand for this queue averaged ~602.1 contacts per week. The queue historically trends below forecast with an average adherence of 7.8%. Typical weekly error magnitude is about ~19.5%. This week's miss magnitude is 1.2x its typical historical variation. In the same fiscal week last year (FW 202619), actual demand was 1043.0 contacts.",
+  "data_points": [
+   {
+    "label": "Historical weeks evaluated",
+    "value": "13"
+   },
+   {
+    "label": "13-Week avg actual demand",
+    "value": "602.1 contacts"
+   },
+   {
+    "label": "13-Week avg forecast",
+    "value": "673.1 contacts"
+   },
+   {
+    "label": "Recent 4-Week avg actual",
+    "value": "608.8 contacts"
+   },
+   {
+    "label": "Same week last year (FW 202619) actual",
+    "value": "1043.0 contacts"
+   }
+  ]
+ },
+ "forecast_summary": {
+  "forecast": 503.0,
+  "actual": 617.0,
+  "error": 114.0,
+  "adherence_pct": -22.7,
+  "miss_type": "under_forecast"
+ },
+ "proof": [
+  {
+   "label": "Forecast Offered",
+   "field": "fcst_offered",
+   "this_week": 503.0,
+   "usual": 673.06,
+   "change": "about 25% lower than usual"
+  },
+  {
+   "label": "Actual_Offered",
+   "field": "Actual_Offered",
+   "this_week": 617.0,
+   "usual": 602.08,
+   "change": "about the same as usual"
+  },
+  {
+   "label": "Planned ASU",
+   "field": "Planned_ASU",
+   "this_week": 1308919.0,
+   "usual": 1294552.15,
+   "change": "about the same as usual"
+  },
+  {
+   "label": "Installed base (Final_upp_units)",
+   "field": "Final_upp_units",
+   "this_week": 6768.0,
+   "usual": 5293.4,
+   "change": "about 28% higher than usual"
+  }
+ ]
 }

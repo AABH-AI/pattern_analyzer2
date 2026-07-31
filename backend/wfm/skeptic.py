@@ -38,7 +38,7 @@ PRECONDITIONS = {
     ),
     "installed_base_change": (
         lambda f: bool(((f.get("base_features") or {}).get("installed_base") or {}).get("material")),
-        "the installed base did not move materially this week",
+        "planned units for delivery (shipment) did not move materially this week",
     ),
     "volume_routing_shift": (
         lambda f: bool(((f.get("base_features") or {}).get("peer_divergence") or {}).get("signal")),

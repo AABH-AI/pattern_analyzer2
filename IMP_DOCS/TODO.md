@@ -239,6 +239,20 @@ which is what surfaced the mistake.
       Back-fill it from the causes.
 - [ ] **Footer says "based on 0 field(s)"** — `fields_used` is null in the WFM response, while the
       default engine populated it. Back-fill it.
+- [x] **RESOLVED 2026-07-30 — the "installed base" terminology.** `Final_Units` / `Final_Y1..Y5`
+      are **planned units for delivery/production (Shipment)**, not the installed base. Corrected in
+      the Definitions tab, the domain card, `FIELD_DEFINITIONS` and `wfm/prompts.py`, and enforced on
+      output by a recursive `_fix_terminology()` guard on both engines (the model kept writing the old
+      term unprompted — 7 occurrences in one live run). Verified 0 occurrences after.
+- [x] **RESOLVED 2026-07-30 — `HANDLED_FIELDS` NameError.** Was commented out at
+      `rca_investigate.py:64` with `DEFINITIONAL_FIELDS` also stripped of its handled entries;
+      `derive_features()` raised `NameError` on any handled column. Restored to match HEAD.
+- [x] **RESOLVED 2026-07-30 — spec suite stale fixture.** The saved bundle was pinned to
+      `NA Core Spanish` (0 rows in the P1 extract), so S13 failed for a data reason that read as an
+      engine bug. `spec_compliance_check.py` now rebuilds the bundle from the configured table when
+      the pinned queue is absent. Suite went 38/2/2 -> **42 PASS / 0 FAIL / 0 SKIP**.
+      *Standing lesson: fixtures pinned to a queue name break every time the dataset changes — this
+      was the second occurrence in a week. Prefer selecting from the configured table.*
 - [ ] **`technical_metrics` is never rendered (0 UI refs)** and contains
       **`Forecast Error = 1160.9627879`** — an unrounded float waiting to be displayed. The
       `_round_display` fix is on `wfm-rca`, not this branch.
