@@ -140,10 +140,19 @@ decisions worth recording here:
 - **Additive, never a replacement.** `POST /api/rca-investigate` without `mode` is byte-for-byte
   the old behaviour. The WFM engine backfills every legacy response key (rank 1 →
   `primary_root_cause`, ranks 2-5 → `secondary_contributors`, rejected challenges →
-  `rejected_hypotheses`), so `rca_console.html` needed **zero** changes.
+  `rejected_hypotheses`), so `rca_console.html` needed zero changes to render *something*.
+  **Revised 2026-07-30:** relying only on those flattened back-compat keys turned out to be the
+  cause of a real defect — the Root Cause card merged the primary cause's narrative with every
+  secondary cause's statement into one undifferentiated bullet list (see
+  `IMP_DOCS/prompt-trail.md` Session 25). The console now also reads `ranked_root_causes[]`
+  directly so ranks 2-5 render in their own "Other Contributing Factors" section, with their own
+  confidence and Verified/Hypothesis status, instead of being disguised as more of the root cause.
 - **Arithmetic is never delegated to the model.** The KPI and the channel-migration verdict are
-  computed in Python and *overwrite* whatever the model returned. The model's job is to rank,
-  explain in business language, and challenge.
+  computed in Python and *overwrite* whatever the model returned. Extended 2026-07-30: a chronic
+  bias's direction (under-/over-forecast) is computed too, and a cause whose text contradicts it
+  is rewritten deterministically (`fix_bias_direction`) rather than shipped as stated. The model's
+  job is to rank, explain in business language, and challenge — not to restate facts already
+  known exactly.
 - **Rules the spec stated became code, not prompt text.** "Never conclude below a level before
   checking it isn't inherited" is a computed `inherited_from` verdict from a real SQL rollup.
   "Reject weak explanations" is a feature precondition per cause type — a verdict the data cannot

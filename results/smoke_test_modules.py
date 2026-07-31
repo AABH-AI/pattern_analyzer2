@@ -118,14 +118,49 @@ def t_correlation():
     assert d["available"] and d["reconciles"], d
     assert abs((d["warranty_base_effect"] + d["contacts_per_unit_effect"]) - d["total_miss"]) < 0.15
     assert ce.driver_decomposition({"fcst_offered": 10})["available"] is False
-    hist = [{"Actual_Offered": float(i * 10), "Actual_ASU": float(i * 100),
-             "Planned_ASU": None, "Final_Units": None, "Holiday_Count": 0} for i in range(1, 16)]
-    rel = ce.relationships(hist)
-    kept = [r["driver"] for r in rel["retained"]]
-    assert "Actual_ASU" in kept, kept
-    assert all("plain_language" in r for r in rel["retained"]), "business wording required"
-    assert rel["rejected"], "weak drivers must be explicitly rejected"
-    return f"identity exact; missing cols handled; retained={kept}"
+
+    # (a) A driver that genuinely CO-MOVES with demand week to week must be retained.
+    steps = [1, -1, 1, 1, -1, -1, 1, -1, 1, 1, -1, 1, -1, -1, 1,
+             1, -1, 1, 1, -1, -1, 1, -1, 1, 1, -1, 1, -1, 1, 1]
+    asu, dem, real = 5000.0, 900.0, []
+    for k, st in enumerate(steps):
+        asu += st * 200
+        dem += st * 40 + (5 if k % 4 == 0 else -3)   # follows the driver, plus noise
+        real.append({"Actual_Offered": dem, "Actual_ASU": asu,
+                     "Planned_ASU": None, "Final_Units": None, "Holiday_Count": 0})
+    kept = [r["driver"] for r in ce.relationships(real)["retained"]]
+    assert "Actual_ASU" in kept, f"genuine co-movement must be retained: {kept}"
+
+    # (b) The regression guard. Two series that merely DRIFT the same way over a long
+    #     period, with unrelated week-to-week movement, must be REJECTED. The old engine
+    #     ranked on levels and retained these -- 91% of everything it kept on real data.
+    spur = []
+    for i in range(60):
+        wig_d = (17 * i) % 7 - 3      # two different deterministic wiggles, no shared phase
+        wig_a = (23 * i) % 5 - 2
+        spur.append({"Actual_Offered": 4000.0 - 25 * i + wig_d * 20,
+                     "Actual_ASU": 90000.0 - 600 * i + wig_a * 900,
+                     "Planned_ASU": None, "Final_Units": None, "Holiday_Count": 0})
+    srel = ce.relationships(spur)
+    skept = [r["driver"] for r in srel["retained"]]
+    assert "Actual_ASU" not in skept, f"shared drift must NOT be retained: {skept}"
+    rej = next(r for r in srel["rejected"] if r["driver"] == "Actual_ASU")
+    assert abs(rej["drift_only_strength"]) > 0.8, rej      # looks strong on levels...
+    assert abs(rej["co_movement_strength"]) < 0.4, rej     # ...but not week to week
+    assert "not one driving the other" in rej["reason"], rej["reason"]
+
+    assert all("plain_language" in r for r in ce.relationships(real)["retained"])
+    assert srel["rejected"], "weak drivers must be explicitly rejected"
+
+    # (c) A standing relationship is only evidence for THIS week if the driver moved.
+    flat = ce.this_week_attribution(
+        real, {"Actual_Offered": 700.0, "fcst_offered": 1000.0,
+               "Actual_ASU": real[-1]["Actual_ASU"], "Holiday_Count": 0},
+        ce.relationships(real)["retained"])
+    assert flat["no_driver_explains_this_week"] is True, flat
+    return (f"identity exact; co-movement retained={kept}; "
+            f"shared drift rejected (levels {rej['drift_only_strength']} vs "
+            f"moves {rej['co_movement_strength']}); unmoved driver explains nothing")
 
 
 # ------------------------------------------------------------- 7. skeptic

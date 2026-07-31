@@ -35,7 +35,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from rca_investigate import investigate
+from rca_investigate import FIELD_DEFINITIONS, investigate
 from wfm import fetch_wfm_context, investigate_wfm
 
 HERE = Path(__file__).resolve().parent
@@ -146,6 +146,11 @@ def health():
     cfg = load_config()
     sql = cfg.get("sql", {})
     return {"status": "ok", "configured": bool(sql.get("server")), "table": sql.get("table")}
+
+
+@app.get("/api/field-definitions")
+def field_definitions():
+    return FIELD_DEFINITIONS
 
 
 @app.get("/api/data")

@@ -789,13 +789,13 @@
       <tr><td><code>ASU</code></td><td>Active Serviceable Units currently in the market and covered under warranty.</td></tr>
       <tr><td><code>Planned_ASU</code></td><td>Planned Active Serviceable Units (as per ASU plan).</td></tr>
       <tr><td><code>Actual_ASU</code></td><td>Actual ASUs.</td></tr>
-      <tr><td><code>Final_Units</code></td><td>Installed base (warranty units) — a demand driver. Final_Y1 to Y5 overlap, so the sum of Final_Y1..Y5 is not equal to Final_Units: Y2 is a subset of Y1, Y3 a subset of Y2, Y4 a subset of Y3, and so on through Y5.</td></tr>
-      <tr><td><code>Final_Y5</code></td><td>Installed units under warranty in year 5.</td></tr>
-      <tr><td><code>Final_Y4</code></td><td>Installed units under warranty in year 4.</td></tr>
-      <tr><td><code>Final_Y3</code></td><td>Installed units under warranty in year 3.</td></tr>
-      <tr><td><code>Final_Y2</code></td><td>Installed units under warranty in year 2.</td></tr>
-      <tr><td><code>Final_Y1</code></td><td>Installed units under warranty in year 1.</td></tr>
-      <tr><td><code>Final_upp_units</code></td><td>Additional installed units under an upgrade / extended-protection plan (&ldquo;upp&rdquo; — confirm with business).</td></tr>
+      <tr><td><code>Final_Units</code></td><td>No. of planned units for delivery/production. It may also be referred as Shipment. Represents one of the major demand drivers. Final_Y1 through Final_Y5 overlap, therefore Final_Units is <b>not equal</b> to the sum of Final_Y1 to Final_Y5. Y2 is a subset of Y1, Y3 is a subset of Y2, Y4 is a subset of Y3, and Y5 is a subset of Y4.</td></tr>
+      <tr><td><code>Final_Y5</code></td><td>No. of planned units for delivery/production which will fall under Year 5 warranty.</td></tr>
+      <tr><td><code>Final_Y4</code></td><td>No. of planned units for delivery/production which will fall under Year 4 warranty.</td></tr>
+      <tr><td><code>Final_Y3</code></td><td>No. of planned units for delivery/production which will fall under Year 3 warranty.</td></tr>
+      <tr><td><code>Final_Y2</code></td><td>No. of planned units for delivery/production which will fall under Year 2 warranty.</td></tr>
+      <tr><td><code>Final_Y1</code></td><td>No. of planned units for delivery/production which will fall under Year 1 warranty.</td></tr>
+      <tr><td><code>Final_upp_units</code></td><td>No. of planned units for delivery/production under an upgrade or extended-protection plan.</td></tr>
       <tr><td><code>Holiday_Count</code></td><td>Number of holidays falling in the fiscal week.</td></tr>
       <tr><td><code>Monday–Sunday</code></td><td>Day-level flag for each day of the week (holiday).</td></tr>
       <tr><td><code>Volume_Category</code></td><td>Volume band the queue falls into (e.g. 501–1000).</td></tr>
@@ -1870,6 +1870,10 @@ function formatInvestigation(resp, ctx){
     primary_root_cause: resp.primary_root_cause||null,
     supporting_evidence: resp.supporting_evidence||[],
     secondary_contributors: resp.secondary_contributors||[],
+    // WFM engine only (undefined/[] on the original engine) -- the full ranked list, so
+    // "Other Contributing Factors" can render ranks 2-5 with their own confidence/status
+    // instead of the lossy statement-only secondary_contributors back-compat shape.
+    ranked_root_causes: resp.ranked_root_causes||[],
     rejected_hypotheses: resp.rejected_hypotheses||[],
     historical_comparison: resp.historical_comparison||{narrative:'',data_points:[]},
     reasoning_narrative: resp.reasoning_narrative||'',
@@ -1913,12 +1917,24 @@ function invConfMeter(score){
       <span style="font-size:12px;font-weight:700;color:${col};white-space:nowrap;">${pct}% <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:capitalize;">${invConfWord(score)}</span></span>
     </div>`;
 }
+function causeStatusPill(status){
+  const isHyp=/hypothesis/i.test(status||'');
+  const col=isHyp?'var(--warn)':'var(--accent-2)';
+  const bg=isHyp?'rgba(201,106,16,.12)':'rgba(18,152,111,.12)';
+  return `<span style="font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:5px;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;background:${bg};color:${col};border:1px solid ${col};">${invEsc(status||'Verified')}</span>`;
+}
+// Renders one ranked cause as its own card. Accepts either shape: the WFM engine's
+// ranked_root_causes (title/explanation/confidence_pct/evidence/status) or the original
+// engine's secondary_contributors (statement/confidence 0-1/supporting_evidence) --
+// "Other Contributing Factors" needs to show whichever one this response actually has.
 function invRcCard(rc, cls){
   if(!rc) return '';
-  const col=invConfColor(rc.confidence);
-  const conf=rc.confidence!=null? `<div class="rc-conf"><div class="rc-conf-fill" style="width:${Math.max(0,Math.min(100,Math.round(rc.confidence*100)))}%;background:${col};"></div></div><div style="font-size:11px;color:var(--muted);">${Math.round(rc.confidence*100)}% confidence · <span style="color:${col};font-weight:700;text-transform:capitalize;">${invConfWord(rc.confidence)}</span></div>` : '';
-  const chips=(rc.supporting_evidence||[]).map(e=>`<span class="ev-chip" title="${invAttr((e.source_field||'')+(e.value!=null?' = '+e.value:''))}">${invEsc(e.text||e)}</span>`).join('');
-  return `<div class="rc-card ${cls}"><div>${invEsc(rc.statement)}</div>${conf}${chips}</div>`;
+  const conf01 = rc.confidence!=null ? rc.confidence : (rc.confidence_pct!=null ? rc.confidence_pct/100 : null);
+  const col=invConfColor(conf01);
+  const conf=conf01!=null? `<div class="rc-conf"><div class="rc-conf-fill" style="width:${Math.max(0,Math.min(100,Math.round(conf01*100)))}%;background:${col};"></div></div><div style="font-size:11px;color:var(--muted);">${Math.round(conf01*100)}% confidence · <span style="color:${col};font-weight:700;text-transform:capitalize;">${invConfWord(conf01)}</span></div>` : '';
+  const chips=(rc.evidence||rc.supporting_evidence||[]).map(e=>`<span class="ev-chip" title="${invAttr((e.source_field||'')+(e.value!=null?' = '+e.value:''))}">${invEsc(e.text||e)}</span>`).join('');
+  const title = rc.title ? `<div style="font-weight:700;font-size:12.5px;margin-bottom:4px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;"><span>${invEsc(rc.title)}</span>${causeStatusPill(rc.status)}</div>` : '';
+  return `<div class="rc-card ${cls}">${title}<div>${formatBoldText(rc.explanation||rc.statement||'')}</div>${conf}${chips}</div>`;
 }
 function formatBoldText(s) {
   if (!s) return '';
@@ -1937,10 +1953,23 @@ function isRawMetricDump(str) {
   // Detect bare metric dumps like "Region adherence 11.9% exceeds threshold" or "Region actual offered 89,746 vs forecast 101,814.9"
   if (/^Region (adherence|actual offered|forecast offered|offered|actual)/i.test(s)) return true;
   if (/^(Actual_Offered|fcst_offered|Actual offered|Forecast offered)\s*(exceeds|is|=|vs)/i.test(s)) return true;
+  if (/^The forecast this week was/i.test(s)) return true;
+  if (/^Actual demand \(\d+\) was far from/i.test(s)) return true;
+  if (/^Investigation ladder shows/i.test(s)) return true;
   return false;
 }
 
-function getSixOrMoreRootCausePoints(f) {
+// Builds the bullets for the ONE root cause only -- the primary cause's own narrative,
+// broken into its natural parts (context, quantified movement, business interpretation,
+// WFM mechanism), never padded out with OTHER candidate causes. Earlier versions of this
+// function also pulled in every ranked_root_causes[]/secondary_contributors[] explanation
+// (and even key_findings/supporting_evidence at one point) to "guarantee" a minimum bullet
+// count -- which is exactly why the Root Cause card read as "1 real cause + 4-5 generic
+// data-insight bullets" (see IMP_DOCS/TODO.md P1j): those extra bullets WERE other, weaker
+// causes, just stripped of the confidence/status context that would have shown they were
+// secondary. Those other causes now render in their own "Other Contributing Factors"
+// section (see invRcCard/causeStatusPill) instead of being disguised as more of this one.
+function getRootCausePoints(f) {
   let raw = f.reasoning_points || invToPoints(f.reasoning_narrative);
   if (!Array.isArray(raw)) raw = [];
   const seen = new Set();
@@ -1958,29 +1987,19 @@ function getSixOrMoreRootCausePoints(f) {
     cleanPts.push(str);
   }
 
+  // The primary cause's own 4-part narrative, sentence by sentence.
   raw.forEach(p => addPoint(p));
-
+  // The back-compat primary_root_cause.statement is normally the same text as above (and
+  // gets deduped); kept as the sole source when reasoning_narrative is empty but
+  // primary_root_cause is not (older engine responses, or a sparse model reply).
   if (f.primary_root_cause && f.primary_root_cause.statement) {
     addPoint(f.primary_root_cause.statement);
   }
 
-  (f.supporting_evidence || []).forEach(e => {
-    const txt = typeof e === 'string' ? e : (e.text || '');
-    addPoint(txt);
-  });
-
-  (f.key_findings || []).forEach(k => {
-    addPoint(k);
-  });
-
-  const hc = (f.historical_comparison || {}).narrative;
-  if (hc) addPoint(hc);
-
-  (f.secondary_contributors || []).forEach(sc => {
-    if (sc && sc.statement) addPoint(sc.statement);
-  });
-
-  return cleanPts.slice(0, 7);
+  // No artificial floor: an honest 2-sentence cause beats a 7-bullet cause padded with
+  // restatements and other queues' explanations. A sane ceiling still applies so a
+  // pathological reply can't run away.
+  return cleanPts.slice(0, 5);
 }
 
 function renderInvestigationReport(f, ctx){
@@ -2043,7 +2062,7 @@ function renderInvestigationReport(f, ctx){
       ${invConfMeter(confScore)}
     </div>` : '';
 
-  const rcPoints = getSixOrMoreRootCausePoints(f);
+  const rcPoints = getRootCausePoints(f);
   const narrativeHtml=`<details class="inv-sec" open>
     <summary style="display:flex;align-items:center;justify-content:space-between;width:100%;">
       <span style="font-weight:800;font-size:13.5px;text-transform:uppercase;letter-spacing:.6px;">Root Cause</span>
@@ -2054,6 +2073,18 @@ function renderInvestigationReport(f, ctx){
       ${rcPoints.length?`<ul style="list-style:none;padding:0;margin:0;">${rcPoints.map(p=>`<li style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);"><span style="font-size:14px;color:var(--accent);flex-shrink:0;margin-top:2px;">&#9670;</span><span style="font-size:12.5px;line-height:1.6;color:var(--text);">${formatBoldText(p)}</span></li>`).join('')}</ul>`:'<div class="inv-empty">No root cause narrative produced.</div>'}
     </div>
   </details>`;
+
+  // Ranks 2-5 (or the original engine's secondary_contributors) get their OWN section,
+  // each shown with its own confidence and Verified/Hypothesis status -- distinct from the
+  // single Root Cause above, never merged into it. This is where the "other ideas" that
+  // used to pad out the Root Cause bullet list now live, properly labelled as secondary.
+  const otherCauses = (f.ranked_root_causes && f.ranked_root_causes.length > 1)
+    ? f.ranked_root_causes.slice(1)
+    : (f.secondary_contributors || []);
+  const otherCausesHtml=`<details class="inv-sec"><summary>Other Contributing Factors</summary><div class="body">
+    ${secDesc('Other possible explanations the investigation weighed and ranked below the root cause above — weaker signals or open hypotheses, never the primary reason for the miss.')}
+    ${otherCauses.length?otherCauses.map(rc=>invRcCard(rc,'secondary')).join(''):'<div class="inv-empty">No other contributing factors were identified for this queue-week.</div>'}
+  </div></details>`;
 
   const evidenceHtml=`<details class="inv-sec"><summary>Supporting Evidence</summary><div class="body">
     ${(f.supporting_evidence||[]).length?`<ul class="inv-findings">${(f.supporting_evidence||[]).map(e=>`<li>${invEsc(e.text||'')} <span style="color:var(--muted);font-size:11px;">(${invEsc(e.source_field||'—')}${e.value!=null?' = '+invEsc(e.value):''})</span></li>`).join('')}</ul>`:'<div class="inv-empty">No supporting evidence recorded.</div>'}
@@ -2079,7 +2110,7 @@ function renderInvestigationReport(f, ctx){
 
   const metaHtml=`<div class="inv-meta">Engine: ${invEsc(meta.engine||'—')}${meta.model?' · '+invEsc(meta.model):''} · generated ${meta.generated_at?new Date(meta.generated_at).toLocaleString():'—'} · based on ${(meta.based_on_fields||[]).length} field(s) gathered generically from the source file</div>`;
 
-  return summaryHtml+proofHtml+findingsHtml+narrativeHtml+evidenceHtml+rejectedHtml+historyHtml+recsHtml+missingHtml+metaHtml;
+  return summaryHtml+proofHtml+findingsHtml+narrativeHtml+otherCausesHtml+evidenceHtml+rejectedHtml+historyHtml+recsHtml+missingHtml+metaHtml;
 }
 
 /* ---- RCA Trigger — orchestrates the pipeline above; owns nothing except sequencing.
@@ -2337,6 +2368,25 @@ window.addEventListener('keydown', (e) => {
     <div id="peerModalBody" style="padding:20px;overflow-y:auto;flex:1;"></div>
   </div>
 </div>
+<script>
+// Dynamically fetch and sync field definitions from backend if running
+if (typeof fetch !== 'undefined') {
+  fetch('/api/field-definitions').then(r=>r.ok?r.json():null).then(defs=>{
+    if (!defs) return;
+    const tab = document.getElementById('defTable');
+    if (!tab) return;
+    tab.querySelectorAll('tr').forEach(tr => {
+      const code = tr.querySelector('code');
+      const tdDesc = tr.querySelectorAll('td')[1];
+      if (code && tdDesc) {
+        const key = code.innerText.trim();
+        if (defs[key]) {
+          tdDesc.innerHTML = escHtml(defs[key]).replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+        }
+      }
+    });
+  }).catch(()=>{});
+}
+</script>
 </body>
 </html>
-

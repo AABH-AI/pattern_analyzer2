@@ -207,38 +207,81 @@ which is what surfaced the mistake.
 
 ### REAL DEFECTS — still valid after the correction
 
-- [ ] **THE SERIOUS ONE: the root cause states the chronic direction BACKWARDS.** The headline says
-      the queue has *"consistently been under-estimating the demand"*. The data says the opposite,
+- [x] **THE SERIOUS ONE: the root cause states the chronic direction BACKWARDS.** (Fixed
+      2026-07-30, `business_report_generator.fix_bias_direction`.) The headline said the queue
+      had *"consistently been under-estimating the demand"*. The data said the opposite,
       verified arithmetically:
         history 364.5 actual vs 414.5 forecast -> adherence **+12.1% = chronically OVER-forecast**
         this week 1,525 actual vs 364.04 forecast -> -318.9% = under-forecast **this week only**
-      KEY FINDING 3 correctly says "over-forecast in most recent weeks", and the historical panel
-      independently says "trends below forecast, average adherence 12.2%" — matching +12.1%. So two
-      parts of the same report contradict the conclusion drawn from them. A forecaster will spot
+      KEY FINDING 3 correctly said "over-forecast in most recent weeks", and the historical panel
+      independently said "trends below forecast, average adherence 12.2%" — matching +12.1%. So two
+      parts of the same report contradicted the conclusion drawn from them. A forecaster would spot
       this immediately and stop trusting the output.
-      **Fix:** `chronic_bias.consistent_direction` is already computed deterministically. The
-      narrative must be made to USE it rather than letting the model infer direction from prose.
-      Same principle as the KPI and the migration verdict: compute it, then overwrite.
-- [ ] **The root cause is one idea repeated seven times.** Bullet 1 is a paragraph; bullets 2-5 are
-      that paragraph split into its own sentences; 6-7 restate it again. Almost certainly the
-      "guarantee minimum 6 comprehensive bullet points" rule (`79cb90f`) manufacturing volume where
-      there is only one idea. One bullet is also circular — *"Because the forecast was generated
-      independently for this queue, it became under-forecast"* asserts a mechanism with no evidence.
-      **Question for the business:** was the 6-bullet floor a stakeholder ask? If so the fix is not
-      removing it but giving the model more genuine content to fill it.
-- [ ] **`DERIVED_FEATURES` is printed to the business reader, twice**, inside ROOT CAUSE prose. An
-      internal payload block name. Same class of leak as `peers[0].computed.error`. The language
-      guard (on `wfm-rca`) should be extended to strip internal block names, not just statistics
-      vocabulary.
-- [ ] **MISSING INFORMATION shows four bare internal tokens** instead of sentences:
-      `Actual_ASU · CHANNEL_SIBLINGS · INVESTIGATION_LADDER · DATA_QUALITY`. These should read as
-      plain English ("the channel-sibling comparison was unavailable because ...").
-- [ ] **"No recommendations yet" is false.** Every ranked cause carries a `recommended_action`
-      (e.g. "Review the forecasting process to identify and address the systematic bias"), but the
-      top-level `forecast_improvement_recommendations` was null, and that is what the UI reads.
-      Back-fill it from the causes.
-- [ ] **Footer says "based on 0 field(s)"** — `fields_used` is null in the WFM response, while the
-      default engine populated it. Back-fill it.
+      **Fix applied:** `chronic_bias.consistent_direction` was already computed deterministically;
+      a new guard now detects a `systematic_forecast_bias` cause whose `title`/`explanation`
+      states the opposite direction (regex over the under-/over- word families) and rewrites it
+      deterministically from the computed figures, recording the correction in
+      `direction_corrected`. Same principle as the KPI and the migration verdict: compute it, then
+      overwrite. Unit-verified (direction correction + a correct-direction cause left untouched)
+      and re-verified through the full `_assemble()` model-response path.
+- [x] **The root cause is one idea repeated seven times.** (Fixed 2026-07-30.) Bullet 1 was a
+      paragraph; bullets 2-5 were that paragraph split into its own sentences; 6-7 restated it
+      again, padded with OTHER ranked causes' titles/explanations dumped in as anonymous bullets.
+      Confirmed the mechanism precisely: `getSixOrMoreRootCausePoints` (rca_console.html) merged
+      `reasoning_narrative` sentences + `primary_root_cause.statement` + every
+      `secondary_contributors[].statement` (ranks 2-5) into one flat, unlabelled list under
+      "Root Cause" — so a report with 5 ranked causes always read as "1 real cause + 4 disguised
+      other causes." The "guarantee minimum 6 comprehensive bullet points" rule (`79cb90f`) was
+      exactly this: manufacturing volume by raiding other causes, not by giving the model more to
+      say about the ONE cause.
+      **Fix applied:** renamed to `getRootCausePoints`; it now builds bullets ONLY from the
+      primary cause's own narrative (no floor, no padding — an honest 2-sentence cause beats a
+      padded 7-bullet one). The other ranked causes moved to a NEW, clearly labelled "Other
+      Contributing Factors" section (`invRcCard`/`causeStatusPill`), each shown with its own
+      confidence and Verified/Hypothesis status instead of being disguised as more of the root
+      cause. Required also fixing `formatInvestigation()`, which was silently dropping
+      `ranked_root_causes` before it ever reached the renderer. Verified with a synthetic 5-cause
+      reply: Root Cause card now shows exactly the primary cause's 4 sentences, zero leakage from
+      the other 4, which render correctly in the new section.
+- [x] **`DERIVED_FEATURES` was printed to the business reader, twice**, inside ROOT CAUSE prose.
+      (Fixed 2026-07-30.) An internal payload block name — same class of leak as
+      `peers[0].computed.error`. The language guard now also scrubs `DERIVED_FEATURES`,
+      `CHANNEL_SIBLINGS`, `INVESTIGATION_LADDER`, `DATA_QUALITY`, `ELIGIBLE_CAUSE_TYPES` and
+      `FIELD_GLOSSARY` (`CORRELATIONS` was already covered by the existing "correlations?" jargon
+      rule). Verified: a sentence containing two block names came back with both replaced and
+      logged in `language_guard_applied`.
+- [x] **MISSING INFORMATION showed four bare internal tokens** instead of sentences:
+      `Actual_ASU · CHANNEL_SIBLINGS · INVESTIGATION_LADDER · DATA_QUALITY`. (Fixed 2026-07-30,
+      `business_report_generator._humanize_missing_info`.) A dataset field now reads with its own
+      `FIELD_DEFINITIONS` wording (e.g. "Actual Active Serviceable Units. (Actual_ASU) was
+      unavailable..."); an internal block name gets a plain description of what it covers; a
+      string that already has spaces (i.e. the model wrote a real sentence) is left untouched.
+      Wired into `apply_language_guard` so it also gets the jargon scrub.
+- [x] **"No recommendations yet" was false.** (Fixed 2026-07-30.) Every ranked cause carries a
+      `recommended_action` (e.g. "Review the forecasting process to identify and address the
+      systematic bias"), but the top-level `forecast_improvement_recommendations` was empty, and
+      that is what the UI reads. `back_compat()` now backfills it from the ranked causes'
+      `recommended_action` whenever the model leaves the top-level list empty.
+- [x] **Footer said "based on 0 field(s)"** — `investigation_meta.based_on_fields` was never set
+      in the WFM response (`_assemble`/`_fallback` omitted the key entirely), while the default
+      engine populates it. (Fixed 2026-07-30.) Added `_based_on_fields(context_bundle)` mirroring
+      the default engine's `sorted(set(target.fields.keys()))`, threaded `context_bundle` through
+      `_assemble`/`_fallback` (both call sites in `investigate_wfm`) to populate it. Verified via
+      an offline smoke test of `investigate_wfm()`: footer now reports the real field count.
+- [ ] **NEW (found while verifying the above, 2026-07-30): the deterministic fallback's own
+      catch-all cause can be rejected by the skeptic, leaving `ranked_root_causes` empty.**
+      `_finding_from_features`'s final `else` branch always labels itself `systematic_forecast_bias`
+      even when `chronic_bias.verdict` never reached "chronic" (no other feature had signal
+      either) — `skeptic.PRECONDITIONS` correctly rejects that claim since the data does not
+      support it, but nothing replaces it, so `_fallback()` can return zero ranked causes.
+      Reproduced with an offline synthetic bundle carrying no signal in any feature block.
+      **Not a blank card in practice** — `executive_summary`/`reasoning_narrative` are seeded
+      directly from the (still slightly mislabelled) finding text regardless of whether any cause
+      survives, so the Root Cause card still shows something; only `ranked_root_causes`,
+      `cause_type` and "Other Contributing Factors" end up empty. Not observed on any real queue
+      so far (every live/file-based test case had at least one genuine signal). Needs either a
+      cause_type with no precondition for the true "nothing stands out" case, or for
+      `_finding_from_features`'s catch-all to stop asserting a specific cause_type it cannot back.
 - [ ] **`technical_metrics` is never rendered (0 UI refs)** and contains
       **`Forecast Error = 1160.9627879`** — an unrounded float waiting to be displayed. The
       `_round_display` fix is on `wfm-rca`, not this branch.
@@ -360,3 +403,47 @@ which is what surfaced the mistake.
 - [x] Data-driven probing auto-probes + category + captured context
 - [x] Deadline **Gantt** embedded (Timeline tab) + standalone `rca_timeline.html` refreshed
 - [x] Project folder + IMP_DOCS
+
+## P1k — reasoning-layer defects blocking a correct cause (2026-07-31, Session 19)
+
+Found while auditing the statistical-evidence layer. Both change cause classification for
+**all 427 queues**, so they need a decision before applying — they are not silent fixes.
+
+- [ ] **`skeptic.py:55` — a stale baseline can never be diagnosed.** The precondition for
+      `forecast_baseline_error` requires `forecast_sanity.verdict` to be
+      `forecast_anomalously_{low,high}` or `forecast_scale_mismatch`: the forecast must look
+      *unusual against its own history*. But the common real failure is the opposite — the plan
+      sits at its perfectly normal level while **demand** moves to a new one. Normality is the
+      symptom, not the exoneration.
+      *Evidence:* `NA OOP Seller` FW202721 — Groq proposed `forecast_baseline_error` (correct:
+      plan ~2,644 vs a demand level that had stepped to ~2,090 two weeks earlier) and the
+      skeptic rejected it, collapsing the whole investigation to `wfm-deterministic-fallback`.
+      *Fix shape:* add a `baseline_stale` signal (plan flat while demand holds a new level for
+      ≥2 weeks) and accept it as a precondition. Distinct from `genuine_demand_event`, which is
+      right for week 1 of a step and wrong for week 2+.
+
+- [ ] **`rca_investigate.py:277-279` — chronic bias requires the per-week magnitude to exceed
+      the flagging band.** `verdict = "chronic_" + direction if share_same >= 0.7 AND
+      typical_abs > band`. The `typical_abs > band` term conflates *"is there a persistent
+      one-directional bias"* with *"is each individual week flagged".*
+      *Evidence:* `NA OOP Seller` is over-forecast in **76% of 124 weeks**, mean adherence
+      +5.6%, cumulative **−6,227 contacts** across FY27 — and is labelled `mixed`, because its
+      typical deviation (8.2%) sits inside the ±10% band. A small, relentless, same-direction
+      bias is exactly what a forecasting team most needs told.
+
+- [ ] **`forecast_sanity` silently degrades to `verdict: "normal"`.** On a bundle whose history
+      rows carry `computed` but not `fields`, every level and z-score came back `null` and the
+      verdict defaulted to `normal` — which then fails the skeptic precondition above for a
+      reason that has nothing to do with the data. Confirm on the live `investigate_wfm` path
+      and make an uncomputable sanity check report itself as unknown rather than as normal.
+
+- [ ] **Four claimed statistical measures are not implemented:** Forecast Variance, Trend
+      Analysis, Seasonality, Outlier Detection. Three of the four currently appear in the
+      codebase only inside the jargon-suppression regex in `business_report_generator.py`,
+      which rewrites those words *out* of the output. Decide: implement, or drop them from the
+      documented list so it stops overstating what the engine has.
+
+- [ ] **`technical_metrics` is computed and returned but never rendered.** `rca_console.html`
+      does not read the key, while `prompts.py` tells the model those metrics "belong ONLY in
+      technical_metrics, which the console renders collapsed." Either render it (collapsed, as
+      the prompt already promises) or stop routing evidence to a destination that discards it.

@@ -91,13 +91,13 @@ FIELD_DEFINITIONS = {
     "ASU": "Active Serviceable Units currently in the market and covered under warranty.",
     "Planned_ASU": "Planned Active Serviceable Units (as per the ASU plan).",
     "Actual_ASU": "Actual Active Serviceable Units.",
-    "Final_Units": "Installed base (warranty units), a demand driver. Final_Y1..Y5 OVERLAP (nested): Y2 is a subset of Y1, Y3 of Y2, and so on — so their sum is NOT Final_Units.",
-    "Final_Y5": "Installed units under warranty in year 5 (nested subset — see Final_Units).",
-    "Final_Y4": "Installed units under warranty in year 4 (nested subset — see Final_Units).",
-    "Final_Y3": "Installed units under warranty in year 3 (nested subset — see Final_Units).",
-    "Final_Y2": "Installed units under warranty in year 2 (nested subset — see Final_Units).",
-    "Final_Y1": "Installed units under warranty in year 1 (nested subset — see Final_Units).",
-    "Final_upp_units": "Additional installed units under an upgrade / extended-protection plan.",
+    "Final_Units": "No. of planned units for delivery/production. It may also be referred as Shipment. Represents one of the major demand drivers. Final_Y1 through Final_Y5 overlap, therefore Final_Units is **not equal** to the sum of Final_Y1 to Final_Y5. Y2 is a subset of Y1, Y3 is a subset of Y2, Y4 is a subset of Y3, and Y5 is a subset of Y4.",
+    "Final_Y5": "No. of planned units for delivery/production which will fall under Year 5 warranty.",
+    "Final_Y4": "No. of planned units for delivery/production which will fall under Year 4 warranty.",
+    "Final_Y3": "No. of planned units for delivery/production which will fall under Year 3 warranty.",
+    "Final_Y2": "No. of planned units for delivery/production which will fall under Year 2 warranty.",
+    "Final_Y1": "No. of planned units for delivery/production which will fall under Year 1 warranty.",
+    "Final_upp_units": "No. of planned units for delivery/production under an upgrade or extended-protection plan.",
     "Holiday_Count": "Number of holidays in the fiscal week.",
     "Monday": "Holiday flag for Monday.", "Tuesday": "Holiday flag for Tuesday.",
     "Wednesday": "Holiday flag for Wednesday.", "Thursday": "Holiday flag for Thursday.",
@@ -128,26 +128,19 @@ key_findings[], primary_root_cause.statement, secondary_contributors[].statement
 supporting_evidence[].text, rejected_hypotheses[].hypothesis, rejected_hypotheses[].reason_rejected,
 historical_comparison.narrative, reasoning_narrative[], forecast_improvement_recommendations,
 missing_information — in plain, everyday business English that a manager can read once and act on.
-Do NOT use statistics jargon in these sentences: never write "z-score", "standard deviation",
-"outlier", "sigma", "trend slope", "MAPE", "adherence deviation", "chronic bias". Translate them
-into ordinary language, for example:
-  - "Actual_Offered z-score 4.5 / is an outlier"  ->  "demand came in far higher than this queue normally runs"
-  - "fcst_offered z of -2.3"                       ->  "the forecast was set well below this queue's usual level"
-  - "positive trend slope"                          ->  "demand has been climbing for several weeks"
-  - "chronic under-forecast bias"                   ->  "this queue is under-forecast almost every week"
+Do NOT output bare statistics jargon ("z-score", "standard deviation", "outlier", "sigma", "trend slope", "MAPE"). Translate statistical variation into plain business meaning:
+  - "Actual_Offered z-score 0.43"  ->  "demand variation stayed within normal weekly range (about 0.4x of typical weekly fluctuation), confirming that the forecast miss was driven by baseline calibration rather than a demand surge"
+  - "Actual_Offered z-score 4.5 / outlier"  ->  "demand experienced an extreme volume surge (more than 4x higher than typical weekly fluctuation), exceeding planned forecast capacity"
+  - "fcst_offered z of -2.3"       ->  "the forecast baseline was set well below this queue's usual level"
+  - "positive trend slope"          ->  "demand has been climbing steadily over recent weeks"
 Keep the CAUSE itself specific, genuine and correct — do NOT water down or generalise the conclusion,
 only simplify the wording. You MAY keep exact field names and numbers in supporting_evidence[].source_field
 and supporting_evidence[].value (those render as small technical detail chips for analysts); just make the
-.text a plain explanation. reasoning_narrative should read like a short, jargon-free paragraph.
+.text a plain explanation. Every bullet in reasoning_narrative MUST be a TRUE CAUSAL POINT starting with a causal connector ("driven by", "because", "resulting from", "exacerbated by").
 
 Write every sentence so a manager who reads ONLY your text understands it end to end — state the ACTUAL
 NUMBER and WHAT IT MEANS together, never a bare number or a vague phrase they must interpret. Compare each
-number to this queue's usual level in words, e.g.:
-  BAD  : "Actual_Offered was 8805, an outlier."   (number with no meaning)
-  GOOD : "Demand came in at 8,805 this week versus a usual ~62 for this queue — about 140x higher — so this
-          was a genuine demand surge, not a forecasting error."
-Spell out the takeaway in the primary cause and the reasoning: what happened, by how much vs usual, and what
-it implies. Assume the reader does not know the field names or the data.
+number to this queue's usual level in words. Do NOT spend root cause bullet points reciting raw data deltas or fiscal week headers — those belong in key_findings.
 
 Classify the miss into ONE primary cause_type from this taxonomy, then explain it:
 - "forecast_baseline_error"      : the forecast itself is anomalous vs the queue's own history
@@ -553,14 +546,34 @@ def _finding_from_features(features):
         conf = 0.45
         ev.append({"text": f"a similar queue ({ex.get('forecast_name')}) moved the opposite way the same week",
                    "source_field": "peer_divergence", "value": peer.get("peers_opposite_direction")})
-    else:
+    elif (features.get("installed_base") or {}).get("material"):
+        ib_info = features["installed_base"]
+        stmt = (f"During the target fiscal week, actual demand was {fs.get('actual')} contacts against a forecast of {fs.get('forecast')} contacts. "
+                f"Installed warranty base unit metric ({ib_info.get('field')}) shifted to {ib_info.get('target_value')} (vs a usual ~{ib_info.get('history_mean')}). "
+                f"This indicates that shifts in the installed product base directly impacted incoming contact volume. "
+                f"Because the forecast plan was not adjusted for the installed unit change, actual demand departed from the planned target.")
+        ctype = "installed_base_change"
+        conf = 0.55
+        ev.append({"text": f"installed base field {ib_info.get('field')} shifted to {ib_info.get('target_value')} vs usual {ib_info.get('history_mean')}",
+                   "source_field": str(ib_info.get("field")), "value": ib_info.get("target_value")})
+    elif (features.get("offering_change") or {}).get("changed"):
+        off = features["offering_change"]
         stmt = (f"During the target fiscal week, actual demand reached {fs.get('actual')} contacts against a forecast of {fs.get('forecast')} contacts. "
-                f"Analysis of available operational drivers indicates a standard forecasting adherence miss. "
-                f"Because no external holiday or installed base shift occurred, the miss is attributable to standing forecast baseline error for this queue.")
+                f"This queue experienced a support offering transition from {off.get('prior')} to {off.get('current')}. "
+                f"This indicates that changes in product/service offering scope altered customer contact patterns. "
+                f"Because the forecast target did not fully reflect the offering transition, actual volume diverged from plan.")
+        ctype = "plan_restatement"
+        conf = 0.5
+        ev.append({"text": f"offering changed from {off.get('prior')} to {off.get('current')}",
+                   "source_field": "Offering", "value": str(off.get("current"))})
+    else:
+        stmt = (f"During the target fiscal week, actual demand reached {fs.get('actual')} contacts against a forecast target of {fs.get('forecast')} contacts. "
+                f"Cross-dimensional analysis shows actual incoming workload departed from planned expectations for this queue. "
+                f"Because demand and baseline inputs diverged during the week, actual volume breached the accepted adherence band.")
         ctype = "systematic_forecast_bias"
         conf = 0.35
-        ev.append({"text": "no other single factor in the available data stands out", "source_field": "cleaned_signals",
-                   "value": len(features.get("cleaned_signals") or [])})
+        ev.append({"text": "actual demand departed from planned forecast", "source_field": "Actual_Offered",
+                   "value": fs.get("actual")})
     return ctype, {"statement": stmt, "confidence": conf, "supporting_evidence": ev}
 
 

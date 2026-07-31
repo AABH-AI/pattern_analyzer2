@@ -18,9 +18,12 @@ console renders collapsed -- exactly as the prompt intends.
 """
 import re
 
-from rca_investigate import _observations_from_features
+from rca_investigate import FIELD_DEFINITIONS, _observations_from_features
 
 from .common import confidence_level, rnd
+
+_UNDER_PAT = re.compile(r"\bunder[\s-]?(?:estimat\w*|forecast\w*|predict\w*)\b", re.I)
+_OVER_PAT = re.compile(r"\bover[\s-]?(?:estimat\w*|forecast\w*|predict\w*)\b", re.I)
 
 RESPONSE_DEFAULTS = {
     "executive_summary": "",
@@ -52,7 +55,64 @@ _LANGUAGE_SUBSTITUTIONS = (
     (r"\bshap\b", "driver attribution"),
     (r"\bisolation forest\b", "anomaly detection"),
     (r"\btrend slope\b", "direction of travel"),
+    # Internal PAYLOAD BLOCK NAMES -- the names of the JSON blocks handed to the model
+    # (see investigation_engine._payload). A live run printed "DERIVED_FEATURES" verbatim,
+    # twice, inside ROOT CAUSE prose -- an internal payload key leaking to a business
+    # reader is the same class of leak as any other jargon here, so it is scrubbed the
+    # same way. (CORRELATIONS is already covered by the "correlations?" rule above.)
+    (r"\bderived[\s_]features\b", "the underlying data analysis"),
+    (r"\bchannel[\s_]siblings\b", "the channel comparison for this locality"),
+    (r"\binvestigation[\s_]ladder\b", "the higher-level comparison"),
+    (r"\bdata[\s_]quality\b", "the data-quality check"),
+    (r"\beligible[\s_]cause[\s_]types\b", "the causes the data can support"),
+    (r"\bfield[\s_]glossary\b", "the field definitions"),
+    # Strip prompt section titles if leaked in parenthetical form
+    (r"\s*\(\s*Primary Operational\s*/\s*Model Failure Mechanism\s*\)", ""),
+    (r"\s*\(\s*Hierarchy\s*&\s*Regional Allocation Driver\s*\)", ""),
+    (r"\s*\(\s*Channel\s*/\s*Installed Base\s*/\s*Offering Driver\s*\)", ""),
+    (r"\s*\(\s*Baseline Calibration\s*&\s*Historical Model Inertia\s*\)", ""),
 )
+
+# Internal block name -> plain description of what it covers, for missing_information
+# entries that are the bare token rather than a sentence using it (see _humanize_missing_info).
+_INTERNAL_BLOCK_LABELS = {
+    "DERIVED_FEATURES": "the underlying data analysis",
+    "TEMPORAL": "the historical week-over-week comparison",
+    "CHANNEL_SIBLINGS": "the channel comparison for this locality",
+    "INVESTIGATION_LADDER": "the higher-level (region/country) comparison",
+    "DATA_QUALITY": "the data-quality check on this week's figure",
+    "CORRELATIONS": "the driver relationship analysis",
+    "ELIGIBLE_CAUSE_TYPES": "the list of causes the data can support",
+    "FIELD_GLOSSARY": "the field definitions",
+}
+
+_BARE_TOKEN_RE = re.compile(r"^[A-Za-z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+$")
+
+
+def _humanize_missing_info(items):
+    """Rewrite a bare internal field/block name into a plain sentence.
+
+    missing_information is meant to be a sentence explaining what could not be verified; a
+    live run instead returned raw payload keys as if they were complete entries
+    ("Actual_ASU", "CHANNEL_SIBLINGS", "INVESTIGATION_LADDER", "DATA_QUALITY" with nothing
+    else). A dataset field gets FIELD_DEFINITIONS' own wording; an internal block name gets
+    a plain description of what that block covers; anything that is not a bare identifier
+    (i.e. it has spaces -- the model already wrote a sentence) is left untouched.
+    """
+    out = []
+    for item in (items or []):
+        s = str(item or "").strip()
+        if not s:
+            continue
+        if s in _INTERNAL_BLOCK_LABELS:
+            out.append(f"{_INTERNAL_BLOCK_LABELS[s]} was unavailable or inconclusive for this queue-week.")
+        elif s in FIELD_DEFINITIONS:
+            out.append(f"{FIELD_DEFINITIONS[s]} ({s}) was unavailable or inconclusive for this queue-week.")
+        elif _BARE_TOKEN_RE.match(s):
+            out.append(f"The {s.replace('_', ' ')} figure was unavailable or inconclusive for this queue-week.")
+        else:
+            out.append(s)
+    return out
 
 # Business-facing fields. `technical_metrics` is deliberately NOT in this list.
 _GUARDED_TOP = ("executive_summary", "business_impact")
@@ -122,6 +182,18 @@ def apply_language_guard(result):
             log += [f"key_findings: {c}" for c in changed]
         result["key_findings"] = rebuilt
 
+    missing = result.get("missing_information")
+    if isinstance(missing, list) and missing:
+        humanized = _humanize_missing_info(missing)
+        rebuilt = []
+        for original, item in zip(missing, humanized):
+            new, changed = _scrub(item)
+            rebuilt.append(new)
+            if str(original).strip() != new:
+                log.append(f"missing_information: '{original}' -> '{new}'")
+            log += [f"missing_information: {c}" for c in changed]
+        result["missing_information"] = rebuilt
+
     if log:
         result["language_guard_applied"] = log
     return result
@@ -154,11 +226,75 @@ def normalise_causes(causes):
     return out
 
 
+def _deterministic_bias_text(chronic):
+    direction = chronic.get("consistent_direction")
+    return (
+        f"This queue has consistently run {direction}-forecast over recent weeks (typically "
+        f"about {chronic.get('usual_actual')} actual contacts against "
+        f"{chronic.get('usual_forecast')} forecast contacts, an average adherence of "
+        f"{chronic.get('history_mean_adherence_pct')}%). Because the forecast baseline was "
+        f"not re-adjusted to this recurring pattern, the same {direction}-forecast miss "
+        f"happened again this week.")
+
+
+def fix_bias_direction(causes, features):
+    """Correct a systematic_forecast_bias cause that states the chronic direction backwards.
+
+    chronic_bias.consistent_direction is computed deterministically from real history (see
+    rca_investigate.derive_features -- negative adherence = under-forecast, positive =
+    over-forecast). A live run still produced a headline claiming the OPPOSITE of what the
+    data showed (history +12.1% adherence = chronically OVER-forecast; the model's own
+    headline said "consistently under-estimating") -- it inferred direction from its own
+    prose about a fact that was already known exactly, rather than reading the computed
+    field. Same class of bug as apply_language_guard (below): code wins over narration on
+    anything already computed, so this rewrites the contradiction deterministically instead
+    of shipping it, and records what changed so the edit stays visible, not silent.
+    """
+    chronic = (features.get("base_features") or {}).get("chronic_bias") or {}
+    direction = chronic.get("consistent_direction")
+    if direction not in ("under", "over"):
+        return causes
+    wrong_pat = _OVER_PAT if direction == "under" else _UNDER_PAT
+    right_pat = _UNDER_PAT if direction == "under" else _OVER_PAT
+
+    for c in (causes or []):
+        if not isinstance(c, dict) or c.get("cause_type") != "systematic_forecast_bias":
+            continue
+        text = f"{c.get('title') or ''} {c.get('explanation') or ''}"
+        if wrong_pat.search(text) and not right_pat.search(text):
+            c["explanation"] = _deterministic_bias_text(chronic)
+            c["title"] = f"Systematic {direction}-forecasting bias"
+            c["direction_corrected"] = (
+                f"The model's stated direction contradicted this queue's computed history "
+                f"(consistently {direction}-forecast); rewritten from the computed figures.")
+    return causes
+
+
 def technical_metrics(features):
     """The collapsed technical section -- where jargon is allowed to live."""
     rows = []
     for p in ((features.get("base_features") or {}).get("proof") or []):
         rows.append({"label": p.get("label"), "value": p.get("this_week")})
+    
+    stat_ev = ((features.get("temporal") or {}).get("STATISTICAL_EVIDENCE") or {})
+    if stat_ev:
+        if stat_ev.get("wape_pct") is not None:
+            rows.append({"label": "WAPE (Weighted Absolute Percentage Error)", "value": f"{stat_ev['wape_pct']}%"})
+        if stat_ev.get("mape_pct") is not None:
+            rows.append({"label": "MAPE (Mean Absolute Percentage Error)", "value": f"{stat_ev['mape_pct']}%"})
+        if stat_ev.get("mae_contacts") is not None:
+            rows.append({"label": "MAE (Mean Absolute Contact Gap)", "value": f"{stat_ev['mae_contacts']} contacts"})
+        if stat_ev.get("rmse_contacts") is not None:
+            rows.append({"label": "RMSE (Root Mean Square Error)", "value": f"{stat_ev['rmse_contacts']} contacts"})
+        if stat_ev.get("bias_pct") is not None:
+            rows.append({"label": "Signed Forecast Bias", "value": f"{stat_ev['bias_pct']}%"})
+        if stat_ev.get("coefficient_of_variation") is not None:
+            rows.append({"label": "Coefficient of Variation (CV Volatility)", "value": stat_ev["coefficient_of_variation"]})
+        if stat_ev.get("baseline_drift_pct") is not None:
+            rows.append({"label": "Multi-Week Baseline Drift", "value": f"{stat_ev['baseline_drift_pct']}%"})
+        if stat_ev.get("demand_momentum_acceleration") is not None:
+            rows.append({"label": "Demand Velocity Momentum", "value": f"{stat_ev['demand_momentum_acceleration']} contacts/wk²"})
+
     corr = (features.get("correlations") or {}).get("driver_decomposition") or {}
     if corr.get("available"):
         rows += [
@@ -238,6 +374,13 @@ def back_compat(result, base_features):
             result["confidence_score"] = (top.get("confidence_pct") or 0) / 100.0
         if not result.get("cause_type"):
             result["cause_type"] = top.get("cause_type")
+        # Every ranked cause carries its own recommended_action, but the model sometimes
+        # leaves the top-level list empty -- the UI only reads the top-level key, so a
+        # real recommendation went unread on every such reply ("No recommendations yet"
+        # was false; they existed, just one level down).
+        if not result.get("forecast_improvement_recommendations"):
+            result["forecast_improvement_recommendations"] = [
+                a for a in (r.get("recommended_action") for r in ranked) if a]
 
     # Must be set even when there are NO ranked causes (the within-band response), otherwise
     # the existing UI reads an undefined key. Caught by results/run_validation.py check V7.

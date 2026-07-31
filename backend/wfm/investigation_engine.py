@@ -95,7 +95,15 @@ def _payload(context_bundle, features, adherence, band):
     }
 
 
-def _assemble(parsed, features, adherence, band, provider, model):
+def _based_on_fields(context_bundle):
+    """Mirror the default engine's investigation_meta.based_on_fields (rca_investigate.py) --
+    every raw column present on the target row. Was previously omitted here entirely, so the
+    WFM report's footer always read "based on 0 field(s)" regardless of how much data the
+    investigation actually used."""
+    return sorted(set(((context_bundle or {}).get("target") or {}).get("fields", {}).keys()))
+
+
+def _assemble(parsed, features, adherence, band, provider, model, context_bundle=None):
     """Model reply -> reviewed, marked, back-compatible report."""
     parsed = parsed if isinstance(parsed, dict) else {}
     out = {}
@@ -104,6 +112,7 @@ def _assemble(parsed, features, adherence, band, provider, model):
         out[key] = default if value is None else value
 
     causes = report.normalise_causes(out.get("ranked_root_causes"))
+    causes = report.fix_bias_direction(causes, features)
     causes, challenges = skeptic.review(causes, features)
     causes = hypothesis_generator.mark(causes, features)
     out["ranked_root_causes"] = report.normalise_causes(causes)
@@ -136,13 +145,14 @@ def _assemble(parsed, features, adherence, band, provider, model):
 
     out["derived_features"] = features
     out["investigation_meta"] = {"engine": "wfm-llm", "provider": provider, "model": model,
-                                "calls": 1, "generated_at": _now()}
+                                "calls": 1, "generated_at": _now(),
+                                "based_on_fields": _based_on_fields(context_bundle)}
     out = report.back_compat(out, features.get("base_features") or {})
     # The prompt's BUSINESS LANGUAGE rule, enforced rather than requested.
     return report.apply_language_guard(out)
 
 
-def _fallback(features, adherence, band, reason):
+def _fallback(features, adherence, band, reason, context_bundle=None):
     """No model: build the same report from the deterministic signals only, and say so."""
     base = features.get("base_features") or {}
     ctype, finding = _finding_from_features(base)
@@ -179,7 +189,8 @@ def _fallback(features, adherence, band, reason):
             f"not the full multi-hypothesis WFM investigation."],
         "derived_features": features,
         "cause_type": ctype,
-        "investigation_meta": {"engine": "wfm-deterministic-fallback", "generated_at": _now()},
+        "investigation_meta": {"engine": "wfm-deterministic-fallback", "generated_at": _now(),
+                              "based_on_fields": _based_on_fields(context_bundle)},
     }
     return report.apply_language_guard(report.back_compat(out, base))
 
@@ -201,13 +212,13 @@ def investigate_wfm(context_bundle, llm_cfg, wfm_context, model_choice=None, ban
         if not slot:
             return _fallback(features, adherence, band,
                              f"Selected model '{model_choice.get('model')}' has no API key "
-                             f"configured for its provider.")
+                             f"configured for its provider.", context_bundle)
         slots = [slot]
     else:
         slots = [llm_cfg.get(n) or {} for n in ("primary", "secondary")]
         slots = [s for s in slots if s.get("provider") and s.get("api_key")]
         if not slots:
-            return _fallback(features, adherence, band, "No LLM provider is configured.")
+            return _fallback(features, adherence, band, "No LLM provider is configured.", context_bundle)
 
     payload = _payload(context_bundle, features, adherence, band)
     timeout = timeout_from_config(llm_cfg)
@@ -234,7 +245,7 @@ def investigate_wfm(context_bundle, llm_cfg, wfm_context, model_choice=None, ban
             failures.append(f"{slot.get('provider')}/{model} error: {e}")
             continue
 
-        result = _assemble(parsed, features, adherence, band, slot.get("provider"), model)
+        result = _assemble(parsed, features, adherence, band, slot.get("provider"), model, context_bundle)
         if not result.get("ranked_root_causes"):
             # Every proposed cause was rejected, or none was offered. Falling back beats
             # shipping a report with no cause in it -- but record WHAT was rejected and why,
@@ -253,4 +264,4 @@ def investigate_wfm(context_bundle, llm_cfg, wfm_context, model_choice=None, ban
             continue
         return result
 
-    return _fallback(features, adherence, band, " ".join(f"{f}." for f in failures))
+    return _fallback(features, adherence, band, " ".join(f"{f}." for f in failures), context_bundle)

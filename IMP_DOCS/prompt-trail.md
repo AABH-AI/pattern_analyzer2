@@ -484,3 +484,154 @@ V0.5 10:57-11:10; docs + commit to ~11:35).
 
 Still unfixed and now seen in four consecutive sessions: the `renderProbe` TypeError on every page
 load (`rca_console.html:2117`, from `:2143`) — fallout from `e432543` hiding the Probing layer.
+
+## Session 25 — 2026-07-30 · Root Cause vs Data Insights: the actual mechanism, found and fixed
+
+**Ask:** "we did a lot of Prompt finetuning but still Root cause seems to be generic and Data
+insights not Rootcause. like 5-6 points are present in Root cause than only 1 may be sounding
+like Rootcause rest all when read sounds only Data insights nothing else. i even tried Loop
+engineering concept but still no change." Read every Python file in `backend/wfm/` plus
+`rca_investigate.py` before touching anything.
+
+**Diagnosis — this was never a prompt problem.** `IMP_DOCS/TODO.md` P1j (Canary V0.6, one day
+earlier) had already named the mechanism precisely and it was still uncommitted/unfixed:
+`getSixOrMoreRootCausePoints` (`rca_console.html`) built the "Root Cause" card by merging FOUR
+different sources into one flat, unlabelled bullet list — the primary cause's own narrative
+sentences, `primary_root_cause.statement` (near-duplicate), every `ranked_root_causes[].title` +
+`.explanation` (silently dead — `formatInvestigation()` never passed `ranked_root_causes`
+through, so this line always iterated `[]`), and every `secondary_contributors[].statement`
+(ranks 2-5, NOT dead — this is what was actually leaking in). Five ranked causes -> the card
+showed "1 real cause + 4 disguised other causes" stripped of the confidence/status context that
+would have shown they were secondary. No amount of prompt tuning fixes a rendering layer that
+discards which cause a sentence belongs to.
+
+**Fixes, all verified (no SQL/LLM needed — synthetic bundles + `_assemble`/`investigate_wfm`
+called directly, plus a Node harness that `eval`s the extracted pure functions):**
+1. `formatInvestigation()` now passes `ranked_root_causes` through.
+2. `getSixOrMoreRootCausePoints` -> `getRootCausePoints`: builds bullets ONLY from the primary
+   cause's own narrative. No artificial floor — an honest 2-sentence cause beats a padded one.
+3. New **"Other Contributing Factors"** section (`invRcCard`/`causeStatusPill`) renders ranks 2-5
+   (falls back to `secondary_contributors` for the original engine), each with its own
+   confidence and Verified/Hypothesis status. Verified with a synthetic 5-cause reply: 0 bullets
+   from ranks 2-5 leaked into Root Cause; all 4 rendered correctly in the new section.
+4. **`business_report_generator.fix_bias_direction`** (a second, independent defect from the same
+   TODO section, called "THE SERIOUS ONE" there): a live run stated a queue's chronic bias
+   backwards ("consistently under-estimating" when history showed +12.1% adherence = chronically
+   OVER-forecast) — the model inferred direction from its own prose instead of reading
+   `chronic_bias.consistent_direction`, which was already computed exactly. New guard rewrites a
+   `systematic_forecast_bias` cause deterministically when its text contradicts the computed
+   direction; a correctly-stated cause is left untouched. Unit-verified both ways, then
+   re-verified through the full `_assemble()` path with a mocked backwards model reply.
+5. Language guard extended to strip internal payload block names (`DERIVED_FEATURES`,
+   `CHANNEL_SIBLINGS`, `INVESTIGATION_LADDER`, `DATA_QUALITY`, etc.) from business-facing text —
+   these had been leaking into ROOT CAUSE prose verbatim.
+6. `_humanize_missing_info`: a bare token like `Actual_ASU` or `CHANNEL_SIBLINGS` in
+   `missing_information` now reads as a sentence (dataset fields get their own
+   `FIELD_DEFINITIONS` wording; internal blocks get a plain description); anything already a
+   sentence is left alone.
+7. `forecast_improvement_recommendations` backfilled from each ranked cause's
+   `recommended_action` when the model leaves the top-level list empty ("No recommendations yet"
+   was false — they existed one level down and the UI never read that level).
+8. `investigation_meta.based_on_fields` backfilled for the WFM engine (`_based_on_fields`,
+   threaded via `context_bundle` through `_assemble`/`_fallback`) — footer read "based on 0
+   field(s)" regardless of how much data was actually used; the default engine already did this.
+
+**New, lower-priority finding from verification, not fixed this session:** the deterministic
+fallback's own catch-all cause (`_finding_from_features`'s final `else`) always labels itself
+`systematic_forecast_bias` even when nothing in `chronic_bias` supports it, and `skeptic.py`
+correctly rejects that unsupported claim — so `_fallback()` can return zero ranked causes when
+truly nothing in any feature block has signal. Not observed on any real queue (every live/file
+test case had genuine signal); not a blank card in practice since `executive_summary` is seeded
+from the finding text regardless. Logged in `TODO.md` P1j.
+
+**Validation:** `ast.parse` on all four touched `.py` files; a Node harness extracts the touched
+JS functions from `rca_console.html` and runs them against a synthetic 5-cause reply (0 leaks,
+correct 4-item "Other Contributing Factors"); `python -c` smoke tests of `fix_bias_direction`,
+`_humanize_missing_info`, `apply_language_guard`, and two full offline calls to `investigate_wfm`
+(sparse-signal and chronic-bias-signal synthetic bundles) — no exceptions, `based_on_fields`
+populated, `forecast_improvement_recommendations` populated.
+
+---
+
+## Session 19 — statistical evidence audit: co-drift is not co-movement
+
+**Prompt:** *"i recently added this in codebase but are they aligned or properly used in Rca o/p"*
+(a list of 13 statistical measures), then *"my concern is to make meaningful, logical,
+understandable, acceptable correlations — its not of just showing in UI."*
+
+**Audit of the 13 claimed measures.** 9 exist (MAE, MAPE, WAPE, RMSE, Bias, Drift, Momentum,
+CV, Correlation). 4 do not: Forecast Variance, Trend Analysis, Seasonality, Outlier Detection —
+and three of those appear in the codebase mainly in the *jargon-suppression* regex list, which
+rewrites the vocabulary out of the output. `technical_metrics` (which carries all of them) is
+computed and returned but `rca_console.html` never reads that key, while `prompts.py` told the
+model *"technical metrics belong ONLY in technical_metrics, which the console renders
+collapsed"* — a destination that does not exist. Line 150 then forbade every business-facing
+field from citing "a deviation figure", which is what WAPE/MAPE/Bias/CV/Drift all are.
+
+### Fixed
+
+1. **Error metrics were pairing the wrong weeks** (`temporal_reasoner.py`). `mae/mape/wape/
+   rmse/bias` pair by position via `zip`, but the actual and forecast lists were built with
+   *independent* `None` filters — one week missing a forecast shifted every later actual onto
+   the wrong week's forecast. Reproduced: a 5-week series forecast **perfectly** (actual ==
+   forecast every week), one mid-series forecast missing, scored **WAPE 30.0, MAPE 27.1, MAE
+   750, Bias +30%**. Now paired inside the row before splitting → 0.0 across the board, with
+   `history_weeks_scored_for_error` exposed so partial coverage is visible.
+
+2. **91% of retained correlations were trend artefacts** (`correlation_engine.py`, rewritten).
+   Ranking on raw levels over 104 weeks measures shared drift, not causation. Audited across
+   427 live queues: of 310 retained relationships, **282 collapse to ~zero on week-to-week
+   changes**. Worst case `CHK Premium Support` — units-under-warranty vs demand **+0.94 on
+   levels, +0.03 on movement** — presented to business leads as "demand almost always went up
+   too". Significance testing does not catch these; at n>100 they are all highly significant.
+   Four gates now apply (co-movement on first differences / significance at the queue's own n /
+   sign stability across both halves / ≥60% direction agreement), holidays moved to a group
+   contrast rather than a rank correlation over a mostly-zero column, lag scanned 0–6 weeks for
+   drivers that can lead demand with a stricter bar for lag-scanned survivors. **37 genuine
+   driver relationships remain, from 310.** Rejections state which gate failed and show both
+   numbers, so `drift_only_strength` is visible as the trap it is.
+
+3. **`this_week_attribution`** (new). A relationship holding across history explains nothing
+   about a specific week. A driver is only offered as evidence for THIS miss if it also moved
+   THIS week (≥10% vs usual) in the direction the miss went; moving the opposite way is
+   surfaced as evidence AGAINST. `no_driver_explains_this_week` tells the model the cause is in
+   how the forecast was SET, not in the business.
+
+4. **Prompt rewritten** to match (`prompts.py` CORRELATION ANALYSIS): `drift_only_strength` is
+   named explicitly as a trap that must never be quoted; the model must reason from
+   `this_week_attribution`; `evidence_weight: weak` may support but never carry a cause.
+
+5. **Smoke test rewritten** (`results/smoke_test_modules.py`). The old fixture was a perfect
+   monotone ramp (demand 10,20…150 / ASU 100,200…1500) — every week-over-week change identical,
+   so zero co-movement information — and it *asserted the relationship be retained*, encoding
+   the bug. Replaced with (a) a genuine co-moving driver that must be retained, (b) a
+   shared-drift regression guard that must be rejected (levels 0.99 vs moves −0.19), (c) an
+   unmoved driver that must explain nothing. **12/12 modules pass.**
+
+### Found, NOT fixed — these block a correct answer and change classification for all queues
+
+Live end-to-end on `NA OOP Seller` FW202721 fell back to `wfm-deterministic-fallback`. Both
+providers are reachable (verified directly). The cause was the reasoning layer rejecting the
+*correct* answer:
+
+- **`skeptic.py:55`** — `forecast_baseline_error` requires `forecast_sanity.verdict` to be
+  `forecast_anomalously_{low,high}` / `scale_mismatch`, i.e. the forecast must look *unusual
+  against its own history*. A **stale** baseline looks perfectly normal by construction — that
+  is what makes it stale. Groq proposed `forecast_baseline_error` (correct: the plan sat at
+  ~2,644 while demand had stepped down to ~2,090) and the skeptic killed it with "the forecast
+  was not unusual against its own history". There is no representable cause for *"the plan
+  failed to follow an established level change"*.
+- **`rca_investigate.py:277-279`** — `chronic_bias` requires `share_same >= 0.7` **AND**
+  `typical_abs > band`. `NA OOP Seller` is over-forecast in **76% of 124 weeks** (mean adherence
+  +5.6%, cumulative −6,227 contacts across FY27) and is labelled **`mixed`**, because its
+  typical deviation (8.2%) sits inside the ±10% band. This conflates *"is there a persistent
+  bias"* with *"is each individual week flagged"*.
+- `forecast_sanity` returned all-null levels/z-scores (verdict defaulting to `normal`) on a
+  bundle whose history carried `computed` but not `fields` — needs confirming on the live path.
+
+Fixing (a) and (b) changes cause classification for all 427 queues, so it is flagged for a
+decision rather than applied silently.
+
+**Validation:** `ast.parse` on all touched files; 12/12 module smoke tests; before/after audit
+across 427 live queues; controlled repro of the pairing bug; end-to-end `investigate_wfm` run
+against live SQL.

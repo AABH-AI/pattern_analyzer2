@@ -61,14 +61,51 @@ five slots on a type that will be rejected.
 
 ### `correlation_engine.py` — relationships and exact attribution
 
-**Relationship strength.** Spearman rank correlation between each candidate driver
-(`Actual_ASU`, `Planned_ASU`, `Final_Units`, `Holiday_Count`) and `Actual_Offered` over the
-queue's own history. Rank-based on purpose: unaffected by the single extreme week that
-usually triggered the investigation, where Pearson would be dragged around by it.
-Relationships are RETAINED or REJECTED in code against explicit thresholds (≥12 weeks,
-|strength| ≥ 0.5), so "ignore weak correlations" is enforced rather than requested. Each
-retained entry carries a jargon-free `plain_language` string for the report, with the
-coefficient confined to `technical_strength` for the collapsed section.
+**Relationship strength — rebuilt, because co-drift is not co-movement.**
+
+The first version ranked each driver (`Actual_ASU`, `Planned_ASU`, `Final_Units`) against
+`Actual_Offered` on RAW LEVELS across ~104 weeks. That measures whether two series drifted
+the same way over two years, not whether one moves the other. Almost every queue here is in
+a multi-year decline with a warranty base declining alongside it, so nearly everything
+correlated with nearly everything.
+
+Audited on the live table — 427 queues, 310 relationships retained by the old rule:
+**282 of them (91%) collapse to ~zero once the shared time trend is removed.** Worst case,
+`CHK Premium Support`: units-under-warranty vs demand scored **+0.94 on levels and +0.03 on
+week-to-week movement**. The engine was telling business leads "when units under warranty
+went up, demand almost always went up too" on the strength of two lines that merely sloped
+the same way. Significance testing does not catch this — at n>100 those are all *highly*
+significant. They are real correlations that mean nothing causally; the fix is to test the
+right quantity, not the same quantity harder.
+
+A driver now clears four gates before it may be cited:
+
+| Gate | Test |
+|---|---|
+| **Co-movement** | Spearman on WEEK-OVER-WEEK CHANGES, not levels — removes shared drift |
+| **Significance** | must beat the critical value for that queue's own week count |
+| **Stability** | same sign in BOTH halves of the history |
+| **Agreement** | in weeks the driver moved, demand moved the same way ≥60% of the time |
+
+`agreement_pct` is the headline business number: *"they moved together in 71% of the 84 weeks
+where the driver moved"* is checkable by hand; a coefficient is not. `evidence_weight`
+(strong/moderate/weak) keeps a 60% agreement from reading like an 85% one. Rejected entries
+carry both figures side by side plus the gate that failed, so the trap is visible rather than
+hidden. **Post-rewrite: 37 genuine driver relationships across 427 queues (from 310).**
+
+Lag is scanned 0–6 weeks for drivers that can plausibly *lead* demand (a unit shipped
+generates contacts later); a lag-scanned survivor must clear the stricter 1% bar because
+searching several lags inflates flukes. Holidays are **not** rank-correlated — the column is
+0 in most weeks, so ranks are mostly ties — they get a direct group contrast instead: average
+demand in holiday weeks vs normal weeks, in real contacts.
+
+**This-week attribution — the step that turns a relationship into a cause.**
+A relationship holding across history still explains nothing about a specific week.
+`this_week_attribution` only offers a driver as evidence for THIS miss if it also moved THIS
+week, by ≥10% vs its usual, in the direction that would push demand the way the miss went. A
+driver that moved the *opposite* way is surfaced as evidence AGAINST that cause. When nothing
+moved, `no_driver_explains_this_week: true` tells the model the cause is in how the forecast
+was set — not in the business — which stops it reaching for a generic demand-shift sentence.
 
 **Driver decomposition — the strongest attribution in this dataset, and exact.**
 
@@ -135,9 +172,19 @@ renders a WFM report without modification:
 - rank 1 → `primary_root_cause`, `confidence_score`, `cause_type`
 - ranks 2–5 → `secondary_contributors`
 - rejected skeptic challenges → `rejected_hypotheses`
-- each cause's `recommended_action` → `forecast_improvement_recommendations`
+- each cause's `recommended_action` → `forecast_improvement_recommendations` (backfilled from
+  the ranked causes when the model leaves the top-level list empty — see P1j below)
 
-New keys on top (a future UI can render these directly):
+**`ranked_root_causes[]` is now also rendered directly** (2026-07-30) — `rca_console.html`'s
+"Other Contributing Factors" section shows ranks 2–5 each with their own `status`
+(Verified/Hypothesis) and confidence, instead of only the flattened `secondary_contributors`
+strings. This closed the defect where the "Root Cause" card mixed the ONE primary cause with
+every other ranked cause's title/explanation as undifferentiated bullets — see `IMP_DOCS/TODO.md`
+P1j and `IMP_DOCS/prompt-trail.md` for the full diagnosis. `formatInvestigation()` now passes
+`ranked_root_causes` through (it previously stripped it, so `getRootCausePoints` — formerly
+`getSixOrMoreRootCausePoints` — silently never received it despite reading it).
+
+New keys on top:
 
 | Key | Meaning |
 |---|---|
@@ -171,9 +218,17 @@ Arithmetic is never delegated to the model. Computed in Python, then handed over
 - channel-migration detection (per-channel week-over-week deltas, group total, offset share)
 - the data-quality check
 - the existing `derive_features()` output, reused not reimplemented
+- **the chronic-bias direction** (`business_report_generator.fix_bias_direction`, added
+  2026-07-30) — `chronic_bias.consistent_direction` is computed from real history, but a live
+  run still produced a `systematic_forecast_bias` cause stating the OPPOSITE direction (history
+  +12.1% adherence = chronically OVER-forecast; the model's headline said "consistently
+  under-estimating"). The model inferred direction from its own prose instead of reading the
+  computed field. This rewrites the cause's `title`/`explanation` deterministically whenever
+  they contradict `consistent_direction`, and marks it in `direction_corrected`.
 
 The model's job is to rank, explain in business language, challenge, and write the report.
-It cannot change the KPI or the migration verdict — `_coerce_wfm` overwrites both.
+It cannot change the KPI, the migration verdict, or a chronic-bias direction that contradicts
+its own computed history — `_coerce_wfm`/`fix_bias_direction` overwrite these.
 
 ## Data-quality gate (an addition to the supplied spec)
 
