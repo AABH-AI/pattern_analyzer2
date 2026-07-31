@@ -1934,10 +1934,25 @@ function formatBoldText(s) {
 
 // Root-cause points. Deliberately NOT padded.
 //
-// This used to be getSixOrMoreRootCausePoints(), which appended key_findings, the supporting
-// evidence and the historical narrative until it had seven bullets. All three of those already
-// have their own panels, so ROOT CAUSE restated them verbatim for every queue -- volume dressed
-// up as analysis. Only genuine analysis belongs here; the panel is short when the analysis is.
+// MERGE NOTE (48e9711 + feat/rca-statistical-engine): both branches fixed "ROOT CAUSE reads as data,
+// not analysis" in this function at the same time. Both contributions are kept:
+//   * isRawMetricDump() came from 48e9711 -- it rejects bare metric dumps like
+//     "Region actual offered 89,746 vs forecast 101,814.9" that are numbers, not explanations.
+//   * the no-padding structure came from this branch -- the previous
+//     getSixOrMoreRootCausePoints() appended key_findings, the supporting evidence and the
+//     historical narrative to reach seven bullets, and all three already have their own panels, so
+//     ROOT CAUSE restated them verbatim on every queue.
+// Both branches also independently arrived at containment dedupe, which is retained.
+function isRawMetricDump(str) {
+  if (!str) return true;
+  const s = str.trim();
+  // Bare metric dumps: "Region adherence 11.9% exceeds threshold",
+  // "Region actual offered 89,746 vs forecast 101,814.9". Numbers belong in evidence, not here.
+  if (/^Region (adherence|actual offered|forecast offered|offered|actual)/i.test(s)) return true;
+  if (/^(Actual_Offered|fcst_offered|Actual offered|Forecast offered)\s*(exceeds|is|=|vs)/i.test(s)) return true;
+  return false;
+}
+
 function rcNormKey(s){
   return (s || '').toLowerCase().replace(/\*\*/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 }
@@ -1960,14 +1975,15 @@ function getRootCausePoints(f){
   if (hcN) elsewhere.add(hcN);
 
   // force=true bypasses the "shown elsewhere" filter -- used only for the cause itself, so the
-  // panel can never end up empty just because the cause also reads like a finding.
+  // panel can never end up empty just because the cause also reads like a finding. It does NOT
+  // bypass the raw-metric-dump filter: a cause that is only a number is not a cause.
   // Dedupe is by CONTAINMENT, not equality: the backend often sets reasoning_narrative to the
   // primary statement itself, which invToPoints() then splits on sentence boundaries. The
   // paragraph and its own sentences are different strings, so an equality check let the same idea
   // through five times -- the exact "nothing new is being said" effect.
   const add = (txt, force) => {
     const str = (txt || '').trim();
-    if (!str) return;
+    if (!str || isRawMetricDump(str)) return;
     const k = rcNormKey(str);
     if (!k || seen.has(k)) return;
     if (!force && elsewhere.has(k)) return;

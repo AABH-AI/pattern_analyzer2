@@ -231,6 +231,16 @@ DO NOT cite routine monthly Projection_plan_name updates (e.g. "Forecast plan ch
 
 When writing evidence text for volume decreases, quote positive magnitudes after directional words. Write "reduced by 214 contacts" or "decreased by 214 contacts", NEVER "decreased by -214 contacts" or "increased by +1 contact".
 
+# DYNAMIC MULTI-FACTOR DRIVER ATTRIBUTION (CRITICAL)
+
+When fields like Offering, Planned Units / Shipment (Final_Units, Final_Y1..Y5 -- nested, never summed), ASU (Actual_ASU vs Planned_ASU), Holiday_Count, or business_org are present in the payload and show material variance or correlation, incorporate their real business contribution directly into the Root Cause explanation (e.g. "The over-forecast occurred because actual units under warranty (Actual_ASU) grew by X, but contact rate per unit was over-estimated").
+Do NOT force these fields if flat/absent, but NEVER ignore them when they carry signal. NEVER default to generic "forecasting model is biased" text when explicit driver fields explain the gap.
+
+# CAUSAL CLAUSE CONTRACT (NO RAW METRIC DUMPS IN CAUSES)
+
+Root Cause explanation points MUST articulate the CAUSAL MECHANISM using connecting words ("driven by", "because", "resulting from").
+NEVER write bare metric dump sentences (e.g. "Region forecast offered 101,814.9" or "Region adherence 11.9%") as a root cause explanation bullet. Raw numbers belong inside evidence items, not as standalone root cause sentences.
+
 # CRITICAL RULES
 
 Never hallucinate. Never fabricate business events. Never assume marketing campaigns. Never invent product
