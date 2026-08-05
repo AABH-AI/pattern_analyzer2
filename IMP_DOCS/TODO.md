@@ -2,6 +2,31 @@
 
 Deploy **30 Jul 2026** · last dev day **29 Jul**. Ordered by priority.
 
+## Done ✓ (2026-08-06, session 30 — icon system + real structural overhaul, "full power" pass)
+- [x] **Replaced every emoji in the file (~35 instances) with a proper inline-SVG icon system**
+      (`ico(name, size)`, ~24 icons) — nav tabs, toolbar buttons, empty states (now circular
+      icon-badges), pipeline stages, every investigation-report section header, KPI tiles.
+- [x] **Fixed a latent bug the icon swap surfaced**: `pickProbe()`'s regex stripped a leading
+      "✨ " from `textContent`; once sparkle became an SVG (no textContent) the regex silently
+      stopped matching. Replaced with a plain `.trim()`.
+- [x] **Real structural overhaul, not just token changes** — user explicitly pushed back twice
+      ("looks like a color touch", "only navbar seems changed") before this landed:
+      - KPI stat row moved out of the cramped 300px column, now a full-width 4-across row with
+        42px icon badges and 26px numbers (highest-leverage single change).
+      - Queue list cards get a severity-colored left accent bar (red/amber/green).
+      - Console grid widened (`240/304/1fr` → `264/330/1fr`, gap 16→22px); filters sidebar given
+        real padding/touch targets; page/type scale increased across the board (h1 23→28px, page
+        padding 24→36px, Forecast Adherence hero number 25→32px).
+      - Root Cause's primary conclusion gets a distinct accent-card treatment with a "PRIMARY
+        CONCLUSION" eyebrow, materially larger than the now-secondary supporting bullets.
+- [x] **Live-verified with one clean Canary recording** (`Premium-UI-full-tour`) — all 7 tabs, SQL
+      connect + 88,816-row load (VPN confirmed connected), and 3 full LLM investigations on 3 real
+      queues with different miss types/severities. Confirmed via cache-busting screenshot that
+      changes were genuinely live server-side before diagnosing the user's "nothing changed"
+      report as browser cache, not a real regression.
+- [ ] Further iteration open (persistent cross-tab summary bar, command palette, dark mode —
+      dark mode explicitly descoped in session 29). This is the deepest pass so far, not final.
+
 ## Done ✓ (2026-08-06, session 29 — new `UI` branch, premium visual redesign)
 - [x] **New `UI` branch created from `approved-test`'s tip** (`42d1d5a`), cloned into its own
       sibling folder (`pattern_analyzer2-UI`), opened in a new VS Code window — `approved-test`

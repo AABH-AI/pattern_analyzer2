@@ -831,3 +831,78 @@ this needs a real screenshot once SQL/VPN is available again to be certain nothi
 specific screen looks off. Also not done: no bespoke icon/illustration work, and no per-component
 polish beyond what the systemic token rewrite achieves — further iterative refinement is possible
 if the user wants to go further after reviewing this pass live.
+
+---
+
+## Session 30 — 2026-08-06 · Icon system + real structural overhaul ("full power" pass)
+
+**Context.** The user reviewed Session 29's redesign live and pushed back hard, twice: first that
+it "looks like a color touch" — the layout skeleton (dense 3-column grid, tiny cramped stat tiles,
+Excel-style checkbox filters) was unchanged, only tokens/colors moved; and separately that after
+adding icons it still "only the navbar seems changed" — which turned out to be pure browser cache
+(confirmed server-side via a cache-busting fetch showing every change actually live; this dev
+server sends no `Cache-Control` header, so a hard refresh was needed each time). Explicit brief for
+this round: modernize the whole thing, reference-class "billion dollar" SaaS design, `/effort high`.
+
+**Part 1 — a real icon system, replacing every emoji in the file.** Emoji (🗄 ⬆ 🎲 📂 📊 🔍 🤖 🧠
+🎉 ✨ etc., ~35 instances across static HTML and JS template literals) render inconsistently across
+OS/browser — different colors, weights, sometimes missing glyphs entirely — which is a concrete,
+specific reason a UI reads as "made by a kid using Claude" next to a deliberate design system. Built
+a small inline-SVG icon set (`ICON_PATHS` + `ico(name, size)`, ~24 icons: database, upload,
+download, dice, x, folder, barchart, lightbulb, zap, calculator, flag, search, filetext, layers,
+server, cpu, book, target, check, alert, info, trendup, trenddown, monitor, refresh, clock,
+sparkle) — single-color, stroke-based, inherits the surrounding text color via `currentColor`, no
+external font/icon-library dependency. Replaced every single emoji/glyph instance: all 7 nav tabs
+now carry a matching icon (search/bar-chart/layers/server/cpu/folder/book), every toolbar button,
+every empty state (upgraded to a circular icon-badge — `.empty-icon`, soft accent-tinted circle —
+instead of a bare 34px emoji glyph), the per-investigation pipeline stages (Trigger/Aggregate/
+Context/Investigate/Format/Render), every collapsible section header in the investigation report
+(Proof/Key Findings/Root Cause/Evidence/Rejected/History/Missing/Scope/Interrogation), and the KPI
+stat tiles. Also fixed a latent bug this surfaced: `pickProbe()`'s regex stripped a leading "✨ "
+from `el.textContent` — once the sparkle became an SVG (contributing no textContent), the regex
+silently stopped matching and would have left a stray leading space; replaced with a plain
+`.trim()`.
+
+**Part 2 — the actual structural overhaul** (this is what "full power" meant — not achievable by
+token/icon changes alone):
+- **KPI stat row moved out of the cramped 300px middle column and made full-width**, above the
+  3-column console grid instead of stacked inside it fighting the queue list for the same narrow
+  space. Redesigned from a tiny 2×2 grid of 19px numbers to a proper 4-across stat-card row: each
+  card gets a 42px circular icon badge (colored per metric — neutral, danger for Flagged, green for
+  Avg Accuracy), a 26px bold number, and a hover lift. This is the single highest-leverage change —
+  the KPI row was the most visually cramped element in the whole console.
+  (`renderMetrics()` in `rca_console.html` rewritten to match; the `<div id="metrics">` element was
+  moved in the HTML from inside `.listcol` to directly above `.console` — a plain DOM move, since
+  JS only looks it up by ID and never cared where in the tree it lived.)
+- **Queue list cards get a severity-colored left accent bar** (red/amber/green matching the
+  existing `sev` computation that was already being used for the chip colors, just never applied
+  to the card itself) — a queue's severity is now visible at a glance scanning down the list, not
+  just readable in the small chip text.
+- **Console grid widened and given real gaps**: columns `240px 304px 1fr` → `264px 330px 1fr`, gap
+  `16px` → `22px`.
+- **Filters sidebar got real breathing room**: header background tint added, group padding
+  `10px 14px` → `12–14px 17px`, checkbox rows taller, larger checkbox hit target (14×14px).
+- **Type scale and page spacing increased across the board**: `.page` padding `24px 20px 80px` →
+  `36px 32px 90px`; `h1` `23px/700` → `28px/800`; the Forecast Adherence hero number `25px` → `32px`;
+  the report column paden `18px` → `24px 26px` with a real header divider; investigation-report
+  cards/sections all got more internal padding and line-height.
+- **Root Cause's primary conclusion gets a genuinely distinct visual treatment** (built in Session
+  29 but worth re-stating as part of "full power"): an accent-tinted card with a left accent bar and
+  a "PRIMARY CONCLUSION" eyebrow label, materially larger text than the supporting bullets below it,
+  which are now visually secondary (muted, smaller, plain list) — so a reader's eye lands on the
+  answer first instead of reading five equally-weighted bullets.
+
+**Live-verified end-to-end with a single clean Canary recording** (`Premium-UI-full-tour`) covering
+everything the user asked for: all 7 tabs, SQL connect + live data load (88,816 rows, VPN
+confirmed connected this session), and three full LLM-backed Root Cause investigations on three
+different real queues (`Benelux Client Core Email` FW202401 — over-forecast, 10.7% adherence;
+`NA Federal Comm Client Imaging` FW202401 — severe under-forecast, -2172.2%; `SA Comm Client
+Philippines Standard` FW202401 — under-forecast, -14.9%) — each showing the new stat row, severity-
+colored queue cards, pipeline-stage icons, and Forecast Summary/Proof sections rendering correctly.
+Confirmed via a cache-busting screenshot that the structural changes were genuinely live server-side
+before telling the user their browser was just showing a stale cached copy.
+
+**Not yet done:** no further layout passes beyond this one (e.g. a persistent top-of-page summary
+bar across ALL tabs, not just RCA Console; a command-palette / search; dark mode — explicitly
+descoped in Session 29). This is the deepest structural pass so far, not necessarily the last one —
+open to more iteration once the user reviews it live.

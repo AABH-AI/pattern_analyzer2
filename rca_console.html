@@ -25,23 +25,26 @@
   .nav-in{max-width:1440px;margin:0 auto;display:flex;align-items:center;gap:2px;padding:0 20px;flex-wrap:wrap;}
   .brand{font-weight:750;font-size:14.5px;letter-spacing:-0.2px;padding:14px 18px 14px 0;display:flex;align-items:center;gap:9px;color:#f5f6fb;}
   .brand .dot{width:8px;height:8px;border-radius:50%;background:var(--accent-2);box-shadow:0 0 0 3px rgba(5,150,105,.22);}
-  .nav a{color:#a4acc4;text-decoration:none;font-size:12.5px;font-weight:600;padding:16px 13px;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;transition:color .12s;}
+  .nav a{color:#a4acc4;text-decoration:none;font-size:12.5px;font-weight:600;padding:16px 13px;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;transition:color .12s;display:inline-flex;align-items:center;gap:7px;}
+  .nav a svg{opacity:.75;transition:opacity .12s;}
   .nav a:hover{color:#fff;}
+  .nav a:hover svg{opacity:1;}
   .nav a.active{color:#fff;border-bottom-color:var(--accent);}
+  .nav a.active svg{opacity:1;}
   .nav .spacer{flex:1;}
   .nav .env{font-size:10.5px;color:#7b84a3;padding:0 6px;letter-spacing:.2px;}
 
-  .page{max-width:1440px;margin:0 auto;padding:24px 20px 80px;}
+  .page{max-width:1480px;margin:0 auto;padding:36px 32px 90px;}
   .tab{display:none;} .tab.active{display:block;}
-  h1{font-size:23px;margin:0 0 4px;letter-spacing:-0.4px;font-weight:750;}
-  .sub{color:var(--muted);font-size:13px;margin-bottom:18px;max-width:900px;}
-  h2.sec{font-size:11.5px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:28px 0 13px;font-weight:750;display:flex;align-items:center;gap:8px;}
+  h1{font-size:28px;margin:0 0 6px;letter-spacing:-0.6px;font-weight:800;}
+  .sub{color:var(--muted);font-size:13.5px;margin-bottom:24px;max-width:900px;line-height:1.6;}
+  h2.sec{font-size:11.5px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:34px 0 15px;font-weight:750;display:flex;align-items:center;gap:8px;}
   h2.sec::after{content:"";flex:1;height:1px;background:var(--border);}
 
   /* generic cards */
-  .cards{display:grid;gap:14px;}
+  .cards{display:grid;gap:16px;}
   .g2{grid-template-columns:repeat(2,1fr);} .g3{grid-template-columns:repeat(3,1fr);} .g4{grid-template-columns:repeat(4,1fr);}
-  .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 17px;box-shadow:var(--sh-sm);transition:box-shadow .15s,border-color .15s;}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);padding:19px 20px;box-shadow:var(--sh-sm);transition:box-shadow .15s,border-color .15s;}
   .card:hover{box-shadow:var(--sh-md);border-color:var(--border-strong);}
   .card h4{margin:0 0 9px;font-size:13.5px;font-weight:700;letter-spacing:-.1px;}
   .card ul{margin:0;padding-left:16px;font-size:12.5px;color:var(--muted);} .card li{margin-bottom:6px;} .card li b{color:var(--text);font-weight:650;}
@@ -51,8 +54,8 @@
   .tag.w{background:rgba(217,119,6,.09);color:var(--warn);border-color:rgba(217,119,6,.22);}
 
   /* ===== RCA CONSOLE ===== */
-  .toolbar{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);padding:13px 16px;margin-bottom:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;box-shadow:var(--sh-sm);}
-  .filebtn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;border:none;border-radius:var(--r-sm);padding:9px 15px;font-size:12.5px;font-weight:650;cursor:pointer;box-shadow:var(--sh-sm);transition:filter .12s,box-shadow .12s;}
+  .toolbar{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 19px;margin-bottom:20px;display:flex;gap:11px;align-items:center;flex-wrap:wrap;box-shadow:var(--sh-sm);}
+  .filebtn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;border:none;border-radius:var(--r-sm);padding:10px 17px;font-size:12.5px;font-weight:650;cursor:pointer;box-shadow:var(--sh-sm);transition:filter .12s,box-shadow .12s;}
   .filebtn:hover{filter:brightness(1.08);box-shadow:var(--sh-md);}
   .filebtn.ghost{background:transparent;color:var(--accent);border:1px solid var(--border-strong);box-shadow:none;}
   .filebtn.ghost:hover{background:var(--accent-soft);filter:none;}
@@ -86,51 +89,58 @@
   input[type=number]{width:56px;background:var(--panel-2);border:1px solid var(--border);border-radius:var(--r-sm);padding:5px 7px;font-size:12px;color:var(--text);}
   input[type=number]:focus{outline:none;border-color:var(--accent);}
 
-  .console{display:grid;grid-template-columns:240px 304px 1fr;gap:16px;align-items:start;}
+  .console{display:grid;grid-template-columns:264px 330px 1fr;gap:22px;align-items:start;}
   @media (max-width:1100px){.console{grid-template-columns:1fr;}}
 
   /* Excel-style filters */
   .filters{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;position:sticky;top:64px;box-shadow:var(--sh-sm);}
-  .filters .fh{padding:11px 14px;border-bottom:1px solid var(--border);font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;}
-  .filters .fh .fh-t{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;flex:1;}
+  .filters .fh{padding:14px 17px;border-bottom:1px solid var(--border);font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;background:var(--panel-2);}
+  .filters .fh .fh-t{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;flex:1;}
   .filters .fh .fchev{display:inline-block;font-size:9px;transition:transform .15s;}
   .filters.collapsed .fh{border-bottom:none;}
   .filters.collapsed #filterBody{display:none;}
   .fgroup{border-bottom:1px solid var(--border);}
-  .fgroup > .ft{padding:10px 14px;font-size:12.5px;font-weight:650;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;}
-  .fgroup .fbody{padding:0 14px 11px;display:block;}
+  .fgroup > .ft{padding:12px 17px;font-size:12.5px;font-weight:650;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;}
+  .fgroup .fbody{padding:0 17px 14px;display:block;}
   .fgroup.collapsed .fbody{display:none;}
-  .fsearch{width:100%;border:1px solid var(--border);border-radius:var(--r-sm);padding:6px 9px;font-size:11.5px;margin:2px 0 8px;background:var(--panel-2);color:var(--text);}
+  .fsearch{width:100%;border:1px solid var(--border);border-radius:var(--r-sm);padding:7px 10px;font-size:11.5px;margin:2px 0 9px;background:var(--panel-2);color:var(--text);}
   .fsearch:focus{outline:none;border-color:var(--accent);}
-  .fopts{max-height:150px;overflow:auto;}
-  .fopt{display:flex;align-items:center;gap:7px;font-size:12px;padding:4px 0;cursor:pointer;}
-  .fopt input{accent-color:var(--accent);}
-  .reset{width:100%;border:1px solid var(--border);color:var(--danger);background:transparent;border-radius:var(--r-sm);padding:10px;font-size:12px;font-weight:650;cursor:pointer;margin:10px 0 0;transition:background .12s,border-color .12s;}
+  .fopts{max-height:160px;overflow:auto;}
+  .fopt{display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 0;cursor:pointer;}
+  .fopt input{accent-color:var(--accent);width:14px;height:14px;}
+  .reset{width:100%;border:1px solid var(--border);color:var(--danger);background:transparent;border-radius:var(--r-sm);padding:11px;font-size:12px;font-weight:650;cursor:pointer;margin:12px 0 0;transition:background .12s,border-color .12s;}
   .reset:hover{background:rgba(220,38,38,.06);border-color:var(--danger);}
 
-  .metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:14px;}
-  .metric{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-md);padding:11px 12px;box-shadow:var(--sh-sm);}
-  .metric .v{font-size:19px;font-weight:750;letter-spacing:-.2px;} .metric .l{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:2px;}
-  .metric.flag .v{color:var(--danger);} .metric.good .v{color:var(--accent-2);}
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px;}
+  @media (max-width:1000px){.metrics{grid-template-columns:repeat(2,1fr);}}
+  .metric{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px 20px;box-shadow:var(--sh-sm);display:flex;align-items:center;gap:15px;transition:box-shadow .15s,border-color .15s,transform .15s;}
+  .metric:hover{box-shadow:var(--sh-md);border-color:var(--border-strong);transform:translateY(-1px);}
+  .metric .mi{width:42px;height:42px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .metric .mi svg{width:19px;height:19px;}
+  .metric .v{font-size:26px;font-weight:750;letter-spacing:-.5px;line-height:1.1;}
+  .metric .l{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:3px;font-weight:650;}
+  .metric.flag .v{color:var(--danger);} .metric.flag .mi{background:rgba(220,38,38,.1);color:var(--danger);}
+  .metric.good .v{color:var(--accent-2);} .metric.good .mi{background:rgba(5,150,105,.1);color:var(--accent-2);}
 
   .listcol h3, .reportcol h3{margin:0 0 10px;font-size:10.5px;text-transform:uppercase;letter-spacing:.9px;color:var(--muted);font-weight:750;}
   .qwrap{max-height:640px;overflow:auto;}
-  .qitem{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-md);padding:11px 12px;margin-bottom:9px;cursor:pointer;box-shadow:var(--sh-sm);transition:border-color .12s,box-shadow .12s;}
-  .qitem:hover{border-color:var(--border-strong);box-shadow:var(--sh-md);}
-  .qitem.active{border-color:var(--accent);box-shadow:0 0 0 1.5px var(--accent) inset,var(--sh-sm);}
-  .qitem .qn{font-size:12px;font-weight:700;}
-  .qitem .qmeta{font-size:10.5px;color:var(--muted);margin-top:3px;}
-  .qitem .chips{margin-top:7px;display:flex;gap:5px;flex-wrap:wrap;}
+  .qitem{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--border);border-radius:var(--r-md);padding:13px 14px;margin-bottom:10px;cursor:pointer;box-shadow:var(--sh-sm);transition:border-color .12s,box-shadow .12s,transform .12s;}
+  .qitem:hover{border-color:var(--border-strong);box-shadow:var(--sh-md);transform:translateX(1px);}
+  .qitem.sev-red{border-left-color:var(--danger);} .qitem.sev-amber{border-left-color:var(--warn);} .qitem.sev-green{border-left-color:var(--accent-2);}
+  .qitem.active{border-color:var(--accent);border-left-color:var(--accent);box-shadow:0 0 0 1.5px var(--accent) inset,var(--sh-md);}
+  .qitem .qn{font-size:12.5px;font-weight:700;letter-spacing:-.1px;}
+  .qitem .qmeta{font-size:10.5px;color:var(--muted);margin-top:4px;}
+  .qitem .chips{margin-top:8px;display:flex;gap:5px;flex-wrap:wrap;}
   .chip{font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;}
   .chip.red{background:rgba(220,38,38,.1);color:var(--danger);border:1px solid rgba(220,38,38,.25);}
   .chip.amber{background:rgba(217,119,6,.1);color:var(--warn);border:1px solid rgba(217,119,6,.25);}
   .chip.green{background:rgba(5,150,105,.1);color:var(--accent-2);border:1px solid rgba(5,150,105,.25);}
 
-  .reportcol{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px;min-height:360px;box-shadow:var(--sh-sm);}
-  .rhead{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;}
-  .rtitle{font-size:16.5px;font-weight:750;letter-spacing:-.2px;}
-  .rmeta{font-size:11.5px;color:var(--muted);margin-top:3px;}
-  .acc{text-align:right;} .acc .big{font-size:25px;font-weight:750;letter-spacing:-.4px;} .acc .lbl{font-size:11px;color:var(--muted);}
+  .reportcol{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-xl);padding:24px 26px;min-height:360px;box-shadow:var(--sh-md);}
+  .rhead{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:flex-start;padding-bottom:16px;margin-bottom:4px;border-bottom:1px solid var(--border);}
+  .rtitle{font-size:19px;font-weight:800;letter-spacing:-.3px;}
+  .rmeta{font-size:12px;color:var(--muted);margin-top:4px;}
+  .acc{text-align:right;} .acc .big{font-size:32px;font-weight:800;letter-spacing:-.6px;} .acc .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:650;margin-top:2px;}
 
   .rca-bullets{list-style:none;padding:0;margin:16px 0 0;}
   .rca-bullets li{display:flex;gap:10px;align-items:flex-start;padding:11px 0;border-top:1px solid var(--border);font-size:13px;}
@@ -148,6 +158,8 @@
 
   .empty{color:var(--muted);font-size:13px;text-align:center;padding:64px 16px;border:1px dashed var(--border-strong);border-radius:var(--r-lg);background:var(--panel);}
   .empty b{color:var(--text);}
+  .empty-icon{width:54px;height:54px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
+  .empty-icon svg{width:24px;height:24px;}
 
   /* ===== VOLUMETRICS (EPIC) ===== */
   .vol{position:relative;background:radial-gradient(120% 140% at 0% 0%,#312e81 0%,#1e1b4b 45%,#0b0f1e 100%);border:1px solid rgba(255,255,255,.08);border-radius:var(--r-xl);padding:28px 30px;margin-bottom:18px;color:#fff;box-shadow:var(--sh-lg);overflow:hidden;}
@@ -283,18 +295,18 @@
   .pill:hover{border-color:var(--accent);color:var(--accent);}
 
   /* ===== Root-Cause Investigation report ===== */
-  .inv-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 17px;margin-bottom:11px;box-shadow:var(--sh-sm);}
-  .inv-kv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  .inv-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px 20px;margin-bottom:14px;box-shadow:var(--sh-sm);}
+  .inv-kv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;}
   @media (max-width:600px){.inv-kv-grid{grid-template-columns:repeat(2,1fr);}}
-  .inv-kv-grid .kvi{background:var(--panel-2);border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 11px;}
+  .inv-kv-grid .kvi{background:var(--panel-2);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px 13px;}
   .inv-kv-grid .kvi .l{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;}
-  .inv-kv-grid .kvi .v{font-size:14px;font-weight:750;margin-top:3px;letter-spacing:-.2px;}
-  .inv-sec{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-md);margin-bottom:9px;overflow:hidden;box-shadow:var(--sh-sm);}
-  .inv-sec summary{cursor:pointer;padding:12px 17px;font-size:13px;font-weight:750;text-transform:uppercase;letter-spacing:.5px;color:var(--text);list-style:none;display:flex;justify-content:space-between;align-items:center;}
+  .inv-kv-grid .kvi .v{font-size:16px;font-weight:750;margin-top:4px;letter-spacing:-.3px;}
+  .inv-sec{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-md);margin-bottom:12px;overflow:hidden;box-shadow:var(--sh-sm);}
+  .inv-sec summary{cursor:pointer;padding:14px 19px;font-size:13px;font-weight:750;text-transform:uppercase;letter-spacing:.5px;color:var(--text);list-style:none;display:flex;justify-content:space-between;align-items:center;}
   .inv-sec summary::-webkit-details-marker{display:none;}
   .inv-sec summary::after{content:'▾';color:var(--muted);font-size:11px;transition:transform .15s;}
   .inv-sec[open] summary::after{transform:rotate(180deg);}
-  .inv-sec .body{padding:2px 15px 15px;font-size:12.5px;color:var(--text);}
+  .inv-sec .body{padding:4px 19px 19px;font-size:12.5px;color:var(--text);line-height:1.6;}
   .inv-findings{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px;}
   .inv-findings li{padding:9px 11px;background:var(--panel-2);border-left:3px solid var(--accent);border-radius:var(--r-sm);}
   .rc-card{border:1px solid var(--border);border-radius:var(--r-md);padding:13px 15px;margin-bottom:11px;background:var(--panel-2);}
@@ -333,13 +345,13 @@
 <div class="nav">
   <div class="nav-in">
     <div class="brand"><span class="dot"></span>Demand Pattern RCA Agent</div>
-    <a data-tab="console" class="active">RCA Console</a>
-    <a data-tab="dashboard">Dashboard</a>
-    <a data-tab="arch">Architecture</a>
-    <a data-tab="stack">Tech Stack</a>
-    <a data-tab="models">AI Models</a>
-    <a data-tab="data">Data &amp; Files</a>
-    <a data-tab="defs">Definitions &amp; Formulas</a>
+    <a data-tab="console" class="active"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>RCA Console</a>
+    <a data-tab="dashboard"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="14"/></svg>Dashboard</a>
+    <a data-tab="arch"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>Architecture</a>
+    <a data-tab="stack"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="7" rx="1.5"/><rect x="2" y="14" width="20" height="7" rx="1.5"/><line x1="6" y1="6.5" x2="6.01" y2="6.5"/><line x1="6" y1="17.5" x2="6.01" y2="17.5"/></svg>Tech Stack</a>
+    <a data-tab="models"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="1" y1="15" x2="4" y2="15"/><line x1="20" y1="15" x2="23" y2="15"/></svg>AI Models</a>
+    <a data-tab="data"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>Data &amp; Files</a>
+    <a data-tab="defs"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>Definitions &amp; Formulas</a>
     <span class="spacer"></span>
     <span class="env">Client env · GitLab · on-prem</span>
   </div>
@@ -355,16 +367,16 @@
     <div class="toolbar">
       <input type="file" id="fileWeekly" accept=".csv,.tsv,.txt,.xlsx" style="display:none" onchange="onWeekly(this.files&&this.files[0])">
       <input type="file" id="fileMap" accept=".csv,.tsv,.txt,.xlsx" style="display:none" onchange="onMapping(this.files&&this.files[0])">
-      <button class="filebtn sql" onclick="openSQL()">🗄 Connect to SQL Server (AA)</button>
-      <button class="filebtn" onclick="window._pendingSrc='file';document.getElementById('fileWeekly').click()">⬆ Upload weekly file</button>
-      <button class="filebtn map" onclick="document.getElementById('fileMap').click()">⬆ Upload CQN mapping</button>
+      <button class="filebtn sql" onclick="openSQL()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg>Connect to SQL Server (AA)</button>
+      <button class="filebtn" onclick="window._pendingSrc='file';document.getElementById('fileWeekly').click()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V6"/><path d="m5 12 7-7 7 7"/><path d="M5 21h14"/></svg>Upload weekly file</button>
+      <button class="filebtn map" onclick="document.getElementById('fileMap').click()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V6"/><path d="m5 12 7-7 7 7"/><path d="M5 21h14"/></svg>Upload CQN mapping</button>
       <span class="status" id="fileStatus">No file loaded.</span>
       <span id="mapBadge"></span>
       <input id="focusInput" list="fnList" style="flex:1;min-width:220px;max-width:420px;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--text);background:var(--panel-2)" placeholder="Test specific Forecast_name(s) — comma-separated, or start typing to browse" onkeydown="if(event.key==='Enter')applyFocus()">
       <datalist id="fnList"></datalist>
       <button class="filebtn ghost" onclick="applyFocus()">Test these</button>
-      <button class="filebtn ghost" onclick="pickRandomQueue()" title="Jump to a random Forecast_name from the loaded data — no need to know its name">🎲 Random queue</button>
-      <button class="filebtn ghost" onclick="clearFocus()" title="Clear the Forecast_name test box">✕ Clear</button>
+      <button class="filebtn ghost" onclick="pickRandomQueue()" title="Jump to a random Forecast_name from the loaded data — no need to know its name"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8" cy="8" r="1.3" fill="currentColor" stroke="none"/><circle cx="16" cy="8" r="1.3" fill="currentColor" stroke="none"/><circle cx="8" cy="16" r="1.3" fill="currentColor" stroke="none"/><circle cx="16" cy="16" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/></svg>Random queue</button>
+      <button class="filebtn ghost" onclick="clearFocus()" title="Clear the Forecast_name test box"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Clear</button>
       <label class="band">Accuracy band ±<input type="number" id="band" value="10" min="1" max="50" onchange="if(ROWS.length)applyAndScan()">%</label>
     </div>
 
@@ -372,26 +384,27 @@
     <div class="pipe" id="pipe"></div>
 
     <div id="emptyState" class="empty">
-      <div style="font-size:34px;margin-bottom:8px;">📂</div>
+      <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg></div>
       <b>Upload the weekly demand file to begin.</b><br>
       Accepted: <b>.csv, .tsv, .xlsx</b> · header row + the standard demand columns (Fiscal_Week, Region, Forecast_name, Actual_Offered, fcst_offered, …).<br>
       Optionally add the <b>CQN mapping file</b> to resolve the true Combined Queue Name — without it the tool falls back to <code>Forecast_name</code> and marks queues <span class="badge unm">unmapped</span>.
     </div>
 
     <div id="consoleArea" style="display:none;">
+      <!-- KPI stat row: full width, above the working area, not squeezed into a narrow column -->
+      <div class="metrics" id="metrics"></div>
       <div class="console">
         <!-- FILTERS -->
         <div class="filters" id="filters">
           <div class="fh"><span class="fh-t" onclick="toggleFilters()"><span class="fchev" id="filtChev">▾</span> Filters</span><span class="pill" onclick="resetFilters()">Reset</span></div>
           <div id="filterBody">
             <div id="filterGroups"></div>
-            <div style="padding:0 13px 12px;"><button class="reset" onclick="resetFilters()">↻ Reset All Filters</button></div>
+            <div style="padding:0 13px 12px;"><button class="reset" onclick="resetFilters()"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 3 21 9 15 9"/></svg>Reset All Filters</button></div>
           </div>
         </div>
 
         <!-- FLAGGED LIST -->
         <div class="listcol">
-          <div class="metrics" id="metrics"></div>
           <h3>Flagged queues / weeks</h3>
           <div class="qwrap" id="qlist"></div>
         </div>
@@ -405,7 +418,7 @@
                exists and no-ops safely because these elements are absent. See IMP_DOCS/TODO.md P3. -->
           <!--
           <div class="probe">
-            <div class="q">🧠 Probing layer — knowledge gathering</div>
+            <div class="q"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2Z"/></svg>Probing layer — knowledge gathering</div>
             <div style="font-size:11.5px;color:var(--muted);margin-bottom:8px;">The agent asks to clarify domain rules. Answers are saved to a Markdown knowledge base you can download and reuse.</div>
             <div class="row" id="probePills"></div>
             <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
@@ -424,8 +437,8 @@
             <textarea id="probeA" placeholder="Your answer / domain knowledge…"></textarea>
             <label class="fopt" style="margin:6px 0 2px;"><input type="checkbox" id="probeCtx" checked> Attach current queue/week context</label>
             <div class="row">
-              <button class="filebtn" onclick="saveKnowledge()">＋ Save to knowledge base</button>
-              <button class="filebtn ghost" onclick="downloadKB()">⬇ Download knowledge base (.md)</button>
+              <button class="filebtn" onclick="saveKnowledge()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Save to knowledge base</button>
+              <button class="filebtn ghost" onclick="downloadKB()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>Download knowledge base (.md)</button>
               <span class="status" id="kbCount">0 entries</span>
             </div>
             <div id="kbList" style="margin-top:8px;"></div>
@@ -451,7 +464,7 @@
     <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:18px 20px;width:min(780px,94vw);max-height:82vh;display:flex;flex-direction:column;box-shadow:0 24px 70px -24px rgba(0,0,0,.65);">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;">
         <div id="affPopupHead" style="font-size:14.5px;font-weight:800;"></div>
-        <button class="filebtn ghost" onclick="closeAffPopup()">✕ Close</button>
+        <button class="filebtn ghost" onclick="closeAffPopup()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Close</button>
       </div>
       <div id="affPopupBody" style="overflow:auto;"></div>
     </div>
@@ -462,7 +475,7 @@
     <h1>Dashboard</h1>
     <div class="sub">Volumetrics and demand-signal graphs for the loaded file. Reflects the filters set in the <b>RCA Console</b>. Only Actual/Forecast-offered figures are charted — nothing is inferred or invented.</div>
     <div id="dashEmpty" class="empty">
-      <div style="font-size:34px;margin-bottom:8px;">📊</div>
+      <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="14"/></svg></div>
       <b>No data loaded.</b><br>Upload the weekly demand file in the <b>RCA Console</b> tab — this dashboard populates automatically and follows your filters.
     </div>
     <div id="dashFilterWrap" style="display:none;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
@@ -604,8 +617,8 @@
 <div id="insDrawer" class="ins-drawer open">
   <div class="ins-panel">
     <div class="ins-resize" id="insResize" title="Drag to resize"></div>
-    <div class="ins-handle" onclick="toggleInsights()" title="Show / hide insights"><span>💡 Insights</span></div>
-    <div class="ins-head"><span>💡 Insights</span><button class="ins-x" onclick="toggleInsights()" title="Close">✕</button></div>
+    <div class="ins-handle" onclick="toggleInsights()" title="Show / hide insights"><span><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px;"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2Z"/></svg>Insights</span></div>
+    <div class="ins-head"><span><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px;"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2Z"/></svg>Insights</span><button class="ins-x" onclick="toggleInsights()" title="Close"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="ins-body" id="insDrawerBody"></div>
   </div>
 </div>
@@ -623,18 +636,61 @@
 <!-- SQL SERVER (AA) CONNECT MODAL -->
 <div class="modal-bg" id="sqlModal" onclick="if(event.target===this)closeSQL()">
   <div class="modal">
-    <h3>🗄 Connect to SQL Server (AA)</h3>
+    <h3><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px;"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg>Connect to SQL Server (AA)</h3>
     <div class="msub">Pull the weekly demand table straight from the AA data layer — the same pipeline the deployed agent uses. Metrics are computed on the ingested table, not invented.</div>
     <div class="sqlf"><label>Server</label><input id="sqlSrv" value="10.10.9.75"></div>
     <div class="sqlf"><label>Database</label><input id="sqlDb" value="Playground"></div>
     <div class="sqlf"><label>Table / view</label><input id="sqlTbl" value="dbo.Input_To_ML_Full"></div>
-    <div class="sqlnote">🔌 <b>Live:</b> click <b>Fetch table</b> to query SQL Server through the local backend (<code>/api/data</code>) and run the pipeline — no upload. Connection is set in <code>backend/config.json</code>; start it with <code>uvicorn sql_backend:app --port 8000</code>.</div>
-    <button class="mclose" style="float:none" onclick="sqlFetch()">⇩ Fetch table &amp; run pipeline</button>
+    <div class="sqlnote"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> <b>Live:</b> click <b>Fetch table</b> to query SQL Server through the local backend (<code>/api/data</code>) and run the pipeline — no upload. Connection is set in <code>backend/config.json</code>; start it with <code>uvicorn sql_backend:app --port 8000</code>.</div>
+    <button class="mclose" style="float:none;display:inline-flex;align-items:center;gap:7px;" onclick="sqlFetch()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>Fetch table &amp; run pipeline</button>
     <button class="filebtn ghost" style="margin-left:8px" onclick="closeSQL()">Cancel</button>
   </div>
 </div>
 
 <script>
+/* ---------------- Icon system ----------------
+   A small inline-SVG icon set replacing emoji throughout the console. Emoji render
+   inconsistently across OS/browser (different colors, weights, sometimes missing glyphs)
+   which reads as unpolished next to a deliberate color system -- these are single-color,
+   stroke-based, and always inherit the surrounding text color via currentColor. */
+const ICON_PATHS = {
+  database:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/>',
+  upload:'<path d="M12 19V6"/><path d="m5 12 7-7 7 7"/><path d="M5 21h14"/>',
+  download:'<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
+  dice:'<rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8" cy="8" r="1.3" fill="currentColor" stroke="none"/><circle cx="16" cy="8" r="1.3" fill="currentColor" stroke="none"/><circle cx="8" cy="16" r="1.3" fill="currentColor" stroke="none"/><circle cx="16" cy="16" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/>',
+  x:'<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  folder:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/>',
+  barchart:'<line x1="6" y1="20" x2="6" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="14"/>',
+  lightbulb:'<path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2Z"/>',
+  zap:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+  calculator:'<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8.01" y2="11"/><line x1="12" y1="11" x2="12.01" y2="11"/><line x1="16" y1="11" x2="16.01" y2="11"/><line x1="8" y1="15" x2="8.01" y2="15"/><line x1="12" y1="15" x2="12.01" y2="15"/><line x1="16" y1="15" x2="16.01" y2="15"/><line x1="8" y1="19" x2="8.01" y2="19"/><line x1="12" y1="19" x2="12.01" y2="19"/>',
+  flag:'<path d="M4 22V4"/><path d="M4 4c2-1.5 4-1.5 6 0s4 1.5 6 0v9c-2 1.5-4 1.5-6 0s-4-1.5-6 0"/>',
+  search:'<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  filetext:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/>',
+  layers:'<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
+  server:'<rect x="2" y="3" width="20" height="7" rx="1.5"/><rect x="2" y="14" width="20" height="7" rx="1.5"/><line x1="6" y1="6.5" x2="6.01" y2="6.5"/><line x1="6" y1="17.5" x2="6.01" y2="17.5"/>',
+  cpu:'<rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="1" y1="15" x2="4" y2="15"/><line x1="20" y1="15" x2="23" y2="15"/>',
+  book:'<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/>',
+  target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/>',
+  check:'<polyline points="20 6 9 17 4 12"/>',
+  alert:'<path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/>',
+  info:'<circle cx="12" cy="12" r="9"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
+  trendup:'<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>',
+  trenddown:'<polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/>',
+  monitor:'<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>',
+  refresh:'<path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 3 21 9 15 9"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/>',
+  brain:'<path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.5A2.5 2.5 0 0 1 4 17.5v-1.24A2.5 2.5 0 0 1 2.5 14v-2a2.5 2.5 0 0 1 1.5-2.29V8A2.5 2.5 0 0 1 6.5 5.5 2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.5A2.5 2.5 0 0 0 20 17.5v-1.24A2.5 2.5 0 0 0 21.5 14v-2a2.5 2.5 0 0 0-1.5-2.29V8A2.5 2.5 0 0 0 17.5 5.5 2.5 2.5 0 0 0 14.5 2Z"/>',
+  sparkle:'<path d="M12 2v4"/><path d="M12 18v4"/><path d="m4.9 4.9 2.8 2.8"/><path d="m16.3 16.3 2.8 2.8"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="m4.9 19.1 2.8-2.8"/><path d="m16.3 7.7 2.8-2.8"/>',
+  layout:'<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="9" x2="9" y2="21"/>',
+};
+function ico(name, size){
+  size = size || 15;
+  const p = ICON_PATHS[name] || '';
+  const vAlign = -Math.round(size*0.16);
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:${vAlign}px;flex-shrink:0;">${p}</svg>`;
+}
+
 /* ---------------- Tabs ---------------- */
 document.querySelectorAll('.nav a[data-tab]').forEach(a=>{
   a.onclick=()=>{
@@ -754,7 +810,7 @@ async function sqlFetch(){
     // their real Combined Queue Name without needing a manual file upload. Silent no-op if the
     // table has not been loaded — the "Upload CQN mapping" path still works as before.
     await loadCqnMappingFromSql(API_BASE);
-    if(fs) fs.innerHTML='🗄 <b>SQL Server (AA)</b> · '+((j.table)||'dbo.Input_To_ML_Full')+' — '+rows.length.toLocaleString()+' rows';
+    if(fs) fs.innerHTML=ico('database')+' <b>SQL Server (AA)</b> · '+((j.table)||'dbo.Input_To_ML_Full')+' — '+rows.length.toLocaleString()+' rows';
     document.getElementById('emptyState').style.display='none';
     document.getElementById('consoleArea').style.display='block';
     renderPipe({source:'sql', rows:rows.length});
@@ -776,11 +832,11 @@ function renderPipe(st){
   st=st||{}; const el=document.getElementById('pipe'); if(!el) return;
   const src=st.source, rows=st.rows, comp=st.computable, flg=st.flagged, ready=st.ready;
   el.innerHTML=
-    pstage(src?'done':'pending', src==='sql'?'🗄':'📄', 'Source', src==='sql'?'SQL Server (AA)':src==='file'?'File upload':'—')+
-    pstage(rows?'done':'pending', '📥', 'Ingest', rows?rows.toLocaleString()+' rows':'—')+
-    pstage(comp!=null?'done':'pending', '🧮', 'Compute · 2 metrics', comp!=null?comp.toLocaleString()+' scored':'—')+
-    pstage(rows?'done':'pending', '🚩', 'Flag · ±band', flg!=null?flg.toLocaleString()+' flagged':'—')+
-    pstage(ready?'done':(rows?'active':'pending'), '🔍', 'RCA', ready?'ready':(rows?'scanning…':'—'));
+    pstage(src?'done':'pending', src==='sql'?ico('database'):ico('filetext'), 'Source', src==='sql'?'SQL Server (AA)':src==='file'?'File upload':'—')+
+    pstage(rows?'done':'pending', ico('download'), 'Ingest', rows?rows.toLocaleString()+' rows':'—')+
+    pstage(comp!=null?'done':'pending', ico('calculator'), 'Compute · 2 metrics', comp!=null?comp.toLocaleString()+' scored':'—')+
+    pstage(rows?'done':'pending', ico('flag'), 'Flag · ±band', flg!=null?flg.toLocaleString()+' flagged':'—')+
+    pstage(ready?'done':(rows?'active':'pending'), ico('search'), 'RCA', ready?'ready':(rows?'scanning…':'—'));
 }
 
 /* ---------------- Ingestion loading screen ---------------- */
@@ -822,7 +878,7 @@ function buildDashFilters(){
         <option value="">(All)</option>${vals.map(v=>`<option value="${String(v).replace(/"/g,'&quot;')}">${v}</option>`).join('')}
       </select></label>`;
   }).join('');
-  host.innerHTML=fwHtml+sels+`<button class="filebtn ghost" style="align-self:flex-end;" onclick="dashFiltersReset()">↻ Reset</button>`;
+  host.innerHTML=fwHtml+sels+`<button class="filebtn ghost" style="align-self:flex-end;" onclick="dashFiltersReset()">${ico('refresh',13)}Reset</button>`;
   const wrap=document.getElementById('dashFilterWrap'); if(wrap) wrap.style.display='block';
 }
 function dashFilterChange(sel){
@@ -921,7 +977,7 @@ async function onWeekly(file){
     const rows=buildRows(arrays);
     if(!rows.length)throw new Error('no rows');
     ROWS=rows;
-    document.getElementById('fileStatus').innerHTML=(src==='sql'?'🗄 <b>SQL Server (AA)</b> — ':'<b>'+file.name+'</b> — ')+rows.length.toLocaleString()+' rows';
+    document.getElementById('fileStatus').innerHTML=(src==='sql'?ico('database')+' <b>SQL Server (AA)</b> — ':'<b>'+file.name+'</b> — ')+rows.length.toLocaleString()+' rows';
     document.getElementById('emptyState').style.display='none';
     document.getElementById('consoleArea').style.display='block';
     renderPipe({source:src, rows:rows.length});
@@ -1051,8 +1107,8 @@ function setAccuracy(rows){
 function renderMetrics(groups,rows,flaggedCount,avgAcc){
   const nq=Object.keys(groups).length;
   const accTxt=(avgAcc==null)?'N/A':avgAcc.toFixed(1)+'%';
-  const m=[['metric','',nq,'Forecast names'],['metric','',rows.length.toLocaleString(),'Rows'],['metric flag','',flaggedCount,'Flagged (±band)'],['metric good','title="100 − MAPE (mean absolute % error). Averaging Actual÷Fcst directly cancels over/under-forecasts and overstates accuracy."',accTxt,'Avg accuracy (100−MAPE)']];
-  document.getElementById('metrics').innerHTML=m.map(x=>`<div class="${x[0]}" ${x[1]}><div class="v">${x[2]}</div><div class="l">${x[3]}</div></div>`).join('');
+  const m=[['metric','',nq,'Forecast names','layout'],['metric','',rows.length.toLocaleString(),'Rows','database'],['metric flag','',flaggedCount,'Flagged (±band)','flag'],['metric good','title="100 − MAPE (mean absolute % error). Averaging Actual÷Fcst directly cancels over/under-forecasts and overstates accuracy."',accTxt,'Avg accuracy (100−MAPE)','target']];
+  document.getElementById('metrics').innerHTML=m.map(x=>`<div class="${x[0]}" ${x[1]}><div class="mi">${ico(x[4],19)}</div><div><div class="v">${x[2]}</div><div class="l">${x[3]}</div></div></div>`).join('');
 }
 
 /* ---------------- Chart primitives (no libraries) ---------------- */
@@ -1191,7 +1247,7 @@ function drillCrumbs(){
   const esc=s=>String(s).replace(/</g,'&lt;');
   let h=`<div class="vdrill"><span class="vd-crumb${DRILL.length?'':' cur'}" onclick="drillClear()">All data</span>`;
   DRILL.forEach((d,i)=>{ h+=`<span class="vd-sep">›</span><span class="vd-crumb${i===DRILL.length-1?' cur':''}" onclick="drillTo(${i+1})">${esc(d.label)}: ${esc(d.v)}</span>`; });
-  if(DRILL.length) h+=`<button class="vd-clear" onclick="drillClear()">✕ clear drill</button>`;
+  if(DRILL.length) h+=`<button class="vd-clear" onclick="drillClear()">${ico('x',12)} clear drill</button>`;
   return h+`</div>`;
 }
 
@@ -1204,7 +1260,7 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
   const band=num(document.getElementById('band').value)||10;
   // scope to the active drill path, then recompute the headline numbers from the scoped set
   if(DRILL.length) rows=rows.filter(r=>DRILL.every(d=>drillMatch(r,d)));
-  if(!rows.length){ host.innerHTML=`<div class="vol"><div class="vtop"><div class="vtitle"><span class="spark">📊</span> Data Volumetrics</div></div>${drillCrumbs()}<div class="empty" style="border:none;color:#c2d0ee;">No rows for this drill path.</div></div>`; document.getElementById('insDrawerBody').innerHTML=''; updateInsDrawer(); return; }
+  if(!rows.length){ host.innerHTML=`<div class="vol"><div class="vtop"><div class="vtitle"><span class="spark">${ico('barchart',20)}</span> Data Volumetrics</div></div>${drillCrumbs()}<div class="empty" style="border:none;color:#c2d0ee;">No rows for this drill path.</div></div>`; document.getElementById('insDrawerBody').innerHTML=''; updateInsDrawer(); return; }
   const gset=new Set(); rows.forEach(r=>gset.add(String(r.Forecast_name||''))); const nForecast=gset.size;
   flaggedCount=rows.filter(r=>r._padh!=null && Math.abs(+r._padh.toFixed(1))>band).length;
   { const e=rows.filter(r=>r._padh!=null).map(r=>Math.abs(r._padh)); avgAcc=e.length?Math.max(0,100-e.reduce((a,b)=>a+b,0)/e.length):null; }
@@ -1317,21 +1373,21 @@ function renderDashboard(rows,groups,flaggedCount,avgAcc){
   // ---- rule-based auto-insights for the current scope ----
   const ins=[];
   if(avgAcc!=null){
-    if(DRILL.length && base!=null){ const dp=avgAcc-base; ins.push({i:dp>=0?'▲':'▼',t:`Accuracy here is <b>${avgAcc.toFixed(1)}%</b> — <span class="ins-${dp>=0?'up':'down'}">${dp>=0?'+':''}${dp.toFixed(1)}pp</span> vs the overall <b>${base.toFixed(1)}%</b>.`}); }
-    else ins.push({i:'🎯',t:`Overall forecast accuracy is <b>${avgAcc.toFixed(1)}%</b> (100 − MAPE).`});
+    if(DRILL.length && base!=null){ const dp=avgAcc-base; ins.push({i:ico(dp>=0?'trendup':'trenddown',15),t:`Accuracy here is <b>${avgAcc.toFixed(1)}%</b> — <span class="ins-${dp>=0?'up':'down'}">${dp>=0?'+':''}${dp.toFixed(1)}pp</span> vs the overall <b>${base.toFixed(1)}%</b>.`}); }
+    else ins.push({i:ico('target',15),t:`Overall forecast accuracy is <b>${avgAcc.toFixed(1)}%</b> (100 − MAPE).`});
   }
-  if(overallBias!=null){ const p=overallBias*100; ins.push({i:p>=0?'📈':'📉',t:`Forecast runs <b>${Math.abs(p).toFixed(1)}% ${p>=0?'under':'over'}</b> on average — actual demand ${p>=0?'exceeded':'fell short of'} plan (Σ actual vs Σ forecast).`}); }
-  if(movers.length){ const m=movers[0], p=m.value*100; ins.push({i:'🔎',t:`Most mis-forecast queue: <b>${m.label}</b> at <b>${p>=0?'+':''}${p.toFixed(0)}%</b> (${p>=0?'under':'over'}-forecast).`}); }
-  { const ch=[...volBy.channel.entries()].sort((a,b)=>b[1]-a[1])[0]; if(ch) ins.push({i:'📊',t:`<b>${ch[0]}</b> is the largest channel — <b>${(ch[1]/(totOff||1)*100).toFixed(0)}%</b> of offered volume.`}); }
-  { const tot=[...flagByName.values()].reduce((a,b)=>a+b,0); if(tot){ const t3=[...flagByName.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3); const s3=t3.reduce((a,[,v])=>a+v,0); ins.push({i:'⚠️',t:`Top 3 queues drive <b>${(s3/tot*100).toFixed(0)}%</b> of flagged weeks (${t3.map(x=>x[0]).join(', ')}).`}); } }
-  if(noFscope>0) ins.push({i:'🧩',t:`<b>${noFscope.toLocaleString()}</b> row(s) can't be scored (no/zero forecast) — data gap, excluded from accuracy.`});
+  if(overallBias!=null){ const p=overallBias*100; ins.push({i:ico(p>=0?'trendup':'trenddown',15),t:`Forecast runs <b>${Math.abs(p).toFixed(1)}% ${p>=0?'under':'over'}</b> on average — actual demand ${p>=0?'exceeded':'fell short of'} plan (Σ actual vs Σ forecast).`}); }
+  if(movers.length){ const m=movers[0], p=m.value*100; ins.push({i:ico('search',15),t:`Most mis-forecast queue: <b>${m.label}</b> at <b>${p>=0?'+':''}${p.toFixed(0)}%</b> (${p>=0?'under':'over'}-forecast).`}); }
+  { const ch=[...volBy.channel.entries()].sort((a,b)=>b[1]-a[1])[0]; if(ch) ins.push({i:ico('barchart',15),t:`<b>${ch[0]}</b> is the largest channel — <b>${(ch[1]/(totOff||1)*100).toFixed(0)}%</b> of offered volume.`}); }
+  { const tot=[...flagByName.values()].reduce((a,b)=>a+b,0); if(tot){ const t3=[...flagByName.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3); const s3=t3.reduce((a,[,v])=>a+v,0); ins.push({i:ico('alert',15),t:`Top 3 queues drive <b>${(s3/tot*100).toFixed(0)}%</b> of flagged weeks (${t3.map(x=>x[0]).join(', ')}).`}); } }
+  if(noFscope>0) ins.push({i:ico('info',15),t:`<b>${noFscope.toLocaleString()}</b> row(s) can't be scored (no/zero forecast) — data gap, excluded from accuracy.`});
   const insBody=`<div class="ins-scope">${DRILL.length?'Scoped to '+DRILL.map(d=>d.v).join(' › '):'Whole '+(filtered?'filtered set':'file')}</div><ul class="ins-ul">${ins.map(x=>`<li><span class="ic">${x.i}</span><span>${x.t}</span></li>`).join('')}</ul>`;
 
   host.innerHTML=`
   <div class="vol">
     <div class="vtop">
       <div>
-        <div class="vtitle"><span class="spark">📊</span> Data Volumetrics</div>
+        <div class="vtitle"><span class="spark">${ico('barchart',20)}</span> Data Volumetrics</div>
         <div class="vsub">Shape of the loaded demand file at a glance — headline totals, then how the data splits across each business dimension. <b>Click any value to drill in</b> (e.g. Region → EMEA) and the whole panel re-scopes card-by-card. Updates live as you filter in the RCA Console.</div>
       </div>
       <div class="vscope">${(filtered||DRILL.length)?'<b>Filtered</b> view':'<b>Full</b> file'}<br>${haveOff.toLocaleString()} rows with Actual_Offered</div>
@@ -1370,13 +1426,13 @@ function renderList(){
   const el=document.getElementById('qlist');
   const hd=document.querySelector('.listcol h3'); if(hd) hd.textContent=FOCUS.size?'Results — focused forecast names':'Flagged queues / weeks';
   const noFNote=(window._noFCount>0)?`<div class="empty" style="border:none;font-size:11px;">${window._noFCount.toLocaleString()} row(s) skipped — no/zero forecast (can't compute).</div>`:'';
-  if(!FLAGS.length){ el.innerHTML=(FOCUS.size?'<div class="empty" style="border:none;">No matching computable rows for those Forecast_name(s).</div>':'<div class="empty" style="border:none;">No weeks outside the ±band 🎉</div>')+noFNote; return; }
+  if(!FLAGS.length){ el.innerHTML=(FOCUS.size?'<div class="empty" style="border:none;">No matching computable rows for those Forecast_name(s).</div>':`<div class="empty" style="border:none;">${ico('check',18)} No weeks outside the ±band</div>`)+noFNote; return; }
   const CAP=250, shown=FLAGS.slice(0,CAP);
   const band=num(document.getElementById('band').value)||10;
   let h=shown.map((r,i)=>{
     const dev=+r._padh.toFixed(1), devAbs=Math.abs(dev);
     const sev=devAbs>25?'red':(devAbs>band?'amber':'green');
-    return `<div class="qitem" id="q${i}" onclick="selectFlag(${i})">
+    return `<div class="qitem sev-${sev}" id="q${i}" onclick="selectFlag(${i})">
       <div class="qn">${r.Forecast_name} ${r._mapped?'':'<span class="badge unm" style="font-size:8.5px">unmapped</span>'}</div>
       <div class="qmeta">${r.Region||''} · ${r.Country||''} · ${r.channel||''} · FW ${r._wk}</div>
       <div class="chips"><span class="chip ${sev}">acc ${r._acc.toFixed(0)}%</span><span class="chip ${sev}">${r._padh.toFixed(0)}% dev</span></div>
@@ -1439,7 +1495,7 @@ function selectFlag(i){
     <div class="kv"><span class="k">Forecast Offered</span><span class="val">${r._fo!=null?fmt2(r._fo):(r.fcst_offered||'(blank)')}</span></div>
     <div class="subhead">Root-Cause Investigation</div>
     <div class="rca-cap">Every field available for this queue — the target week, its recent history, and the other queues in its Combined Queue — is consolidated into a single evidence base. Each candidate explanation is then tested against that evidence: competing hypotheses are weighed, those the data does not support are rejected and recorded with the reason, and the remainder are ranked by the strength of the evidence behind them. Conclusions are stated in business language with the underlying figures attached, and where the data cannot settle a question, that limit is reported rather than filled in.</div>
-    <div id="investigationPanel"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><button class="filebtn" onclick="triggerRCA(${i})">🔎 Investigate Root Cause</button>${rcaModelPickerHtml()}</div></div>
+    <div id="investigationPanel"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><button class="filebtn" onclick="triggerRCA(${i})">${ico('search',15)}Investigate Root Cause</button>${rcaModelPickerHtml()}</div></div>
   `;
 }
 
@@ -1637,7 +1693,7 @@ function _rcaModelOpts(){
 }
 function rcaModelPickerHtml(){
   if(!window.RCA_MODELS.length) return '<span style="font-size:11px;color:var(--muted);">AI model picker loads when the backend is running.</span>';
-  return `<label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);">🤖 AI model
+  return `<label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);">${ico('cpu',14)} AI model
     <select class="rca-model-sel" onchange="onRcaModelChange(this.value)" style="font-size:11px;padding:4px 7px;border:1px solid var(--border);border-radius:7px;background:var(--panel-2);color:var(--text);max-width:280px;">${_rcaModelOpts()}</select></label>`;
 }
 function onRcaModelChange(idx){
@@ -1801,7 +1857,7 @@ function renderInvestigationReport(f, ctx){
 
   const key=ctx.target.key||{};
   const summaryHtml=`<div class="inv-card">
-    <div class="rhead" style="margin-bottom:2px;gap:8px;flex-wrap:wrap;"><div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Forecast Summary</div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-left:auto;">${rcaModelPickerHtml()}</div></div>
+    <div class="rhead" style="margin-bottom:2px;gap:8px;flex-wrap:wrap;"><div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;display:flex;align-items:center;gap:9px;">${ico('filetext',15)}Forecast Summary</div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-left:auto;">${rcaModelPickerHtml()}</div></div>
     <div class="rmeta" style="margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${invEsc(key.Forecast_name||'—')} · Fiscal Week ${invEsc(key.Fiscal_Week||'—')}</div>
     <div class="inv-kv-grid">
       <div class="kvi"><div class="l">Forecast</div><div class="v">${invEsc(fsr.forecast)}</div></div>
@@ -1825,7 +1881,8 @@ function renderInvestigationReport(f, ctx){
         <td style="padding:5px 10px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;">${fmtVal(p.this_week)}</td>
         <td style="padding:5px 10px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;">${p.usual!=null?fmtVal(p.usual):'—'}</td></tr>`;
   }).join('');
-  const proofHtml=proofRows?`<details class="inv-sec" open><summary>Proof — values from the data</summary><div class="body">
+  const secHead=(iconName,label)=>`<span style="display:inline-flex;align-items:center;gap:9px;">${ico(iconName,15)}${label}</span>`;
+  const proofHtml=proofRows?`<details class="inv-sec" open><summary>${secHead('calculator','Proof — values from the data')}</summary><div class="body">
     ${secDesc('The actual numbers from the data file behind the findings below. “Usual” = this queue’s average over the last 13 weeks.')}
     <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
       <tr style="color:var(--muted);font-size:11px;"><th style="text-align:left;padding:4px 10px;font-weight:600;">Field</th><th style="text-align:right;padding:4px 10px;font-weight:600;">This week</th><th style="text-align:right;padding:4px 10px;font-weight:600;">Usual (13 wks)</th></tr>
@@ -1843,7 +1900,7 @@ function renderInvestigationReport(f, ctx){
     return `<li>${text}</li>`;
   }).join('');
 
-  const findingsHtml=`<details class="inv-sec" open><summary>Key Findings</summary><div class="body">
+  const findingsHtml=`<details class="inv-sec" open><summary>${secHead('search','Key Findings')}</summary><div class="body">
     ${secDesc('Objective observations discovered in the data for this queue — the facts, not the cause.')}
     ${findingsList?`<ul class="inv-findings">${findingsList}</ul>`:'<div class="inv-empty">No observations recorded.</div>'}
   </div></details>`;
@@ -1856,27 +1913,40 @@ function renderInvestigationReport(f, ctx){
     </div>` : '';
 
   const rcPoints = getRootCausePoints(f);
+  const rcPrimary = rcPoints[0];
+  const rcRest = rcPoints.slice(1);
+  // The primary conclusion gets a distinct highlighted treatment -- larger text, accent-tinted
+  // card, an explicit "Primary conclusion" eyebrow -- so a reader's eye lands on the ANSWER
+  // first. Everything after it is genuinely secondary context, so it recedes: smaller, muted,
+  // plain list. Previously every point rendered identically, which read as a list of equally-
+  // weighted competing causes rather than one conclusion with supporting detail.
+  const rcPrimaryHtml = rcPrimary ? `
+    <div style="background:var(--accent-soft);border:1px solid rgba(79,70,229,.22);border-left:4px solid var(--accent);border-radius:var(--r-md);padding:15px 17px;margin-bottom:${rcRest.length?'13px':'0'};">
+      <div style="font-size:9.5px;font-weight:750;text-transform:uppercase;letter-spacing:.6px;color:var(--accent);margin-bottom:7px;display:flex;align-items:center;gap:6px;">${ico('target',12)}Primary conclusion</div>
+      <div style="font-size:14px;line-height:1.65;color:var(--text);font-weight:500;">${formatBoldText(rcPrimary)}</div>
+    </div>` : '';
+  const rcRestHtml = rcRest.length ? `<ul style="list-style:none;padding:0;margin:0;">${rcRest.map(p=>`<li style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-top:1px solid var(--border);"><span style="font-size:13px;color:var(--muted);flex-shrink:0;margin-top:3px;">&#9670;</span><span style="font-size:12.5px;line-height:1.6;color:var(--muted);">${formatBoldText(p)}</span></li>`).join('')}</ul>` : '';
   const narrativeHtml=`<details class="inv-sec" open>
     <summary style="display:flex;align-items:center;justify-content:space-between;width:100%;">
-      <span style="font-weight:800;font-size:13.5px;text-transform:uppercase;letter-spacing:.6px;">Root Cause</span>
+      ${secHead('target','Root Cause')}
       ${confMeterHeader}
     </summary>
     <div class="body">
       ${secDesc('The most likely explanation for WHY the forecast missed (drawn from data findings and model analysis).')}
-      ${rcPoints.length?`<ul style="list-style:none;padding:0;margin:0;">${rcPoints.map(p=>`<li style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);"><span style="font-size:14px;color:var(--accent);flex-shrink:0;margin-top:2px;">&#9670;</span><span style="font-size:12.5px;line-height:1.6;color:var(--text);">${formatBoldText(p)}</span></li>`).join('')}</ul>`:'<div class="inv-empty">No root cause narrative produced.</div>'}
+      ${rcPoints.length?rcPrimaryHtml+rcRestHtml:'<div class="inv-empty">No root cause narrative produced.</div>'}
     </div>
   </details>`;
 
-  const evidenceHtml=`<details class="inv-sec"><summary>Supporting Evidence</summary><div class="body">
+  const evidenceHtml=`<details class="inv-sec"><summary>${secHead('check','Supporting Evidence')}</summary><div class="body">
     ${(f.supporting_evidence||[]).length?`<ul class="inv-findings">${(f.supporting_evidence||[]).map(e=>`<li>${invEsc(e.text||'')} <span style="color:var(--muted);font-size:11px;">(${invEsc(e.source_field||'—')}${e.value!=null?' = '+invEsc(e.value):''})</span></li>`).join('')}</ul>`:'<div class="inv-empty">No supporting evidence recorded.</div>'}
   </div></details>`;
 
-  const rejectedHtml=`<details class="inv-sec"><summary>Rejected Hypotheses</summary><div class="body">
-    ${(f.rejected_hypotheses||[]).length?(f.rejected_hypotheses||[]).map(h=>`<div class="rej-item"><div class="h">&#x2715; ${invEsc(h.hypothesis)}</div><div class="r">${invEsc(h.reason_rejected)}</div></div>`).join(''):'<div class="inv-empty">No hypotheses recorded as rejected.</div>'}
+  const rejectedHtml=`<details class="inv-sec"><summary>${secHead('x','Rejected Hypotheses')}</summary><div class="body">
+    ${(f.rejected_hypotheses||[]).length?(f.rejected_hypotheses||[]).map(h=>`<div class="rej-item"><div class="h" style="display:flex;align-items:center;gap:7px;color:var(--danger);">${ico('x',13)}<span style="color:var(--text);">${invEsc(h.hypothesis)}</span></div><div class="r">${invEsc(h.reason_rejected)}</div></div>`).join(''):'<div class="inv-empty">No hypotheses recorded as rejected.</div>'}
   </div></details>`;
 
   const hist=f.historical_comparison||{};
-  const historyHtml=`<details class="inv-sec"><summary>Historical Comparison</summary><div class="body">
+  const historyHtml=`<details class="inv-sec"><summary>${secHead('clock','Historical Comparison')}</summary><div class="body">
     ${hist.narrative?`<p style="margin:0 0 8px;">${invEsc(hist.narrative)}</p>`:'<div class="inv-empty">No historical comparison available.</div>'}
     ${(hist.data_points||[]).map(d=>`<div class="kv"><span class="k">${invEsc(d.label)}</span><span class="val">${invEsc(d.value)}</span></div>`).join('')}
   </div></details>`;
@@ -1886,7 +1956,7 @@ function renderInvestigationReport(f, ctx){
   // block -- nothing upstream was changed to switch it off.
   const recsHtml='';
 
-  const missingHtml=`<details class="inv-sec" open><summary>Missing Information</summary><div class="body">
+  const missingHtml=`<details class="inv-sec" open><summary>${secHead('info','Missing Information')}</summary><div class="body">
     ${(f.missing_information||[]).length?`<ul class="inv-findings">${(f.missing_information||[]).map(x=>`<li>${invEsc(x)}</li>`).join('')}</ul>`:'<div class="inv-empty">Nothing flagged as missing.</div>'}
   </div></details>`;
 
@@ -1961,7 +2031,7 @@ function renderScopeCard(f){
     lead='No higher level missed in the same direction, so this movement is specific to this queue rather than part of a wider pattern.';
   }
 
-  return `<details class="inv-sec" open><summary>Scope — where the miss is visible, and how much</summary><div class="body">
+  return `<details class="inv-sec" open><summary><span style="display:inline-flex;align-items:center;gap:9px;">${ico('layers',15)}Scope — where the miss is visible, and how much</span></summary><div class="body">
     <div style="line-height:1.7;margin-bottom:10px;">${lead}</div>
     <table style="width:100%;border-collapse:collapse;font-size:12px;">
       <tr style="background:#f6f7f9;font-weight:700;text-align:left;">
@@ -1985,7 +2055,7 @@ function renderInterrogationCard(f){
   // not answer for itself. Absent key = engine did not attempt it (older backend); present
   // but unavailable = attempted and stopped, and it says why.
   if(f.interrogation===undefined||f.interrogation===null){
-    return `<details class="inv-sec"><summary>Interrogation — WHY, asked of these findings</summary><div class="body">
+    return `<details class="inv-sec"><summary><span style="display:inline-flex;align-items:center;gap:9px;">${ico('lightbulb',15)}Interrogation — WHY, asked of these findings</span></summary><div class="body">
       <div class="inv-empty">This report was produced by a backend that does not run the interrogation step. Restart the backend to enable it.</div>
     </div></details>`;
   }
@@ -1993,7 +2063,7 @@ function renderInterrogationCard(f){
     const extra=[];
     if((ig.rejected_questions||[]).length) extra.push((ig.rejected_questions||[]).length+' question(s) were generated but rejected: '+(ig.rejected_questions||[]).map(r=>r.reason).join('; '));
     if((ig.problems||[]).length) extra.push((ig.problems||[]).join('; '));
-    return `<details class="inv-sec" open><summary>Interrogation — WHY, asked of these findings</summary><div class="body">
+    return `<details class="inv-sec" open><summary><span style="display:inline-flex;align-items:center;gap:9px;">${ico('lightbulb',15)}Interrogation — WHY, asked of these findings</span></summary><div class="body">
       <div class="inv-empty">${invEsc(ig.reason||'No questions were produced for this report.')}</div>
       ${extra.length?`<div style="margin-top:6px;font-size:11.5px;color:#8a5a00;line-height:1.55;">${invEsc(extra.join(' · '))}</div>`:''}
     </div></details>`;
@@ -2009,7 +2079,7 @@ function renderInterrogationCard(f){
                                 .filter(x=>x.a.answerable);
   const dropped=(ig.questions||[]).length-shown.length;
   if(!shown.length){
-    return `<details class="inv-sec"><summary>Interrogation — WHY, asked of these findings</summary><div class="body">
+    return `<details class="inv-sec"><summary><span style="display:inline-flex;align-items:center;gap:9px;">${ico('lightbulb',15)}Interrogation — WHY, asked of these findings</span></summary><div class="body">
       <div class="inv-empty">No question could be settled from this queue's evidence, so none is shown.${dropped?` ${dropped} question(s) were asked and left unanswered — see <code>interrogation.answers</code> in the response for what was missing.`:''}</div>
     </div></details>`;
   }
@@ -2021,7 +2091,7 @@ function renderInterrogationCard(f){
       <div style="font-size:11px;color:var(--muted);margin-top:4px;">answered from: ${invEsc((a.evidence_used||[]).join(', '))}</div>
     </div>`).join('');
   const na=(ig.not_asked||[]).map(n=>`<li>${invEsc(n.tempting_question||'')} — <span style="color:#6b7280;">${invEsc(n.rejected_because||'')}</span></li>`).join('');
-  return `<details class="inv-sec" open><summary>Interrogation — WHY, asked of these findings</summary><div class="body">
+  return `<details class="inv-sec" open><summary><span style="display:inline-flex;align-items:center;gap:9px;">${ico('lightbulb',15)}Interrogation — WHY, asked of these findings</span></summary><div class="body">
     <div style="font-size:11.5px;color:#6b7280;font-style:italic;line-height:1.55;">A reviewer reads the findings above and asks what they leave unexplained. Each answer comes from the evidence file, never from the model's own words — where the data cannot settle a question, it says so.</div>
     ${qa}
     ${na?`<div style="margin-top:10px;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">Deliberately not asked — the data does not exist</div>
@@ -2044,12 +2114,12 @@ async function triggerRCA(i, force){
   const timelineHost=document.getElementById('invTimelineHost'), body=document.getElementById('invBody');
 
   const STAGES=[
-    {key:'trigger',label:'Trigger',icon:'🚩'},
-    {key:'aggregate',label:'Aggregate',icon:'📥'},
-    {key:'context',label:'Context',icon:'🧩'},
-    {key:'investigate',label:'Investigate',icon:'🔎'},
-    {key:'format',label:'Format',icon:'🧮'},
-    {key:'render',label:'Render',icon:'🖥️'}
+    {key:'trigger',label:'Trigger',icon:ico('flag',13)},
+    {key:'aggregate',label:'Aggregate',icon:ico('download',13)},
+    {key:'context',label:'Context',icon:ico('layers',13)},
+    {key:'investigate',label:'Investigate',icon:ico('search',13)},
+    {key:'format',label:'Format',icon:ico('calculator',13)},
+    {key:'render',label:'Render',icon:ico('monitor',13)}
   ];
   const state={}; STAGES.forEach(s=>state[s.key]='pending');
   const paint=()=>{ timelineHost.innerHTML=invTimelineHtml(STAGES.map(s=>({...s,state:state[s.key]}))); };
@@ -2060,7 +2130,7 @@ async function triggerRCA(i, force){
   state.trigger=(isMiss||force)?'done':'error'; paint();
   if(state.trigger==='error'){
     body.innerHTML=`<div class="inv-empty">This week is inside the configured ±${band}% band — not an automatic miss.<br>
-      <button class="filebtn ghost" style="margin-top:8px;" onclick="triggerRCA(${i},true)">🔎 Investigate anyway</button></div>`;
+      <button class="filebtn ghost" style="margin-top:8px;" onclick="triggerRCA(${i},true)">${ico('search',15)}Investigate anyway</button></div>`;
     return;
   }
   await invSleep(250);
@@ -2143,17 +2213,17 @@ function renderContextProbes(rows,groups){
 }
 function renderProbePills(){
   const host=document.getElementById('probePills'); if(!host) return;
-  const ctx=CTX_PROBES.map(p=>`<span class="pill" style="border-color:var(--purple);color:var(--purple)" onclick="pickProbe(this)" title="Auto-detected from the loaded data">✨ ${p}</span>`).join('');
+  const ctx=CTX_PROBES.map(p=>`<span class="pill" style="border-color:var(--purple);color:var(--purple)" onclick="pickProbe(this)" title="Auto-detected from the loaded data">${ico('sparkle',11)} ${p}</span>`).join('');
   const stat=PROBES.map(p=>`<span class="pill" onclick="pickProbe(this)">${p}</span>`).join('');
   host.innerHTML=ctx+stat;
 }
-function pickProbe(el){ document.getElementById('probeQ').value=el.textContent.replace(/^✨\s*/,''); }
+function pickProbe(el){ document.getElementById('probeQ').value=el.textContent.trim(); }
 let KB=[];
 try{ KB=JSON.parse(localStorage.getItem('rca_kb')||'[]'); }catch(e){ KB=[]; }
 function renderProbe(){
   renderProbePills();
   document.getElementById('kbCount').textContent=KB.length+' entries';
-  document.getElementById('kbList').innerHTML=KB.map((k,i)=>`<div class="kbitem"><b>Q:</b> ${k.q} ${k.cat?`<span class="chip green" style="font-size:9px">${k.cat}</span>`:''}<br><span class="a"><b>A:</b> ${k.a}</span>${k.ctx?`<br><span class="a" style="font-size:10.5px">↳ context: ${k.ctx}</span>`:''} <span class="pill" onclick="delKB(${i})" style="float:right">✕</span></div>`).join('');
+  document.getElementById('kbList').innerHTML=KB.map((k,i)=>`<div class="kbitem"><b>Q:</b> ${k.q} ${k.cat?`<span class="chip green" style="font-size:9px">${k.cat}</span>`:''}<br><span class="a"><b>A:</b> ${k.a}</span>${k.ctx?`<br><span class="a" style="font-size:10.5px">↳ context: ${k.ctx}</span>`:''} <span class="pill" onclick="delKB(${i})" style="float:right">${ico('x',11)}</span></div>`).join('');
 }
 function saveKnowledge(){
   const q=document.getElementById('probeQ').value.trim(), a=document.getElementById('probeA').value.trim();
@@ -2279,7 +2349,7 @@ window.addEventListener('keydown', (e) => {
         <h3 id="peerModalTitle" style="margin:0;font-size:16px;font-weight:700;color:var(--text);">Similar Queues Comparison</h3>
         <div id="peerModalSub" style="font-size:12px;color:var(--muted);margin-top:2px;">Comparing sibling queues across same Region, Country, and Channel</div>
       </div>
-      <button onclick="closePeerModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);padding:4px 8px;line-height:1;">✕</button>
+      <button onclick="closePeerModal()" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:4px 8px;line-height:1;"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div id="peerModalBody" style="padding:20px;overflow-y:auto;flex:1;"></div>
   </div>
