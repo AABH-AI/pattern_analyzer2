@@ -751,4 +751,4 @@ from `c958330`/`11de141`, confirmed by re-reading the diff top to bottom before 
 
 **Committed and pushed to `origin/approved-test`** — this session's full working tree (Session
 27's UI cleanup + Session 28's Root Cause regression fix + `IMP_DOCS/verify_drilldown.sql`) as one
-commit.
+commit, `ce44ebf` (`ca90880..ce44ebf`), confirmed landed on the remote.
