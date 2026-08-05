@@ -244,7 +244,17 @@ def back_compat(result, base_features):
     result.setdefault("secondary_contributors", [])
     result.setdefault("key_findings", _observations_from_features(base_features or {}))
     result.setdefault("supporting_evidence", (ranked[0].get("evidence") if ranked else []) or [])
-    result.setdefault("reasoning_narrative", result.get("executive_summary") or "")
+    # reasoning_narrative used to default to executive_summary unconditionally -- but
+    # executive_summary and primary_root_cause.statement (= ranked[0].explanation) are two
+    # SEPARATE model-written fields independently instructed to follow the same 4-part
+    # structure describing the SAME cause. Surfacing both meant the console showed the same
+    # explanation twice, worded slightly differently -- close enough in meaning that a reader
+    # notices the repeat, not close enough in text for exact/substring dedup to catch it. Only
+    # fall back to executive_summary when there's no ranked cause to duplicate against.
+    if not ranked:
+        result.setdefault("reasoning_narrative", result.get("executive_summary") or "")
+    else:
+        result.setdefault("reasoning_narrative", "")
     result.setdefault("rejected_hypotheses", [
         {"hypothesis": s.get("cause") or s.get("challenge") or "",
          "reason_rejected": s.get("reason") or ""}

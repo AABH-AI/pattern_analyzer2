@@ -524,3 +524,231 @@ tested-good reference; `main` is further ahead with Statistical Evidence but was
 user as still showing a "not available" leak in its deterministic fallback path this same day
 (fixed on `main`, then discarded per the user's "revert to Thursday" instruction — see the
 immediately preceding session's notes above this one for that history).
+
+---
+
+## Session 26 — 2026-08-05 · `approved-test` discovered; live SQL verification of the drill-down
+
+**Context.** In parallel with this session's drill-down work on `approved` (Region → SubRegion →
+Country → Offering → Channel ladder, Gemini, hallucination fix — see the `approved` branch's own
+prompt-trail), a colleague (ShivamAASPL) independently pushed `origin/approved-test` with an
+overlapping but larger feature set on top of the same `ad14000` baseline: a **Scope card** (the
+investigation ladder, computed every run but previously discarded before reaching the response, now
+emitted), an **Evidence Pack** (`wfm/evidence_pack.py` — miss-run length, plan-reissue detection,
+same-week-last-year, holiday sensitivity), and **Interrogation** (`wfm/interrogation.py` +
+`wfm/why_prompt.py` — a second LLM call that asks WHY of the bullets actually produced). His version
+of the ladder independently added the same Offering rung this session's `approved` work did, but kept
+`Business Org` as a computed level (filtered out of the rendered card, not removed from computation)
+rather than dropping it from `_LADDER_LEVELS` outright.
+
+**What happened, in order:**
+1. Attempted to bring the `approved` branch's session-27 commit (`5ccea8e`) onto `approved-test` via
+   `git cherry-pick`. It conflicted on 6 overlapping files (`data_access.py`, `prompts.py`,
+   `investigation_engine.py`, `sql_backend.py`, `IMP_DOCS/*`) because both branches had independently
+   built the Offering rung. Mid-resolution, the user asked to stop rather than risk the shared branch
+   — **the cherry-pick was aborted before anything was committed** (`git cherry-pick --abort`),
+   confirmed via `git status`/`git log` that `approved-test` was untouched, still exactly
+   `origin/approved-test`'s `ca90880`.
+2. Per the user's explicit instruction, cloned `approved-test` fresh into a **separate sibling
+   folder**, `pattern_analyzer2-approved-test`, instead of resolving further in the original working
+   tree. Copied the gitignored `backend/config.json` over by hand (clone doesn't carry it). This is
+   now the working copy for all `approved-test` UI/testing work; the original `pattern_analyzer2`
+   folder (on `approved`) is untouched.
+3. **Layout-mismatch investigation.** The user reported the new clone's UI didn't match a colleague's
+   — turned out to be simple browser caching (port 8010 had earlier served the *other* branch's
+   `rca_console.html` this session; the server sends no `Cache-Control` header, so the browser served
+   a stale copy). Confirmed server-side (fresh unencached fetch showed the correct scope-card markup,
+   ETag/Last-Modified only) and resolved with a hard refresh — not a server or code bug.
+4. **Drill-down-missing investigation.** A real investigation on file-upload mode (no SQL) showed the
+   OLD flat Root Cause layout with no Scope card, while a reference screenshot showed the full
+   Business-Org→Channel table. Root cause: the Scope card's ladder is computed by live SQL
+   aggregate queries across the WHOLE table (`data_access.py::fetch_wfm_context`), which the
+   file-upload path cannot provide — it only posts one queue's target/history/peer rows, and
+   `rca_console.html` has **no client-side fallback** that computes the ladder from the fully-loaded
+   in-browser file (confirmed: `investigation_ladder` at `rca_console.html:1886` only ever reads
+   whatever the backend returned). Not a bug — a known limitation of file-upload mode. User then
+   reconnected to VPN and confirmed the SQL path works correctly once reachable.
+5. Server restarted in the new clone with the user's updated Gemini API key in `config.json`;
+   confirmed via `/api/models` — `providers_configured: [gemini, groq, nvidia]`, 4 Gemini flash
+   models listed, SQL reachable (`/api/data` → 200) over VPN.
+6. **Built `IMP_DOCS/verify_drilldown.sql`** — a heavily-commented T-SQL script that reproduces the
+   Scope card's 6-level ladder (Business Org → Region → SubRegion → Country → Offering → Channel)
+   directly against the database, byte-for-byte matching `data_access.py`'s own query logic and
+   `common.py::adherence_pct`'s formula, so a mismatch would mean a real bug and a match is
+   independent proof the drill-down isn't invented. Hit one real SQL Server quirk along the way:
+   **`Plan` is a reserved keyword on this instance** — `SELECT 1 AS Plan` itself threw
+   `Incorrect syntax near the keyword 'Plan'` even outside any larger query; renamed the output
+   column to `Forecast` to sidestep it.
+7. **Ran it live against the actual queue the user had just investigated** in the console (not a
+   hypothetical example) — pulled the real dimensions from the running server's own request logs
+   and a `/api/queue-context` call (`SA Comm Client Philippines Standard`, FW202701, CSG / APJ / SA /
+   Philippines / Basic / Voice), then executed the script against the live SQL Server. Result:
+   adherence stayed within the ±10% band through Region and SubRegion, then breached at Country
+   (14.6%) and stayed flat through Offering/Channel (11.7%, identical because this queue-week has
+   only one Offering/Channel combination) — a clean, textbook "inherited from a higher level" case,
+   confirmed straight from the database with zero LLM or app code in between.
+
+**Deliverable:** `IMP_DOCS/verify_drilldown.sql` in this (`approved-test`) clone — parameterized,
+pre-filled with the Philippines example above, ready to re-run and project live for a demo.
+
+**Not done yet (explicitly deferred by the user):** merging the two branches' Offering-drill-down
+work; any UI changes (Timeline-tab removal, other-tab staleness — see the next TODO entry for the
+proposed plan, not yet executed).
+
+---
+
+## Session 27 — 2026-08-05 · UI cleanup executed: Timeline removed, 3 tabs corrected (approved-test)
+
+Executed the plan proposed at the end of Session 26, then corrected twice more on user feedback.
+Scope stayed to the navbar/tabs outside RCA Console and Dashboard, per the user's explicit ask.
+
+**1. Timeline tab removed entirely** — nav link (`rca_console.html:366`), the tab's content div +
+inline Gantt-countdown script (was `:505-684`), and its fully `#tab-timeline`-scoped CSS block (was
+`:250-291`). Verified zero collateral: nav links and `<div class="tab">` divs match 1:1 after
+removal (7 and 7), and `invTimelineHtml()`/`#invTimelineHost` — a different feature, the
+per-investigation pipeline visualizer inside RCA Console itself — were confirmed untouched.
+
+**2. AI Models / Tech Stack / Architecture tabs corrected** for staleness identified in Session 26:
+- AI Models tab: added exact model IDs per provider (`nvidia/nemotron-3-super-120b-a12b` default,
+  `deepseek-ai/deepseek-v4-flash`, `nvidia/llama-3.3-nemotron-super-49b-v1.5`,
+  `nvidia/nemotron-3-ultra-550b-a55b` under NVIDIA; `llama-3.3-70b-versatile` under Groq;
+  `gemini-3.6-flash` default + 3 more under Gemini).
+- Tech Stack tab: Agent framework tag list dropped CrewAI/AutoGen (LangGraph only, per the client's
+  actual system — done silently, no comment added per instruction); Observability dropped
+  Prometheus; `demand_facts table` tag removed (also scrubbed from Architecture's ① Discover and
+  ⑧ AI Ready Data cards, replaced with "metric views" wording).
+- Architecture tab: Intent Orchestrator card expanded (parses queue/week/dimension out of the
+  question, disambiguates multi-queue asks, carries the resolved key forward); Agentic Memory card
+  expanded with concrete next-steps (persist the Evidence Pack per queue, remember
+  confirmed/rejected causes per queue, cross-queue memory within a Combined Queue); Deploy·Publish·
+  Observe dropped Prometheus to match Tech Stack.
+- Data & Files tab: Scale card now names the real `dbo.Input_To_ML_Full` table and its Channel/
+  Offering diversity; new "Drill-down / Scope card" entry explains the Region→SubRegion→Country→
+  Offering→Channel ladder and Demand Switch detection. Also fixed the SQL connect modal's hardcoded
+  default table name (`rca_console.html` — the `#sqlTbl` input value and the JS fallback string)
+  from `dbo.Input_To_ML` to `dbo.Input_To_ML_Full`, since it's the same staleness issue sitting
+  right next to this tab's content.
+- **Found in passing, fixed with the user's OK:** `rca_console.html` (was line 907) had a dead code
+  path — a `src==='sql'` branch inside the file-upload handler — that hardcoded a fake
+  `dbo.demand_facts` table name. Confirmed unreachable today (`window._pendingSrc` is only ever set
+  to `'file'` by the actual UI; the real SQL path is the separate `sqlFetch()` function, which
+  already displays the correct live table name). Cleaned up anyway so it can't mislead if that path
+  is ever reactivated.
+
+**3. First correction round (user: "no llama model is mentioned"; ASU definition "looks very
+confusing, undo that"; "remove the Mixtral box... we have nomic-embed-text for RAG if required"):**
+- LLaMA card rewritten to state it's already in use today (not a hypothetical on-prem candidate),
+  tying it to the real running models.
+- Gemma and Mixtral cards removed entirely from AI Models, Tech Stack, and Architecture.
+- Embeddings card corrected to name `nomic-embed-text`, marked "if required" (RAG is conditional,
+  not confirmed active).
+- ASU definition in the Data & Files "Domain knowledge" card reverted **exactly** back to the
+  original placeholder text ("ASU = Planned/Actual service driver (exact acronym to confirm)") —
+  a fuller explanation had been added in step 2 above and the user found it confusing rather than
+  helpful, so it was fully undone rather than trimmed.
+
+**4. Second correction — a real overgeneralization, caught by the user, not by me:** the rewritten
+LLaMA card had claimed "NVIDIA's Nemotron models are also Llama/Nemotron-derived," citing
+`nemotron-3-super-120b-a12b` and `nemotron-3-ultra-550b-a55b` alongside the one model that's
+actually name-confirmed as a Llama fine-tune (`nvidia/llama-3.3-nemotron-super-49b-v1.5`). The user
+asked "why nemotron model on llama box" — correct challenge: NVIDIA's own Nemotron 3 architecture
+models have no confirmed Llama lineage, only the one explicitly named `llama-3.3-nemotron-...` does.
+Fixed in both the AI Models tab and the mirrored Architecture card to only claim what the model
+names actually confirm. **Lesson for future edits to this content: don't assert a model-family
+lineage that isn't confirmed by the model's own name or a cited source — a plausible-sounding
+generalization is exactly the kind of claim that reads as authoritative and goes unquestioned if
+not caught.**
+
+**5. User then directly hand-edited the file itself** (not through this session) — commented out
+the entire standalone LLaMA card in the AI Models tab (`rca_console.html:513`, wrapped in
+`<!-- ... -->`, not deleted) after the corrections in step 4 made it clear the card was carrying
+very little unique information: the Llama-via-Groq fact is already in the Tech Stack tab's "AI
+models" tag (`LLaMA (via Groq) ✓`), and the one name-confirmed Llama-derived NVIDIA model
+(`nvidia/llama-3.3-nemotron-super-49b-v1.5`) is already listed under the NVIDIA card. Left as a
+CSS-safe HTML comment (not removed) — this documents that decision so a future session doesn't
+uncomment it back in without knowing why it was dropped.
+
+**Note on file confusion mid-session:** the user initially referenced `C:\Users\arnav.bhargava\
+Downloads\rca_console.html` for the comment-out; that file turned out to be the original Session-1
+snapshot, unmodified since **2026-07-22**, with no LLaMA card at all — a mix-up with the actual
+target, `pattern_analyzer2-approved-test\rca_console.html`. Caught by checking the file's
+`LastWriteTime` before assuming, rather than guessing which file was meant.
+
+---
+
+## Session 28 — 2026-08-06 · Root Cause quality regression fixed (ported from `approved`)
+
+**The report.** A screenshot showed Root Cause back to raw bullets like "At Country level (CSG /
+EMEA / NER / Norway) adherence was -12.5% for the same week" and "The forecast this week was 20.58,
+and actual demand was 30" — bare facts with no causal connector, 7 bullets deep. The user's own
+read was right: "it was giving such fine answers... now it is giving some trash answers... check
+old commits maybe it can be easy fix."
+
+**Root cause of the regression.** `approved-test` branched from `ad14000` — the SAME commit
+`approved` branched from — but only received Shivam's `ca90880` (Scope card / Evidence Pack /
+Interrogation) on top of it. It never received `approved`'s own SUBSEQUENT fixes for this exact
+symptom: `c958330` ("Stop the recipe-templating and cross-card duplication in Root Cause") and
+`11de141` (the Gemini-integration commit that also fixed two more duplication bugs). The
+Session-27 cherry-pick that would have brought these over was aborted (Session 26) after
+conflicting on 6 files, and was never revisited — so `approved-test` had been running the
+ORIGINAL, more primitive version of the bullet-assembly logic the whole time. This was not a new
+bug introduced this session; it's the original `48e9711` baseline behavior, unfixed on this branch.
+
+**What was actually still broken (confirmed present in `approved-test` before this fix):**
+1. `rca_console.html`'s bullet-assembly function was still named `getSixOrMoreRootCausePoints` and
+   still pulled from `key_findings`, `supporting_evidence`, and `historical_comparison` — the exact
+   sources identified back in `c958330` as putting Key Findings/Evidence sentences verbatim into
+   Root Cause (within-list dedup can't catch a duplicate against a DIFFERENT card).
+2. `isRawMetricDump()` was still the narrow, two-regex version (`^Region (adherence|...)`,
+   `^(Actual_Offered|fcst_offered...)`) — it could never catch "At Country level (...) adherence
+   was -12.5%" since that sentence doesn't start with either pattern.
+3. `prompts.py` still labeled the benchmark exemplar "MANDATORY PATTERN" / "MANDATORY BENCHMARK
+   PATTERN" (twice), still required the full 4-part narrative for every ranked cause (not just
+   rank 1), and had no instruction against copying the exemplar's sentence skeleton verbatim.
+4. `business_report_generator.back_compat()` still had the unconditional
+   `result.setdefault("reasoning_narrative", result.get("executive_summary") or "")` — duplicating
+   `primary_root_cause.statement` whenever a ranked cause existed.
+
+**Fix: ported the exact diffs from `c958330` and `11de141` (the `approved` branch) onto
+`approved-test`,** file by file:
+- `rca_console.html`: renamed `getSixOrMoreRootCausePoints` → `getRootCausePoints` (2 call sites),
+  removed the `key_findings`/`supporting_evidence`/`historical_comparison` sources entirely, added
+  `stripNarrativeLabels()` (strips literal "Context & Scope:"-style labels the model sometimes
+  echoes), and replaced the narrow `isRawMetricDump()` regex list with the general rule: a
+  sentence naming a hierarchy level (Business Org/Region/SubRegion/Country/Channel) plus a number,
+  with NO causal-connector word anywhere, is a bare dump — catches new phrasings without a new
+  regex each time.
+- `backend/wfm/prompts.py`: rewrote "MANDATORY PATTERN" → "QUALITY BAR, NOT A TEMPLATE" with an
+  explicit instruction against verbatim skeleton reuse; restricted the full 4-part narrative
+  requirement to rank 1 only (both the prose instruction and the JSON schema's `explanation` field
+  description) — ranks 2-5 get one or two sentences.
+- `backend/wfm/business_report_generator.py`: `reasoning_narrative` now only falls back to
+  `executive_summary` when there is no ranked cause to duplicate against; otherwise defaults to
+  empty string.
+
+**Live-verified** on a real queue (`Benelux Client Core Email`, FW202625, -240.2% adherence):
+`reasoning_narrative` came back empty (no longer duplicating), rank 1 got the full causal
+narrative ("Because the forecast for this queue is derived from the Country-level plan, the
+Country-level under-forecast of -15.6% propagated to the Email queue..."), and ranks 2-3
+(`secondary_contributors`) each got a short 1-2 sentence alternative-cause explanation instead of a
+full paragraph. Final Root Cause bullet count: **3 clean, causally-worded bullets**, none of them
+bare metric dumps — matching the quality the user described from before the regression, not the
+7-bullet dump in the screenshot.
+
+**Not yet done:** the underlying Offering/Business-Org drill-down feature itself (Session 27's work
+on the `approved` branch) is still not merged onto `approved-test` — only this specific Root Cause
+quality fix was ported, since it's what the user reported as broken. The two branches remain
+otherwise diverged.
+
+**Pre-commit documentation check** (requested ahead of tomorrow's test): reviewed the diff on every
+changed file for whether the non-obvious logic is actually explained, not just changed. Found one
+gap — the standalone LLaMA card commented out in Session 27 had no inline note saying WHY, just
+`<!-- -->` with no explanation. Added one: a short comment above the disabled markup pointing at
+this file's Session 27 entry, so a future session doesn't wonder about it or blindly uncomment it
+back in. Everything else (`stripNarrativeLabels`, the generalized `isRawMetricDump`,
+`getRootCausePoints`, the `reasoning_narrative` fix) already carried the WHY-comments ported over
+from `c958330`/`11de141`, confirmed by re-reading the diff top to bottom before committing.
+
+**Committed and pushed to `origin/approved-test`** — this session's full working tree (Session
+27's UI cleanup + Session 28's Root Cause regression fix + `IMP_DOCS/verify_drilldown.sql`) as one
+commit.
