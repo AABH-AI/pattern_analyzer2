@@ -2,6 +2,25 @@
 
 Deploy **30 Jul 2026** · last dev day **29 Jul**. Ordered by priority.
 
+## decision-engine branch — open issue (2026-08-05, flagged "very bad results" by the user)
+- [ ] **`installed_base_change` missing entirely from a report where it should clearly be
+      considered.** Live screenshot: Key Findings shows `Final_Units` at 9,850 this week vs a
+      usual ~15,167.23 (a ~35% drop) — a materially large, obviously flagged change. Yet it
+      appears in NEITHER Root Cause, NOR Contributing Factors, NOR (as far as the screenshot
+      shows) Ruled Out. The declared winner was `forecast_baseline_error` at a suspicious
+      **100% confidence**, with `inherited_from_higher_level` as the only contributing factor.
+      Two things to check when picking this back up: (1) whether `hypothesis_ranker`'s
+      `installed_base.material` precondition is scoring this drop as immaterial (the
+      precondition/scorer may only be tuned for INCREASES, not decreases, in the installed
+      base -- worth checking `_score_installed_base_change` and the underlying z-score sign
+      handling in `derive_features`); (2) whether the "What we ruled out" screenshot was simply
+      cropped and the line is actually present but off-screen -- re-verify with a full-page
+      capture or the raw JSON before assuming a scoring bug. Also worth revisiting: is 100%
+      confidence ever the right thing to show when a materially large change (installed base)
+      exists elsewhere in the same evidence and isn't accounted for anywhere in the reasoning?
+      Not fixed this session -- user asked to stop and switch back to `approved` after this was
+      found; pick up from here next time this branch is worked on.
+
 ## Deferred — not urgent, do later
 - [ ] **Canary QA pass on the `approved` branch** (pinned to `48e9711`). This branch was pushed as
       the business-approved Root Cause baseline (causal-clause contract + dynamic multi-factor
