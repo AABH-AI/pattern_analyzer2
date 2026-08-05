@@ -21,6 +21,9 @@ Code: the `backend/wfm/` package + a ~40-line opt-in branch in `backend/sql_back
 | `wfm/prompts.py` | the business-authored prompt |
 | `wfm/llm_client.py` | LLM transport with a **configurable** timeout (`llm.timeout_seconds`) |
 | `wfm/common.py` | shared primitives |
+| `wfm/evidence_pack.py` | **(approved-test)** arithmetic over history: miss streak, plan reissues, same-week-last-year, holiday effect |
+| `wfm/interrogation.py` | **(approved-test)** Prompt 2 asks WHY of the produced bullets; Prompt 1 answers from evidence |
+| `wfm/why_prompt.py` | **(approved-test)** both prompts, plus the absent-data and traceability validators |
 
 Run order, mirroring the prompt's own rules:
 
@@ -31,6 +34,7 @@ derive features (all deterministic)
   -> skeptic.review            reject causes the features cannot support
   -> hypothesis_generator.mark downgrade over-confident statuses
   -> business_report_generator recompute the KPI, build the report, back-fill legacy keys
+  -> interrogation             (approved-test) question the finished report -- EXPLANATORY ONLY
 ```
 
 ## The two modules that close real gaps
@@ -405,3 +409,155 @@ deterministic signals, correctly labelled — the intended degradation.
 4. **`derive_features` looks for a column named `ASU`** when building the proof panel, but the
    table has only `Planned_ASU` and `Actual_ASU` — that proof row silently never populates.
 5. Uploaded CQN mapping is not consumed by this engine (see above).
+
+---
+
+## Branch `approved-test` — the two added cards (2026-08-05)
+
+Additive to the `approved` branch. Both cards render nothing extra when their data is
+absent, so an existing report is unchanged.
+
+### Scope card — `investigation_ladder`
+
+The ladder was computed on every run and **never returned**. `_assemble()` emits only the
+keys in `RESPONSE_DEFAULTS`, so the figures were built, used internally, then discarded —
+the console could say "inherited from Country level" while holding nothing a reader could
+check that against. Now emitted by both `_assemble()` and `_fallback()`.
+
+Also added: the **Offering** rung. `data_access.py` had Country → Channel with nothing in
+between, and `sql_backend.py` did not carry `Offering` in the context key, so that level
+was skipped. Six rungs now: Business Org · Region · SubRegion · Country · Offering · Channel.
+
+### Interrogation card — Prompt 2 over Prompt 1
+
+    engine produces the report      ranked causes, confidence, skeptic verdicts -- FIXED
+        |
+    Prompt 2 asks WHY               of the bullets the engine actually produced
+        |
+    Prompt 1 answers                from the evidence bundle, one call per question
+
+Runs **after** the report is complete, so it cannot change a conclusion. Two separations
+carry the design:
+
+1. **Questioner and answerer are different calls.** Asking one model "why did you say
+   that?" gets recall, and it will always produce something fluent rather than admit it
+   cannot support the claim. The answerer never sees the questioner's reasoning.
+2. **One call per question.** Batched, the model collapses onto whichever finding is most
+   striking — that is how two questions came back with the same answer on the prior branch.
+
+`why_prompt` enforces two rules that were learned from failures, not designed up front:
+RULE 1 (a question must trace to a supplied bullet) and RULE 1B (**record, not intent** —
+"why didn't anyone adjust the plan" is unanswerable from any dataset; "was the plan
+reissued during the run" is answerable). `_BANNED_TERMS` blocks questions about data this
+deployment does not hold: marketing, product versions, AHT, events, reason codes, routing,
+deflection.
+
+Weaker models return usable questions while omitting `arises_from`, and the validator then
+drops all of them — which made this look like a one-model feature. A schema-repair retry
+took `nemotron-3-ultra-550b` from 0 questions to 4.
+
+### `evidence_pack.py` — computed once, used twice
+
+Into the **model payload** so the bullets cite facts instead of asserting a bias in the
+abstract, and into the **interrogation** so those same facts are answerable. Computing it
+once for both keeps them consistent; a narrative quoting one figure while the interrogation
+quotes another is worse than either alone.
+
+`key_facts` are finished English sentences, not nested structure — deliberately. Measured
+on the prior branch: asked when under-forecasting started, the model answered "not
+available" while holding a 26-row series with a signed gap on every row. The figure was
+present; the nested lookup was the failure.
+
+Every block is individually guarded, and `_safe_evidence_pack()` guards the call site. The
+pack is additive and must never be able to fail an investigation.
+
+### Three defects fixed while wiring this
+
+| Defect | Effect | Fix |
+|---|---|---|
+| `interrogation` never imported in `investigation_engine.py` | `NameError` on **every** run, swallowed by a broad `except` into a report with no card | added to the `from . import` block |
+| interrogation attached only to the model-success path | on any queue where no cause survived the skeptic — exactly when questioning matters most — it silently never ran | `_with_interrogation()`, used by **both** exit paths |
+| `back_compat`: `.get("this_week_vs_usual", {}).get(...)` | **pre-existing on `approved`.** The default applies only when the key is ABSENT; `derive_features` emits it set to `None`. `AttributeError` → `_assemble` is outside the retry `try` → **HTTP 500 for the whole investigation** | `or {}` instead of a `{}` default |
+
+`renderInterrogationCard` previously returned `''` for most failure modes. A card that
+vanishes leaves the reader unable to tell whether the feature is off, loading, or broken —
+the exact question it could not answer for itself, and the reason the import bug went
+unnoticed. It now always renders, stating its reason.
+
+### Verified live (2026-08-05)
+
+`CSG / Americas / NA / United States / Pro / Email`, FW202719, adherence −18.8%,
+`nemotron-3-super-120b`, 104 weeks fetched, 143s:
+
+- Scope card: 6/6 rungs with figures.
+- Interrogation: 3 questions, 2 answered from evidence, 1 correctly refused
+  (channel-level splits are not in the bundle) with `what_would_be_needed` stated.
+- One answer **contradicted the narrative**: the root cause claimed +17.5%, and the
+  answerer checked both baselines (FW202718 = 289, FW202619 = 311 against 360) and
+  reported neither yields that figure. This is the interrogation working as intended.
+
+`results/smoke_test_modules.py` — 12/12 pass.
+
+### Interrogation quality pass (2026-08-05)
+
+Reported from the UI: every question came back "Cannot be answered from the available
+data", and the questions were lookups ("what were the actual contacts…") rather than WHY.
+Both were our defects, not data limits.
+
+**1. The answerer was starved of blocks the questioner could see.** `_payload()` carried
+`CHANNEL_SIBLINGS`, so the bullets cited Combined-Queue and per-channel figures.
+`_evidence_bundle()` omitted it — so every question about those figures was unanswerable
+while `group_total_this_week`, `group_total_prior_week` and `cqn_total_change_pct` (the
+very +360.7% being asked about) sat one key away. **The bundle must mirror the payload.**
+
+Same failure a second time in `_relevant_blocks`: questions arrive saying "region-level
+forecast", never "ladder", so `investigation_ladder` was filtered out of the evidence for
+exactly the questions it answers. Level names are now routable.
+
+**2. `AVAILABLE_DATA` promised blocks that do not exist here** — `hypotheses_generated`,
+`why_chain` are spec-v2 only. The questioner was told they were answerable and asked about
+them. The table now matches the real bundle.
+
+**3. RULE 1B over-corrected into lookups.** Its "ask instead" column was entirely
+retrieval-shaped, so the model produced retrieval. Added **RULE 1A**: every question must
+open with *Why* / *What explains* / *What accounts for*, enforced in code by
+`_is_why_form()` — checking the OPENER, since "What were the contacts, and why does that
+matter?" is a lookup wearing a why as a suffix. RULE 1B now has three columns: intent
+(never), lookup (rejected by 1A), and **WHY answerable by comparison** — the target.
+
+**4. The answerer read "Why" as demanding a motive** and refused, correctly noting no
+reason is recorded. But no reason is EVER recorded — that refusal invalidates every
+question forever. Added a section defining what a WHY answer is here: **attribution** —
+localise the movement, quantify the share, contrast it with what did not move. "No reason
+or driver is recorded" is now explicitly not a valid refusal.
+
+**5. Numeric validator false positive.** "Voice accounts for 100% of the rise" was dropped
+as a fabricated figure. Percentage-suffixed values ≤ 100 are shares — arithmetic over two
+supplied figures — and are now exempt. Unsuffixed numbers (contact volumes) and growth
+claims above 100% are still checked, which is what the guard is for.
+
+**UI:** unanswered questions are no longer rendered. A question shown above "cannot be
+answered" reads as the tool failing, and in every case investigated it WAS the tool
+failing. They remain in the response for diagnosis and are counted when none survives, so
+a systematic failure is still visible rather than hidden.
+
+#### Verified — `NA Federal Standard`, FW202719
+
+Before: 3 questions, 0 answered, all lookups. After: WHY-form throughout, and the exact
+question that previously failed now answers in full —
+
+> **Why did total demand across the Combined Queue increase by 360.7%?**
+> The entire increase came from Voice. FW202718 Voice actual was 331; FW202719 it jumped to
+> 1,525, a rise of 1,194. No other channel changed, so the Combined Queue rose 331 → 1,525.
+> The plan for Voice that week was 364 — the channel driving all the growth was also the
+> one forecast lowest. *(channel_and_combined_queue)*
+
+#### OPEN — a narrative fabrication the interrogation exposed
+
+Two questions still refuse, both asking about **Chat**. They are right to. Queried
+directly: this locality has **only Voice rows** in FW202718 and FW202719 — no Chat exists.
+Yet the root cause states "Voice became over-forecast while Chat became under-forecast".
+**That claim is fabricated**, and the skeptic did not catch it because its numeric
+grounding checks figures, not the existence of a named channel. Needs a separate fix in
+`skeptic.py`: a cause naming a channel must verify that channel is present in
+`channel_siblings`.

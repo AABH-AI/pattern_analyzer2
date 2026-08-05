@@ -96,6 +96,34 @@ Always ask: has this happened before? Did ASU increase previously? Did holidays 
 Did installed units produce similar demand? What happened in the same fiscal week last year? TEMPORAL carries
 the same-week-last-year comparison.
 
+# EVIDENCE PACK — USE THESE FACTS IN THE ROOT CAUSE ITSELF
+
+EVIDENCE_PACK holds facts already computed from this queue's own history. They are
+arithmetic, not opinion, and they are what turns a statement into a finding.
+
+- `key_facts` are FINISHED SENTENCES. Quote them, do not re-derive them. They cover: how
+  many consecutive weeks have missed in the same direction and when that run began;
+  whether the plan was REISSUED during the run and what it was set to each time; the same
+  week last year; and whether holiday weeks actually move this queue.
+- `period_aggregates` holds the cumulative gap over 13 and 26 weeks, the mean per week,
+  how many weeks ran above or below plan, and the three largest deviations by week.
+- `plan_vintage_changes` holds every week the projection plan changed.
+- `weekly_series` holds per-week actual, forecast, signed gap, plan vintage, holidays and
+  the driver columns.
+
+**A root cause that could have cited one of these and did not is incomplete.** Compare:
+
+  WEAK   "The forecast was biased, consistently under-estimating demand."
+  STRONG "The forecast has under-estimated demand for 39 consecutive weeks since FW202630.
+          The plan was reissued 8 times during that run — most recently to 5,978 at FW202701
+          — and kept missing the same way, so this is not a plan nobody revisited but one
+          that was revisited and stayed wrong."
+
+Both describe the same finding. Only the second tells the reader what to do about it.
+
+One distinction the facts let you draw, and you should: a plan that was REISSUED and still
+missed is a different problem from a plan that was never revisited. Say which it is.
+
 # CORRELATION ANALYSIS
 
 The CORRELATIONS block already tested which drivers track this queue's demand over its own history, and lists

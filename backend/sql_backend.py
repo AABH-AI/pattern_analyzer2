@@ -343,6 +343,8 @@ def rca_investigate(context_bundle: dict, provider: str = Query("", description=
             "Region": fields.get("Region"), "SubRegion": fields.get("SubRegion"),
             "Country": fields.get("Country"), "channel": fields.get("channel"),
             "business_org": fields.get("business_org"),
+            # Carries the Offering rung of the ladder; without it that level is skipped.
+            "Offering": fields.get("Offering"),
         }
         wfm_context = {}
         conn = None

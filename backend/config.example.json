@@ -3,7 +3,7 @@
   "sql": {
     "server": "YOUR_SERVER\\INSTANCE   or   host,1433",
     "database": "YOUR_DATABASE",
-    "table": "dbo.Input_To_ML",
+    "table": "dbo.Input_To_ML_P1",
     "auth": "windows",
     "username": "",
     "password": "",

@@ -28,7 +28,12 @@ _LADDER_LEVELS = (
     ("Region", ["business_org", "Region"]),
     ("SubRegion", ["business_org", "Region", "SubRegion"]),
     ("Country", ["business_org", "Region", "SubRegion", "Country"]),
-    ("Channel", ["business_org", "Region", "SubRegion", "Country", "channel"]),
+    # Offering is a real rung of the spec's investigation order (Country -> Offering ->
+    # Channel) and was missing. A miss confined to one support tier within a country is a
+    # different finding from one spread across all tiers, and jumping Country straight to
+    # Channel hid that. Channel now nests INSIDE Offering so each row is a strict subset.
+    ("Offering", ["business_org", "Region", "SubRegion", "Country", "Offering"]),
+    ("Channel", ["business_org", "Region", "SubRegion", "Country", "Offering", "channel"]),
 )
 
 

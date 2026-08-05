@@ -267,7 +267,11 @@ def back_compat(result, base_features):
     adh_val = kpi_st.get("adherence_pct")
     miss_dir = kpi_st.get("direction")
     if adh_val is None:
-        adh_val = (base_features or {}).get("this_week_vs_usual", {}).get("target_adherence_pct")
+        # `or {}`, not a `{}` default: the default only applies when the key is ABSENT, and
+        # `derive_features` emits the key set to None when the week has no usual to compare
+        # against. That raised AttributeError here, and because `_assemble` is called outside
+        # the retry loop's try, it returned HTTP 500 for the entire investigation.
+        adh_val = ((base_features or {}).get("this_week_vs_usual") or {}).get("target_adherence_pct")
     result["forecast_summary"] = {
         "forecast": fc_val,
         "actual": act_val,

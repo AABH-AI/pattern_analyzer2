@@ -33,13 +33,32 @@ from . import (
     channel_migration_detector,
     correlation_engine,
     data_quality,
+    evidence_pack,
     hierarchy_analyzer,
     hypothesis_generator,
+    interrogation,
     skeptic,
     temporal_reasoner,
 )
 from .common import DEFAULT_BAND_PCT, adherence_pct
 from .prompts import WFM_SYSTEM_PROMPT
+
+
+
+def _safe_evidence_pack(history, week, holiday_count):
+    """The evidence pack must never be able to fail an investigation.
+
+    It is additive -- it makes a report richer and is not needed to produce one. A defect
+    in it returning HTTP 500 means a queue that could have been explained is not explained,
+    which is a far worse outcome than a report without the extra facts. Guarded here as
+    well as inside the pack, because this is the boundary that protects the engine.
+    """
+    try:
+        return evidence_pack.build(history, week, holiday_count)
+    except Exception as exc:
+        return {"key_facts": [], "weekly_series": [], "plan_vintage_changes": [],
+                "period_aggregates": {"available": False}, "weeks_of_history": 0,
+                "unavailable_reason": f"{type(exc).__name__}: {exc}"}
 
 
 def derive_wfm_features(context_bundle, wfm_context, band):
@@ -70,6 +89,12 @@ def derive_wfm_features(context_bundle, wfm_context, band):
         "data_quality": data_quality.analyse(history, wfm_context.get("history_forward") or [],
                                              week, actual),
         "correlations": correlation_engine.analyse(history, fields),
+        # Facts the engine could always have computed and never did: how long the run of
+        # same-direction misses is, whether the plan was reissued during it, how this week
+        # compares with the same week last year, whether holidays actually move this queue.
+        # Feeds the payload (so the bullets cite them) AND the interrogation (so a question
+        # about them is answerable). One computation, two consumers, no disagreement.
+        "evidence_pack": _safe_evidence_pack(history, week, fields.get("Holiday_Count")),
     }
     return features, adherence
 
@@ -90,6 +115,7 @@ def _payload(context_bundle, features, adherence, band):
         "INVESTIGATION_LADDER": features.get("investigation_ladder"),
         "DATA_QUALITY": features.get("data_quality"),
         "CORRELATIONS": features.get("correlations"),
+        "EVIDENCE_PACK": features.get("evidence_pack"),
         "ELIGIBLE_CAUSE_TYPES": skeptic.eligible_cause_types(features),
         "FIELD_GLOSSARY": FIELD_DEFINITIONS,
     }
@@ -126,6 +152,13 @@ def _assemble(parsed, features, adherence, band, provider, model):
         "cqn_note": siblings.get("cqn_note"),
         "detail": siblings,
     }
+    # The investigation ladder was computed on every run and never returned -- `_assemble`
+    # emits only the keys in RESPONSE_DEFAULTS, and the ladder was used internally then
+    # discarded. So the console could report "inherited from Country level" while holding
+    # none of the figures a reader needs to check that claim. Surfaced here so the Scope
+    # card has something to render.
+    out["investigation_ladder"] = features.get("investigation_ladder") or {}
+
     # Merge, don't replace: the computed metrics are the trustworthy ones, and a short list
     # from the model must not suppress them.
     model_metrics = [m for m in (out.get("technical_metrics") or []) if isinstance(m, dict)]
@@ -179,9 +212,36 @@ def _fallback(features, adherence, band, reason):
             f"not the full multi-hypothesis WFM investigation."],
         "derived_features": features,
         "cause_type": ctype,
+        # Also on the fallback path. The ladder is arithmetic, not model output, so it is
+        # exactly as trustworthy here as on a full run -- and a degraded report is where a
+        # reader most needs the figures behind a claim.
+        "investigation_ladder": features.get("investigation_ladder") or {},
         "investigation_meta": {"engine": "wfm-deterministic-fallback", "generated_at": _now()},
     }
     return report.apply_language_guard(report.back_compat(out, base))
+
+
+
+def _with_interrogation(result, features, llm_cfg, model_choice):
+    """Attach the interrogation to a finished report. Used by EVERY exit path.
+
+    Wired in one place because attaching it per-path is how the fallback path ended up
+    without it -- the card then rendered nothing, on precisely the reports that needed
+    questioning most.
+
+    The report is returned unchanged if anything here fails. An addition to a report must
+    never be able to damage one.
+    """
+    if not isinstance(result, dict):
+        return result
+    try:
+        result["interrogation"] = interrogation.run(
+            result, features, llm_cfg, model_choice,
+            PROVIDER_ENDPOINTS, DEFAULT_MODELS, _slot_for_choice)
+    except Exception as exc:
+        result["interrogation"] = {"available": False,
+                                   "reason": f"interrogation failed: {type(exc).__name__}: {exc}"}
+    return result
 
 
 def investigate_wfm(context_bundle, llm_cfg, wfm_context, model_choice=None, band=None):
@@ -251,6 +311,19 @@ def investigate_wfm(context_bundle, llm_cfg, wfm_context, model_choice=None, ban
             failures.append(f"{slot.get('provider')}/{model} produced no cause the data "
                             f"supports ({detail})")
             continue
-        return result
 
-    return _fallback(features, adherence, band, " ".join(f"{f}." for f in failures))
+        # Interrogation runs AFTER the report is complete and is EXPLANATORY ONLY -- it can
+        # never change the ranked causes, the confidence or the skeptic verdicts, because
+        # all of those are already fixed in `result` before it is called. That ordering is
+        # the whole basis for adding it without altering the engine's conclusions.
+        #
+        # Fail-safe throughout: any failure leaves `result` exactly as it was. An RCA is
+        # never blocked by the interrogation, the same rule the narrative already follows.
+        return _with_interrogation(result, features, llm_cfg, model_choice)
+
+    # The fallback path gets interrogated too. It was returning directly, so on any queue
+    # where the model produced no supportable cause -- which is exactly when a reader most
+    # wants the findings questioned -- the interrogation silently never ran.
+    return _with_interrogation(
+        _fallback(features, adherence, band, " ".join(f"{f}." for f in failures)),
+        features, llm_cfg, model_choice)

@@ -1634,7 +1634,7 @@ function selectFlag(i){
         <div class="rtitle">${r.Forecast_name} ${r._mapped?'<span class="badge ok">mapped</span>':'<span class="badge unm">unmapped</span>'}</div>
         <div class="rmeta">${r.Region||''} · ${r.SubRegion||''} · ${r.Country||''} · ${r.channel||''}<br>Fiscal Week ${r._wk} · Plan: ${r.Projection_plan_name||'—'} · Forecaster: ${r.Forecaster||'—'}</div>
       </div>
-      <div class="acc"><div class="big" style="color:${accCol}">${r._padh!=null?r._padh.toFixed(1)+'%':'N/A'}</div><div class="lbl">Forecast Adherence${r._padh!=null?'<div class="adhdir">'+(r._padh<0?'Under-forecast — actual came in above plan':(r._padh>0?'Over-forecast — actual came in below plan':'On plan'))+'</div>':''}</div></div>
+      <div class="acc"><div class="big" style="color:${accCol}">${r._padh!=null?r._padh.toFixed(1)+'%':'N/A'}</div><div class="lbl">Forecast Adherence</div></div>
     </div>
     <div class="subhead">Findings <span style="text-transform:none;font-weight:500;color:var(--muted)">(ⓘ = the exact formula &amp; numbers)</span></div>
     <ul class="rca-bullets">${bullets}</ul>
@@ -1878,7 +1878,13 @@ function formatInvestigation(resp, ctx){
     confidence_score: resp.confidence_score!=null? resp.confidence_score : null,
     missing_information: resp.missing_information||[],
     proof: proofArr,
-    investigation_meta: resp.investigation_meta||{}
+    investigation_meta: resp.investigation_meta||{},
+    // Carried through UNFORMATTED for the two additive cards. The formatter builds a fresh
+    // object rather than spreading the response, so anything not named here simply does
+    // not reach the renderer -- which is why both cards rendered as empty strings while
+    // the backend was returning their data correctly.
+    investigation_ladder: resp.investigation_ladder||(resp.derived_features||{}).investigation_ladder||null,
+    interrogation: resp.interrogation||null
   };
 }
 
@@ -2069,9 +2075,10 @@ function renderInvestigationReport(f, ctx){
     ${(hist.data_points||[]).map(d=>`<div class="kv"><span class="k">${invEsc(d.label)}</span><span class="val">${invEsc(d.value)}</span></div>`).join('')}
   </div></details>`;
 
-  const recsHtml=`<details class="inv-sec" open><summary>Forecast Improvement Recommendations</summary><div class="body">
-    ${(f.forecast_improvement_recommendations||[]).length?`<ul class="inv-findings">${(f.forecast_improvement_recommendations||[]).map(x=>`<li>${invEsc(x)}</li>`).join('')}</ul>`:'<div class="inv-empty">No recommendations yet.</div>'}
-  </div></details>`;
+  // Forecast Improvement Recommendations card removed from the UI on request. The backend
+  // still returns `forecast_improvement_recommendations`, so restoring it is re-adding this
+  // block -- nothing upstream was changed to switch it off.
+  const recsHtml='';
 
   const missingHtml=`<details class="inv-sec" open><summary>Missing Information</summary><div class="body">
     ${(f.missing_information||[]).length?`<ul class="inv-findings">${(f.missing_information||[]).map(x=>`<li>${invEsc(x)}</li>`).join('')}</ul>`:'<div class="inv-empty">Nothing flagged as missing.</div>'}
@@ -2079,7 +2086,141 @@ function renderInvestigationReport(f, ctx){
 
   const metaHtml=`<div class="inv-meta">Engine: ${invEsc(meta.engine||'—')}${meta.model?' · '+invEsc(meta.model):''} · generated ${meta.generated_at?new Date(meta.generated_at).toLocaleString():'—'} · based on ${(meta.based_on_fields||[]).length} field(s) gathered generically from the source file</div>`;
 
-  return summaryHtml+proofHtml+findingsHtml+narrativeHtml+evidenceHtml+rejectedHtml+historyHtml+recsHtml+missingHtml+metaHtml;
+  // Two ADDITIVE cards. Both render nothing at all when their data is absent, so every
+  // existing section above is untouched and a report without them looks exactly as before.
+  // INTERROGATION CARD IS TEMPORARILY OFF. Commented out rather than deleted: the engine
+  // still runs it and still returns `interrogation` in the response, so it can be inspected
+  // while the question quality is worked on. Re-enable by restoring the call below.
+  //     + renderInterrogationCard(f)
+  return summaryHtml+proofHtml+findingsHtml+narrativeHtml
+       + renderScopeCard(f)
+       + evidenceHtml+rejectedHtml+historyHtml+recsHtml+missingHtml+metaHtml;
+}
+
+/* ---- SCOPE — where the miss is visible, and how much.
+   The investigation ladder was already computed and never rendered: a reader was told a
+   miss was "inherited from Country level" with no figures to check it against. This shows
+   actual, plan, gap and adherence at every level, marks where the pattern starts, and
+   states this queue's share of that gap.
+   It is labelled SCOPE, never root cause — a wider pattern narrows the search, it does not
+   explain the miss. That caution is printed rather than assumed. ---- */
+function renderScopeCard(f){
+  // Business Org is dropped from this card. It is the whole book -- every queue rolls into
+  // that one row, so it is the same figure on every report and breaches on nearly all of
+  // them. Always-present and almost-always-red carries no information about THIS queue.
+  // Filtered here only: the rung still reaches the engine, which legitimately compares
+  // against the book total.
+  const L=((f.investigation_ladder&&f.investigation_ladder.levels)||[])
+            .filter(l=>String(l&&l.level||'').trim().toLowerCase()!=='business org');
+  if(!L.length) return '';
+  const tgt=(f.forecast_summary||{}).adherence_pct;
+  const band=(f.investigation_ladder||{}).band_pct||10;
+  const num=v=>(typeof v==='number')?v.toLocaleString(undefined,{maximumFractionDigits:0}):'—';
+  let first=null, firstIdx=-1;
+  const rows=L.map((l,li)=>{
+    const adh=l.adherence_pct, act=l.actual_offered, plan=l.fcst_offered;
+    const gap=(typeof act==='number'&&typeof plan==='number')?(act-plan):null;
+    const br=(typeof adh==='number')&&Math.abs(adh)>band;
+    const same=(typeof adh==='number')&&(typeof tgt==='number')&&((adh<0)===(tgt<0));
+    if(br&&same&&!first){ first={...l,gap}; firstIdx=li; }
+    // Bold marks a level that BREACHES the threshold, so an un-bolded row is a finding —
+    // that level is inside tolerance — not a styling slip. Spelled out in its own column.
+    const w=br?'700':'600';
+    return `<tr>
+      <td style="padding:5px 8px;font-weight:${w};">${invEsc(l.level)}</td>
+      <td style="padding:5px 8px;color:#555;">${invEsc(l.scope||'')}</td>
+      <td style="padding:5px 8px;text-align:right;font-weight:${w};">${num(act)}</td>
+      <td style="padding:5px 8px;text-align:right;font-weight:${w};">${num(plan)}</td>
+      <td style="padding:5px 8px;text-align:right;font-weight:${w};">${num(gap==null?null:Math.abs(gap))}</td>
+      <td style="padding:5px 8px;text-align:right;font-weight:700;color:${br?'#a01b2b':'#0b7a3b'};">${typeof adh==='number'?(adh>0?'+':'')+adh.toFixed(1)+'%':'—'}</td>
+      <td style="padding:5px 8px;font-size:11px;white-space:nowrap;color:${br?'#a01b2b':'#0b7a3b'};">${br?'exceeds threshold':'within threshold'}</td>
+    </tr>`;}).join('');
+
+  const variance=Math.abs(((f.forecast_summary||{}).actual||0)-((f.forecast_summary||{}).forecast||0));
+  let lead;
+  if(first){
+    const share=(first.gap&&variance)?Math.abs(variance/first.gap):null;
+    lead=`The pattern starts at <b>${invEsc(first.level)}</b> level (${invEsc(first.scope||'')}): `
+      +`${num(first.actual_offered)} contacts against a plan of ${num(first.fcst_offered)} — a gap of `
+      +`${num(Math.abs(first.gap||0))} contacts (${first.adherence_pct>0?'+':''}${(first.adherence_pct||0).toFixed(1)}%)`
+      +(first.queue_weeks_in_scope?` across ${first.queue_weeks_in_scope} queue-week(s)`:'')+'. '
+      +(share!=null?`This queue accounts for ${num(variance)} of that gap, ${(share<0.005?'under 1%':'about '+Math.round(share*100)+'%')} of it. `:'')
+      // Only claim the levels above are clean when there ARE levels above it on this card.
+      // With Business Org filtered out the top row has nothing shown above it, and the book
+      // total breaches on most reports -- so the original wording would be a false statement
+      // about a level the reader cannot see.
+      +(firstIdx>0?'Every level above this one is within threshold, so this is where the wider pattern begins.'
+                    :'This is the highest level shown, so the pattern may extend wider than this card displays.');
+  } else {
+    lead='No higher level missed in the same direction, so this movement is specific to this queue rather than part of a wider pattern.';
+  }
+
+  return `<details class="inv-sec" open><summary>Scope — where the miss is visible, and how much</summary><div class="body">
+    <div style="line-height:1.7;margin-bottom:10px;">${lead}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <tr style="background:#f6f7f9;font-weight:700;text-align:left;">
+        <td style="padding:5px 8px;">Level</td><td style="padding:5px 8px;">Scope</td>
+        <td style="padding:5px 8px;text-align:right;">Actual</td><td style="padding:5px 8px;text-align:right;">Plan</td>
+        <td style="padding:5px 8px;text-align:right;">Gap</td><td style="padding:5px 8px;text-align:right;">Adherence</td>
+        <td style="padding:5px 8px;">Status</td>
+      </tr>${rows}
+    </table>
+  </div></details>`;
+}
+
+/* ---- INTERROGATION — a reviewer questions the bullets above, and the answers come from
+   the evidence file rather than from the model's own words. Where the data cannot settle a
+   question it says so, and questions that could never be answered are listed separately so
+   the gap is visible rather than silently dropped. ---- */
+function renderInterrogationCard(f){
+  const ig=f.interrogation||{};
+  // NEVER render silently-empty. A card that vanishes leaves the reader unable to tell
+  // whether the feature is off, still loading, or broken -- the exact question this could
+  // not answer for itself. Absent key = engine did not attempt it (older backend); present
+  // but unavailable = attempted and stopped, and it says why.
+  if(f.interrogation===undefined||f.interrogation===null){
+    return `<details class="inv-sec"><summary>Interrogation — WHY, asked of these findings</summary><div class="body">
+      <div class="inv-empty">This report was produced by a backend that does not run the interrogation step. Restart the backend to enable it.</div>
+    </div></details>`;
+  }
+  if(!ig.available||!(ig.questions||[]).length){
+    const extra=[];
+    if((ig.rejected_questions||[]).length) extra.push((ig.rejected_questions||[]).length+' question(s) were generated but rejected: '+(ig.rejected_questions||[]).map(r=>r.reason).join('; '));
+    if((ig.problems||[]).length) extra.push((ig.problems||[]).join('; '));
+    return `<details class="inv-sec" open><summary>Interrogation — WHY, asked of these findings</summary><div class="body">
+      <div class="inv-empty">${invEsc(ig.reason||'No questions were produced for this report.')}</div>
+      ${extra.length?`<div style="margin-top:6px;font-size:11.5px;color:#8a5a00;line-height:1.55;">${invEsc(extra.join(' · '))}</div>`:''}
+    </div></details>`;
+  }
+  const ansFor=q=>(ig.answers||[]).find(a=>(a.question||'').trim()===String(q||'').trim());
+  // ONLY ANSWERED QUESTIONS ARE SHOWN. A question displayed above "cannot be answered from
+  // the available data" reads as the tool failing, and in every case investigated so far it
+  // WAS the tool failing -- the answerer had not been handed a block the questioner used.
+  // Showing the gap does not help the reader; fixing the bundle does. The unanswered ones
+  // stay in the response for diagnosis and are counted below, so a systematic failure is
+  // still visible rather than hidden.
+  const shown=(ig.questions||[]).map(q=>({q, a:ansFor(q.question)||{}}))
+                                .filter(x=>x.a.answerable);
+  const dropped=(ig.questions||[]).length-shown.length;
+  if(!shown.length){
+    return `<details class="inv-sec"><summary>Interrogation — WHY, asked of these findings</summary><div class="body">
+      <div class="inv-empty">No question could be settled from this queue's evidence, so none is shown.${dropped?` ${dropped} question(s) were asked and left unanswered — see <code>interrogation.answers</code> in the response for what was missing.`:''}</div>
+    </div></details>`;
+  }
+  const qa=shown.map(({q,a})=>
+    `<div style="border-left:3px solid #123a7a;background:#f6f8fc;padding:8px 12px;margin:8px 0;border-radius:0 4px 4px 0;">
+      <div style="font-weight:700;line-height:1.55;">${invEsc(q.question)}</div>
+      <div style="font-size:11px;color:#6b7280;margin:3px 0 6px;">from: ${invEsc(q.arises_from||'—')}</div>
+      <div style="line-height:1.65;">${invEsc(a.answer||'')}</div>
+      <div style="font-size:11px;color:#6b7280;margin-top:4px;">answered from: ${invEsc((a.evidence_used||[]).join(', '))}</div>
+    </div>`).join('');
+  const na=(ig.not_asked||[]).map(n=>`<li>${invEsc(n.tempting_question||'')} — <span style="color:#6b7280;">${invEsc(n.rejected_because||'')}</span></li>`).join('');
+  return `<details class="inv-sec" open><summary>Interrogation — WHY, asked of these findings</summary><div class="body">
+    <div style="font-size:11.5px;color:#6b7280;font-style:italic;line-height:1.55;">A reviewer reads the findings above and asks what they leave unexplained. Each answer comes from the evidence file, never from the model's own words — where the data cannot settle a question, it says so.</div>
+    ${qa}
+    ${na?`<div style="margin-top:10px;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">Deliberately not asked — the data does not exist</div>
+      <ul class="inv-findings" style="margin-top:6px;">${na}</ul>`:''}
+  </div></details>`;
 }
 
 /* ---- RCA Trigger — orchestrates the pipeline above; owns nothing except sequencing.
