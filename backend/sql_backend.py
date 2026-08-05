@@ -36,7 +36,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from rca_investigate import investigate
-from wfm import fetch_wfm_context, investigate_wfm
+from wfm import fetch_wfm_context, investigate_decision, investigate_wfm
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent               # repo root, where the .html files live
@@ -307,7 +307,7 @@ def cqn_mapping(table: str = Query("dbo.CQN_Mapping", description="Mapping table
 @app.post("/api/rca-investigate")
 def rca_investigate(context_bundle: dict, provider: str = Query("", description="Optional model-picker provider"),
                     model: str = Query("", description="Optional model-picker model id"),
-                    mode: str = Query("wfm", description="'wfm' (default) for the WFM cross-functional engine; 'legacy' = original engine")):
+                    mode: str = Query("wfm", description="'wfm' (default) for the WFM cross-functional engine; 'decision' = Python ranks/scores, LLM only narrates; 'legacy' = original engine")):
     """
     LLM Investigation Engine proxy. Body = the generic ContextBundle the console
     builds client-side (target row + history + peers + auto-discovered statistical
@@ -316,21 +316,30 @@ def rca_investigate(context_bundle: dict, provider: str = Query("", description=
     output); if that model fails, the engine returns the deterministic best-supported
     finding — it does NOT silently answer with a different model.
 
-    ?mode=wfm (default) selects the WFM cross-functional engine (backend/rca_wfm.py): the
-    business-authored prompt, a top-5 ranked RCA list, skeptic review, hypothesis
-    marking, the investigation ladder (is the miss inherited from a higher level?),
-    104-week temporal context and channel-migration detection. It is ADDITIVE — with
-    mode=legacy this endpoint behaves as the original engine. The WFM engine fills the original response keys too
+    ?mode=wfm (default) selects the WFM cross-functional engine: the business-authored
+    prompt, a top-5 ranked RCA list, skeptic review, hypothesis marking, the investigation
+    ladder, 104-week temporal context and channel-migration detection. The LLM investigates,
+    ranks, and narrates in one call.
+
+    ?mode=decision selects the decision engine (backend/wfm/decision_engine.py): the SAME
+    deterministic features, but hypothesis ranking/scoring happens in Python
+    (hypothesis_ranker.py) BEFORE any model call. The LLM's only job is narrating the
+    already-decided winner in business language — it never investigates or ranks. Built to
+    address the "every explanation reads like the same template" complaint: asking one model
+    call to investigate + rank + score + narrate simultaneously is what produced that.
+
+    mode=legacy runs the original engine. All three fill the original response keys
     (primary_root_cause / secondary_contributors / key_findings), so the existing UI
-    renders it without modification.
+    renders any of them without modification.
 
     Runs server-side ONLY so a real provider key never has to live in the
     (publicly hosted) rca_console.html.
     """
     cfg = load_config()
     model_choice = {"provider": provider, "model": model} if model else None
+    mode_norm = (mode or "wfm").lower()
 
-    if (mode or "wfm").lower() != "legacy":
+    if mode_norm != "legacy":
 
         # The deeper context (104 weeks, channel siblings, higher-level rollups) is
         # fetched here rather than in the browser, so no frontend change is needed.
@@ -350,7 +359,7 @@ def rca_investigate(context_bundle: dict, provider: str = Query("", description=
             conn = connect(cfg)
             wfm_context = fetch_wfm_context(conn.cursor(), cfg.get("sql", {}).get("table", "dbo.Input_To_ML"), key)
         except Exception as e:
-            # Not fatal: the WFM engine degrades to the posted bundle and says what is missing.
+            # Not fatal: the engine degrades to the posted bundle and says what is missing.
             wfm_context = {"fetch_error": str(e)}
         finally:
             if conn is not None:
@@ -359,9 +368,11 @@ def rca_investigate(context_bundle: dict, provider: str = Query("", description=
                 except Exception:
                     pass
         try:
+            if mode_norm == "decision":
+                return investigate_decision(context_bundle, cfg.get("llm", {}), wfm_context, model_choice=model_choice)
             return investigate_wfm(context_bundle, cfg.get("llm", {}), wfm_context, model_choice=model_choice)
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"WFM investigation failed: {e}")
+            raise HTTPException(status_code=500, detail=f"{'Decision' if mode_norm == 'decision' else 'WFM'} investigation failed: {e}")
 
     try:
         return investigate(context_bundle, cfg.get("llm", {}), model_choice=model_choice)

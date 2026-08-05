@@ -524,3 +524,80 @@ tested-good reference; `main` is further ahead with Statistical Evidence but was
 user as still showing a "not available" leak in its deterministic fallback path this same day
 (fixed on `main`, then discarded per the user's "revert to Thursday" instruction — see the
 immediately preceding session's notes above this one for that history).
+
+---
+
+## Session 26 — 2026-08-05 · Decision engine (`?mode=decision`) — Python ranks, LLM only narrates
+
+**Context.** Even after Session 25's fixes (templating rule loosened, cross-card duplication
+removed, bare-metric-dump filter generalized), a fresh live test still showed the recipe pattern:
+every explanation opened "During Fiscal Week X, total demand across the Combined Queue..." and
+closed with a near-identical "Because the forecast was generated using the usual baseline..."
+sentence, varying only the numbers. The user placed `yes.md` (an AI-engineering critique of the
+WFM prompt, moved to `IMP_DOCS/decision-engine-design-critique.md` in this session) diagnosing the
+actual cause: the LLM is asked to investigate, rank hypotheses, score confidence, AND narrate in
+one call. That cognitive load is what collapses into template-copying. The doc's proposed fix:
+move investigation/ranking/scoring entirely into deterministic Python; the LLM's only remaining
+job is narrating a pre-decided winner.
+
+Scoped via 3 clarifying questions before writing code (all "recommended" options chosen): build
+as a new opt-in engine mode rather than replacing `?mode=wfm`; build the ranker as an aggregator
+over already-computed, already-tested feature modules rather than a scoring system from scratch;
+fully rewrite the LLM's role to pure narration rather than a smaller "sanity check" step.
+
+**New branch `decision-engine`**, created from `approved` (after committing Session 25's pending
+templating fixes to `approved` itself first, since they're genuine improvements to that branch
+too — the branch was recreated once after an initial mis-timed creation left it missing that
+commit). Both pushed.
+
+Built:
+1. **`backend/wfm/hypothesis_ranker.py`** (new) — the Evidence Aggregator. Reuses
+   `skeptic.PRECONDITIONS` unchanged for eligibility (a cause with no supporting trace in the
+   data is rejected outright, with the same "why not" text skeptic.py already uses, so both
+   engines agree on what's even possible). For every eligible cause, computes a magnitude-based
+   score in [0,1] from data already computed elsewhere (z-scores in forecast_sanity/installed_base
+   /holiday, `chronic_bias.share_same_direction`, `peer_divergence` ratio,
+   `channel_siblings.offset_share`, reinforced by `correlations.driver_decomposition` and
+   `statistical_evidence` where available) — no new statistics invented, only aggregation.
+   `inherited_from_higher_level` and `data_quality_issue` keep their existing fixed-priority
+   business rules rather than competing on magnitude. Sorts, returns the winner + full ranking +
+   rejected-with-reasons. Verified standalone against a reconstructed real feature set (India Cons
+   IW / FW202517): correctly rejected 6 ineligible causes, correctly ranked the 3 eligible ones.
+2. **`backend/wfm/decision_prompts.py`** (new) — a genuinely separate, much shorter prompt (not
+   an edit to the business-authored `prompts.py`). States the investigation is already complete;
+   the model receives only the winning cause, its grounded evidence, and the rejected
+   alternatives — never the full feature dump, never asked to choose or score. Explicit
+   instructions against templating ("do not always begin with...") and against the same jargon/
+   label-leak/bare-dump failure modes fixed in Session 25.
+3. **`backend/wfm/decision_engine.py`** (new) — orchestrates: reuses
+   `investigation_engine.derive_wfm_features` unchanged, calls the ranker, makes ONE narrator-only
+   LLM call with the distilled payload, assembles the response in the exact backward-compatible
+   shape (`primary_root_cause`, `secondary_contributors`, `key_findings`, `investigation_trail`,
+   `channel_migration`, `technical_metrics`, `missing_information`) so `rca_console.html` renders
+   it with zero frontend changes. Deterministic per-cause-type fallback sentences (all causal, all
+   grounded) if no provider is reachable — never blank, matching the other two engines' guarantee.
+4. **Wired `?mode=decision`** into `POST /api/rca-investigate` in `sql_backend.py`, alongside the
+   existing `wfm` (default) and `legacy` modes — fully additive, neither existing mode's behavior
+   changed.
+
+**Two bugs found and fixed from live testing (not just unit tests):**
+- Evidence `source_field` keys didn't match what the fallback-sentence templates looked up (e.g.
+  evidence used `Actual_Offered`, the template read `actual`) — silently rendered as
+  `"(None)"` in a live secondary-contributor sentence. Fixed by aligning the keys.
+- `reasoning_narrative` was populated with a "runner-up scored lower" summary — which duplicated
+  `secondary_contributors`, already covering the same runners-up with fuller sentences. This is
+  the exact class of bug fixed repeatedly in Session 25, now caught in a brand-new module before
+  it shipped. Fixed by leaving `reasoning_narrative` empty when there's nothing genuinely
+  additional to say.
+
+**Live-verified**, same real queue as Session 25's tests (India Cons IW / FW202517, real SQL data,
+real NVIDIA call, not the deterministic fallback): winner correctly identified as
+`installed_base_change` (score 1.0, reinforced by `driver_decomposition.warranty_base_share=0.55`),
+Root Cause rendered as exactly 3 non-redundant, fully causal bullets, and — the actual point of
+this build — the primary statement's phrasing differed meaningfully between two separate runs on
+the same queue, rather than reusing a fixed sentence skeleton.
+
+**Known gap, not yet addressed:** `rca_console.html` has no UI control to select `mode=decision` —
+it's currently only reachable by calling the API directly (as this session's verification did) or
+editing the query string by hand. Adding a mode toggle to the console's per-queue model picker is
+the natural next step before this can be tested end-to-end in the browser.
