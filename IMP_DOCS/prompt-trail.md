@@ -601,3 +601,46 @@ the same queue, rather than reusing a fixed sentence skeleton.
 it's currently only reachable by calling the API directly (as this session's verification did) or
 editing the query string by hand. Adding a mode toggle to the console's per-queue model picker is
 the natural next step before this can be tested end-to-end in the browser.
+
+---
+
+## Session 27 — 2026-08-05 · Engine toggle added; Root Cause restructured after live review
+
+**Context.** The user asked for the `mode=decision` toggle, then pasted a detailed structural
+review of the first version's output (a WFM-director-style critique, in the same spirit as
+`yes.md`). Verdict: "not one root cause, five competing root causes" — the primary explanation,
+the runners-up, AND everything ruled out all rendered as identical undifferentiated bullets under
+one "Root Cause" heading, so a reader can't tell which sentence is the actual conclusion. Also
+caught a live contradiction: a fallback sentence claimed actual demand "behaved normally" in a
+case where the given evidence showed it 17% above its own historical average.
+
+Delivered:
+1. **Engine toggle** — `rcaEnginePickerHtml()` in `rca_console.html`, next to the existing AI
+   model picker, both places it's rendered. Selecting "Decision engine (beta)" sets
+   `window.RCA_ENGINE_MODE` and re-runs the current queue on it; `callInvestigationEngine` now
+   sends whichever mode is selected instead of hardcoding `mode=wfm`.
+2. **`decision_prompts.py` output contract split**: `executive_summary` (one paragraph mixing
+   everything) replaced with `root_cause` (exactly one sentence -- the conclusion) +
+   `why_we_believe` (3-5 bullets, each a fact plus its meaning, all supporting the SAME
+   conclusion). The prompt now explicitly forbids asserting anything ("actual behaved normally")
+   not directly supported by the evidence it was actually given -- the fix for the live-caught
+   contradiction, at the source rather than patched after the fact.
+3. **`decision_engine.py` reworked**: added a materiality cutoff (`_MATERIALITY_MARGIN = 0.15`) —
+   a runner-up cause only becomes a listed "contributing factor" if its score is genuinely close
+   to the winner's; everything else (precondition-failed AND eligible-but-far-behind) becomes a
+   single terse line in a new `ruled_out` list. Built `investigation_summary` — the new
+   structured block (`root_cause`, `why_we_believe`, `contributing_factors`, `ruled_out`,
+   `business_impact`, `recommended_action`) the frontend now prefers when present. Fixed the
+   deterministic fallback sentences to never claim a value is "normal" unconditionally.
+4. **`rca_console.html` Root Cause rendering restructured**: when `f.investigation_summary` is
+   present, renders ONE bolded conclusion sentence, then "Why we believe this" (✔ bullets),
+   "Contributing factors" (+ bullets, only if any exist), "What we ruled out" (✕ bullets), and
+   Business Impact as visually distinct sections — not one flat list. Falls back to the
+   unchanged `getRootCausePoints()` flat rendering for the `wfm`/`legacy` engines.
+
+**Live-verified** (India Cons IW / FW202517, real SQL, real NVIDIA call): `investigation_summary`
+now returns one root_cause sentence, 3 grounded why_we_believe bullets, exactly 1 contributing
+factor (Inherited From a Higher Level, materially close per the ranker's own scores), and 8 terse
+ruled-out lines — matching the reviewer's requested shape closely. Confirmed the rendering
+functions (`rcaEnginePickerHtml`, the `investigation_summary` branch, "Why we believe this" /
+"What we ruled out" section headers) are present in the actual served page bytes.

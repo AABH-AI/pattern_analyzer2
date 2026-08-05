@@ -1643,7 +1643,7 @@ function selectFlag(i){
     <div class="kv"><span class="k">Forecast Offered</span><span class="val">${r._fo!=null?fmt2(r._fo):(r.fcst_offered||'(blank)')}</span></div>
     <div class="subhead">Root-Cause Investigation</div>
     <div class="rca-cap">Every field available for this queue — the target week, its recent history, and the other queues in its Combined Queue — is consolidated into a single evidence base. Each candidate explanation is then tested against that evidence: competing hypotheses are weighed, those the data does not support are rejected and recorded with the reason, and the remainder are ranked by the strength of the evidence behind them. Conclusions are stated in business language with the underlying figures attached, and where the data cannot settle a question, that limit is reported rather than filled in.</div>
-    <div id="investigationPanel"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><button class="filebtn" onclick="triggerRCA(${i})">🔎 Investigate Root Cause</button>${rcaModelPickerHtml()}</div></div>
+    <div id="investigationPanel"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><button class="filebtn" onclick="triggerRCA(${i})">🔎 Investigate Root Cause</button>${rcaEnginePickerHtml()}${rcaModelPickerHtml()}</div></div>
   `;
 }
 
@@ -1806,10 +1806,11 @@ async function buildContext(r){
    confidence) runs server-side in backend/rca_investigate.py, so a real provider key never
    has to sit in this file. Until a provider is configured there, the backend returns an
    honest placeholder — this caller does not fabricate anything if the call fails either. ---- */
+window.RCA_ENGINE_MODE = window.RCA_ENGINE_MODE || 'wfm';   // 'wfm' | 'decision'
 async function callInvestigationEngine(contextBundle){
   const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:8000':'';
-  // If the user picked a model for this queue, route the investigation to it (?mode=wfm&provider=&model=).
-  let q='?mode=wfm';
+  // If the user picked a model for this queue, route the investigation to it (?mode=&provider=&model=).
+  let q='?mode='+encodeURIComponent(window.RCA_ENGINE_MODE||'wfm');
   if(window.RCA_MODEL && window.RCA_MODEL.model){
     q+='&provider='+encodeURIComponent(window.RCA_MODEL.provider||'')+'&model='+encodeURIComponent(window.RCA_MODEL.model);
   }
@@ -1817,6 +1818,22 @@ async function callInvestigationEngine(contextBundle){
 
   if(!resp.ok){ let d; try{ d=(await resp.json()).detail; }catch(_){ d=resp.statusText; } throw new Error(d||('HTTP '+resp.status)); }
   return await resp.json();
+}
+
+/* ---- Engine mode toggle: 'wfm' (default, one call investigates+ranks+narrates) vs
+   'decision' (Python ranks/scores deterministically, the LLM only narrates the pre-decided
+   winner -- see IMP_DOCS/decision-engine-design-critique.md for why this exists). ---- */
+function rcaEnginePickerHtml(){
+  const modes=[['wfm','WFM engine'],['decision','Decision engine (beta)']];
+  return `<label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);">⚙️ Engine
+    <select class="rca-engine-sel" onchange="onRcaEngineChange(this.value)" style="font-size:11px;padding:4px 7px;border:1px solid var(--border);border-radius:7px;background:var(--panel-2);color:var(--text);">
+      ${modes.map(([v,l])=>`<option value="${v}" ${v===window.RCA_ENGINE_MODE?'selected':''}>${l}</option>`).join('')}
+    </select></label>`;
+}
+function onRcaEngineChange(mode){
+  window.RCA_ENGINE_MODE=mode;
+  document.querySelectorAll('select.rca-engine-sel').forEach(s=>{ s.value=mode; });
+  if(window._rcaCurrent!=null) triggerRCA(window._rcaCurrent, window._rcaForce);   // re-run this queue on the new engine
 }
 
 /* ---- Per-queue AI model picker: lists models the backend says are reachable, lets the
@@ -1999,7 +2016,7 @@ function renderInvestigationReport(f, ctx){
 
   const key=ctx.target.key||{};
   const summaryHtml=`<div class="inv-card">
-    <div class="rhead" style="margin-bottom:2px;gap:8px;flex-wrap:wrap;"><div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Forecast Summary</div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-left:auto;">${rcaModelPickerHtml()}</div></div>
+    <div class="rhead" style="margin-bottom:2px;gap:8px;flex-wrap:wrap;"><div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Forecast Summary</div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-left:auto;">${rcaEnginePickerHtml()}${rcaModelPickerHtml()}</div></div>
     <div class="rmeta" style="margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${invEsc(key.Forecast_name||'—')} · Fiscal Week ${invEsc(key.Fiscal_Week||'—')}</div>
     <div class="inv-kv-grid">
       <div class="kvi"><div class="l">Forecast</div><div class="v">${invEsc(fsr.forecast)}</div></div>
@@ -2053,17 +2070,43 @@ function renderInvestigationReport(f, ctx){
       ${invConfMeter(confScore)}
     </div>` : '';
 
-  const rcPoints = getRootCausePoints(f);
-  const narrativeHtml=`<details class="inv-sec" open>
-    <summary style="display:flex;align-items:center;justify-content:space-between;width:100%;">
-      <span style="font-weight:800;font-size:13.5px;text-transform:uppercase;letter-spacing:.6px;">Root Cause</span>
-      ${confMeterHeader}
-    </summary>
-    <div class="body">
-      ${secDesc('The most likely explanation for WHY the forecast missed (drawn from data findings and model analysis).')}
-      ${rcPoints.length?`<ul style="list-style:none;padding:0;margin:0;">${rcPoints.map(p=>`<li style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);"><span style="font-size:14px;color:var(--accent);flex-shrink:0;margin-top:2px;">&#9670;</span><span style="font-size:12.5px;line-height:1.6;color:var(--text);">${formatBoldText(p)}</span></li>`).join('')}</ul>`:'<div class="inv-empty">No root cause narrative produced.</div>'}
-    </div>
-  </details>`;
+  // investigation_summary (decision engine only) renders as ONE conclusion + why-we-believe +
+  // contributing factors + ruled-out, instead of one flat bullet list -- a flat list read as
+  // "five competing root causes" in review, since the primary cause, runners-up, and
+  // rejected causes all looked like the same kind of bullet. Falls back to the old flat
+  // getRootCausePoints() rendering for the wfm/legacy engines, unchanged.
+  const isum = f.investigation_summary;
+  let narrativeHtml;
+  if (isum && isum.root_cause) {
+    const bulletList = (items, mark, markColor) => items && items.length
+      ? `<ul style="list-style:none;padding:0;margin:0 0 14px;">${items.map(t=>`<li style="display:flex;align-items:flex-start;gap:9px;padding:6px 0;"><span style="flex-shrink:0;font-weight:800;color:${markColor};">${mark}</span><span style="font-size:12.5px;line-height:1.6;color:var(--text);">${formatBoldText(t)}</span></li>`).join('')}</ul>`
+      : '';
+    narrativeHtml = `<details class="inv-sec" open>
+      <summary style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+        <span style="font-weight:800;font-size:13.5px;text-transform:uppercase;letter-spacing:.6px;">Root Cause</span>
+        ${confMeterHeader}
+      </summary>
+      <div class="body">
+        <div style="font-size:13.5px;line-height:1.6;color:var(--text);font-weight:600;padding:2px 0 14px;border-bottom:1px solid var(--border);margin-bottom:12px;">${formatBoldText(isum.root_cause)}</div>
+        ${isum.why_we_believe && isum.why_we_believe.length ? `<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:6px;">Why we believe this</div>${bulletList(isum.why_we_believe, '✔', 'var(--accent-2)')}` : ''}
+        ${isum.contributing_factors && isum.contributing_factors.length ? `<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:6px;">Contributing factors</div>${bulletList(isum.contributing_factors, '+', 'var(--warn)')}` : ''}
+        ${isum.ruled_out && isum.ruled_out.length ? `<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:6px;">What we ruled out</div>${bulletList(isum.ruled_out, '✕', 'var(--danger)')}` : ''}
+        ${isum.business_impact ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);"><span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);">Business impact</span><div style="font-size:12.5px;line-height:1.6;color:var(--text);margin-top:4px;">${formatBoldText(isum.business_impact)}</div></div>` : ''}
+      </div>
+    </details>`;
+  } else {
+    const rcPoints = getRootCausePoints(f);
+    narrativeHtml = `<details class="inv-sec" open>
+      <summary style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+        <span style="font-weight:800;font-size:13.5px;text-transform:uppercase;letter-spacing:.6px;">Root Cause</span>
+        ${confMeterHeader}
+      </summary>
+      <div class="body">
+        ${secDesc('The most likely explanation for WHY the forecast missed (drawn from data findings and model analysis).')}
+        ${rcPoints.length?`<ul style="list-style:none;padding:0;margin:0;">${rcPoints.map(p=>`<li style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);"><span style="font-size:14px;color:var(--accent);flex-shrink:0;margin-top:2px;">&#9670;</span><span style="font-size:12.5px;line-height:1.6;color:var(--text);">${formatBoldText(p)}</span></li>`).join('')}</ul>`:'<div class="inv-empty">No root cause narrative produced.</div>'}
+      </div>
+    </details>`;
+  }
 
   const evidenceHtml=`<details class="inv-sec"><summary>Supporting Evidence</summary><div class="body">
     ${(f.supporting_evidence||[]).length?`<ul class="inv-findings">${(f.supporting_evidence||[]).map(e=>`<li>${invEsc(e.text||'')} <span style="color:var(--muted);font-size:11px;">(${invEsc(e.source_field||'—')}${e.value!=null?' = '+invEsc(e.value):''})</span></li>`).join('')}</ul>`:'<div class="inv-empty">No supporting evidence recorded.</div>'}
