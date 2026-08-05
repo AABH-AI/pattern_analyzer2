@@ -44,6 +44,15 @@ Two engines sit behind `POST /api/rca-investigate`:
   ±10% "don't investigate in-band" rule. It backfills the legacy response keys, so the current
   UI renders it unchanged. Contract: `IMP_DOCS/wfm-rca-engine.md`.
 
+## Approved output example
+
+This branch (`approved`, pinned to commit `48e9711`) is the business-approved Root Cause
+behavior — the causal-clause contract ("driven by" / "because" / "resulting from" required on
+every explanation, no bare metric-dump sentences) plus dynamic multi-factor driver attribution
+(Offering, Installed Base, ASU, Holiday_Count worked into the explanation when they carry signal).
+
+![Approved Root Cause example](docs/images/approved-root-cause-example.png)
+
 ## Key notes
 - Only two metrics are computed; every number has an ⓘ showing the exact formula and inputs.
 - **Avg accuracy = 100 − MAPE** (a plain mean of Actual÷Fcst cancels over/under-forecasts and overstates accuracy).

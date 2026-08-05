@@ -484,3 +484,43 @@ V0.5 10:57-11:10; docs + commit to ~11:35).
 
 Still unfixed and now seen in four consecutive sessions: the `renderProbe` TypeError on every page
 load (`rca_console.html:2117`, from `:2143`) — fallout from `e432543` hiding the Probing layer.
+
+---
+
+## Session 25 — 2026-08-05 · `approved` branch pinned, README example, Canary follow-up logged
+
+**Context.** After live-testing several branches/commits this and the prior session (a detached
+preview of pre-statistical-evidence `25848ce`, then `main` at `1d6d170` with the full statistical
+engine, then Thursday's `48e9711`), the user identified **`48e9711`** — "RCA WFM: implement dynamic
+multi-factor driver attribution (Offering, ASU, Installed Base), causal clause contract, and data
+insight filtering" (Thu 30 Jul 2026, 13:17 IST, authored by ShivamAASPL) — as producing the correct
+Root Cause behavior: every explanation carries a causal connector ("because"/"driven by"/"resulting
+from"), no bare metric-dump sentences, and real driver fields (Offering, Installed Base, ASU,
+Holiday_Count) woven into the explanation when they carry signal. Diffed the commit to confirm what
+it actually changed: `backend/wfm/prompts.py` gained the "Dynamic Multi-Factor Driver Attribution"
+and "Causal Clause Contract" rules; `rca_console.html`'s `getSixOrMoreRootCausePoints` gained an
+`isRawMetricDump()` filter (drops bare "Region adherence 11.9%"-style bullets) and switched from
+exact-string dedup to **containment-based** dedup (a bullet is dropped if it's a substring of, or
+contains, one already kept) — a lighter-touch fix than the padding-source removal done later in
+`main`'s `3899a92`, but effective enough that it read as the cleanest output tested so far.
+
+Requested → delivered:
+1. **Branch `approved` created and pushed**, pinned exactly to `48e9711` (`git branch approved` +
+   `git push -u origin approved` from that commit, checked out non-destructively — `main` untouched
+   at `1d6d170` throughout). Now recoverable by name, not just by hash.
+2. **README.md** — added an "Approved output example" section right before "Key notes", embedding
+   the user's own screenshot of this exact commit's Root Cause output
+   (`docs/images/approved-root-cause-example.png`, copied in), with one paragraph naming what makes
+   it the approved baseline (causal-clause contract + driver attribution).
+3. **TODO.md** — new "Deferred — not urgent, do later" section at the very top: run a Canary QA
+   pass against the `approved` branch. Explicitly deferred per the user's own instruction ("do a
+   canary in it but later") — not scheduled, just recorded so it isn't forgotten.
+4. **This entry.**
+
+**Not done, by choice:** no attempt was made to reconcile `approved`'s lighter-touch Root Cause fix
+with `main`'s more thorough one (padding-source removal, statistical evidence engine). They are
+genuinely different states serving different purposes right now — `approved` is the pinned,
+tested-good reference; `main` is further ahead with Statistical Evidence but was flagged by the
+user as still showing a "not available" leak in its deterministic fallback path this same day
+(fixed on `main`, then discarded per the user's "revert to Thursday" instruction — see the
+immediately preceding session's notes above this one for that history).

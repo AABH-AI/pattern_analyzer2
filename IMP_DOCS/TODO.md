@@ -2,6 +2,13 @@
 
 Deploy **30 Jul 2026** · last dev day **29 Jul**. Ordered by priority.
 
+## Deferred — not urgent, do later
+- [ ] **Canary QA pass on the `approved` branch** (pinned to `48e9711`). This branch was pushed as
+      the business-approved Root Cause baseline (causal-clause contract + dynamic multi-factor
+      driver attribution — see `README.md`'s example screenshot). No Canary session has been
+      recorded against it yet; run one to get a real recorded trace/report before treating it as
+      the reference build long-term.
+
 ## P0 — critical path to the mockup
 - [x] **P6 · Connect to SQL Server (AA)** — **DONE.** Live ingestion via FastAPI + pyODBC backend (`GET /api/data`); 138,775 rows loaded into `Playground.dbo.Input_To_ML`; console button wired; hosting packaged (Docker/Windows-service/systemd). See `IMP_DOCS/installation-and-connection.md`.
 - [ ] **P4 · Phase-1 digest** — one-click export of *all* flagged queues (multi-queue scan → top-N → printable/report page). Main remaining build.
