@@ -42,10 +42,17 @@ from datetime import datetime, timezone
 PROVIDER_ENDPOINTS = {
     "groq": "https://api.groq.com/openai/v1/chat/completions",
     "nvidia": "https://integrate.api.nvidia.com/v1/chat/completions",
+    # Google's OpenAI-compatibility layer for Gemini -- same request/response shape as
+    # groq/nvidia above, so it needs no new transport code, just this endpoint entry.
+    "gemini": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
 }
 DEFAULT_MODELS = {
     "groq": "llama-3.3-70b-versatile",
     "nvidia": "nvidia/nemotron-3-super-120b-a12b",
+    # Verified 200 against the live key. Every "pro"-tier Gemini model (2.5-pro, 3-pro-preview,
+    # 3.1-pro-preview, pro-latest) returned 429 quota=0 on this account's free tier; every
+    # "flash"-tier model returned 200. Pro needs a Google Cloud project with billing enabled.
+    "gemini": "gemini-3.6-flash",
 }
 
 # Columns whose "outlier" / "changed" flags are meaningless and were driving generic

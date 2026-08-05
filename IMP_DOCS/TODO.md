@@ -2,6 +2,31 @@
 
 Deploy **30 Jul 2026** · last dev day **29 Jul**. Ordered by priority.
 
+## Done ✓ (2026-08-05, session 26 — Gemini added; two more Root Cause duplication bugs closed)
+- [x] **Gemini wired in as a third LLM provider** via Google's OpenAI-compatibility endpoint
+      (zero changes needed to `llm_client.py`/`_post` — same request/response shape as
+      NVIDIA/Groq). Live-verified which models the account's key can actually use: all
+      "flash"-tier models work (`gemini-3.6-flash` set as default, per the user's pick), all
+      "pro"-tier models return `429 quota=0` on the free tier (needs billing enabled). Key lives
+      in `backend/config.json`'s new `tertiary` slot — confirmed gitignored.
+- [x] **Every ranked cause (up to 5) was getting the full 4-part narrative**, not just the
+      winner — `prompts.py` required it unconditionally for both the prose instruction and the
+      JSON schema's `explanation` field. Fixed: only rank 1 gets the full structure now; ranks
+      2-5 get one short sentence. Directly caused the "5 full paragraphs = 5 competing root
+      causes" pattern flagged in the Session 25 `yes.md` review, reproduced live with Gemini.
+- [x] **`reasoning_narrative` still defaulted to `executive_summary`** even when a ranked cause
+      existed — two separately-written model fields both describing the same winning cause,
+      similar enough to notice as a repeat but different enough in wording that dedup missed it.
+      Fixed in `business_report_generator.back_compat`: only falls back to `executive_summary`
+      when there's no ranked cause to duplicate against. Live-verified on a real Brazil queue via
+      Gemini: **7 Root Cause bullets → 1 clean bullet.**
+- Verification note: a hand-rolled test script briefly gave a false "still 7 bullets" read
+  because the script itself had drifted from the real `getRootCausePoints()` (it still simulated
+  pulling from `key_findings`/`supporting_evidence`/`historical_comparison`, removed from the
+  actual function back in Session 25). Rebuilt the test harness to mirror the live function
+  exactly before trusting any further result — worth remembering next time a quick test
+  contradicts a code-level fix that's otherwise clearly correct.
+
 ## Deferred — not urgent, do later
 - [ ] **Canary QA pass on the `approved` branch** (pinned to `48e9711`). This branch was pushed as
       the business-approved Root Cause baseline (causal-clause contract + dynamic multi-factor

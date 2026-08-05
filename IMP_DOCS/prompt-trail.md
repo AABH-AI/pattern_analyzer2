@@ -524,3 +524,61 @@ tested-good reference; `main` is further ahead with Statistical Evidence but was
 user as still showing a "not available" leak in its deterministic fallback path this same day
 (fixed on `main`, then discarded per the user's "revert to Thursday" instruction — see the
 immediately preceding session's notes above this one for that history).
+
+---
+
+## Session 26 — 2026-08-05 · Gemini added as a third provider; two more duplication bugs closed
+
+**Part 1 — Gemini integration.** User added a Gemini API key (env var not found on the Windows
+side after checking; user pasted the key directly). Verified live before writing any code:
+- `GET https://generativelanguage.googleapis.com/v1beta/models?key=...` → 50 models available.
+- Google's OpenAI-compatibility endpoint (`.../v1beta/openai/chat/completions`) accepts the
+  exact same request shape (`model`, `messages`, `temperature`, `response_format`) already used
+  for NVIDIA/Groq — confirmed with a real POST before wiring anything in, so `chat_json`/`_post`
+  needed zero changes.
+- Tested every plausible model against the live key individually: **every "flash"-tier model
+  returned 200** (`gemini-3.6-flash`, `gemini-flash-latest`, `gemini-3.5-flash`,
+  `gemini-flash-lite-latest`, `gemini-3-flash-preview`, `gemini-3.1-flash-lite`); **every
+  "pro"-tier model returned 429 quota=0** on this account's free tier (`gemini-2.5-pro`,
+  `gemini-3-pro-preview`, `gemini-3.1-pro-preview`, `gemini-pro-latest`) — Pro needs a Google
+  Cloud project with billing enabled here.
+- Wired in: `PROVIDER_ENDPOINTS`/`DEFAULT_MODELS` in `rca_investigate.py` (default
+  `gemini-3.6-flash`, per the user's explicit pick once confirmed it worked);
+  `DEFAULT_SELECTABLE_MODELS` in `sql_backend.py` (4 flash models); a new `tertiary` slot in
+  `backend/config.json` (confirmed gitignored — key never committed) and a matching empty
+  placeholder in `config.example.json` for documentation.
+- **Live-verified end-to-end** through the real `/api/rca-investigate?mode=wfm` endpoint (not
+  just a raw curl to Google) with `provider=gemini&model=gemini-3.6-flash` — `investigation_meta`
+  confirmed `engine: wfm-llm`, `provider: gemini`, producing a proper grounded root cause.
+
+**Part 2 — using Gemini surfaced two more duplication bugs** (found live, testing a real Brazil
+queue at ~95% confidence with 7 Root Cause bullets, most of them redundant):
+1. **The prompt required the full 4-part narrative for EVERY ranked cause (up to 5), not just
+   the winner** (`prompts.py`, both the prose instruction and the JSON schema's `explanation`
+   field description said this unconditionally). When the model returned several ranked causes,
+   each got a complete multi-sentence paragraph, and all of them rendered as separate "Root
+   Cause" bullets — reading as competing conclusions with no answer, the same complaint from
+   Session 25's `yes.md` review, now reproduced with a different provider. Fixed: only rank 1 /
+   `executive_summary` gets the full structure; ranks 2-5 get one or two sentences stating the
+   alternative and why it fits less well.
+2. **`reasoning_narrative` still defaulted to `executive_summary` whenever a ranked cause
+   existed** (`business_report_generator.back_compat`) — `executive_summary` and
+   `primary_root_cause.statement` (`= ranked_root_causes[0].explanation`) are two SEPARATELY
+   model-written fields both instructed to describe the same winning cause in the same 4-part
+   structure. Close enough in meaning for a reader to notice the repeat, different enough in
+   exact wording that substring/exact dedup never caught it. Fixed: only fall back to
+   `executive_summary` when there is no ranked cause for it to duplicate against.
+
+**Verification discipline:** the first live re-test after fix #1 still showed multiple root
+cause bullets in a hand-rolled test script's output — traced to the test script itself using
+STALE frontend logic (it still simulated pulling from `key_findings`/`supporting_evidence`/
+`historical_comparison`, which Session 25 had already removed from the real
+`getRootCausePoints()`). Rebuilt the test harness to mirror the actual current function
+byte-for-byte before trusting any further result. Final confirmed result on the same real
+Brazil queue, same live Gemini call: **7 bullets → 1 clean bullet.**
+
+**Also mid-session:** the user shared a screenshot showing 5 bullets (an intermediate state)
+moments after a server restart was issued — timing overlap made it ambiguous whether the
+screenshot reflected the fix or predated it. Resolved by checking the running server process's
+actual start time against the fix commit's timing, then re-testing live rather than assuming
+either way.

@@ -243,6 +243,17 @@ DEFAULT_SELECTABLE_MODELS = [
      "label": "Nemotron 3 Ultra 550B — flagship (may be busy)"},
     {"provider": "groq", "model": "llama-3.3-70b-versatile",
      "label": "Llama 3.3 70B (Groq) — fast baseline"},
+    # Verified reachable 2026-08-05 against the live key via Gemini's OpenAI-compat endpoint.
+    # Pro-tier models (2.5-pro, 3-pro-preview, 3.1-pro-preview, pro-latest) all returned 429
+    # quota=0 on this account's free tier -- omitted until billing is enabled for them.
+    {"provider": "gemini", "model": "gemini-3.6-flash",
+     "label": "Gemini 3.6 Flash — newest, strong reasoning"},
+    {"provider": "gemini", "model": "gemini-flash-latest",
+     "label": "Gemini Flash (latest)"},
+    {"provider": "gemini", "model": "gemini-3.5-flash",
+     "label": "Gemini 3.5 Flash — stable"},
+    {"provider": "gemini", "model": "gemini-flash-lite-latest",
+     "label": "Gemini Flash-Lite (latest) — fastest, lightweight"},
 ]
 
 

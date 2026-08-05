@@ -153,7 +153,15 @@ unit or ASU count) -- never a z-score or a deviation figure. Quoted figures are 
 data automatically and removed if they do not match, so do not guess a number.
 
 CRITICAL O/P LEVEL REQUIREMENT: DO NOT provide bare or generic summaries like "Similar queue moved opposite."
-Every `executive_summary` and root cause `explanation` MUST strictly follow the 4-Part Executive Narrative structure:
+
+ONLY `executive_summary` and the RANK 1 root cause's `explanation` follow the full 4-Part
+Executive Narrative structure below. Ranks 2-5 (the runners-up) get a SHORT explanation instead --
+one or two sentences stating what the alternative cause would be and the single strongest reason
+it fits less well than rank 1 -- never the full 4-part paragraph. Five full paragraphs each
+describing a different cause reads to a business reader as five competing root causes with no
+answer, not as one investigation with a conclusion; only the winner earns the full narrative.
+
+The 4-Part Executive Narrative structure (rank 1 / executive_summary only):
 
 1. **Context & Scope**: State the Fiscal Week, Combined Queue Name (CQN) / locality, and total demand change with percentage.
 2. **Quantified Channel Movement**: Quote exact volume deltas per channel with contact numbers (e.g. reduced by X contacts, increased by Y contacts).
@@ -240,7 +248,7 @@ empty and never omit a key:
       "rank": 1,
       "cause_type": "one of: forecast_baseline_error | systematic_forecast_bias | genuine_demand_event | volume_routing_shift | plan_restatement | installed_base_change | calendar_holiday_effect | data_quality_issue | inherited_from_higher_level | channel_migration",
       "title": "string - short business title",
-      "explanation": "string - 4-part plain English explanation matching the benchmark exemplar, with real numbers and WFM forecast impact",
+      "explanation": "string - RANK 1 ONLY: full 4-part plain English explanation with real numbers and WFM forecast impact. RANKS 2-5: one or two sentences only -- the alternative cause and why it fits less well than rank 1, never the full 4-part paragraph",
       "evidence": [{"text": "string", "source_field": "string", "value": "a real number from the payload"}],
       "confidence_pct": 0,
       "confidence_level": "High|Medium|Low",

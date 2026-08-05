@@ -28,13 +28,23 @@
       "api_key": "",
       "model": "llama-3.3-70b-versatile"
     },
+    "tertiary": {
+      "_comment": "Optional third slot. Any provider name works as long as PROVIDER_ENDPOINTS (rca_investigate.py) has an entry for it. Gemini works via Google's OpenAI-compat endpoint -- verify your key's tier: free-tier keys get 429 quota=0 on 'pro' models, only 'flash' models are usable without billing enabled.",
+      "provider": "gemini",
+      "api_key": "",
+      "model": "gemini-3.6-flash"
+    },
     "_selectable_models_comment": "Optional. Models the console's per-queue picker offers (filtered to providers with a key). Verify ids against your account — the NVIDIA catalog lists models not provisioned for every account. Omit to use the built-in default list.",
     "selectable_models": [
       {"provider": "nvidia", "model": "nvidia/nemotron-3-super-120b-a12b", "label": "Nemotron 3 Super 120B — fast, strong reasoning", "default": true},
       {"provider": "nvidia", "model": "deepseek-ai/deepseek-v4-flash", "label": "DeepSeek V4 Flash — reasoning"},
       {"provider": "nvidia", "model": "nvidia/llama-3.3-nemotron-super-49b-v1.5", "label": "Nemotron Super 49B — reasoning, fast"},
       {"provider": "nvidia", "model": "nvidia/nemotron-3-ultra-550b-a55b", "label": "Nemotron 3 Ultra 550B — flagship (may be busy)"},
-      {"provider": "groq", "model": "llama-3.3-70b-versatile", "label": "Llama 3.3 70B (Groq) — fast baseline"}
+      {"provider": "groq", "model": "llama-3.3-70b-versatile", "label": "Llama 3.3 70B (Groq) — fast baseline"},
+      {"provider": "gemini", "model": "gemini-3.6-flash", "label": "Gemini 3.6 Flash — newest, strong reasoning"},
+      {"provider": "gemini", "model": "gemini-flash-latest", "label": "Gemini Flash (latest)"},
+      {"provider": "gemini", "model": "gemini-3.5-flash", "label": "Gemini 3.5 Flash — stable"},
+      {"provider": "gemini", "model": "gemini-flash-lite-latest", "label": "Gemini Flash-Lite (latest) — fastest, lightweight"}
     ]
   }
 }
