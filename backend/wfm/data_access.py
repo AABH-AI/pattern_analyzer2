@@ -23,12 +23,21 @@ _HISTORY_COLS = ("Fiscal_Week", "Actual_Offered", "fcst_offered", "Holiday_Count
 
 # Levels for the investigation ladder, highest first. Each entry is the grouping that
 # defines that level; a level is skipped if any of its dimensions is missing.
+# Business Org is deliberately NOT a level: every row in this table carries the same value
+# (CSG, confirmed 2026-08-05 against the live data), so a "Business Org" level would just
+# repeat the whole-table total under a label that implies drill-down granularity it doesn't
+# have. Offering inserted between Country and Channel per the business's own drill-down ask,
+# to explain a DEMAND SWITCH -- volume moving between Offerings/Channels within the same
+# locality rather than genuinely changing -- which the old ladder had no way to see; it only
+# ever asked "did adherence also miss one level up", never "did the same volume just move
+# sideways within this level". business_org still narrows every query below (there being only
+# one value costs nothing), it just isn't reported as its own drill-down step.
 _LADDER_LEVELS = (
-    ("Business Org", ["business_org"]),
-    ("Region", ["business_org", "Region"]),
-    ("SubRegion", ["business_org", "Region", "SubRegion"]),
-    ("Country", ["business_org", "Region", "SubRegion", "Country"]),
-    ("Channel", ["business_org", "Region", "SubRegion", "Country", "channel"]),
+    ("Region", ["Region"]),
+    ("SubRegion", ["Region", "SubRegion"]),
+    ("Country", ["Region", "SubRegion", "Country"]),
+    ("Offering", ["Region", "SubRegion", "Country", "Offering"]),
+    ("Channel", ["Region", "SubRegion", "Country", "Offering", "channel"]),
 )
 
 
@@ -95,7 +104,7 @@ def fetch_wfm_context(cur, table, key, map_table=CQN_MAP_TABLE):
     if out["cqn_names"]:
         cqn_marks = ", ".join("?" for _ in out["cqn_names"])
         cur.execute(
-            f"SELECT d.Fiscal_Week, d.channel, d.Forecast_name, d.Actual_Offered, d.fcst_offered "
+            f"SELECT d.Fiscal_Week, d.channel, d.Offering, d.Forecast_name, d.Actual_Offered, d.fcst_offered "
             f"FROM {table} d "
             f"WHERE d.Fiscal_Week IN ({marks}) AND EXISTS ("
             f"  SELECT 1 FROM {map_table} m WHERE m.Forecast_Name = d.Forecast_name "
@@ -109,7 +118,7 @@ def fetch_wfm_context(cur, table, key, map_table=CQN_MAP_TABLE):
         if dims:
             where = " AND ".join(f"{d} = ?" for d in dims)
             cur.execute(
-                f"SELECT Fiscal_Week, channel, Forecast_name, Actual_Offered, fcst_offered "
+                f"SELECT Fiscal_Week, channel, Offering, Forecast_name, Actual_Offered, fcst_offered "
                 f"FROM {table} WHERE {where} AND Fiscal_Week IN ({marks})",
                 tuple([key[d] for d in dims] + weeks))
             cols = [d[0] for d in cur.description]

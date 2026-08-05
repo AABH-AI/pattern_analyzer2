@@ -65,6 +65,16 @@ def derive_wfm_features(context_bundle, wfm_context, band):
             wfm_context.get("channel_sibling_rows") or [], week, fields.get("channel"),
             cqn_names=wfm_context.get("cqn_names"),
             cqn_source=wfm_context.get("cqn_source", "proxy")),
+        # Same rows, same arithmetic, grouped by Offering instead of channel -- answers
+        # "did volume move between Offerings" the same way channel_siblings answers "did it
+        # move between channels". Part of the Region->SubRegion->Country->Offering->Channel
+        # drill-down the business asked for (2026-08-05) to explain a demand SWITCH, not just
+        # whether a higher level also missed.
+        "offering_siblings": channel_migration_detector.analyse(
+            wfm_context.get("channel_sibling_rows") or [], week, fields.get("Offering"),
+            cqn_names=wfm_context.get("cqn_names"),
+            cqn_source=wfm_context.get("cqn_source", "proxy"),
+            group_field="Offering", group_label="Offering"),
         "investigation_ladder": hierarchy_analyzer.analyse(
             wfm_context.get("ladder") or [], adherence, band),
         "data_quality": data_quality.analyse(history, wfm_context.get("history_forward") or [],
@@ -87,6 +97,7 @@ def _payload(context_bundle, features, adherence, band):
         "DERIVED_FEATURES": features.get("base_features"),
         "TEMPORAL": features.get("temporal"),
         "CHANNEL_SIBLINGS": features.get("channel_siblings"),
+        "OFFERING_SIBLINGS": features.get("offering_siblings"),
         "INVESTIGATION_LADDER": features.get("investigation_ladder"),
         "DATA_QUALITY": features.get("data_quality"),
         "CORRELATIONS": features.get("correlations"),
@@ -126,6 +137,16 @@ def _assemble(parsed, features, adherence, band, provider, model):
         "cqn_note": siblings.get("cqn_note"),
         "detail": siblings,
     }
+    offerings = features.get("offering_siblings") or {}
+    out["offering_migration"] = {
+        "detected": bool(offerings.get("migration_detected")),
+        "narrative": offerings.get("note", ""),
+        "gaining_offerings": offerings.get("gaining_channels") or [],
+        "losing_offerings": offerings.get("losing_channels") or [],
+        "grouped_by": offerings.get("grouped_by"),
+        "is_cqn_proxy": offerings.get("is_cqn_proxy"),
+        "detail": offerings,
+    }
     # Merge, don't replace: the computed metrics are the trustworthy ones, and a short list
     # from the model must not suppress them.
     model_metrics = [m for m in (out.get("technical_metrics") or []) if isinstance(m, dict)]
@@ -153,6 +174,7 @@ def _fallback(features, adherence, band, reason):
 
     ladder = features.get("investigation_ladder") or {}
     siblings = features.get("channel_siblings") or {}
+    offerings = features.get("offering_siblings") or {}
     top = causes[0] if causes else {}
 
     out = {
@@ -173,6 +195,13 @@ def _fallback(features, adherence, band, reason):
                               "combined_queue_names": siblings.get("combined_queue_names") or [],
                               "cqn_note": siblings.get("cqn_note"),
                               "detail": siblings},
+        "offering_migration": {"detected": bool(offerings.get("migration_detected")),
+                               "narrative": offerings.get("note") or "",
+                               "gaining_offerings": offerings.get("gaining_channels") or [],
+                               "losing_offerings": offerings.get("losing_channels") or [],
+                               "grouped_by": offerings.get("grouped_by"),
+                               "is_cqn_proxy": offerings.get("is_cqn_proxy"),
+                               "detail": offerings},
         "technical_metrics": report.technical_metrics(features),
         "missing_information": [
             f"{reason} This report was built from the deterministic data checks only - it is "

@@ -23,6 +23,11 @@ CAUSE_TYPES = (
     "data_quality_issue",
     "inherited_from_higher_level",
     "channel_migration",
+    # Added 2026-08-05: demand switching between Offerings (Basic/Pro/OOP/Premium) rather than
+    # channels -- same arithmetic as channel_migration (channel_migration_detector.analyse with
+    # group_field="Offering"), part of the Region->SubRegion->Country->Offering->Channel
+    # drill-down the business asked for.
+    "offering_migration",
 )
 
 

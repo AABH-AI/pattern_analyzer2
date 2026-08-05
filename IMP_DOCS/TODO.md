@@ -2,6 +2,30 @@
 
 Deploy **30 Jul 2026** · last dev day **29 Jul**. Ordered by priority.
 
+## Done ✓ (2026-08-05, session 27 — Offering/Channel drill-down; richer data table; hallucination fix)
+- [x] **Drill-down ladder extended to Region → SubRegion → Country → Offering → Channel**
+      (Business Org dropped — confirmed a constant `{'CSG'}` across the whole table, never a
+      meaningful level). Chose Python pre-computing the drill-down over LLM tool-calling SQL, per
+      the user's explicit pick, matching the existing "arithmetic wins over narration" design.
+      New `offering_migration` cause type wired through `common.py`, `skeptic.py`,
+      `hypothesis_generator.py`, `investigation_engine.py`, `prompts.py`; `channel_migration_detector`
+      generalized to take any `group_field`. Full detail: `prompt-trail.md` Session 27.
+- [x] **Bug found and fixed: the ladder silently stopped at Country** — `sql_backend.py`'s `key`
+      dict for `fetch_wfm_context` was missing `"Offering"`, so the ladder loop's own guard
+      skipped Offering/Channel every time. Live-verified fix: all 5 levels now populate real
+      cascading adherence numbers.
+- [x] **Loaded a richer data table, `dbo.Input_To_ML_Full`** (88,816 rows, real channel/Offering
+      diversity), per user's file, as a NEW table (existing `Input_To_ML_P1` untouched); app
+      config repointed at it.
+- [x] **Fixed a verbatim-exemplar hallucination** — NVIDIA's Nemotron copied the prompt's
+      illustrative "Voice became over-forecast while Chat became under-forecast" example into a
+      real Email-channel queue with no migration detected. Added an explicit anti-copy /
+      no-narrative-when-not-detected instruction to `prompts.py`. Live-verified clean on the same
+      queue.
+- [x] **Removed the "Under-forecast — actual came in above plan" caption line** from the queue
+      list's Forecast Adherence tile (`rca_console.html`, not the investigation report) per user
+      request — plain "Forecast Adherence" label only now.
+
 ## Done ✓ (2026-08-05, session 26 — Gemini added; two more Root Cause duplication bugs closed)
 - [x] **Gemini wired in as a third LLM provider** via Google's OpenAI-compatibility endpoint
       (zero changes needed to `llm_client.py`/`_post` — same request/response shape as

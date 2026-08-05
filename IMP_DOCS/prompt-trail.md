@@ -582,3 +582,64 @@ moments after a server restart was issued — timing overlap made it ambiguous w
 screenshot reflected the fix or predated it. Resolved by checking the running server process's
 actual start time against the fix commit's timing, then re-testing live rather than assuming
 either way.
+
+---
+
+## Session 27 — 2026-08-05 · Drill-down ladder to Offering/Channel; richer data table; hallucination fix
+
+**Part 1 — drill-down feature.** User asked for a Region → SubRegion → Country → Offering →
+Channel drill-down to understand "Demand Switch" (volume moving between segments of one
+dimension rather than genuinely changing). Business Org excluded by design — confirmed live via
+SQL that it is a constant (`{'CSG'}` only) across the whole table, so it can never be a
+meaningful ladder level. User was asked whether the drill-down queries should be run by Python
+(deterministic, pre-computed) or by giving the LLM tool-calling access to construct its own SQL —
+chose **Python pre-computes it**, consistent with the codebase's existing "arithmetic wins over
+narration" design.
+- `data_access.py`'s `_LADDER_LEVELS` extended from `Business Org → Region → SubRegion →
+  Country → Channel` to `Region → SubRegion → Country → Offering → Channel`; `Offering` added to
+  the SQL SELECT for sibling rows.
+- `channel_migration_detector.analyse()` generalized to take a `group_field`/`group_label` so the
+  same channel-migration logic can run against `Offering` as a segment dimension too
+  (`by_channel_details` renamed `by_segment_details`).
+- New `offering_migration` cause type wired through the whole pipeline: `common.py` (CAUSE_TYPES),
+  `skeptic.py` (precondition), `hypothesis_generator.py` (always-hypothesis set, `mark()` reason
+  text, deterministic ranked-entry block), `investigation_engine.py` (`derive_wfm_features`,
+  `_payload`, `_assemble`, `_fallback`), `prompts.py` (new "OFFERING SWITCH DETECTION" section,
+  updated investigation order, updated cause_type enum).
+- **Bug found and fixed:** the ladder was silently stopping at Country — traced to
+  `sql_backend.py`'s `key` dict (built for `fetch_wfm_context`) missing `"Offering"` entirely, so
+  the ladder-building loop's own guard (`if any(key.get(g) in (None, "") for g in group):
+  continue`) skipped Offering and Channel every time. Fixed by adding `"Offering":
+  fields.get("Offering")` to the key dict.
+- **Live-verified** end-to-end on a real queue (Benelux Client Core Email, FW202625, -240.2%
+  adherence): all 5 levels populated with real cascading adherence (Region -0.6% → SubRegion
+  -1.7% → Country -15.6% → Offering -29.0% → Channel -240.2%), correctly inherited from Country,
+  correctly found no channel/Offering migration for this queue.
+
+**Part 2 — richer data table.** The active SQL table had almost no channel/Offering diversity,
+which would have made the new drill-down untestable. User pointed at a richer local file
+(`Input_To_ML_20260706110242.csv 1 (1).xlsx`, 88,816 rows) and confirmed (via question) to load
+it as a **new** table `dbo.Input_To_ML_Full` rather than overwrite the existing one, then
+confirmed pointing the app at it. `config.json`'s `sql.table` and `excel_path` updated
+accordingly (gitignored, not committed).
+
+**Part 3 — verbatim-exemplar hallucination.** Live testing turned up NVIDIA's Nemotron writing
+"Voice became over-forecast while Chat became under-forecast" for a queue whose real channel was
+Email with `channel_migration.detected: False` — a literal copy of `prompts.py`'s illustrative
+benchmark example into a factually contradicting context. Fixed with an explicit instruction in
+`prompts.py` forbidding copying the example's specific words/numbers, and forbidding any
+channel/Offering-migration sentence at all when `migration_detected` is false for the queue being
+written about. **Live-verified** on the same Benelux Email queue above — no Voice/Chat text
+appeared, both migration narratives correctly reported "not detected".
+
+**Part 4 — UI cleanup.** User asked to remove the "Under-forecast — actual came in above plan" /
+"Over-forecast — actual came in below plan" / "On plan" caption line shown under the Forecast
+Adherence tile in the queue list (`rca_console.html`, queue-card rendering, ~line 1637) — not the
+investigation report, the top-level Findings list. Removed the conditional `<div class="adhdir">`
+block, leaving the plain "Forecast Adherence" label. Verified live against the served page for
+the actual removed text (not just the CSS class name, since the unused `.adhdir{}` style rule
+staying in the `<style>` block is harmless and was a false positive on a first check).
+
+**Verification discipline:** all of the above tested against the live running server via real
+`/api/rca-investigate` and `/api/queue-context` calls on real rows from the new table, not mocked
+data or isolated unit tests.

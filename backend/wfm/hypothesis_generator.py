@@ -22,6 +22,7 @@ _ALWAYS_HYPOTHESIS = {
     "data_quality_issue",
     # Migration is computed on a PROXY grouping, not the authoritative mapped CQN.
     "channel_migration",
+    "offering_migration",
 }
 
 
@@ -36,6 +37,8 @@ def mark(causes, features):
         if ctype in _ALWAYS_HYPOTHESIS:
             if ctype == "data_quality_issue":
                 reasons.append("the figure has to be validated at source before it can be confirmed")
+            elif ctype == "offering_migration":
+                reasons.append("Offering grouping is a proxy for the Combined Queue, not the mapped CQN")
             else:
                 reasons.append("channel grouping is a proxy for the Combined Queue, not the mapped CQN")
 
@@ -62,6 +65,7 @@ def deterministic(features, fallback_finding, fallback_ctype):
     dq = features.get("data_quality") or {}
     ladder = features.get("investigation_ladder") or {}
     siblings = features.get("channel_siblings") or {}
+    offerings = features.get("offering_siblings") or {}
     corr = (features.get("correlations") or {}).get("driver_decomposition") or {}
 
     out = []
@@ -107,6 +111,20 @@ def deterministic(features, fallback_finding, fallback_ctype):
             55,
             "Treating this as a forecasting miss would push the wrong correction into the plan.",
             "Review routing and channel-mix assumptions for this locality.",
+            HYPOTHESIS))
+
+    if offerings.get("migration_detected"):
+        out.append(_entry(
+            len(out) + 1, "offering_migration",
+            "Customer demand shifted between Offerings within the same Combined Queue",
+            offerings.get("note"),
+            [{"text": f"The group total moved from {offerings.get('group_total_prior_week')} to "
+                      f"{offerings.get('group_total_this_week')} while individual Offerings moved "
+                      f"{offerings.get('gross_channel_movement')} in total.",
+              "source_field": "Actual_Offered", "value": offerings.get("group_total_this_week")}],
+            55,
+            "Treating this as a forecasting miss would push the wrong correction into the plan.",
+            "Review Offering-mix assumptions for this locality.",
             HYPOTHESIS))
 
     if corr.get("available"):

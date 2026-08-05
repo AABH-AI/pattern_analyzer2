@@ -352,8 +352,8 @@ def rca_investigate(context_bundle: dict, provider: str = Query("", description=
             "Forecast_name": (target.get("key") or {}).get("Forecast_name") or fields.get("Forecast_name"),
             "Fiscal_Week": (target.get("key") or {}).get("Fiscal_Week") or fields.get("Fiscal_Week"),
             "Region": fields.get("Region"), "SubRegion": fields.get("SubRegion"),
-            "Country": fields.get("Country"), "channel": fields.get("channel"),
-            "business_org": fields.get("business_org"),
+            "Country": fields.get("Country"), "Offering": fields.get("Offering"),
+            "channel": fields.get("channel"), "business_org": fields.get("business_org"),
         }
         wfm_context = {}
         conn = None

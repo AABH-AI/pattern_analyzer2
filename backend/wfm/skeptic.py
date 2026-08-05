@@ -61,6 +61,10 @@ PRECONDITIONS = {
         lambda f: bool((f.get("channel_siblings") or {}).get("migration_detected")),
         "channel movements in this locality do not cancel out, so demand did not shift between channels",
     ),
+    "offering_migration": (
+        lambda f: bool((f.get("offering_siblings") or {}).get("migration_detected")),
+        "Offering movements in this locality do not cancel out, so demand did not shift between Offerings",
+    ),
     "data_quality_issue": (
         lambda f: bool((f.get("data_quality") or {}).get("suspect")),
         "the recorded value is not implausible against this queue's history",

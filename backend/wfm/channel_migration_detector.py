@@ -1,4 +1,11 @@
-"""Channel migration: did demand move BETWEEN channels rather than total demand changing?
+"""Demand-switch detection: did volume move BETWEEN segments of one dimension rather than
+total demand genuinely changing? Originally channel-only ("did customers switch from Voice to
+Chat"); generalised 2026-08-05 to any single grouping field so the SAME arithmetic also answers
+"did volume move between Offerings" (Region -> SubRegion -> Country -> Offering -> Channel is
+the business's own drill-down order -- see IMP_DOCS/wfm-rca-engine.md). One SQL fetch already
+carries both `channel` and `Offering` per row (data_access.py), so this is called twice on the
+same rows: once grouped by channel (existing behaviour, unchanged for any existing caller that
+doesn't pass group_field), once by Offering.
 
 READ THIS BEFORE CHANGING THE GROUPING
 --------------------------------------
@@ -17,8 +24,8 @@ Open question for the business is tracked in IMP_DOCS/TODO.md (P1b).
 """
 from .common import CHANNEL_SIBLING_DIMS, num, rnd
 
-# A migration looks like: channels moved a lot individually, group total barely moved.
-_MIN_OFFSET_SHARE = 0.6      # >=60% of gross channel movement cancels out
+# A migration looks like: segments moved a lot individually, group total barely moved.
+_MIN_OFFSET_SHARE = 0.6      # >=60% of gross movement cancels out
 _MAX_NET_SHARE = 0.25        # net group change stays under 25% of the prior total
 
 _CQN_NOTE = ("Grouped by locality + business org across all channels. The console's "
@@ -26,62 +33,67 @@ _CQN_NOTE = ("Grouped by locality + business org across all channels. The consol
              "for the Combined Queue, not the authoritative mapped CQN.")
 
 
-def analyse(rows, target_week, target_channel, cqn_names=None, cqn_source="proxy"):
+def analyse(rows, target_week, target_channel, cqn_names=None, cqn_source="proxy",
+            group_field="channel", group_label="Channel"):
+    """group_field is the row key to segment by (e.g. "channel" or "Offering"); group_label is
+    its business-facing name, used only in narrative text. Defaults preserve exact prior
+    behaviour for any caller that doesn't pass these two (channel migration detection)."""
     if not rows:
         return {"available": False,
-                "reason": "No channel-sibling rows returned for this locality."}
+                "reason": f"No sibling rows returned for this locality to check {group_label} movement."}
 
     weeks = sorted({str(r.get("Fiscal_Week")) for r in rows})
     if len(weeks) < 2:
         return {"available": False,
-                "reason": "Only one week of channel-sibling data available; week-over-week "
-                          "migration cannot be tested."}
+                "reason": f"Only one week of data available; week-over-week {group_label} "
+                          f"movement cannot be tested."}
     prev_wk, this_wk = weeks[0], weeks[-1]
 
-    def by_channel_details(wk):
+    def by_segment_details(wk):
         agg = {}
         names_map = {}
         for r in rows:
             if str(r.get("Fiscal_Week")) != str(wk):
                 continue
-            ch = r.get("channel") or "(unknown)"
+            seg = r.get(group_field) or "(unknown)"
             fn = r.get("Forecast_name")
-            agg[ch] = agg.get(ch, 0.0) + (num(r.get("Actual_Offered")) or 0.0)
-            if ch not in names_map:
-                names_map[ch] = set()
+            agg[seg] = agg.get(seg, 0.0) + (num(r.get("Actual_Offered")) or 0.0)
+            if seg not in names_map:
+                names_map[seg] = set()
             if fn:
-                names_map[ch].add(fn)
+                names_map[seg].add(fn)
         return agg, names_map
 
-    now, names_now = by_channel_details(this_wk)
-    before, names_before = by_channel_details(prev_wk)
+    now, names_now = by_segment_details(this_wk)
+    before, names_before = by_segment_details(prev_wk)
 
-    channels = sorted(set(now) | set(before))
+    segments = sorted(set(now) | set(before))
     deltas = []
-    for ch in channels:
-        c_now = rnd(now.get(ch, 0.0))
-        c_before = rnd(before.get(ch, 0.0))
-        ch_change = rnd(c_now - c_before)
-        s_names = sorted(names_now.get(ch, set()) | names_before.get(ch, set()))
+    for seg in segments:
+        c_now = rnd(now.get(seg, 0.0))
+        c_before = rnd(before.get(seg, 0.0))
+        seg_change = rnd(c_now - c_before)
+        s_names = sorted(names_now.get(seg, set()) | names_before.get(seg, set()))
         s_text = ", ".join(s_names) if s_names else ""
-        c_label = f"{ch} ({s_text})" if s_text else f"{ch} channel"
+        c_label = f"{seg} ({s_text})" if s_text else f"{seg} {group_label.lower()}"
         deltas.append({
-            "channel": ch,
-            "sibling_queue_names": s_names,
-            "sibling_queues_text": s_text,
+            "channel": seg,                       # key name kept for back-compat with existing
+            group_field: seg,                     # readers of channel-mode output; also exposed
+            "sibling_queue_names": s_names,        # under the real group_field name for offering
+            "sibling_queues_text": s_text,         # mode and any future dimension.
             "channel_label": c_label,
             "prior_week_actual": c_before,
             "this_week_actual": c_now,
-            "change": ch_change,
-            "abs_change": abs(ch_change),
-            "is_target_channel": ch == target_channel
+            "change": seg_change,
+            "abs_change": abs(seg_change),
+            "is_target_channel": seg == target_channel
         })
 
     total_now, total_before = sum(now.values()), sum(before.values())
     net = total_now - total_before
     gross = sum(abs(d["change"]) for d in deltas)
     offset_share = (1.0 - abs(net) / gross) if gross else 0.0
-    detected = bool(len(channels) > 1 and gross > 0
+    detected = bool(len(segments) > 1 and gross > 0
                     and offset_share >= _MIN_OFFSET_SHARE
                     and abs(net) < max(1.0, _MAX_NET_SHARE * abs(total_before or 1)))
 
@@ -105,7 +117,7 @@ def analyse(rows, target_week, target_channel, cqn_names=None, cqn_source="proxy
     elif len(delta_phrases) > 2:
         deltas_text = f"{delta_phrases[0]} while " + ", ".join(delta_phrases[1:-1]) + f" and {delta_phrases[-1]}"
     else:
-        deltas_text = "channel volumes remained unchanged"
+        deltas_text = f"{group_label.lower()} volumes remained unchanged"
 
     cqn_total_phrase = (
         f"remained almost unchanged ({cqn_pct_str})" if abs(cqn_pct) < 3.0
@@ -116,17 +128,25 @@ def analyse(rows, target_week, target_channel, cqn_names=None, cqn_source="proxy
     cqn_label = (f"the Combined Queue ({cqn_names[0]})" if (authoritative and cqn_names)
                  else "the Combined Queue")
 
+    is_channel_mode = (group_field == "channel")
     formatted_narrative = (
         f"During Fiscal Week {this_wk}, total demand across {cqn_label} {cqn_total_phrase}. "
         f"However, {deltas_text}. "
-        f"This indicates that customers chose different contact channels rather than demand reducing. "
-        f"Because the forecast was generated independently for each Forecast Name instead of the CQN, "
-        f"over-forecast and under-forecast errors occurred across individual channels."
+        + (f"This indicates that customers chose different contact channels rather than demand reducing. "
+           f"Because the forecast was generated independently for each Forecast Name instead of the CQN, "
+           f"over-forecast and under-forecast errors occurred across individual channels."
+           if is_channel_mode else
+           f"This indicates that volume shifted between {group_label} segments rather than total "
+           f"demand genuinely changing. Because forecasts are generated independently per Forecast "
+           f"Name rather than at the {group_label} level, over-forecast and under-forecast errors "
+           f"occurred across individual {group_label.lower()}s.")
     )
 
 
     return {
         "available": True,
+        "group_field": group_field,
+        "group_label": group_label,
         "grouped_by": ("Combined_Queue_Name (authoritative mapping)" if authoritative
                        else " + ".join(CHANNEL_SIBLING_DIMS)),
         "combined_queue_names": list(cqn_names or []),
@@ -153,7 +173,7 @@ def analyse(rows, target_week, target_channel, cqn_names=None, cqn_source="proxy
         "deltas_text": deltas_text,
         "formatted_narrative": formatted_narrative,
         "note": (formatted_narrative if detected else
-                 "Channel movements do not cancel out, so this is not a like-for-like "
-                 "shift between channels."),
+                 f"{group_label} movements do not cancel out, so this is not a like-for-like "
+                 f"shift between {group_label.lower()}s."),
     }
 

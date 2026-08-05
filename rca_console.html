@@ -1634,7 +1634,7 @@ function selectFlag(i){
         <div class="rtitle">${r.Forecast_name} ${r._mapped?'<span class="badge ok">mapped</span>':'<span class="badge unm">unmapped</span>'}</div>
         <div class="rmeta">${r.Region||''} · ${r.SubRegion||''} · ${r.Country||''} · ${r.channel||''}<br>Fiscal Week ${r._wk} · Plan: ${r.Projection_plan_name||'—'} · Forecaster: ${r.Forecaster||'—'}</div>
       </div>
-      <div class="acc"><div class="big" style="color:${accCol}">${r._padh!=null?r._padh.toFixed(1)+'%':'N/A'}</div><div class="lbl">Forecast Adherence${r._padh!=null?'<div class="adhdir">'+(r._padh<0?'Under-forecast — actual came in above plan':(r._padh>0?'Over-forecast — actual came in below plan':'On plan'))+'</div>':''}</div></div>
+      <div class="acc"><div class="big" style="color:${accCol}">${r._padh!=null?r._padh.toFixed(1)+'%':'N/A'}</div><div class="lbl">Forecast Adherence</div></div>
     </div>
     <div class="subhead">Findings <span style="text-transform:none;font-weight:500;color:var(--muted)">(ⓘ = the exact formula &amp; numbers)</span></div>
     <ul class="rca-bullets">${bullets}</ul>
