@@ -267,7 +267,10 @@ def back_compat(result, base_features):
     adh_val = kpi_st.get("adherence_pct")
     miss_dir = kpi_st.get("direction")
     if adh_val is None:
-        adh_val = (base_features or {}).get("this_week_vs_usual", {}).get("target_adherence_pct")
+        # .get(key, {}) only supplies the default when the KEY IS MISSING -- derive_features()
+        # can return this_week_vs_usual: None explicitly (not omitted), which crashed here with
+        # AttributeError: 'NoneType' object has no attribute 'get'. `or {}` catches both cases.
+        adh_val = ((base_features or {}).get("this_week_vs_usual") or {}).get("target_adherence_pct")
     result["forecast_summary"] = {
         "forecast": fc_val,
         "actual": act_val,

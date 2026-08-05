@@ -1895,7 +1895,8 @@ function formatInvestigation(resp, ctx){
     confidence_score: resp.confidence_score!=null? resp.confidence_score : null,
     missing_information: resp.missing_information||[],
     proof: proofArr,
-    investigation_meta: resp.investigation_meta||{}
+    investigation_meta: resp.investigation_meta||{},
+    investigation_summary: resp.investigation_summary||null
   };
 }
 
