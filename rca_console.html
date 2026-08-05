@@ -1931,23 +1931,45 @@ function formatBoldText(s) {
   return res;
 }
 
+// Internal 4-part-narrative template labels the prompt uses as WRITING STRUCTURE for the model,
+// never meant to appear as literal text in the output. The model sometimes echoes them anyway
+// ("Context & Scope: Fiscal Week 202526, the SubRegion..."). Strip them so the sentence they
+// introduce survives as plain prose instead of losing the whole bullet.
+function stripNarrativeLabels(str) {
+  if (!str) return str;
+  return str.replace(/\b(Context\s*&\s*Scope|Quantified Channel Movement|Business Lead Interpretation|WFM Forecasting Mechanism\s*&\s*Impact)\s*:\s*/gi, '');
+}
+
+// A PRINCIPLED rule instead of an ever-growing list of phrasings: a sentence that names a
+// hierarchy level (Business Org/Region/SubRegion/Country/Channel) alongside a number, but
+// contains NONE of the words that would connect the number to a reason, is a bare metric dump
+// regardless of how it's worded ("Region adherence 11.9%", "Region (CSG/APJ) forecast adherence
+// was 12.5%, exceeding the threshold" -- both trip this, without needing a new regex per variant).
+const _METRIC_DUMP_LEVEL_RE = /\b(Business Org|Region|SubRegion|Country|Channel)\b/i;
+const _METRIC_DUMP_NUMBER_RE = /-?\d[\d,]*\.?\d*\s*%?/;
+const _CAUSAL_CONNECTOR_RE = /\b(because|so\b|which means|indicat|result|driven by|due to|caused|leading to|leads? to)\b/i;
 function isRawMetricDump(str) {
   if (!str) return true;
   const s = str.trim();
-  // Detect bare metric dumps like "Region adherence 11.9% exceeds threshold" or "Region actual offered 89,746 vs forecast 101,814.9"
-  if (/^Region (adherence|actual offered|forecast offered|offered|actual)/i.test(s)) return true;
   if (/^(Actual_Offered|fcst_offered|Actual offered|Forecast offered)\s*(exceeds|is|=|vs)/i.test(s)) return true;
+  if (_METRIC_DUMP_LEVEL_RE.test(s) && _METRIC_DUMP_NUMBER_RE.test(s) && !_CAUSAL_CONNECTOR_RE.test(s)) return true;
   return false;
 }
 
-function getSixOrMoreRootCausePoints(f) {
+// Root Cause shows ONLY causal reasoning: the primary explanation, genuinely distinct
+// supporting narrative, and other ranked causes. It does NOT pull from key_findings,
+// supporting_evidence, or historical_comparison -- those already have their own cards, and
+// re-showing them here (even after dedup) is exactly what put Key Findings sentences
+// verbatim into Root Cause: they don't collide with anything already in THIS list, so
+// within-list dedup never catches a fact that's only duplicated against a DIFFERENT card.
+function getRootCausePoints(f) {
   let raw = f.reasoning_points || invToPoints(f.reasoning_narrative);
   if (!Array.isArray(raw)) raw = [];
   const seen = new Set();
   let cleanPts = [];
 
   function addPoint(p) {
-    const str = (p || '').trim();
+    const str = stripNarrativeLabels((p || '').trim()).trim();
     if (!str || isRawMetricDump(str)) return;
     const lower = str.toLowerCase();
     // Prevent exact duplicates or duplicate substrings
@@ -1963,18 +1985,6 @@ function getSixOrMoreRootCausePoints(f) {
   if (f.primary_root_cause && f.primary_root_cause.statement) {
     addPoint(f.primary_root_cause.statement);
   }
-
-  (f.supporting_evidence || []).forEach(e => {
-    const txt = typeof e === 'string' ? e : (e.text || '');
-    addPoint(txt);
-  });
-
-  (f.key_findings || []).forEach(k => {
-    addPoint(k);
-  });
-
-  const hc = (f.historical_comparison || {}).narrative;
-  if (hc) addPoint(hc);
 
   (f.secondary_contributors || []).forEach(sc => {
     if (sc && sc.statement) addPoint(sc.statement);
@@ -2043,7 +2053,7 @@ function renderInvestigationReport(f, ctx){
       ${invConfMeter(confScore)}
     </div>` : '';
 
-  const rcPoints = getSixOrMoreRootCausePoints(f);
+  const rcPoints = getRootCausePoints(f);
   const narrativeHtml=`<details class="inv-sec" open>
     <summary style="display:flex;align-items:center;justify-content:space-between;width:100%;">
       <span style="font-weight:800;font-size:13.5px;text-transform:uppercase;letter-spacing:.6px;">Root Cause</span>

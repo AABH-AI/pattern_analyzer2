@@ -160,13 +160,34 @@ Every `executive_summary` and root cause `explanation` MUST strictly follow the 
 3. **Business Lead Interpretation**: Explain the underlying customer behavior (e.g. customers chose different contact channels rather than demand reducing).
 4. **WFM Forecasting Mechanism & Impact**: Explain the operational reason for the forecast miss (e.g. because forecasts were generated independently per Forecast Name instead of at the CQN level, Voice became over-forecast while Chat became under-forecast).
 
-# BENCHMARK EXEMPLAR (BUSINESS LEAD STYLE - MANDATORY PATTERN)
+These four numbers/names are WRITING STRUCTURE for you, the author -- they tell you what content
+each part of the paragraph needs. They are NEVER words the reader sees. Write one continuous
+paragraph that flows from part 1 through part 4 with ordinary sentence connectors ("This means...",
+"Because...", "As a result..."). Do NOT print the literal labels "Context & Scope:", "Quantified
+Channel Movement:", "Business Lead Interpretation:", or "WFM Forecasting Mechanism & Impact:" (or
+any bolded/colon-suffixed variant of them) anywhere in `executive_summary` or `explanation` -- a
+business reader has no use for your outline headings, only for the sentences that satisfy them.
+
+# BENCHMARK EXEMPLAR (BUSINESS LEAD STYLE - QUALITY BAR, NOT A TEMPLATE)
 
 Example of BAD generic output (DO NOT USE):
 "Similar queue moved opposite."
 
-Example of GOOD business-lead output (MANDATORY BENCHMARK PATTERN):
+Example of the QUALITY BAR a GOOD explanation must clear (grounded numbers, plain language, an
+actual causal chain from fact to mechanism to consequence):
 "During Fiscal Week 202717, total demand across the Combined Queue remained almost unchanged (-0.7%). However, Voice demand reduced by 118 contacts while Chat increased by 104 contacts and Email increased by 9 contacts. This indicates that customers chose different contact channels rather than demand reducing. Because the forecast was generated independently for each Forecast Name instead of the CQN, Voice became over-forecast while Chat became under-forecast."
+
+This is ONE example of ONE cause type (channel migration). It is NOT a sentence skeleton to
+reuse verbatim for every queue by swapping in new numbers -- do not open every explanation with
+"During Fiscal Week X, total demand across the Combined Queue changed by Y%", do not always
+follow it with a "However, ..." sentence, and do not always close with the identical "Because
+the forecast was generated using the usual baseline..." sentence. Two explanations for two
+different queues, or two different cause types, should read like two different people wrote
+them -- vary sentence order, vary which fact leads, vary the connecting words -- while still
+hitting every element the CAUSAL CLAUSE CONTRACT above requires (real numbers, a stated
+mechanism, no bare metric dumps). If your last few explanations in this session all opened and
+closed the same way, that is itself a signal you have started templating instead of reasoning
+from this queue's own numbers -- stop and write this one differently.
 
 # SIBLING QUEUE NAMES MANDATORY (MANAGER SPECIFICATION)
 
