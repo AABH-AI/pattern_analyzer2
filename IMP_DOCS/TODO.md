@@ -2,6 +2,32 @@
 
 Deploy **30 Jul 2026** · last dev day **29 Jul**. Ordered by priority.
 
+## Done ✓ (2026-08-06, session 29 — new `UI` branch, premium visual redesign)
+- [x] **New `UI` branch created from `approved-test`'s tip** (`42d1d5a`), cloned into its own
+      sibling folder (`pattern_analyzer2-UI`), opened in a new VS Code window — `approved-test`
+      itself was never switched, edited, or touched at any point (confirmed via `git status`/
+      `git log` throughout).
+- [x] **Full visual redesign of `rca_console.html`** — rewrote the entire `<style>` block
+      (~300 rules) to a "Corporate SaaS polish" design system (new indigo accent `#4f46e5`,
+      refined neutral palette, new radius/shadow token scales), keeping every CSS selector name
+      identical so **zero HTML/JS changes were needed** — same exact functionality, new look,
+      applied consistently across all 7 tabs (RCA Console, Dashboard, Architecture, Tech Stack,
+      AI Models, Data & Files, Definitions & Formulas).
+- [x] **Found and fixed 2 real hardcoded hex colors** that would have clashed with the new
+      palette (an old `--warn` value hardcoded in a table row, an old accent/panel pair hardcoded
+      in the Interrogation Q&A renderer) — both now reference live CSS variables.
+- [x] **Added a favicon** (inline SVG, no external dependency) — fixes a cosmetic 404 flagged
+      since Canary V0.1.
+- [x] **Live QA with Canary** — recorded a session, screenshotted all 7 tabs + the SQL modal +
+      empty states; everything renders cleanly with the new palette, no visual bugs found.
+- [ ] **Not yet verified: the live investigation report screen** (Root Cause, Scope card,
+      Evidence, Interrogation) under the new palette — SQL/VPN dropped mid-session before that
+      screenshot could be taken. Re-check once back on VPN; the shared component rewrite should
+      cover it (`.inv-card`/`.rc-card`/`.rca-bullets` were all rewritten) but hasn't been
+      confirmed with a live screenshot yet.
+- [ ] Further iterative polish (icons/illustrations, per-component bespoke touches beyond the
+      systemic token rewrite) possible if the user wants to go further after reviewing this pass.
+
 ## Done ✓ (2026-08-06, session 28 — Root Cause quality regression fixed)
 - [x] **Diagnosed why Root Cause quality suddenly looked "trash"** — `approved-test` branched from
       the same `ad14000` commit as `approved`, but only received Shivam's Scope Card/Evidence Pack/

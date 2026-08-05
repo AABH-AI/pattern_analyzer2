@@ -752,3 +752,82 @@ from `c958330`/`11de141`, confirmed by re-reading the diff top to bottom before 
 **Committed and pushed to `origin/approved-test`** — this session's full working tree (Session
 27's UI cleanup + Session 28's Root Cause regression fix + `IMP_DOCS/verify_drilldown.sql`) as one
 commit, `ce44ebf` (`ca90880..ce44ebf`), confirmed landed on the remote.
+
+---
+
+## Session 29 — 2026-08-06 · New `UI` branch: premium visual redesign for executives
+
+**Context.** User asked for a full visual overhaul of `rca_console.html` for an executive audience —
+"exact same functionalities, but more premium/legendary design" — explicit direction: minimal
+animation (quality-of-life over motion), and **do not touch `approved-test`** even if something on
+it looks broken. Design direction, chosen by the user from a set of options: **Corporate SaaS
+polish** (Stripe/Linear/Notion-style — clean, confident, calm; neutral palette + one strong accent,
+generous whitespace, crisp typography, subtle depth), light-theme only (no dark-mode toggle), and
+**all 7 tabs** redesigned consistently, not just RCA Console/Dashboard.
+
+**Branch isolation (per explicit instruction — never touch `approved-test`):**
+1. From the `pattern_analyzer2-approved-test` clone (kept ON `approved-test` throughout, never
+   switched), ran `git branch UI` + `git push -u origin UI` — a new branch pointing at
+   `approved-test`'s exact tip (`42d1d5a`), created without ever checking it out in that clone.
+2. Cloned `UI` fresh into its own sibling folder, `pattern_analyzer2-UI`, copied the gitignored
+   `backend/config.json` over by hand, and opened it in a new VS Code window — the same
+   isolation pattern used for `approved-test` itself back in Session 26.
+3. Confirmed via `git status`/`git log` at every step that the `approved-test` clone's working
+   tree and branch never changed.
+
+**Design approach.** Given the scale (2,000+ lines, one `<style>` block, 7 tabs), the highest-
+leverage move was systemic rather than per-tab: nearly every component across every tab already
+shares one small set of CSS custom properties (`--bg`, `--panel`, `--border`, `--text`, `--muted`,
+`--accent`, etc.) and reused classes (`.card`, `.tag`, `.chip`, `.badge`, nav, buttons, tables).
+Rewriting those foundational tokens and shared component rules delivers a consistent premium look
+across all 7 tabs from one coordinated change, rather than 7 separate bespoke passes that risk
+drifting out of sync with each other.
+
+**What changed (the entire `<style>` block, ~300 rules, rewritten in place — every existing
+selector name kept identical, so zero HTML/JS changes were needed):**
+- **New design tokens**: refined neutral palette (`--bg:#f7f8fb`, `--panel:#fff`,
+  `--border:#e4e7ec`) + one strong indigo accent (`--accent:#4f46e5`, replacing the old flat blue
+  `#2d6cdf`) + refined semantic colors (`--accent-2` emerald `#059669`, `--danger` red `#dc2626`,
+  `--warn` amber `#d97706`, `--purple` violet `#7c3aed`) — plus new tokens the old CSS didn't have
+  at all: a radius scale (`--r-sm/md/lg/xl`) and a 3-tier shadow scale (`--sh-sm/md/lg`) modeled on
+  Stripe/Linear's soft, layered elevation rather than the old flat 1px-border-everywhere look.
+- **Nav bar**: deeper near-black (`#0b0f1e` vs the old navy `#0d1b3e`), refined active-tab
+  indicator color, slightly dimmer inactive-link color for better hierarchy.
+- **Cards, tags, chips, badges, buttons, tables**: every one of these shared components now
+  carries a subtle shadow (`--sh-sm`, growing to `--sh-md` on hover) instead of a flat border only,
+  refined radius (12–16px vs the old 8–12px), tighter/bolder heading weights, and hover states
+  that shift shadow/border rather than nothing at all — all still with NO transform/motion beyond
+  what already existed, per the "don't put too much pressure on animation" instruction.
+- **The dark "EPIC" volumetrics hero and dashboard charts**: recolored from the old blue/green
+  gradient to an indigo/violet gradient consistent with the new accent, so the one intentionally
+  dark section still reads as part of the same design system instead of a leftover from the old
+  palette.
+- **Found and fixed 2 real leftover hardcoded hex colors** that would have silently clashed with
+  the new palette had they been left: a `#c96a10` (the OLD `--warn` value) hardcoded directly in a
+  JS-generated table row instead of `var(--warn)`, and a `#123a7a`/`#f6f8fc` pair hardcoded in the
+  Interrogation Q&A card renderer instead of `var(--accent)`/`var(--panel-2)`. Both now reference
+  the live CSS variables so they can never drift from the palette again.
+- **Added a favicon** (inline SVG data-URI, indigo rounded square with the same accent color, no
+  external file/network dependency) — fixes a known cosmetic issue flagged as far back as Canary
+  V0.1 (a 404 on every page load) as a small bonus quality-of-life fix while already in this file.
+- Confirmed via `python -c` brace-counting that the rewritten `<style>` block is balanced
+  (298 open / 298 close), and via `node --check` that the JS (untouched) still parses clean.
+
+**Live QA — used Canary directly** (the `canary:session-agent` subagent turned out to lack a Bash
+tool in this environment and couldn't drive a browser at all; ran the same session myself instead
+via the `canary` CLI directly, which worked fine). Recorded a session against the running server,
+clicked through all 7 tabs, opened the SQL connect modal, and reviewed every screenshot: nav,
+cards, tags, badges, empty states, the Definitions table, and the SQL modal all render cleanly with
+the new palette, no overlapping/misaligned/low-contrast text found anywhere. Attempted to load real
+data via "Connect to SQL Server" to screenshot a full investigation report (the most visually
+complex screen — Key Findings, Root Cause, Scope card, etc.) but the SQL connection dropped
+mid-session (VPN, an environment issue unrelated to the redesign) before that screenshot could be
+taken — flagged as a follow-up to re-check once back on VPN.
+
+**Not yet done:** the investigation-report screen (Root Cause, Scope card, Evidence, Interrogation)
+has not been visually confirmed live under the new palette — the shared component rewrite should
+cover it (it reuses `.inv-card`, `.rc-card`, `.rca-bullets`, `.chip`, `.tag`, all rewritten), but
+this needs a real screenshot once SQL/VPN is available again to be certain nothing in that
+specific screen looks off. Also not done: no bespoke icon/illustration work, and no per-component
+polish beyond what the systemic token rewrite achieves — further iterative refinement is possible
+if the user wants to go further after reviewing this pass live.
