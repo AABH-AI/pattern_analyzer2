@@ -64,6 +64,19 @@ def scope_analysis(ladder, target_adherence, target_variance, queue_name):
     queue's share of the wider gap. Deliberately labelled `scope`, never `root cause`.
     """
     levels = (ladder or {}).get("levels") or []
+
+    # Business Org is dropped from this card. It is the entire book -- every queue in the
+    # deployment rolls into the one row, so it is the same figure on every report and it
+    # breaches on almost every one. A level that is always present and almost always red
+    # carries no information about THIS queue, and it was crowding out the levels that do.
+    #
+    # Filtered here rather than in `data_access` so the rung stays available to the skeptic,
+    # the prompts and the driver gate, which legitimately compare against the book total.
+    # `first_breach` is computed from the rows BELOW, so removing the row also moves the
+    # card's "the pattern starts at ..." sentence to the highest level still shown -- the
+    # narrative and the table cannot disagree.
+    levels = [lv for lv in levels if str(lv.get("level", "")).strip().lower() != "business org"]
+
     if not levels:
         return {"available": False,
                 "reason": "Higher-level figures were not available for this period, so the "
@@ -108,10 +121,23 @@ def scope_analysis(ladder, target_adherence, target_variance, queue_name):
             f"({first_breach['adherence_pct']:+.1f}%) across "
             f"{first_breach['queues_in_scope']} queue-week(s).")
         if share is not None:
+            # A share under half a percent formatted as "about 0% of it", which reads as
+            # "none of it" when the queue does contribute. Say it is small instead of
+            # rounding it away.
+            share_txt = "under 1%" if share < 0.005 else f"about {share:.0%}"
             narrative += (f" {queue_name} accounts for {_fmt(abs(target_variance))} of that gap, "
-                          f"about {share:.0%} of it.")
-        narrative += (" Every level above this one is within threshold, so this is where the "
-                      "wider pattern begins.")
+                          f"{share_txt} of it.")
+        # Only claim the levels above are clean when there ARE levels above it on this card.
+        # Business Org is filtered out here, so the top row has nothing shown above it --
+        # and asserting "every level above is within threshold" would be a statement about
+        # a level the reader cannot see, and in practice a false one, since the book total
+        # breaches on most reports.
+        if rows and rows[0] is not first_breach:
+            narrative += (" Every level above this one is within threshold, so this is where "
+                          "the wider pattern begins.")
+        else:
+            narrative += (" This is the highest level shown, so the pattern may extend wider "
+                          "than this card displays.")
     else:
         narrative = ("No higher level missed in the same direction, so this movement is "
                      "specific to this queue rather than part of a wider pattern.")

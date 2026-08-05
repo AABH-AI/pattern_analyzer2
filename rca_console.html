@@ -2130,12 +2130,9 @@ function renderDecisionCard(resp, ctx){
           are the deterministic reasoning behind the cause -- so they stay; only the
           redundant fixed questions go. */''}
     ${(rc.why_chain&&rc.why_chain.available)?`
-      <div style="margin-top:12px;border-top:1px solid #e5e7eb;padding-top:10px;">
-        <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">How this was reached</div>
-        <ul style="margin:6px 0 0 18px;line-height:1.7;">
-          ${(rc.why_chain.levels||[]).slice(1).map(l=>`<li>${invEsc(l.answer)}</li>`).join('')}
-        </ul>
-      </div>`:''}
+      <ul style="margin:8px 0 0 18px;line-height:1.7;">
+        ${(rc.why_chain.levels||[]).slice(1).map(l=>`<li>${invEsc(l.answer)}</li>`).join('')}
+      </ul>`:''}
     ${scope.available?`
       <div style="margin-top:12px;border-top:1px solid #e5e7eb;padding-top:10px;">
         <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">Scope — where the miss is visible, and how much</div>
@@ -2220,13 +2217,20 @@ function renderDecisionCard(resp, ctx){
             :`<div style="color:#8a5a00;">Not answered.</div>`)}
     </div>`;}).join('');
   const notAsked=(ig.not_asked||[]).map(n=>`<li>${invEsc(n.tempting_question||'')} — <span style="color:#6b7280;">${invEsc(n.rejected_because||'')}</span></li>`).join('');
+  // NEVER render nothing. A card that vanishes leaves the reader unable to tell whether the
+  // step is off, still running, or broken -- and it hid a real defect for a whole session.
+  // When it did not run, say so and say why.
+  const interroEmpty=`<div class="inv-card">
+    <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Interrogation — WHY, asked of these findings</div>
+    <div style="margin-top:8px;line-height:1.6;color:#8a5a00;">${invEsc(ig.reason||'This report was produced without the interrogation step.')}</div>
+  </div>`;
   const interro=(ig.available&&(ig.questions||[]).length)?`<div class="inv-card">
     <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Interrogation — WHY, asked of these findings</div>
     <div style="font-size:11.5px;color:#6b7280;font-style:italic;margin-top:6px;line-height:1.55;">A reviewer reads the findings above and asks what they leave unexplained. Each answer comes from the evidence file, never from the model's own words — where the data cannot settle a question, it says so.</div>
     <div style="margin-top:8px;">${qaRows}</div>
     ${notAsked?`<div style="margin-top:10px;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">Deliberately not asked — the data does not exist</div>
       <ul style="margin:6px 0 0 18px;line-height:1.6;font-size:12px;">${notAsked}</ul>`:''}
-  </div>`:'';
+  </div>`:interroEmpty;
 
   /* --- 5: evidence, both directions --- */
   const ev=s['5_evidence']||{};

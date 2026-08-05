@@ -55,6 +55,7 @@ from . import hypothesis_catalogue as cat
 from . import decision_card
 from . import narrative_prompt
 from . import recursive_why
+from . import why_rephrase
 from . import why_prompt
 from .context_repository import holiday_context
 from .common import adherence_pct, num, rnd
@@ -675,6 +676,28 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
     _step(10, "Recursive Root Cause Reasoning",
           f"asked WHY {why['depth_reached']} level(s) deep; stopped because "
           f"{why['termination_reason']}")
+
+    # The FACTS above are deterministic and stay that way. Only their WORDING is handed to
+    # the model, because assembling every report from the same f-strings made each one read
+    # identically with different numbers -- and a reader who sees the same sentence every
+    # week stops believing the queue was looked at. Every figure in a rewrite is checked
+    # back against the finding it came from; anything that fails keeps its original wording.
+    try:
+        why, _wording_note = why_rephrase.apply(
+            why,
+            {"queue": (fields or {}).get("Forecast_name"),
+             "week": target_week,
+             "region": (fields or {}).get("Region"),
+             "country": (fields or {}).get("Country"),
+             "offering": (fields or {}).get("Offering"),
+             "channel": (fields or {}).get("channel"),
+             "direction": ("Over-forecast" if adherence > 0 else "Under-forecast"),
+             "adherence_pct": rnd(adherence)},
+            lambda msgs: _call_llm(msgs, llm_cfg, model_choice, prefer_fast=True))
+    except Exception as exc:
+        _wording_note = f"kept deterministic wording: {type(exc).__name__}: {exc}"
+        why = dict(why); why["wording"] = {"error": _wording_note}
+    _step(10, "Root Cause Wording", _wording_note)
 
     # --- Step 11 -- BEFORE confidence ------------------------------------------
     feat["alternatives"] = {"count": max(0, len(generated) - 1)}
