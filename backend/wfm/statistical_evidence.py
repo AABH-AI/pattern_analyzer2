@@ -380,13 +380,32 @@ def _outliers(rows, target_week):
             scored.append({"fiscal_week": w, "actual": _rnd(ac), "modified_z": _rnd(mz, 2),
                            "direction": "spike" if mz > 0 else "dip"})
     tgt = next((s for s in scored if target_week is not None and int(s["fiscal_week"]) == int(target_week)), None)
+    # A bare count is not a finding. "22 of 124 weeks are outliers" leaves the reader to
+    # work out whether that is a lot -- and it is: a robust rule should flag 1-2% of weeks,
+    # so 18% means the queue swings so widely that "this week was exceptional" carries very
+    # little weight. That conclusion is the point of the count, so it is stated.
+    share = (len(scored) / len(rows)) if rows else 0.0
+    if not scored:
+        context = f" No other week in the last {len(rows)} is an outlier, so this stands alone."
+    elif share >= 0.10:
+        context = (f" But {len(scored)} of {len(rows)} weeks ({share:.0%}) in the window are also "
+                   f"outliers -- which means this queue swings widely as a matter of course, and "
+                   f"a week being unusual is weak evidence that anything unusual happened.")
+    elif share >= 0.04:
+        context = (f" {len(scored)} of {len(rows)} weeks ({share:.0%}) in the window are outliers "
+                   f"-- which means spikes like this are uncommon but not rare for this queue, so "
+                   f"treat it as notable rather than exceptional.")
+    else:
+        context = (f" Only {len(scored)} of {len(rows)} weeks ({share:.0%}) in the window are "
+                   f"outliers -- which means this is genuinely rare for this queue and worth "
+                   f"explaining on its own.")
+
     reading = (
         (f"This week is itself a statistical outlier for this queue: {tgt['actual']:,.0f} contacts "
          f"against a typical {med:,.0f} -- a genuine {tgt['direction']}, not a rounding issue."
          if tgt else
          f"This week is not an outlier for this queue (typical level {med:,.0f} contacts).")
-        + (f" {len(scored)} of {len(rows)} weeks in the window are outliers."
-           if scored else f" No outlier weeks in the last {len(rows)}.")
+        + context
     )
     return {"available": True, "n": len(rows), "median_actual": _rnd(med), "mad": _rnd(mad),
             "outlier_weeks": scored[-8:], "outlier_count": len(scored),
@@ -423,9 +442,16 @@ def _correlations(history, target_week):
         out.append({"field": field, "subject": label, "pearson_r": _rnd(r, 3), "n": len(xs),
                     "strength": strength,
                     "direction": "moves together" if r > 0 else "moves opposite",
-                    "reading": (f"Demand and {label} show a {strength} "
+                    # The column name is carried alongside the business term. Four of these
+                    # lines appear together, and a reader scanning them needs to know which
+                    # field each coefficient belongs to without counting rows.
+                    # "measured on levels" collides with the investigation ladder's LEVELS
+                    # (Business Org / Region / Country) shown elsewhere on the same card.
+                    # Say what was actually compared instead of using the term.
+                    "reading": (f"Demand and {label} [{field}] show a {strength} "
                                 f"{'positive' if r > 0 else 'negative'} relationship "
-                                f"(r={r:+.2f} over {len(xs)} weeks).")})
+                                f"(r={r:+.2f} over {len(xs)} weeks, comparing the two totals "
+                                f"across the period rather than their week-to-week changes).")})
     out.sort(key=lambda d: abs(d["pearson_r"]), reverse=True)
     return out
 

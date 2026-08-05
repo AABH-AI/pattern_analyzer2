@@ -23,12 +23,22 @@ _HISTORY_COLS = ("Fiscal_Week", "Actual_Offered", "fcst_offered", "Holiday_Count
 
 # Levels for the investigation ladder, highest first. Each entry is the grouping that
 # defines that level; a level is skipped if any of its dimensions is missing.
+#
+# Order follows the spec's investigation hierarchy: Business Org -> Region -> SubRegion ->
+# Country -> Offering -> Channel, each level narrower than the one above it.
+#
+# Offering was missing. It is a support tier (Basic / Pro / Premium / OOP) and it is a real
+# rung of the hierarchy -- a miss confined to one tier within a country is a different
+# finding from one spread across all tiers, and jumping Country straight to Channel hid
+# that distinction entirely. Channel now nests INSIDE Offering so each row is a strict
+# subset of the row above.
 _LADDER_LEVELS = (
     ("Business Org", ["business_org"]),
     ("Region", ["business_org", "Region"]),
     ("SubRegion", ["business_org", "Region", "SubRegion"]),
     ("Country", ["business_org", "Region", "SubRegion", "Country"]),
-    ("Channel", ["business_org", "Region", "SubRegion", "Country", "channel"]),
+    ("Offering", ["business_org", "Region", "SubRegion", "Country", "Offering"]),
+    ("Channel", ["business_org", "Region", "SubRegion", "Country", "Offering", "channel"]),
 )
 
 

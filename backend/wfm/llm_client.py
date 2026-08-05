@@ -28,7 +28,17 @@ import urllib.request
 from rca_investigate import _extract_json      # loose/fenced JSON parsing, reused as-is
 
 DEFAULT_TIMEOUT_SECONDS = 100
-TEMPERATURE = 0.35        # same as the original engine
+
+# --- Invocation parameters -- FC_RCA_AI_Agent_Architecture.md 15A, all mandatory ---
+#
+# TEMPERATURE 0, not 0.35. The Testing strategy requires "AI reasoning shall be
+# deterministic when identical inputs are supplied". At 0.35 the same queue re-run
+# produced a different narrative every time, which makes an RCA impossible to review and
+# impossible to reproduce from its audit record. Sampling randomness bought nothing here:
+# the model is writing prose from findings that are already fixed, not exploring ideas.
+TEMPERATURE = 0.0
+TOP_P = 1.0               # no nucleus truncation
+SEED = 20260730           # fixed and recorded, for reproducibility where the provider honours it
 
 _UA = "Mozilla/5.0 (compatible; rca-investigation-engine/1.0)"
 
@@ -43,7 +53,8 @@ def timeout_from_config(llm_cfg):
 
 
 def _post(endpoint, api_key, model, messages, timeout, use_response_format):
-    payload = {"model": model, "messages": messages, "temperature": TEMPERATURE}
+    payload = {"model": model, "messages": messages,
+               "temperature": TEMPERATURE, "top_p": TOP_P, "seed": SEED}
     if use_response_format:
         payload["response_format"] = {"type": "json_object"}
     req = urllib.request.Request(

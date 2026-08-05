@@ -1808,8 +1808,11 @@ async function buildContext(r){
    honest placeholder — this caller does not fabricate anything if the call fails either. ---- */
 async function callInvestigationEngine(contextBundle){
   const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:8000':'';
-  // If the user picked a model for this queue, route the investigation to it (?mode=wfm&provider=&model=).
-  let q='?mode=wfm';
+  // Engine selector. 'wfm' is the existing default and is unchanged; 'spec' runs the
+  // FC_RCA v2.0.0 canonical 15-step engine, which returns a Decision Card. Both are live
+  // so the same queue can be investigated each way and the outputs compared.
+  const engine=(window.RCA_ENGINE==='spec')?'spec':'wfm';
+  let q='?mode='+engine;
   if(window.RCA_MODEL && window.RCA_MODEL.model){
     q+='&provider='+encodeURIComponent(window.RCA_MODEL.provider||'')+'&model='+encodeURIComponent(window.RCA_MODEL.model);
   }
@@ -1839,9 +1842,27 @@ async function loadRcaModels(){
 function _rcaModelOpts(){
   return window.RCA_MODELS.map((m,idx)=>`<option value="${idx}" ${m===window.RCA_MODEL?'selected':''}>${invEsc(m.label||m.model)}</option>`).join('');
 }
+/* Engine toggle. Both engines stay live so the same queue can be run each way and the
+   outputs compared side by side -- which is the point of building the new one alongside
+   the old rather than replacing it. */
+window.RCA_ENGINE = window.RCA_ENGINE || 'wfm';
+function rcaEngineTogglehtml(){
+  const opt=(v,label)=>`<option value="${v}"${window.RCA_ENGINE===v?' selected':''}>${label}</option>`;
+  return `<label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);">⚙️ Engine
+    <select class="rca-engine-sel" onchange="onRcaEngineChange(this.value)" style="font-size:11px;padding:4px 7px;border:1px solid var(--border);border-radius:7px;background:var(--panel-2);color:var(--text);">
+      ${opt('wfm','WFM (current)')}${opt('spec','FC_RCA v2.0.0 — Decision Card')}
+    </select></label>`;
+}
+function onRcaEngineChange(v){
+  window.RCA_ENGINE=(v==='spec')?'spec':'wfm';
+  document.querySelectorAll('select.rca-engine-sel').forEach(s=>{ s.value=window.RCA_ENGINE; });
+  if(window._rcaCurrent!=null) triggerRCA(window._rcaCurrent, window._rcaForce);   // re-run this queue on the other engine
+}
+
 function rcaModelPickerHtml(){
-  if(!window.RCA_MODELS.length) return '<span style="font-size:11px;color:var(--muted);">AI model picker loads when the backend is running.</span>';
-  return `<label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);">🤖 AI model
+  const engine=rcaEngineTogglehtml();
+  if(!window.RCA_MODELS.length) return engine+' <span style="font-size:11px;color:var(--muted);">AI model picker loads when the backend is running.</span>';
+  return engine+` <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);">🤖 AI model
     <select class="rca-model-sel" onchange="onRcaModelChange(this.value)" style="font-size:11px;padding:4px 7px;border:1px solid var(--border);border-radius:7px;background:var(--panel-2);color:var(--text);max-width:280px;">${_rcaModelOpts()}</select></label>`;
 }
 function onRcaModelChange(idx){
@@ -2012,6 +2033,244 @@ function getRootCausePoints(f){
   (f.secondary_contributors || []).forEach(sc => add((sc || {}).statement));
 
   return out.slice(0, 8);   // runaway guard, NOT a target
+}
+
+/* ---- Executive Decision Card renderer (FC_RCA v2.0.0, ?mode=spec).
+   Kept separate from renderInvestigationReport so the two engines can be compared without
+   either one degrading the other. Two rules from the spec are structural here and are not
+   styling choices:
+     1. The Confidence Panel is NEVER collapsed. Where a prominent number and a hidden
+        caveat disagree, readers act on the number.
+     2. The four hypothesis states must be VISUALLY distinct. "Could not be tested" and
+        "tested and ruled out" lead to opposite actions and must never look alike. ---- */
+const CARD_STATE_COLOUR={'Accepted':'#0b7a3b','Rejected':'#a01b2b','Suppressed':'#b26a00','Not Applicable':'#6b7280'};
+const CARD_STATE_BG={'Accepted':'#e8f6ee','Rejected':'#fdecee','Suppressed':'#fff4e5','Not Applicable':'#f3f4f6'};
+
+function cardNum(v,nd){ return (typeof v==='number')?v.toLocaleString(undefined,{minimumFractionDigits:nd||0,maximumFractionDigits:nd||0}):'—'; }
+
+/* A spec reply with no Decision Card is a legitimate outcome, not an error: the queue may
+   be inside the ±5% generation threshold, or the investigation may have stopped early.
+   Both must SAY SO. Showing empty panels instead would misreport "we found nothing" when
+   the truth is "we did not investigate, and here is why". */
+function renderSpecStatus(resp, ctx){
+  const st=resp.status||'Unknown', reason=resp.reason||'No reason was recorded.';
+  const steps=((resp.audit||{}).steps)||[];
+  const inBand=(st==='NotInvestigated');
+  const colour=inBand?'#0b7a3b':'#b26a00', bg=inBand?'#e8f6ee':'#fff4e5';
+  const stepRows=steps.map(s=>`<tr><td style="padding:3px 8px;color:#6b7280;">${invEsc(s.step)}</td>
+    <td style="padding:3px 8px;font-weight:600;">${invEsc(s.name)}</td>
+    <td style="padding:3px 8px;color:#555;">${invEsc(s.detail)}</td></tr>`).join('');
+  return `<div class="inv-card">
+    <div class="rhead" style="gap:8px;flex-wrap:wrap;">
+      <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">${inBand?'No RCA Generated':'Investigation '+invEsc(st)}</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-left:auto;">${rcaModelPickerHtml()}</div>
+    </div>
+    <div style="margin:10px 0;background:${bg};border:1px solid ${colour}33;border-left:3px solid ${colour};border-radius:0 4px 4px 0;padding:10px 12px;line-height:1.65;">${invEsc(reason)}</div>
+    ${steps.length?`<div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;margin-top:10px;">Steps completed before stopping</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:4px;">${stepRows}</table>`:''}
+    <div class="rmeta" style="margin-top:10px;">Engine ${invEsc(resp.engine||'—')} · audit ${invEsc((resp.audit||{}).input_fingerprint||'—')}</div>
+  </div>`;
+}
+
+function renderDecisionCard(resp, ctx){
+  const c=resp.decision_card||{}, h=c.header||{}, s=c.sections||{};
+  const adh=h.forecast_adherence_pct;
+  const adhColour=(Math.abs(adh||0)>25)?'#a01b2b':(Math.abs(adh||0)>10?'#b26a00':'#0b7a3b');
+
+  const markers=(h.markers||[]).map(m=>`<span style="background:#fdecee;color:#a01b2b;border:1px solid #f3c2c8;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;">${invEsc(m)}</span>`).join(' ');
+
+  /* --- header --- */
+  const head=`<div class="inv-card">
+    <div class="rhead" style="gap:8px;flex-wrap:wrap;">
+      <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Executive Decision Card</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-left:auto;">${rcaModelPickerHtml()}</div>
+    </div>
+    <div class="rmeta" style="margin:2px 0 10px;">${invEsc(h.queue||'—')} · ${invEsc(h.period||'—')} · ${invEsc(h.grain||'weekly')}${markers?' &nbsp; '+markers:''}</div>
+    ${c.incomplete_reason?`<div style="margin:0 0 10px;background:#fff4e5;border-left:3px solid #b26a00;border-radius:0 4px 4px 0;padding:8px 12px;font-size:12px;line-height:1.6;">${invEsc(c.incomplete_reason)}</div>`:''}
+    <div class="inv-kv-grid">
+      <div class="kvi"><div class="l">Forecast Adherence</div><div class="v" style="color:${adhColour};font-weight:800;">${adh>0?'+':''}${invEsc(adh)}%</div></div>
+      <div class="kvi"><div class="l">Direction</div><div class="v">${invEsc(h.direction||'—')}</div></div>
+      <div class="kvi"><div class="l">Absolute Variance</div><div class="v">${cardNum(h.absolute_variance_contacts)} contacts</div></div>
+      <div class="kvi"><div class="l">Forecast / Actual</div><div class="v">${cardNum(h.forecast)} / ${cardNum(h.actual)}</div></div>
+    </div>
+  </div>`;
+
+  /* --- 1 + 2: summary and root cause, with SCOPE figures --- */
+  const rc=s['2_root_cause']||{}, scope=rc.scope||{};
+  const summary=(s['1_executive_summary']||[]).map(b=>`<li>${invEsc(b)}</li>`).join('');
+  // Bold marks a level that BREACHES the threshold, so an un-bolded row is a finding, not
+  // a styling slip -- it means that level is inside tolerance. Left implicit it reads as a
+  // bug, so the state is spelled out in its own column rather than encoded in weight alone.
+  const levels=(scope.levels||[]).map(l=>{
+    const br=l.breaches_band, w=br?'700':'600';
+    return `<tr>
+      <td style="padding:4px 8px;font-weight:${w};">${invEsc(l.level)}</td>
+      <td style="padding:4px 8px;color:#555;">${invEsc(l.scope||'')}</td>
+      <td style="padding:4px 8px;text-align:right;font-weight:${w};">${cardNum(l.actual)}</td>
+      <td style="padding:4px 8px;text-align:right;font-weight:${w};">${cardNum(l.forecast)}</td>
+      <td style="padding:4px 8px;text-align:right;font-weight:${w};">${cardNum(Math.abs(l.gap_contacts||0))}</td>
+      <td style="padding:4px 8px;text-align:right;color:${br?'#a01b2b':'#0b7a3b'};font-weight:700;">${l.adherence_pct>0?'+':''}${invEsc(l.adherence_pct)}%</td>
+      <td style="padding:4px 8px;font-size:11px;color:${br?'#a01b2b':'#0b7a3b'};white-space:nowrap;">${br?'exceeds threshold':'within threshold'}</td>
+    </tr>`;}).join('');
+
+  const cause=`<div class="inv-card">
+    <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Executive Summary</div>
+    <ul style="margin:8px 0 0 18px;line-height:1.65;">${summary}</ul>
+  </div>
+  <div class="inv-card">
+    <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Root Cause</div>
+    ${rc.inconclusive?'<div style="margin:6px 0;background:#fff4e5;border:1px solid #ffd9a0;border-radius:4px;padding:8px 10px;font-weight:700;color:#b26a00;">INCONCLUSIVE — no defensible root cause. This is a valid outcome, not a failure.</div>':''}
+    <div style="margin:8px 0 4px;line-height:1.7;">${invEsc(rc.statement||'—')}</div>
+    <div class="rmeta" style="margin-bottom:10px;">${invEsc(rc.hypothesis||'')}${rc.cross_examination?' · cross-examination: '+invEsc(rc.cross_examination):''}</div>
+    ${/* The deterministic why-chain is rendered as PLAIN BULLETS, not as a second
+          question-and-answer block. Its fixed questions ("Why has the plan been out by
+          around N contacts a week...") duplicated what the Interrogation section below
+          asks dynamically, so the card put two sets of WHY questions in front of the
+          reader for the same finding. The chain's ANSWERS are still worth showing -- they
+          are the deterministic reasoning behind the cause -- so they stay; only the
+          redundant fixed questions go. */''}
+    ${(rc.why_chain&&rc.why_chain.available)?`
+      <div style="margin-top:12px;border-top:1px solid #e5e7eb;padding-top:10px;">
+        <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">How this was reached</div>
+        <ul style="margin:6px 0 0 18px;line-height:1.7;">
+          ${(rc.why_chain.levels||[]).slice(1).map(l=>`<li>${invEsc(l.answer)}</li>`).join('')}
+        </ul>
+      </div>`:''}
+    ${scope.available?`
+      <div style="margin-top:12px;border-top:1px solid #e5e7eb;padding-top:10px;">
+        <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">Scope — where the miss is visible, and how much</div>
+        <div style="margin:6px 0 8px;line-height:1.65;">${invEsc(scope.narrative||'')}</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <tr style="background:#f6f7f9;font-weight:700;text-align:left;">
+            <td style="padding:5px 8px;">Level</td><td style="padding:5px 8px;">Scope</td>
+            <td style="padding:5px 8px;text-align:right;">Actual</td><td style="padding:5px 8px;text-align:right;">Plan</td>
+            <td style="padding:5px 8px;text-align:right;">Gap</td><td style="padding:5px 8px;text-align:right;">Adherence</td><td style="padding:5px 8px;">Status</td>
+          </tr>${levels}
+        </table>
+        <div style="margin-top:8px;font-size:11.5px;color:#6b7280;font-style:italic;">${invEsc(scope.caution||'')}</div>
+      </div>`:''}
+  </div>`;
+
+  /* --- 3: Confidence Panel. ALWAYS VISIBLE. --- */
+  const cp=s['3_confidence']||{};
+  const VCOL={'holding it up':'#0b7a3b','pulling it down':'#a01b2b','neutral':'#6b7280','—':'#9ca3af'};
+  const dimRows=(cp.dimensions||[]).map(d=>{
+    const col=d.state==='Available'?'#111':(d.state==='Missing'?'#a01b2b':'#6b7280');
+    return `<tr style="border-top:1px solid #eef0f3;">
+      <td style="padding:6px 8px;vertical-align:top;">
+        <div style="font-weight:600;">${invEsc(d.plain_name||d.dimension)}</div>
+        <div style="font-size:11px;color:#6b7280;line-height:1.45;">${invEsc(d.meaning||'')}</div>
+      </td>
+      <td style="padding:6px 8px;color:${col};vertical-align:top;white-space:nowrap;">
+        ${(d.state==='Available'&&typeof d.score==='number')?`
+          <div style="display:flex;align-items:center;gap:7px;">
+            <div style="width:64px;height:6px;background:#e9ecf1;border-radius:4px;overflow:hidden;">
+              <div style="width:${Math.round(d.score*100)}%;height:100%;background:${VCOL[d.verdict]||'#6b7280'};"></div>
+            </div>
+            <span style="font-variant-numeric:tabular-nums;">${invEsc(Math.round(d.score*100))}%</span>
+          </div>`:invEsc(d.wording)}
+      </td>
+      <td style="padding:6px 8px;vertical-align:top;color:${VCOL[d.verdict]||'#6b7280'};font-size:11.5px;white-space:nowrap;">${invEsc(d.verdict||'')}</td>
+      <td style="padding:6px 8px;text-align:right;color:#6b7280;vertical-align:top;">${invEsc(d.weight)}</td>
+    </tr>`;}).join('');
+  // The bar is drawn from the CALCULATED score but coloured by the FINAL level, so a
+  // capped result cannot read as though the cap never happened -- the spec forbids
+  // presenting a capped level as the calculated one. Where they differ, a marker shows
+  // where the score sat before the cap bit.
+  const LVLCOL={'Very High':'#0b7a3b','High':'#0b7a3b','Medium':'#b26a00','Low':'#a01b2b','Very Low':'#a01b2b'};
+  const barCol=LVLCOL[cp.final_level]||'#6b7280';
+  const pct=Math.max(0,Math.min(100,cp.score_pct||0));
+  const confBar=`<div style="display:flex;align-items:center;gap:10px;margin-left:auto;">
+      <div style="position:relative;width:150px;height:9px;background:#e9ecf1;border-radius:5px;overflow:hidden;">
+        <div style="width:${pct}%;height:100%;background:${barCol};border-radius:5px;"></div>
+      </div>
+      <div style="font-size:12.5px;font-weight:800;color:${barCol};white-space:nowrap;">${invEsc(cp.score_pct)}% ${invEsc(cp.final_level||'')}</div>
+    </div>`;
+  const conf=`<div class="inv-card" style="border:2px solid #123a7a;">
+    <div class="rhead" style="gap:10px;flex-wrap:wrap;align-items:center;">
+      <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Confidence</div>
+      ${confBar}
+    </div>
+    ${cp.capped?`<div style="font-size:11px;color:#b26a00;margin-top:4px;">Bar shows the calculated score of ${invEsc(cp.score_pct)}% (${invEsc(cp.calculated_level)}); the level is capped at ${invEsc(cp.final_level)}.</div>`:''}
+    ${cp.in_plain_words?`<div style="margin:8px 0;line-height:1.7;">${invEsc(cp.in_plain_words)}</div>`:''}
+    ${cp.cap_statement?`<div style="margin:8px 0;background:#fff4e5;border:1px solid #ffd9a0;border-radius:4px;padding:8px 10px;line-height:1.6;font-size:12px;">${invEsc(cp.cap_statement)}</div>`:
+      `<div class="rmeta" style="margin:6px 0;">Calculated ${invEsc(cp.calculated_level)} (${invEsc(cp.score_pct)}%). No cap applied.</div>`}
+    ${cp.how_to_read?`<div style="font-size:11.5px;color:#6b7280;font-style:italic;margin:6px 0 2px;line-height:1.55;">${invEsc(cp.how_to_read)}</div>`:''}
+    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;">
+      <tr style="background:#f6f7f9;font-weight:700;text-align:left;"><td style="padding:5px 8px;">What was scored</td><td style="padding:5px 8px;">Score</td><td style="padding:5px 8px;">Effect</td><td style="padding:5px 8px;text-align:right;">Weight</td></tr>
+      ${dimRows}
+    </table>
+    <div style="margin-top:10px;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">What would change it</div>
+    <ul style="margin:6px 0 0 18px;line-height:1.6;">${(cp.what_would_change_it||[]).map(w=>`<li>${invEsc(w)}</li>`).join('')}</ul>
+  </div>`;
+
+  /* --- Interrogation: Prompt 2 asked, Prompt 1 answered from evidence --- */
+  const ig=rc.interrogation||{};
+  const ansFor=(qt)=>((ig.answers||[]).find(a=>(a.question||'').trim()===String(qt||'').trim())
+                      ||(ig.answers||[])[(ig.questions||[]).findIndex(q=>q.question===qt)]||null);
+  const qaRows=(ig.questions||[]).map(q=>{
+    const a=ansFor(q.question)||{};
+    const ok=a.answerable;
+    return `<div style="border-left:3px solid ${ok?'#123a7a':'#b26a00'};padding:8px 12px;margin:8px 0;background:${ok?'#f6f8fc':'#fff9ec'};border-radius:0 4px 4px 0;">
+      <div style="font-weight:700;line-height:1.55;">${invEsc(q.question)}</div>
+      <div style="font-size:11px;color:#6b7280;margin:3px 0 6px;">from: ${invEsc(q.arises_from||'—')}</div>
+      ${ok?`<div style="line-height:1.65;">${invEsc(a.answer||'')}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:4px;">answered from: ${invEsc((a.evidence_used||[]).join(', '))}</div>`
+          :(a.what_would_be_needed?`<div style="line-height:1.6;color:#8a5a00;"><b>Cannot be answered from the available data.</b> ${invEsc(a.what_would_be_needed)}</div>`
+            :`<div style="color:#8a5a00;">Not answered.</div>`)}
+    </div>`;}).join('');
+  const notAsked=(ig.not_asked||[]).map(n=>`<li>${invEsc(n.tempting_question||'')} — <span style="color:#6b7280;">${invEsc(n.rejected_because||'')}</span></li>`).join('');
+  const interro=(ig.available&&(ig.questions||[]).length)?`<div class="inv-card">
+    <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Interrogation — WHY, asked of these findings</div>
+    <div style="font-size:11.5px;color:#6b7280;font-style:italic;margin-top:6px;line-height:1.55;">A reviewer reads the findings above and asks what they leave unexplained. Each answer comes from the evidence file, never from the model's own words — where the data cannot settle a question, it says so.</div>
+    <div style="margin-top:8px;">${qaRows}</div>
+    ${notAsked?`<div style="margin-top:10px;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">Deliberately not asked — the data does not exist</div>
+      <ul style="margin:6px 0 0 18px;line-height:1.6;font-size:12px;">${notAsked}</ul>`:''}
+  </div>`:'';
+
+  /* --- 5: evidence, both directions --- */
+  const ev=s['5_evidence']||{};
+  const evList=(arr,sign,col)=>(arr||[]).map(e=>`<li style="color:${col};">${invEsc(e.text||'')}</li>`).join('')||`<li style="color:#6b7280;">none recorded</li>`;
+  const evidence=`<div class="inv-card">
+    <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Evidence</div>
+    <div style="margin-top:8px;font-size:11.5px;font-weight:800;color:#0b7a3b;">SUPPORTING</div>
+    <ul style="margin:4px 0 0 18px;line-height:1.6;">${evList(ev.supporting,'+','#111')}</ul>
+    <div style="margin-top:10px;font-size:11.5px;font-weight:800;color:#a01b2b;">CONTRADICTORY — actively sought</div>
+    <ul style="margin:4px 0 0 18px;line-height:1.6;">${evList(ev.contradictory,'-','#111')}</ul>
+  </div>`;
+
+  /* --- 6: four visually distinct hypothesis states --- */
+  const hc=s['6_hypothesis_comparison']||{};
+  const counts=Object.entries(hc.counts||{}).map(([k,v])=>`<span style="background:${CARD_STATE_BG[k]};color:${CARD_STATE_COLOUR[k]};border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;margin-right:6px;">${invEsc(k)}: ${v}</span>`).join('');
+  const hrows=(hc.rows||[]).map(r=>`<div style="border-left:3px solid ${CARD_STATE_COLOUR[r.state]};background:${CARD_STATE_BG[r.state]};padding:6px 10px;margin:4px 0;border-radius:0 4px 4px 0;">
+      <div style="font-weight:700;font-size:12px;color:${CARD_STATE_COLOUR[r.state]};">${invEsc(r.state)} · ${invEsc(r.id)} ${invEsc(r.name)}</div>
+      <div style="font-size:12px;margin-top:2px;">${invEsc(r.action_hint||'')}</div>
+      ${r.detail?`<div style="font-size:11.5px;color:#555;margin-top:2px;line-height:1.5;">${invEsc(r.detail)}</div>`:''}
+      ${(r.doubts_raised&&r.doubts_raised.length)?`<div style="font-size:11.5px;color:#8a5a00;margin-top:4px;">Doubts raised:<ul style="margin:2px 0 0 16px;line-height:1.5;">${r.doubts_raised.map(d=>`<li>${invEsc(d)}</li>`).join('')}</ul></div>`:''}
+    </div>`).join('');
+  const hyp=`<div class="inv-card">
+    <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Hypotheses Considered</div>
+    <div style="font-size:11.5px;color:#6b7280;font-style:italic;margin-top:6px;line-height:1.55;">Every explanation in the catalogue is checked against this queue. Those that could apply are then put through a fixed set of challenge questions designed to DISPROVE them — what survives is what the data could not knock down.</div>
+    <div style="margin:8px 0;">${counts}</div>${hrows}
+  </div>`;
+
+  /* --- 7 + 8 + 10 --- */
+  const recs=(s['7_recommendations']||[]).map(r=>`<li><b>[${invEsc(r.priority)}]</b> ${invEsc(r.text)}<div style="font-size:11.5px;color:#555;">${invEsc(r.impact||'')}</div></li>`).join('')||'<li style="color:#6b7280;">No recommendation follows from this finding.</li>';
+  const lims=(s['8_limitations']||[]).map(l=>`<li>${invEsc(l)}</li>`).join('')||'<li style="color:#6b7280;">None recorded.</li>';
+  const audit=s['10_audit_reference']||{};
+  const tail=`<div class="inv-card">
+    <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Recommendations</div>
+    <ul style="margin:8px 0 0 18px;line-height:1.7;">${recs}</ul>
+  </div>
+  <div class="inv-card">
+    <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Limitations — what could not be assessed</div>
+    <ul style="margin:8px 0 0 18px;line-height:1.7;">${lims}</ul>
+  </div>
+  <div class="inv-card">
+    <div class="rmeta">Audit ${invEsc(audit.fingerprint||'—')} · catalogue v${invEsc(audit.catalogue_version||'—')} · confidence weights v${invEsc(audit.confidence_weights_version||'—')} · prompt v${invEsc(audit.prompt_version||'—')} · ${invEsc(resp.status||'')} · engine ${invEsc(resp.engine||'')}</div>
+  </div>`;
+
+  return head+cause+interro+conf+evidence+hyp+tail;
 }
 
 function renderInvestigationReport(f, ctx){
@@ -2220,13 +2479,29 @@ async function triggerRCA(i, force){
 
   // 5) RCA Formatter
   state.format='active'; paint();
-  const formatted=formatInvestigation(resp, ctx);
+  // A spec-engine reply has a completely different shape from the legacy one. Routing it
+  // into formatInvestigation() produces a report where every section renders "none
+  // recorded" -- a silent blank that looks like the engine found nothing, when in fact
+  // the renderer simply could not read the response. So the ENGINE decides the renderer,
+  // never the presence of one optional key: a spec reply that legitimately carries no
+  // card (in-band, or incomplete) gets its own status panel and says why.
+  const isSpec = resp && resp.engine === 'spec-v2';
+  const formatted = isSpec ? null : formatInvestigation(resp, ctx);
   await invSleep(200);
   state.format='done'; paint();
 
   // 6) UI Renderer
   state.render='active'; paint();
-  body.innerHTML=renderInvestigationReport(formatted, ctx);
+  try{
+    body.innerHTML = isSpec
+      ? (resp.decision_card ? renderDecisionCard(resp, ctx) : renderSpecStatus(resp, ctx))
+      : renderInvestigationReport(formatted, ctx);
+  }catch(err){
+    // A rendering fault must never leave the panel looking like an empty result.
+    body.innerHTML=`<div class="inv-card"><div class="rtitle" style="color:#a01b2b;">Could not render this report</div>
+      <div class="rmeta" style="margin-top:6px;">${invEsc(err.message||String(err))}</div>
+      <div class="rmeta" style="margin-top:6px;">Engine: ${invEsc((resp&&resp.engine)||'unknown')} · status: ${invEsc((resp&&resp.status)||'unknown')}. The raw reply is in <code>window.LAST_RCA_RESP</code>.</div></div>`;
+  }
   state.render='done'; paint();
 }
 

@@ -36,7 +36,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from rca_investigate import investigate
-from wfm import fetch_wfm_context, investigate_wfm
+from wfm import fetch_wfm_context, investigate_spec, investigate_wfm
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent               # repo root, where the .html files live
@@ -307,7 +307,9 @@ def cqn_mapping(table: str = Query("dbo.CQN_Mapping", description="Mapping table
 @app.post("/api/rca-investigate")
 def rca_investigate(context_bundle: dict, provider: str = Query("", description="Optional model-picker provider"),
                     model: str = Query("", description="Optional model-picker model id"),
-                    mode: str = Query("wfm", description="'wfm' (default) for the WFM cross-functional engine; 'legacy' = original engine")):
+                    mode: str = Query("wfm", description="'wfm' (default) = WFM cross-functional engine; 'spec' = FC_RCA v2.0.0 canonical 15-step engine; 'legacy' = original engine"),
+                    grain: str = Query("weekly", description="spec mode only: weekly | monthly | quarterly"),
+                    interrogate: int = Query(1, description="spec mode only: 1 = run the WHY interrogation (2 extra LLM calls), 0 = skip")):
     """
     LLM Investigation Engine proxy. Body = the generic ContextBundle the console
     builds client-side (target row + history + peers + auto-discovered statistical
@@ -343,6 +345,9 @@ def rca_investigate(context_bundle: dict, provider: str = Query("", description=
             "Region": fields.get("Region"), "SubRegion": fields.get("SubRegion"),
             "Country": fields.get("Country"), "channel": fields.get("channel"),
             "business_org": fields.get("business_org"),
+            # Offering is a rung of the investigation ladder (Country -> Offering -> Channel),
+            # so it has to travel with the key or that level is silently skipped.
+            "Offering": fields.get("Offering"),
         }
         wfm_context = {}
         conn = None
@@ -358,6 +363,17 @@ def rca_investigate(context_bundle: dict, provider: str = Query("", description=
                     conn.close()
                 except Exception:
                     pass
+        # ?mode=spec runs the FC_RCA v2.0.0 canonical 15-step workflow. It is deliberately a
+        # SEPARATE engine rather than a rewrite of the WFM one: the same queue can be
+        # investigated both ways and the outputs compared, and rollback is a query parameter
+        # rather than a revert.
+        if (mode or "").lower() == "spec":
+            try:
+                return investigate_spec(context_bundle, cfg.get("llm", {}), wfm_context,
+                                        grain=grain, model_choice=model_choice,
+                                        interrogate=bool(interrogate))
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Spec investigation failed: {e}")
         try:
             return investigate_wfm(context_bundle, cfg.get("llm", {}), wfm_context, model_choice=model_choice)
         except Exception as e:

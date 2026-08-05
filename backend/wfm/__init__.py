@@ -23,11 +23,13 @@ Full contract, verification and known gaps: IMP_DOCS/wfm-rca-engine.md
 from .common import CAUSE_TYPES, CHANNEL_SIBLING_DIMS, DEFAULT_BAND_PCT, adherence_pct
 from .data_access import fetch_wfm_context
 from .investigation_engine import derive_wfm_features, investigate_wfm
+from .spec_engine import investigate as investigate_spec
 from .prompts import WFM_SYSTEM_PROMPT
 
 __all__ = [
     "fetch_wfm_context",
     "investigate_wfm",
+    "investigate_spec",
     "derive_wfm_features",
     "WFM_SYSTEM_PROMPT",
     "CAUSE_TYPES",
