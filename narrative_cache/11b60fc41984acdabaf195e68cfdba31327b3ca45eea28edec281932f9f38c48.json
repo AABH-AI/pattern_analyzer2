@@ -1,0 +1,114 @@
+{
+  "narrative": {
+    "whyChain": [
+      {
+        "why": "Why did the forecast miss?",
+        "because": "Customers contacted this queue fewer than the plan expected, so demand landed below forecast."
+      },
+      {
+        "why": "Why did demand land below plan?",
+        "because": "This is not just a dip; the queue has been over‑planned in the same direction over multiple periods."
+      },
+      {
+        "why": "Why does it keep going the same way?",
+        "because": "The underlying need for this queue has been moving steadily in the same direction while the plan has stayed near where demand used to be, so the gap widens each period."
+      },
+      {
+        "why": "Why has the plan not caught up?",
+        "because": "The forecasting approach used for this queue does not follow the direction of travel; nothing in the measured base explains the gap, so the shortfall is due to the method itself."
+      },
+      {
+        "why": "Why does the method not follow the direction?",
+        "because": "The current forecast does not include a way to shift with the ongoing change in demand, so it stays fixed while the real need moves."
+      }
+    ],
+    "executiveSummary": [
+      "Demand came in below plan because fewer customers contacted the queue than expected.",
+      "The shortfall has persisted over multiple periods, showing a steady shift in demand that the plan has not followed.",
+      "The forecast method does not adjust for this ongoing shift, so the gap continues unless the method is updated."
+    ],
+    "rootCauseStatement": "The miss is due to trend misidentification in the forecast.",
+    "confidenceExplanation": "Confidence is low because the analysis could not be fully tested against alternative explanations.",
+    "limitations": [
+      "The investigation could not be fully challenged; no new information emerged for a question, so the conclusion remains untested and confidence stays low.",
+      "The required data field (asu) is missing for this queue, so we could not test explanations that rely on it.",
+      "There are no recorded business events to compare against, so we could not check for external influences.",
+      "The source data lack a product code, so we cannot break down the effect by individual product; the offering field only reflects a support level, not a specific product."
+    ],
+    "recommendationNarratives": [
+      {
+        "recommendationId": "R1",
+        "text": "Adjust the forecast method so it can follow the ongoing shift in demand, for example by adding a trend component that updates regularly."
+      },
+      {
+        "recommendationId": "R2",
+        "text": "Provide the missing asu data field for this queue so that future analyses can test whether it helps explain demand changes."
+      }
+    ]
+  },
+  "status": "Complete",
+  "mode": "reasoning_option_b",
+  "fingerprint": "11b60fc41984acdabaf195e68cfdba31327b3ca45eea28edec281932f9f38c48",
+  "promptVersion": "1.0.0",
+  "provider": "nvidia",
+  "model": "nvidia/nemotron-3-super-120b-a12b",
+  "temperature": 0,
+  "seed": 20260706,
+  "usage": {
+    "prompt_tokens": 1217,
+    "completion_tokens": 4000,
+    "total_tokens": 5217
+  },
+  "latencySeconds": 54.32,
+  "validation": [
+    {
+      "check": "schema_conformance",
+      "result": "PASS",
+      "detail": "all fields present",
+      "kind": "exact"
+    },
+    {
+      "check": "no_figures",
+      "result": "PASS",
+      "detail": "no figures present",
+      "kind": "exact"
+    },
+    {
+      "check": "no_statistical_language",
+      "result": "PASS",
+      "detail": "business language only",
+      "kind": "exact"
+    },
+    {
+      "check": "no_ruled_out_driver",
+      "result": "PASS",
+      "detail": "none of 3 ruled-out driver(s) cited",
+      "kind": "heuristic"
+    },
+    {
+      "check": "root_cause_preserved",
+      "result": "PASS",
+      "detail": "'Trend Misidentification' fully named",
+      "kind": "exact"
+    },
+    {
+      "check": "confidence_level_exact",
+      "result": "PASS",
+      "detail": "expected 'Low'",
+      "kind": "exact"
+    },
+    {
+      "check": "direction_preserved",
+      "result": "PASS",
+      "detail": "direction agrees with the engine",
+      "kind": "heuristic"
+    },
+    {
+      "check": "no_data_quality_cause",
+      "result": "PASS",
+      "detail": "no data-fault framing",
+      "kind": "exact"
+    }
+  ],
+  "reasoningExcerpt": "We need to produce JSON with fields: whyChain (array of objects with why and because), executiveSummary (array of strings), rootCauseStatement (string), confidenceExplanation (string), limitations (array of strings), recommendationNarratives (array of objects with recommendationId and text).\n\nWe mus"
+}

@@ -1,0 +1,79 @@
+{
+  "narrative": {
+    "executiveSummary": [
+      "Actual offered contacts were 7,727, exceeding the forecast of 5,401.",
+      "This represents an under‑forecast of 2,326 contacts.",
+      "The forecast method carries a persistent directional bias, and while adherence breach confirms the deviation, the lack of installed base data prevents confirming or ruling out an installed base explanation."
+    ],
+    "rootCauseStatement": "The forecast method carries a persistent directional bias.",
+    "confidenceExplanation": "Low. The confidence is Low because cross‑examination did not fully survive challenge.",
+    "limitations": [
+      "The business event repository is empty, so no external event could be correlated.",
+      "Actual installed base was not supplied for this period."
+    ],
+    "recommendationNarratives": [
+      {
+        "recommendationId": "R1",
+        "text": "Review the trend term in this queue's forecast method."
+      },
+      {
+        "recommendationId": "R2",
+        "text": "Quantify the bias over the trailing thirteen weeks."
+      }
+    ]
+  },
+  "status": "Complete",
+  "fingerprint": "582ca09241ee9fc3f5a83c00196d273630acffc3f795035924b5ed0f7e597a1e",
+  "promptVersion": "1.0.0",
+  "provider": "nvidia",
+  "model": "nvidia/nemotron-3-super-120b-a12b",
+  "temperature": 0,
+  "topP": 1,
+  "seed": 20260706,
+  "usage": {
+    "prompt_tokens": 1062,
+    "completion_tokens": 1249,
+    "total_tokens": 2311
+  },
+  "latencySeconds": 28.65,
+  "validation": [
+    {
+      "check": "schema_conformance",
+      "result": "PASS",
+      "detail": "all fields present and typed",
+      "kind": "exact"
+    },
+    {
+      "check": "no_invented_numerics",
+      "result": "PASS",
+      "detail": "all numerics trace to inputs",
+      "kind": "heuristic"
+    },
+    {
+      "check": "no_foreign_root_cause",
+      "result": "PASS",
+      "detail": "supplied root cause 'Forecast Bias' fully named",
+      "kind": "exact"
+    },
+    {
+      "check": "confidence_level_exact",
+      "result": "PASS",
+      "detail": "expected 'Low'",
+      "kind": "exact"
+    },
+    {
+      "check": "all_contradictory_evidence_present",
+      "result": "PASS",
+      "detail": "all 1 contradictory item(s) represented",
+      "kind": "heuristic"
+    },
+    {
+      "check": "all_callouts_present",
+      "result": "PASS",
+      "detail": "all 2 callout(s) represented",
+      "kind": "heuristic"
+    }
+  ],
+  "generatedAt": "2026-08-04T17:54:37.723215+00:00",
+  "determinismNote": "Sampling is pinned at temperature 0, but byte-identical output is not guaranteed by the provider. This narrative is now cached under its fingerprint and will be served unchanged for every future request on identical findings."
+}

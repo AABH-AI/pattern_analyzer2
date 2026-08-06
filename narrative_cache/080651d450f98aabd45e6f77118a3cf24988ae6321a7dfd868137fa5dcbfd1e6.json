@@ -1,0 +1,83 @@
+{
+  "narrative": {
+    "executiveSummary": [
+      "The forecast was under by 2326, which is a significant deviation from what was expected.",
+      "The under-forecast was likely due to a persistent directional bias in the forecast method.",
+      "The actual offered was 7727, which was higher than the forecasted 5401."
+    ],
+    "rootCauseStatement": "The forecast method carries a persistent directional bias.",
+    "confidenceExplanation": "The confidence level is Low, which means the findings are not highly certain, and this is because the cross-examination did not fully survive challenge.",
+    "limitations": [
+      "The business event repository is empty, so no external event could be correlated.",
+      "Actual installed base was not supplied for this period."
+    ],
+    "recommendationNarratives": [
+      {
+        "recommendationId": "R1",
+        "text": "To address the issue, it is recommended to review the trend term in this queue's forecast method, as this could help to reduce the bias and improve the accuracy of the forecast."
+      },
+      {
+        "recommendationId": "R2",
+        "text": "Additionally, quantifying the bias over the trailing thirteen weeks could provide more insight into the issue and help to identify potential solutions."
+      }
+    ]
+  },
+  "status": "Complete",
+  "fingerprint": "080651d450f98aabd45e6f77118a3cf24988ae6321a7dfd868137fa5dcbfd1e6",
+  "promptVersion": "1.0.0",
+  "provider": "groq",
+  "model": "llama-3.3-70b-versatile",
+  "temperature": 0,
+  "topP": 1,
+  "seed": 20260706,
+  "usage": {
+    "queue_time": 0.162377746,
+    "prompt_tokens": 1040,
+    "prompt_time": 0.103232432,
+    "completion_tokens": 268,
+    "completion_time": 0.6778095,
+    "total_tokens": 1308,
+    "total_time": 0.781041932
+  },
+  "latencySeconds": 1.1,
+  "validation": [
+    {
+      "check": "schema_conformance",
+      "result": "PASS",
+      "detail": "all fields present and typed",
+      "kind": "exact"
+    },
+    {
+      "check": "no_invented_numerics",
+      "result": "PASS",
+      "detail": "all numerics trace to inputs",
+      "kind": "heuristic"
+    },
+    {
+      "check": "no_foreign_root_cause",
+      "result": "PASS",
+      "detail": "supplied root cause 'Forecast Bias' fully named",
+      "kind": "exact"
+    },
+    {
+      "check": "confidence_level_exact",
+      "result": "PASS",
+      "detail": "expected 'Low'",
+      "kind": "exact"
+    },
+    {
+      "check": "all_contradictory_evidence_present",
+      "result": "PASS",
+      "detail": "all 1 contradictory item(s) represented",
+      "kind": "heuristic"
+    },
+    {
+      "check": "all_callouts_present",
+      "result": "PASS",
+      "detail": "all 2 callout(s) represented",
+      "kind": "heuristic"
+    }
+  ],
+  "generatedAt": "2026-08-04T17:58:00.927644+00:00",
+  "determinismNote": "Sampling is pinned at temperature 0, but byte-identical output is not guaranteed by the provider. This narrative is now cached under its fingerprint and will be served unchanged for every future request on identical findings."
+}

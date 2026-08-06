@@ -1,0 +1,21 @@
+# Secrets — never commit.
+# .env holds API keys; config.json now holds NVIDIA, Groq and Gemini keys inline
+# plus SQL credentials. Rotate those keys if this file was ever pushed.
+.env
+config.json
+.env.*
+!.env.example
+
+# Generated narratives are the reproducibility record for published RCAs.
+# Keep them out of source control but DO back them up: deleting a cached
+# narrative forfeits byte-reproducibility of the RCA that used it.
+narrative_cache/
+audit/
+
+# Excel lock files
+~$*.xlsx
+
+__pycache__/
+*.pyc
+.venv/
+venv/

@@ -1,0 +1,113 @@
+{
+  "narrative": {
+    "whyChain": [
+      {
+        "why": "Why did the forecast miss?",
+        "because": "Customers contacted this queue fewer than the plan expected, so demand landed below forecast."
+      },
+      {
+        "why": "Why did demand land below plan?",
+        "because": "The shortfall has appeared in multiple consecutive periods, showing the plan was repeatedly too high."
+      },
+      {
+        "why": "Why has the plan been too high?",
+        "because": "Underlying demand has been moving in one direction while the plan stayed near older levels, causing the gap to grow."
+      },
+      {
+        "why": "Why has the plan not shifted?",
+        "because": "The forecasting approach used for this queue does not capture the direction of demand movement."
+      },
+      {
+        "why": "Why does the forecasting approach miss the direction?",
+        "because": "The method lacks a way to adjust for trend changes, which is the forecast bias we identified."
+      }
+    ],
+    "executiveSummary": [
+      "The forecast missed because actual demand was lower than planned over a series of recent periods.",
+      "The planning model did not adjust to the ongoing shift in demand, leaving the forecast consistently too high."
+    ],
+    "rootCauseStatement": "The forecast missed due to a forecast bias.",
+    "confidenceExplanation": "Confidence is low because cross‑examination did not survive challenge.",
+    "limitations": [
+      "Cross‑examination ended without fully standing up to challenge; no new information was found for the open question, so the conclusion was stopped before validation, keeping confidence low.",
+      "The field needed to evaluate asu is missing for this queue, so those possible explanations could not be checked.",
+      "The Business Event Repository has no data, so no outside business event could be linked to the queue; this does not affect confidence.",
+      "The source data lack a product identifier, so we cannot break down the effect by product; offering is only a support level, not a product."
+    ],
+    "recommendationNarratives": [
+      {
+        "recommendationId": "R1",
+        "text": "Check whether the forecast method includes a trend component that can adapt to changes in demand."
+      },
+      {
+        "recommendationId": "R2",
+        "text": "Provide the asu data for this queue so it can be used in forecasting."
+      }
+    ]
+  },
+  "status": "Complete",
+  "mode": "reasoning_option_b",
+  "fingerprint": "cfa3a619211907d69c4687a977599b803bdaa773155d13193d80e9bb454395d3",
+  "promptVersion": "1.0.0",
+  "provider": "nvidia",
+  "model": "nvidia/nemotron-3-super-120b-a12b",
+  "temperature": 0,
+  "seed": 20260706,
+  "usage": {
+    "prompt_tokens": 1216,
+    "completion_tokens": 2354,
+    "total_tokens": 3570
+  },
+  "latencySeconds": 24.67,
+  "validation": [
+    {
+      "check": "schema_conformance",
+      "result": "PASS",
+      "detail": "all fields present",
+      "kind": "exact"
+    },
+    {
+      "check": "no_figures",
+      "result": "PASS",
+      "detail": "no figures present",
+      "kind": "exact"
+    },
+    {
+      "check": "no_statistical_language",
+      "result": "PASS",
+      "detail": "business language only",
+      "kind": "exact"
+    },
+    {
+      "check": "no_ruled_out_driver",
+      "result": "PASS",
+      "detail": "none of 3 ruled-out driver(s) cited",
+      "kind": "heuristic"
+    },
+    {
+      "check": "root_cause_preserved",
+      "result": "PASS",
+      "detail": "'Forecast Bias' fully named",
+      "kind": "exact"
+    },
+    {
+      "check": "confidence_level_exact",
+      "result": "PASS",
+      "detail": "expected 'Low'",
+      "kind": "exact"
+    },
+    {
+      "check": "direction_preserved",
+      "result": "PASS",
+      "detail": "direction agrees with the engine",
+      "kind": "heuristic"
+    },
+    {
+      "check": "no_data_quality_cause",
+      "result": "PASS",
+      "detail": "no data-fault framing",
+      "kind": "exact"
+    }
+  ],
+  "reasoningExcerpt": "We need to produce JSON with fields: whyChain (list of objects with why and because), executiveSummary (list of bullet strings), rootCauseStatement (string), confidenceExplanation (string), limitations (list of strings), recommendationNarratives (list of objects with recommendationId and text).\n\nWe "
+}

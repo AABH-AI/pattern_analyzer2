@@ -1,0 +1,944 @@
+{
+  "_file": "Candidate Hypothesis Catalogue. Per FC_RCA_RCA_Methodology.md §12 the catalogue is VERSIONED CONFIGURATION, NOT CODE — new hypotheses are added here with their applicability conditions, never by editing the engine. The catalogue version is recorded on every RCA.",
+  "version": "2.0.0",
+  "_condition_grammar": {
+    "note": "Every condition is {feature, op, value} evaluated against the feature vector rca_engine.py computes from the source data. No condition contains a literal narrative string. ops: gt gte lt lte eq ne in not_in abs_gt abs_gte present absent",
+    "applicable_when": "ALL conditions must hold, else the hypothesis is NOT GENERATED and the failing condition is recorded.",
+    "suppressed_when": "Checked BEFORE testing. If ALL hold, state = Suppressed (could not be tested) — distinct from Rejected.",
+    "accepted_when": "ALL conditions must hold for state = Accepted. Otherwise Rejected.",
+    "evidence_features": "Features named here are rendered into the reason string with their measured values, so no reason is ever hand-written."
+  },
+  "hypotheses": [
+    {
+      "id": "CAL-01",
+      "category": "Calendar",
+      "name": "Holiday",
+      "applicable_when": [
+        {
+          "feature": "holiday_count",
+          "op": "gt",
+          "value": 0
+        }
+      ],
+      "suppressed_when": [
+        {
+          "feature": "holiday_effect_sample",
+          "op": "lt",
+          "value": 5
+        }
+      ],
+      "accepted_when": [
+        {
+          "feature": "holiday_explained_share",
+          "op": "gte",
+          "value": "cfg:holiday_explained_share_min"
+        },
+        {
+          "feature": "direction_matches_holiday_effect",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "feature": "holiday_direction_vs_forecast_coherent",
+          "op": "eq",
+          "value": true
+        }
+      ],
+      "evidence_features": [
+        "holiday_count",
+        "holiday_effect_pct",
+        "holiday_effect_sample",
+        "holiday_explained_share",
+        "holiday_direction_vs_forecast_coherent"
+      ],
+      "metrics": [
+        "holiday_window_mean_delta"
+      ]
+    },
+    {
+      "id": "CAL-02",
+      "category": "Calendar",
+      "name": "Fiscal Month Transition",
+      "applicable_when": [
+        {
+          "feature": "spans_month_boundary",
+          "op": "eq",
+          "value": true
+        }
+      ],
+      "accepted_when": [
+        {
+          "feature": "adjacent_offset_ratio",
+          "op": "gte",
+          "value": "cfg:offset_ratio_min"
+        }
+      ],
+      "evidence_features": [
+        "fiscal_month",
+        "adjacent_offset_ratio"
+      ],
+      "metrics": [
+        "adjacent_period_offset"
+      ]
+    },
+    {
+      "id": "CAL-03",
+      "category": "Calendar",
+      "name": "Quarter Transition",
+      "applicable_when": [
+        {
+          "feature": "spans_quarter_boundary",
+          "op": "eq",
+          "value": true
+        }
+      ],
+      "accepted_when": [
+        {
+          "feature": "adjacent_offset_ratio",
+          "op": "gte",
+          "value": "cfg:offset_ratio_min"
+        }
+      ],
+      "evidence_features": [
+        "fiscal_quarter",
+        "adjacent_offset_ratio"
+      ],
+      "metrics": [
+        "adjacent_period_offset"
+      ]
+    },
+    {
+      "id": "CAL-04",
+      "category": "Calendar",
+      "name": "Seasonality",
+      "applicable_when": [
+        {
+          "feature": "history_weeks",
+          "op": "gte",
+          "value": "cfg:seasonality_min_history_weeks"
+        },
+        {
+          "feature": "period_complete",
+          "op": "eq",
+          "value": true
+        }
+      ],
+      "suppressed_when": [
+        {
+          "feature": "same_week_last_year_available",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "accepted_when": [
+        {
+          "feature": "seasonal_consistency",
+          "op": "gte",
+          "value": "cfg:seasonal_consistency_min"
+        }
+      ],
+      "evidence_features": [
+        "history_weeks",
+        "same_week_last_year_adherence",
+        "seasonal_consistency"
+      ],
+      "metrics": [
+        "year_over_year_same_week"
+      ]
+    },
+    {
+      "id": "DEM-01",
+      "category": "Demand",
+      "name": "Demand Spike",
+      "applicable_when": [
+        {
+          "feature": "adherence",
+          "op": "lt",
+          "value": 0
+        }
+      ],
+      "accepted_when": [
+        {
+          "feature": "period_z_score",
+          "op": "gte",
+          "value": "cfg:volatility_band_sigma"
+        },
+        {
+          "feature": "actual_vs_history_pct",
+          "op": "gt",
+          "value": 0
+        },
+        {
+          "feature": "data_quality_collapse",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "evidence_features": [
+        "period_z_score",
+        "actual_vs_history_pct",
+        "trailing_mean_actual"
+      ],
+      "metrics": [
+        "volatility_band",
+        "z_score"
+      ]
+    },
+    {
+      "id": "DEM-02",
+      "category": "Demand",
+      "name": "Demand Drop",
+      "applicable_when": [
+        {
+          "feature": "adherence",
+          "op": "gt",
+          "value": 0
+        }
+      ],
+      "accepted_when": [
+        {
+          "feature": "period_z_score",
+          "op": "gte",
+          "value": "cfg:volatility_band_sigma"
+        },
+        {
+          "feature": "actual_vs_history_pct",
+          "op": "lt",
+          "value": 0
+        },
+        {
+          "feature": "data_quality_collapse",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "evidence_features": [
+        "period_z_score",
+        "actual_vs_history_pct",
+        "trailing_mean_actual"
+      ],
+      "metrics": [
+        "volatility_band",
+        "z_score"
+      ]
+    },
+    {
+      "id": "DEM-03",
+      "category": "Demand",
+      "name": "Demand Shift",
+      "applicable_when": [
+        {
+          "feature": "adjacent_period_available",
+          "op": "eq",
+          "value": true
+        }
+      ],
+      "accepted_when": [
+        {
+          "feature": "adjacent_offset_ratio",
+          "op": "gte",
+          "value": "cfg:offset_ratio_min"
+        }
+      ],
+      "evidence_features": [
+        "adjacent_offset_ratio",
+        "adjacent_adherence"
+      ],
+      "metrics": [
+        "adjacent_period_offset"
+      ]
+    },
+    {
+      "id": "DEM-04",
+      "category": "Demand",
+      "name": "Volume Redistribution",
+      "applicable_when": [
+        {
+          "feature": "sibling_queue_count",
+          "op": "gte",
+          "value": 1
+        }
+      ],
+      "suppressed_when": [
+        {
+          "feature": "sibling_queue_count",
+          "op": "lt",
+          "value": 1
+        }
+      ],
+      "accepted_when": [
+        {
+          "feature": "sibling_inverse_correlation",
+          "op": "lte",
+          "value": "cfg:redistribution_corr_max"
+        },
+        {
+          "feature": "sibling_offset_share",
+          "op": "gte",
+          "value": "cfg:offset_ratio_min"
+        }
+      ],
+      "evidence_features": [
+        "sibling_queue_count",
+        "sibling_inverse_correlation",
+        "sibling_offset_share",
+        "sibling_top_queue"
+      ],
+      "metrics": [
+        "sibling_inverse_correlation"
+      ]
+    },
+    {
+      "id": "FCT-01",
+      "category": "Forecast",
+      "name": "Forecast Bias",
+      "applicable_when": [
+        {
+          "feature": "trailing_periods",
+          "op": "gte",
+          "value": "cfg:bias_min_periods"
+        }
+      ],
+      "accepted_when": [
+        {
+          "feature": "bias_run_length",
+          "op": "gte",
+          "value": "cfg:bias_run_min"
+        },
+        {
+          "feature": "abs_mean_bias",
+          "op": "gte",
+          "value": "cfg:bias_mean_min_pct"
+        }
+      ],
+      "evidence_features": [
+        "bias_run_length",
+        "trailing_periods",
+        "mean_bias",
+        "bias_sign_share"
+      ],
+      "metrics": [
+        "sign_run_length",
+        "mean_signed_adherence"
+      ]
+    },
+    {
+      "id": "FCT-02",
+      "category": "Forecast",
+      "name": "Trend Misidentification",
+      "applicable_when": [
+        {
+          "feature": "trailing_periods",
+          "op": "gte",
+          "value": "cfg:bias_min_periods"
+        }
+      ],
+      "accepted_when": [
+        {
+          "feature": "trend_divergence",
+          "op": "gte",
+          "value": "cfg:trend_divergence_min"
+        }
+      ],
+      "evidence_features": [
+        "actual_trend_slope_pct",
+        "forecast_trend_slope_pct",
+        "trend_divergence"
+      ],
+      "metrics": [
+        "linear_trend_actual",
+        "linear_trend_forecast"
+      ]
+    },
+    {
+      "id": "BUS-01",
+      "category": "Business",
+      "name": "Warranty Mix Shift",
+      "applicable_when": [
+        {
+          "feature": "warranty_applicable",
+          "op": "eq",
+          "value": true
+        }
+      ],
+      "suppressed_when": [
+        {
+          "feature": "warranty_fields_present",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "accepted_when": [
+        {
+          "feature": "warranty_gate_passed",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "feature": "abs_warranty_mix_change_pct",
+          "op": "gte",
+          "value": "cfg:driver_change_min_pct"
+        },
+        {
+          "feature": "warranty_direction_coherent",
+          "op": "eq",
+          "value": true
+        }
+      ],
+      "evidence_features": [
+        "warranty_correlation",
+        "warranty_lag_weeks",
+        "warranty_mix_change_pct",
+        "warranty_gate_passed",
+        "warranty_direction_coherent"
+      ],
+      "metrics": [
+        "best_lag_correlation",
+        "driver_change_pct"
+      ]
+    },
+    {
+      "id": "BUS-02",
+      "category": "Business",
+      "name": "Installed Base Change",
+      "applicable_when": [
+        {
+          "feature": "asu_applicable",
+          "op": "eq",
+          "value": true
+        }
+      ],
+      "suppressed_when": [
+        {
+          "feature": "asu_fields_present",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "accepted_when": [
+        {
+          "feature": "asu_gate_passed",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "feature": "abs_asu_change_pct",
+          "op": "gte",
+          "value": "cfg:driver_change_min_pct"
+        },
+        {
+          "feature": "asu_direction_coherent",
+          "op": "eq",
+          "value": true
+        }
+      ],
+      "evidence_features": [
+        "asu_correlation",
+        "asu_lag_weeks",
+        "asu_change_pct",
+        "asu_gate_passed",
+        "asu_direction_coherent"
+      ],
+      "metrics": [
+        "best_lag_correlation",
+        "driver_change_pct"
+      ]
+    },
+    {
+      "id": "BUS-03",
+      "category": "Business",
+      "name": "ASU Plan Variance",
+      "applicable_when": [
+        {
+          "feature": "asu_applicable",
+          "op": "eq",
+          "value": true
+        }
+      ],
+      "suppressed_when": [
+        {
+          "feature": "asu_plan_actual_both_present",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "accepted_when": [
+        {
+          "feature": "abs_asu_plan_variance_pct",
+          "op": "gte",
+          "value": "cfg:asu_plan_variance_min_pct"
+        }
+      ],
+      "evidence_features": [
+        "asu_plan_variance_pct",
+        "planned_asu",
+        "actual_asu"
+      ],
+      "metrics": [
+        "asu_plan_variance"
+      ]
+    },
+    {
+      "id": "BUS-04",
+      "category": "Business",
+      "name": "Shipment Volume Change",
+      "applicable_when": [
+        {
+          "feature": "shipment_applicable",
+          "op": "eq",
+          "value": true
+        }
+      ],
+      "suppressed_when": [
+        {
+          "feature": "shipment_fields_present",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "accepted_when": [
+        {
+          "feature": "shipment_gate_passed",
+          "op": "eq",
+          "value": true
+        },
+        {
+          "feature": "abs_shipment_change_pct",
+          "op": "gte",
+          "value": "cfg:driver_change_min_pct"
+        },
+        {
+          "feature": "shipment_direction_coherent",
+          "op": "eq",
+          "value": true
+        }
+      ],
+      "evidence_features": [
+        "shipment_correlation",
+        "shipment_lag_weeks",
+        "shipment_change_pct",
+        "shipment_gate_passed",
+        "shipment_direction_coherent"
+      ],
+      "metrics": [
+        "best_lag_correlation",
+        "driver_change_pct"
+      ]
+    },
+    {
+      "id": "BUS-05",
+      "category": "Business",
+      "name": "Queue Migration",
+      "applicable_when": [
+        {
+          "feature": "sibling_queue_count",
+          "op": "gte",
+          "value": 1
+        }
+      ],
+      "suppressed_when": [
+        {
+          "feature": "queue_lineage_available",
+          "op": "eq",
+          "value": false
+        }
+      ],
+      "accepted_when": [
+        {
+          "feature": "lineage_event_in_period",
+          "op": "eq",
+          "value": true
+        }
+      ],
+      "evidence_features": [
+        "queue_lineage_available"
+      ],
+      "metrics": []
+    },
+    {
+      "id": "STA-01",
+      "category": "Statistical",
+      "name": "Outlier",
+      "applicable_when": [
+        {
+          "feature": "trailing_periods",
+          "op": "gte",
+          "value": "cfg:bias_min_periods"
+        }
+      ],
+      "accepted_when": [
+        {
+          "feature": "mad_z_score",
+          "op": "gte",
+          "value": "cfg:outlier_mad_multiplier"
+        }
+      ],
+      "evidence_features": [
+        "mad_z_score",
+        "trailing_median_actual"
+      ],
+      "metrics": [
+        "median_absolute_deviation"
+      ]
+    },
+    {
+      "id": "STA-02",
+      "category": "Statistical",
+      "name": "Drift",
+      "applicable_when": [
+        {
+          "feature": "trailing_periods",
+          "op": "gte",
+          "value": "cfg:drift_min_periods"
+        }
+      ],
+      "accepted_when": [
+        {
+          "feature": "abs_drift_shift_pct",
+          "op": "gte",
+          "value": "cfg:drift_min_shift_pct"
+        }
+      ],
+      "evidence_features": [
+        "drift_shift_pct",
+        "drift_early_mean",
+        "drift_late_mean"
+      ],
+      "metrics": [
+        "mean_shift"
+      ]
+    },
+    {
+      "id": "STA-03",
+      "category": "Statistical",
+      "name": "Momentum Shift",
+      "applicable_when": [
+        {
+          "feature": "trailing_periods",
+          "op": "gte",
+          "value": "cfg:drift_min_periods"
+        }
+      ],
+      "accepted_when": [
+        {
+          "feature": "abs_momentum_change_pct",
+          "op": "gte",
+          "value": "cfg:momentum_min_change_pct"
+        }
+      ],
+      "evidence_features": [
+        "momentum_change_pct",
+        "momentum_early_slope",
+        "momentum_late_slope"
+      ],
+      "metrics": [
+        "rate_of_change_delta"
+      ]
+    },
+    {
+      "id": "STA-04",
+      "category": "Statistical",
+      "name": "Variance Expansion",
+      "applicable_when": [
+        {
+          "feature": "trailing_periods",
+          "op": "gte",
+          "value": "cfg:drift_min_periods"
+        }
+      ],
+      "accepted_when": [
+        {
+          "feature": "variance_ratio",
+          "op": "gte",
+          "value": "cfg:variance_expansion_min_ratio"
+        }
+      ],
+      "evidence_features": [
+        "variance_ratio",
+        "recent_std",
+        "earlier_std"
+      ],
+      "metrics": [
+        "variance_ratio"
+      ]
+    },
+    {
+      "id": "DQ-01",
+      "category": "Data Quality",
+      "name": "Missing Data",
+      "applicable_when": [],
+      "accepted_when": [
+        {
+          "feature": "data_quality_collapse",
+          "op": "eq",
+          "value": true
+        }
+      ],
+      "evidence_features": [
+        "actual_forecast_ratio",
+        "missing_field_count",
+        "trailing_min_ratio"
+      ],
+      "metrics": [
+        "actual_forecast_ratio"
+      ]
+    },
+    {
+      "id": "DQ-02",
+      "category": "Data Quality",
+      "name": "Incorrect Mapping",
+      "applicable_when": [],
+      "accepted_when": [
+        {
+          "feature": "unmapped_dimension_count",
+          "op": "gt",
+          "value": 0
+        }
+      ],
+      "evidence_features": [
+        "unmapped_dimension_count",
+        "first_appearance_week"
+      ],
+      "metrics": []
+    },
+    {
+      "id": "DQ-03",
+      "category": "Data Quality",
+      "name": "Duplicate Records",
+      "applicable_when": [],
+      "accepted_when": [
+        {
+          "feature": "duplicate_row_count",
+          "op": "gt",
+          "value": 0
+        }
+      ],
+      "evidence_features": [
+        "duplicate_row_count"
+      ],
+      "metrics": []
+    },
+    {
+      "id": "DQ-04",
+      "category": "Data Quality",
+      "name": "Insufficient History",
+      "applicable_when": [],
+      "accepted_when": [
+        {
+          "feature": "history_weeks",
+          "op": "lt",
+          "value": "cfg:seasonality_min_history_weeks"
+        }
+      ],
+      "evidence_features": [
+        "history_weeks",
+        "actual_weeks"
+      ],
+      "metrics": []
+    }
+  ],
+  "_known_gaps": [
+    {
+      "name": "Product Lifecycle",
+      "requires": "product identifier, launch date, lifecycle stage",
+      "note": "Not held in the catalogue as a permanently inapplicable entry. Offering is a support tier (Basic/Pro/Premium/OOP), never a product or lifecycle proxy."
+    },
+    {
+      "name": "Manual Override",
+      "requires": "forecast version dimension"
+    }
+  ],
+  "driver_cascade": {
+    "_comment": "Business causality sets the ORDER; the relevance gate decides usability. A failed gate moves to the next driver and never reorders.",
+    "Basic": [
+      "shipment",
+      "asu"
+    ],
+    "Pro": [
+      "asu",
+      "shipment"
+    ],
+    "Premium": [
+      "asu",
+      "shipment"
+    ],
+    "OOP": []
+  },
+  "challenge_questions": [
+    {
+      "key": "STAT_SIGNIFICANCE",
+      "category": "Statistical Validation",
+      "applies_to": [
+        "Demand",
+        "Statistical",
+        "Forecast"
+      ],
+      "question": "Is the deviation statistically distinguishable from this queue's normal variation?"
+    },
+    {
+      "key": "STAT_METRIC_AGREEMENT",
+      "category": "Statistical Validation",
+      "applies_to": [
+        "Demand",
+        "Statistical",
+        "Forecast"
+      ],
+      "question": "Do the selected metrics agree with one another?"
+    },
+    {
+      "key": "STAT_SAMPLE_ADEQUACY",
+      "category": "Statistical Validation",
+      "applies_to": [
+        "Demand",
+        "Statistical",
+        "Forecast",
+        "Calendar"
+      ],
+      "question": "Is the sample large enough to support the statistic relied upon?"
+    },
+    {
+      "key": "STAT_ALTERNATIVE_MODEL",
+      "category": "Statistical Validation",
+      "applies_to": [
+        "Statistical"
+      ],
+      "question": "Would an alternative analytical method reach the same conclusion?"
+    },
+    {
+      "key": "HIST_PRECEDENT",
+      "category": "Historical Validation",
+      "applies_to": [
+        "Calendar",
+        "Demand",
+        "Forecast",
+        "Business",
+        "Statistical",
+        "Data Quality"
+      ],
+      "question": "Has this pattern occurred before on this queue?"
+    },
+    {
+      "key": "HIST_RECURRENCE",
+      "category": "Historical Validation",
+      "applies_to": [
+        "Forecast",
+        "Business"
+      ],
+      "question": "Is the deviation recurring rather than isolated?"
+    },
+    {
+      "key": "HIST_SEASONAL_MATCH",
+      "category": "Historical Validation",
+      "applies_to": [
+        "Calendar"
+      ],
+      "question": "Does the same period in prior years show the same behaviour?"
+    },
+    {
+      "key": "BIZ_RULE_CONSISTENCY",
+      "category": "Business Validation",
+      "applies_to": [
+        "Calendar",
+        "Demand",
+        "Forecast",
+        "Business",
+        "Statistical",
+        "Data Quality"
+      ],
+      "question": "Is the conclusion consistent with the business rules in force?"
+    },
+    {
+      "key": "BIZ_DRIVER_RELEVANCE",
+      "category": "Business Validation",
+      "applies_to": [
+        "Business"
+      ],
+      "question": "Does the cited driver demonstrably track demand for this queue?"
+    },
+    {
+      "key": "BIZ_MATERIALITY",
+      "category": "Business Validation",
+      "applies_to": [
+        "Demand",
+        "Statistical",
+        "Forecast",
+        "Business"
+      ],
+      "question": "Is the deviation material at this queue's volume?"
+    },
+    {
+      "key": "DATA_SUFFICIENCY",
+      "category": "Data Validation",
+      "applies_to": [
+        "Calendar",
+        "Demand",
+        "Forecast",
+        "Business",
+        "Statistical",
+        "Data Quality"
+      ],
+      "question": "Is the underlying data sufficient to support the conclusion?"
+    },
+    {
+      "key": "DATA_COMPLETENESS",
+      "category": "Data Validation",
+      "applies_to": [
+        "Business",
+        "Data Quality"
+      ],
+      "question": "Are the fields the conclusion depends upon complete for this period?"
+    },
+    {
+      "key": "DATA_INTEGRITY",
+      "category": "Data Validation",
+      "applies_to": [
+        "Data Quality"
+      ],
+      "question": "Is there evidence the source data itself is at fault?"
+    },
+    {
+      "key": "DATA_COVERAGE",
+      "category": "Data Validation",
+      "applies_to": [
+        "Calendar",
+        "Demand",
+        "Forecast",
+        "Business",
+        "Statistical"
+      ],
+      "question": "Does the period have full coverage, or is it partial?"
+    },
+    {
+      "key": "ALT_STRONGER_HYPOTHESIS",
+      "category": "Alternative Explanation",
+      "applies_to": [
+        "Calendar",
+        "Demand",
+        "Forecast",
+        "Business",
+        "Statistical",
+        "Data Quality"
+      ],
+      "question": "Does an alternative hypothesis explain the deviation better?"
+    },
+    {
+      "key": "ALT_UNTESTED_DRIVER",
+      "category": "Alternative Explanation",
+      "applies_to": [
+        "Business",
+        "Demand"
+      ],
+      "question": "Was any potentially relevant driver left untested?"
+    },
+    {
+      "key": "ALT_CONFOUNDING",
+      "category": "Alternative Explanation",
+      "applies_to": [
+        "Business",
+        "Statistical"
+      ],
+      "question": "Could a third factor explain both the driver and the deviation?"
+    }
+  ],
+  "_direction_coherence_note": "A driver hypothesis is accepted only when the demand movement it implies — sign(correlation) x sign(driver movement) — points the same way as the movement actually observed. A driver that correlates and moved but implies the OPPOSITE direction is Rejected: accepting it would state a cause that contradicts the arithmetic."
+}

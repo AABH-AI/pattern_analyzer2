@@ -1,0 +1,115 @@
+{
+  "narrative": {
+    "whyChain": [
+      {
+        "why": "Why did the forecast miss?",
+        "because": "Customers contacted this queue more than the plan expected, so demand landed above forecast."
+      },
+      {
+        "why": "Why did demand land above plan?",
+        "because": "Customer contacts did not disappear or appear — they arrived somewhere else. A related queue serving the same customers moved the opposite way at the same time."
+      },
+      {
+        "why": "Why did contacts move between queues?",
+        "because": "Customers reaching this business can land in more than one queue. When routing or customer behaviour tips one way, one queue gains what the other loses while the total barely changes."
+      },
+      {
+        "why": "Why did the forecast miss it?",
+        "because": "Each queue was planned on its own. The total across the related queues was closer to right than either queue individually, so the split between them is what failed."
+      },
+      {
+        "why": "Why was the split between queues not anticipated?",
+        "because": "The evidence stops here. The cross-examination that could have confirmed the cause was interrupted before it could be validated, so we cannot say why the split was wrong."
+      }
+    ],
+    "executiveSummary": [
+      "Demand came in above plan because contacts shifted from a related queue into this one.",
+      "The total volume across both queues was close to expected, but the split between them was not.",
+      "Each queue was planned separately, so the redistribution was missed.",
+      "The investigation could not be completed, so the exact reason for the shift remains unconfirmed."
+    ],
+    "rootCauseStatement": "The forecast missed because of Volume Redistribution — contacts moved from a related queue into this one while the total stayed nearly flat.",
+    "confidenceExplanation": "Confidence is Low because the cross-examination that would have confirmed the cause was interrupted and did not survive challenge. The conclusion is not fully validated.",
+    "limitations": [
+      "The cross-examination was terminated before it could be fully validated, so the conclusion is not confirmed.",
+      "A key field needed to evaluate certain explanations was missing for this queue, so those explanations could not be tested.",
+      "No external business events could be correlated because the Business Event Repository is empty.",
+      "No product identifier exists in the source data, so product-level attribution is out of scope. Offering is a support tier, not a product proxy."
+    ],
+    "recommendationNarratives": [
+      {
+        "recommendationId": "R1",
+        "text": "Investigate the movement identified as Volume Redistribution. Look at the related queue that lost contacts to understand what caused the shift — for example, changes in routing rules, customer behaviour, or support processes."
+      },
+      {
+        "recommendationId": "R2",
+        "text": "Supply the missing field for this queue so that future investigations can test explanations that were untestable this time."
+      }
+    ]
+  },
+  "status": "Complete",
+  "mode": "reasoning_option_b",
+  "fingerprint": "e2669129de4714bafee94ac328e0a15523e6660449e0d81cda3a757ea5d1c86c",
+  "promptVersion": "1.0.0",
+  "provider": "nvidia",
+  "model": "deepseek-ai/deepseek-v4-flash",
+  "temperature": 0,
+  "seed": 20260706,
+  "usage": {
+    "prompt_tokens": 1212,
+    "completion_tokens": 630,
+    "total_tokens": 1842
+  },
+  "latencySeconds": 32.77,
+  "validation": [
+    {
+      "check": "schema_conformance",
+      "result": "PASS",
+      "detail": "all fields present",
+      "kind": "exact"
+    },
+    {
+      "check": "no_figures",
+      "result": "PASS",
+      "detail": "no figures present",
+      "kind": "exact"
+    },
+    {
+      "check": "no_statistical_language",
+      "result": "PASS",
+      "detail": "business language only",
+      "kind": "exact"
+    },
+    {
+      "check": "no_ruled_out_driver",
+      "result": "PASS",
+      "detail": "none of 3 ruled-out driver(s) cited",
+      "kind": "heuristic"
+    },
+    {
+      "check": "root_cause_preserved",
+      "result": "PASS",
+      "detail": "'Volume Redistribution' fully named",
+      "kind": "exact"
+    },
+    {
+      "check": "confidence_level_exact",
+      "result": "PASS",
+      "detail": "expected 'Low'",
+      "kind": "exact"
+    },
+    {
+      "check": "direction_preserved",
+      "result": "PASS",
+      "detail": "direction agrees with the engine",
+      "kind": "heuristic"
+    },
+    {
+      "check": "no_data_quality_cause",
+      "result": "PASS",
+      "detail": "no data-fault framing",
+      "kind": "exact"
+    }
+  ],
+  "reasoningExcerpt": ""
+}

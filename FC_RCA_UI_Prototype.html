@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forecast RCA</title>
+<style>
+:root{
+  color-scheme: light;
+  --surface-1:#fcfcfb; --plane:#f9f9f7; --surface-2:#ffffff;
+  --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --base:#c3c2b7; --border:rgba(11,11,11,0.10);
+  --under:#d03b3b; --over:#2a78d6; --mid:#f0efec;
+  --seq:#2a78d6; --good:#0ca30c; --serious:#ec835a; --crit:#d03b3b; --ok-text:#006300;
+  --font:system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:where(:not([data-theme="light"])){
+  color-scheme: dark; --surface-1:#1a1a19; --plane:#0d0d0d; --surface-2:#212120;
+  --ink:#fff; --ink-2:#c3c2b7; --grid:#2c2c2a; --base:#383835;
+  --border:rgba(255,255,255,0.10); --over:#3987e5; --mid:#383835; --seq:#3987e5; --ok-text:#0ca30c;
+}}
+:root[data-theme="dark"]{
+  color-scheme: dark; --surface-1:#1a1a19; --plane:#0d0d0d; --surface-2:#212120;
+  --ink:#fff; --ink-2:#c3c2b7; --grid:#2c2c2a; --base:#383835;
+  --border:rgba(255,255,255,0.10); --over:#3987e5; --mid:#383835; --seq:#3987e5; --ok-text:#0ca30c;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.55}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-0.01em}
+.mono{font-variant-numeric:tabular-nums}
+header.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:11px 18px;
+  background:var(--surface-1);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:30}
+.brand{font-size:15px;font-weight:600}
+.brand span{color:var(--muted);font-weight:400}
+.top .spacer{flex:1}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;
+  border:1px solid var(--border);background:var(--surface-2);color:var(--ink-2);font-size:12px;white-space:nowrap}
+button{font-family:inherit;font-size:13px;cursor:pointer;border-radius:8px;border:1px solid var(--border);
+  background:var(--surface-2);color:var(--ink);padding:6px 12px}
+button:hover{background:var(--mid)}
+button[aria-pressed="true"]{background:var(--mid);font-weight:600}
+.layout{display:grid;grid-template-columns:minmax(270px,330px) 1fr;gap:14px;padding:14px;align-items:start}
+@media (max-width:1000px){.layout{grid-template-columns:1fr}}
+.panel{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.phead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:11px 14px;border-bottom:1px solid var(--border)}
+.phead h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.phead .note{font-size:12px;color:var(--muted)}
+.searchbar{padding:9px 14px;border-bottom:1px solid var(--border)}
+.searchbar input{width:100%;font-family:inherit;font-size:13px;padding:7px 9px;border-radius:8px;
+  border:1px solid var(--border);background:var(--surface-2);color:var(--ink)}
+.wl{max-height:76vh;overflow:auto}
+.wl-item{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--border);
+  background:transparent;border-radius:0;padding:10px 14px}
+.wl-item:hover{background:var(--mid)}
+.wl-item[aria-current="true"]{background:var(--mid);box-shadow:inset 3px 0 0 var(--seq)}
+.wl-top{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.wl-q{font-weight:600;font-size:13px}
+.wl-n{font-weight:600;font-size:13px;white-space:nowrap}
+.wl-sub{color:var(--muted);font-size:12px;margin-top:2px}
+.answer{padding:22px 24px 20px;border-bottom:1px solid var(--border)}
+.a-meta{color:var(--muted);font-size:12.5px}
+.a-q{font-size:19px;font-weight:600;margin:2px 0 14px}
+.headline{font-size:17px;line-height:1.5;margin:0 0 6px}
+.a-sub{color:var(--ink-2);font-size:14px}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.badge{display:inline-flex;align-items:center;font-size:12.5px;font-weight:600;padding:4px 10px;
+  border-radius:999px;border:1px solid}
+.b-ok{color:var(--ok-text);border-color:var(--good)}
+.b-mid{color:var(--serious);border-color:var(--serious)}
+.b-low{color:var(--crit);border-color:var(--crit)}
+.b-plain{color:var(--ink-2);border-color:var(--border)}
+.block{padding:20px 24px;border-top:1px solid var(--border)}
+.block>h3{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:14px}
+.why{list-style:none;margin:0;padding:0;counter-reset:w}
+.why li{position:relative;padding:0 0 0 34px;margin-bottom:16px;counter-increment:w}
+.why li::before{content:counter(w);position:absolute;left:0;top:0;width:22px;height:22px;border-radius:50%;
+  background:var(--mid);color:var(--ink-2);font-size:11px;font-weight:700;display:grid;place-items:center}
+.why li::after{content:"";position:absolute;left:10.5px;top:26px;bottom:-16px;width:1px;background:var(--grid)}
+.why li:last-child::after{display:none}
+.why li:last-child::before{background:var(--seq);color:#fff}
+.why .q{font-weight:600;margin-bottom:1px}
+.why .a{color:var(--ink-2)}
+.act{border:1px solid var(--border);border-radius:8px;padding:11px 13px;margin-bottom:8px;background:var(--surface-2)}
+.act .h{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+.act .p{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.p-Critical,.p-High{color:var(--crit)} .p-Medium{color:var(--serious)} .p-Low{color:var(--muted)}
+.act .d{color:var(--ink-2);font-size:13px;margin-top:3px}
+details.more{border-top:1px solid var(--border)}
+details.more>summary{padding:13px 24px;cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-2);
+  display:flex;align-items:center;gap:8px;list-style:none}
+details.more>summary::-webkit-details-marker{display:none}
+details.more>summary::before{content:"›";font-size:16px;color:var(--muted);display:inline-block;transition:transform .15s}
+details.more[open]>summary::before{transform:rotate(90deg)}
+details.more>summary:hover{background:var(--mid)}
+details.more>summary .cnt{color:var(--muted);font-weight:400;font-size:12px}
+.more-body{padding:4px 24px 20px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--grid);vertical-align:top}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.scroll-x{overflow-x:auto}
+.pill{display:inline-flex;font-size:11.5px;font-weight:600;padding:1px 7px;border-radius:999px;
+  border:1px solid;white-space:nowrap}
+.pill.Accepted{color:var(--ok-text);border-color:var(--good)}
+.pill.Rejected{color:var(--crit);border-color:var(--crit)}
+.pill.Suppressed{color:var(--serious);border-color:var(--serious)}
+.pill.NotApplicable{color:var(--muted);border-color:var(--base);font-weight:400}
+.grp{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:12px 0 4px}
+.dimrow{display:grid;grid-template-columns:1fr 100px 52px;gap:10px;align-items:center;padding:6px 0;
+  border-bottom:1px solid var(--grid);font-size:13px}
+.bar{height:7px;background:var(--mid);border-radius:4px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--seq)}
+.bar.Missing>i{background:repeating-linear-gradient(45deg,var(--serious) 0 3px,transparent 3px 6px);
+  box-shadow:inset 0 0 0 1px var(--serious)}
+.bar.NotApplicable{background:transparent;box-shadow:inset 0 0 0 1px var(--base)}
+.ev{display:flex;gap:9px;padding:8px 0;border-bottom:1px solid var(--grid)}
+.ev .s{flex:0 0 3px;border-radius:2px;background:var(--good)}
+.ev.c .s{background:var(--crit)}
+.ev .m{font-size:12px;color:var(--muted);margin-top:2px}
+ul.b{margin:0;padding-left:18px} ul.b li{margin-bottom:5px}
+.center-state{padding:54px 24px;text-align:center;color:var(--ink-2)}
+.spinner{width:22px;height:22px;border-radius:50%;border:2px solid var(--mid);border-top-color:var(--seq);
+  margin:0 auto 12px;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spinner{animation-duration:2.4s}}
+.chart-wrap{position:relative}
+svg.chart{display:block;width:100%;height:auto;overflow:visible}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin-bottom:8px}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:-1px}
+.tip{position:absolute;pointer-events:none;opacity:0;transition:opacity .1s;background:var(--surface-2);
+  border:1px solid var(--border);border-radius:6px;padding:6px 9px;font-size:12px;
+  box-shadow:0 4px 14px rgba(0,0,0,.14);white-space:nowrap;z-index:5}
+footer.foot{padding:13px 18px;color:var(--muted);font-size:12px;border-top:1px solid var(--border)}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">Forecast RCA <span>— why the forecast missed</span></div>
+  <span class="chip" id="chip-src">connecting…</span>
+  <div class="spacer"></div>
+  <div role="group" aria-label="Period">
+    <button data-grain="Weekly" aria-pressed="true">Week</button>
+    <button data-grain="Monthly" aria-pressed="false">Month</button>
+    <button data-grain="Quarterly" aria-pressed="false">Quarter</button>
+  </div>
+  <button id="theme">Theme</button>
+</header>
+
+<div class="layout">
+  <section class="panel">
+    <div class="phead"><h2>Queues that missed</h2><span class="note" id="wl-note"></span></div>
+    <div class="searchbar"><input id="q" type="search" placeholder="Filter by queue, country or offering…"></div>
+    <div class="wl" id="wl"></div>
+  </section>
+  <main class="panel" id="dc">
+    <div class="center-state"><div class="spinner"></div><p>Loading demand data…</p></div>
+  </main>
+</div>
+
+<footer class="foot">Every figure and every conclusion here is computed from the source data. No model is involved.</footer>
+
+<script>
+let GRAIN="Weekly", CURRENT=null, ROWS=[], FILTER="", HEALTH=null;
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=n=>n==null?"—":Number(n).toLocaleString("en-US");
+const sgn=n=>n==null?"—":(n>0?"+":"")+Number(n).toFixed(1)+"%";
+const col=n=>n<0?"var(--under)":"var(--over)";
+const cls=s=>String(s||"").replace(/\s+/g,"");
+async function api(p){const r=await fetch(p);const d=await r.json().catch(()=>({error:"bad response"}));
+  if(!r.ok) throw new Error(d.error||d.hint||("HTTP "+r.status));return d;}
+
+async function boot(){
+  try{
+    HEALTH=await api("/health");
+    const d=HEALTH.dataset||{};
+    if(!d.loaded){
+      $("#chip-src").textContent="data not loaded";
+      $("#dc").innerHTML=`<div class="center-state"><p style="color:var(--crit)"><strong>No data loaded.</strong></p>
+        <p>${esc(d.error||d.message||"")}</p></div>`;
+      return;
+    }
+    $("#chip-src").textContent=`${d.filename||"source"} · ${fmt(d.rows)} rows · ${fmt(d.queues)} queues · latest week ${d.latestActualsWeek}`;
+    await refresh();
+    $("#dc").innerHTML=`<div class="center-state"><p><strong>${ROWS.length} queues missed their forecast.</strong></p>
+      <p>Pick one on the left to see why.</p></div>`;
+  }catch(e){
+    $("#chip-src").textContent="server not running";
+    $("#dc").innerHTML=`<div class="center-state"><p style="color:var(--crit)">${esc(e.message)}</p>
+      <p>Start it with <strong>python server.py</strong></p></div>`;
+  }
+}
+async function refresh(){ ROWS=(await api(`/queues?grain=${GRAIN}`)).rows; draw(); }
+function draw(){
+  const f=FILTER.toLowerCase();
+  const rows=ROWS.filter(r=>!f||[r.queue,r.country,r.offering,r.channel].join(" ").toLowerCase().includes(f));
+  $("#wl-note").textContent=`${rows.length} of ${ROWS.length}`;
+  $("#wl").innerHTML=rows.map(r=>`
+    <button class="wl-item" data-q="${esc(r.queue)}" aria-current="${CURRENT===r.queue}">
+      <div class="wl-top"><span class="wl-q">${esc(r.queue)}</span>
+        <span class="wl-n mono" style="color:${col(r.adherencePct)}">${fmt(r.absVarianceContacts)}</span></div>
+      <div class="wl-sub">${r.varianceContacts>0?"above":"below"} plan · ${esc(r.country)} · ${esc(r.offering)}${r.majorDeviation?" · major":""}</div>
+    </button>`).join("")||`<div class="center-state">Nothing matches.</div>`;
+  document.querySelectorAll(".wl-item").forEach(b=>b.onclick=()=>open(b.dataset.q));
+}
+async function open(q){
+  CURRENT=q; document.querySelectorAll(".wl-item").forEach(b=>b.setAttribute("aria-current",b.dataset.q===q));
+  $("#dc").innerHTML=`<div class="center-state"><div class="spinner"></div><p>Working out why ${esc(q)} missed…</p></div>`;
+  try{ render(await api(`/rca?queue=${encodeURIComponent(q)}&grain=${GRAIN}`)); }
+  catch(e){ $("#dc").innerHTML=`<div class="center-state"><p style="color:var(--crit)">${esc(e.message)}</p></div>`; }
+}
+const CAPS={"Gate 7":"parts of the challenge could not be answered",
+ "Gate 4":"some business information was missing for this period",
+ "Gate 5":"this queue's size band was not supplied",
+ "Gate 3b":"most of the period has no actuals yet",
+ "BR-306":"no explanation held up"};
+function confClass(l){return ["Very High","High"].includes(l)?"b-ok":l==="Medium"?"b-mid":"b-low";}
+
+function render(r){
+  const c=r.confidence, why=r.whyChain||[], last=why[why.length-1];
+  const above=r.varianceContacts>0, cap=c.bindingCap;
+  const hyp={Accepted:[],Rejected:[],Suppressed:[],"Not Applicable":[]};
+  r.hypotheses.forEach(h=>hyp[h.state].push(h));
+  const label={Accepted:"Held up",Rejected:"Ruled out",Suppressed:"Could not be checked","Not Applicable":"Does not apply"};
+  const dname={asu:"Units under warranty",shipment:"Extended-protection units",
+               installed_base:"Installed base",warranty:"Cover about to expire"};
+
+  $("#dc").innerHTML=`
+  <div class="answer">
+    <div class="a-meta">${esc(r.country)} · ${esc(r.offering)} · ${esc(r.channel)} · ${esc(r.grain).replace("ly","")} ${r.period}</div>
+    <div class="a-q">${esc(r.queue)}</div>
+    <p class="headline">Demand came in <strong style="color:${col(r.adherencePct)}">${fmt(r.absVarianceContacts)} contacts ${above?"above":"below"}</strong>
+      the plan — ${fmt(r.actualOffered)} against a plan of ${fmt(r.forecastOffered)}.</p>
+    <p class="a-sub">${r.rootCause?esc(last?last.because:r.rootCause.statement)
+      :"No explanation held up against the evidence, so none is claimed."}</p>
+    <div class="badges">
+      <span class="badge ${confClass(c.level)}">${esc(c.level)} confidence</span>
+      <span class="badge b-plain">${cap?"Held back because "+esc(CAPS[cap.gate]||cap.name.toLowerCase())+".":"Nothing is holding this back."}</span>
+      ${r.majorDeviation?'<span class="badge b-low">Major miss</span>':""}
+      ${!r.materialityMet?'<span class="badge b-plain">Small in contact terms</span>':""}
+      ${r.timeline?`<span class="badge b-plain">Period only ${r.timeline.coveragePct}% complete</span>`:""}
+    </div>
+  </div>
+
+  <div class="block"><h3>Why it missed</h3>
+    <ol class="why">${why.map(s=>`<li><div class="q">${esc(s.why)}</div><div class="a">${esc(s.because)}</div></li>`).join("")}</ol>
+  </div>
+
+  ${r.recommendations.length?`<div class="block"><h3>What to do</h3>
+    ${r.recommendations.map(a=>`<div class="act"><div class="h"><strong>${esc(a.action)}</strong>
+      <span class="p p-${esc(a.priority)}">${esc(a.priority)}</span></div><div class="d">${esc(a.impact)}</div></div>`).join("")}
+    <p style="font-size:12px;color:var(--muted);margin:6px 0 0">Suggestions for the demand and forecast team. Nothing is actioned automatically.</p>
+  </div>`:""}
+
+  <details class="more"><summary>What else was considered
+    <span class="cnt">${hyp.Accepted.length+hyp.Rejected.length} tested, ${hyp.Accepted.length} held up</span></summary>
+    <div class="more-body">
+      ${["Accepted","Rejected","Suppressed","Not Applicable"].map(st=>{
+        const it=hyp[st]; if(!it.length) return "";
+        return `<div class="grp">${label[st]} — ${it.length}</div><div class="scroll-x"><table><tbody>
+          ${it.map(h=>`<tr><td style="width:32%"><strong>${esc(h.name)}</strong></td>
+          <td><span class="pill ${cls(st)}">${label[st]}</span></td>
+          <td style="color:var(--ink-2)">${esc(h.reason)}</td></tr>`).join("")}</tbody></table></div>`;}).join("")}
+      <p style="font-size:12px;color:var(--muted);margin-top:10px">“Ruled out” means it was checked and the data did not
+        support it. “Could not be checked” means the information needed was not there. Those mean different things.</p>
+    </div></details>
+
+  <details class="more"><summary>Evidence for and against
+    <span class="cnt">${r.evidence.filter(e=>!e.supporting).length} argue against</span></summary>
+    <div class="more-body">${[true,false].map(sup=>{const it=r.evidence.filter(e=>e.supporting===sup);
+      return `<div class="grp">${sup?"Supports the answer":"Argues against it"} — ${it.length}</div>
+      ${it.map(e=>`<div class="ev ${sup?"":"c"}"><div class="s"></div><div><div>${esc(e.text)}</div>
+        <div class="m">${esc(e.type)} · ${esc(e.strength)}</div></div></div>`).join("")}`;}).join("")}
+    </div></details>
+
+  <details class="more"><summary>How sure we are, and why <span class="cnt">${esc(c.level)} · scored ${c.calculatedScore}</span></summary>
+    <div class="more-body">
+      ${cap?`<p style="margin:0 0 12px">Scored <strong>${esc(c.calculatedLevel)}</strong>, published as
+        <strong>${esc(c.level)}</strong>. ${esc(cap.name)} — ${esc(cap.actual)}.</p>`:""}
+      ${c.dimensions.map(d=>{const na=d.availability==="Not Applicable", ms=d.availability==="Missing";
+        return `<div class="dimrow"><span><span style="${na?"color:var(--muted)":""}">${esc(d.dimension.replace(/([A-Z])/g," $1").trim())}</span>
+          ${na?`<div style="font-size:11.5px;color:var(--muted)">Not relevant here — ${esc(d.reason)}</div>`
+             :ms?`<div style="font-size:11.5px;color:var(--serious)">Missing — ${esc(d.reason)}</div>`:""}</span>
+          <span class="bar ${cls(d.availability)}"><i style="width:${na?0:d.score*100}%"></i></span>
+          <span class="mono" style="text-align:right;color:var(--ink-2);font-size:12px">${na?"n/a":d.score.toFixed(2)}</span></div>`;}).join("")}
+      <div class="grp">What would raise it</div>
+      <ul class="b">${c.whatWouldChangeIt.map(w=>`<li>${esc(w)}</li>`).join("")}</ul>
+    </div></details>
+
+  <details class="more"><summary>Show the numbers <span class="cnt">drivers, weekly trend, workings</span></summary>
+    <div class="more-body">
+      <div class="grp">Which drivers actually move this queue's demand</div>
+      <div class="scroll-x"><table><thead><tr><th>Driver</th><th class="num">Tracks demand</th>
+        <th class="num">Delay</th><th class="num">Moved</th><th>Usable here</th></tr></thead><tbody>
+        ${Object.entries(r.driverAnalysis).map(([k,d])=>`<tr><td>${esc(dname[k]||k)}</td>
+          <td class="num">${d.correlation==null?"—":d.correlation}</td>
+          <td class="num">${d.lagWeeks==null?"—":d.lagWeeks+" wk"}</td>
+          <td class="num">${d.changePct==null?"—":d.changePct+"%"}</td>
+          <td>${!d.fieldsPresent?'<span class="pill Suppressed">not recorded</span>'
+            :d.gatePassed?'<span class="pill Accepted">yes</span>':'<span class="pill Rejected">too weak</span>'}</td></tr>`).join("")}
+      </tbody></table></div>
+      <p style="font-size:12px;color:var(--muted);margin:6px 0 0">Measured against this queue's own demand at every
+        delay from 0 to 13 weeks. A driver too weak here may still matter on another queue.</p>
+
+      <div class="grp">How this queue tracked against plan</div>
+      <div class="legend"><span><i style="background:var(--under)"></i>above plan</span>
+        <span><i style="background:var(--over)"></i>below plan</span></div>
+      <div class="chart-wrap" id="cw">${chart(r.adherenceHistory)}<div class="tip" id="tip"></div></div>
+
+      <div class="grp">The workings, step by step</div>
+      <ul class="b" style="font-size:13px">${r.reasoningChain.map(n=>`<li><strong>${esc(n.question)}</strong><br>${esc(n.answer)}</li>`).join("")}</ul>
+
+      <div class="grp">What was missing or not relevant</div>
+      <div class="scroll-x"><table><tbody>${r.dataAvailability.map(a=>`<tr>
+        <td style="width:30%"><strong>${esc(a.element)}</strong></td>
+        <td style="white-space:nowrap;color:${a.state==="UNAVAILABLE"?"var(--serious)":"var(--muted)"}">${a.state==="UNAVAILABLE"?"missing":"not relevant"}</td>
+        <td style="color:var(--ink-2)">${esc(a.reason)}</td></tr>`).join("")}</tbody></table></div>
+
+      <div class="grp">Limits on this answer</div>
+      <ul class="b">${r.limitations.map(l=>`<li>${esc(l)}</li>`).join("")}</ul>
+
+      <div class="grp">Record</div>
+      <p style="font-size:12px;color:var(--muted);margin:0">Checked ${r.crossExamination.questions.length} challenges;
+        ${esc(r.crossExamination.outcome.toLowerCase())} after ${r.crossExamination.iterationsUsed} of
+        ${r.crossExamination.maxIterations} rounds. Fingerprint ${esc(String(r.audit.inputFingerprint).slice(0,16))}…,
+        rules v${esc(r.audit.businessRulesVersion)}, catalogue v${esc(r.audit.hypothesisCatalogueVersion)}.</p>
+    </div></details>`;
+  tips(r.adherenceHistory);
+}
+
+function chart(h){
+  const W=740,H=150,PL=40,PB=20,PT=8;
+  const mx=Math.max(10,...h.map(p=>Math.abs(p.adherencePct||0)))*1.12;
+  const y=v=>PT+((mx-v)/(2*mx))*(H-PT-PB), bw=(W-PL-8)/h.length, y0=y(0);
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Weekly gap against plan">
+    <line x1="${PL}" y1="${y0}" x2="${W-4}" y2="${y0}" stroke="var(--base)"/>
+    ${h.map((p,i)=>{if(p.adherencePct==null)return"";const v=p.adherencePct;
+      return `<rect class="bm" data-i="${i}" x="${PL+i*bw+2}" y="${v>=0?y(v):y0}" width="${Math.max(2,bw-4)}"
+        height="${Math.max(2,Math.abs(y(v)-y0))}" rx="3" fill="${v<0?"var(--under)":"var(--over)"}"/>`;}).join("")}
+    ${h.map((p,i)=>`<text x="${PL+i*bw+bw/2}" y="${H-5}" text-anchor="middle" font-size="9.5" fill="var(--muted)">${p.week%100}</text>`).join("")}
+  </svg>`;
+}
+function tips(h){
+  const w=$("#cw"),t=$("#tip"); if(!w)return;
+  w.querySelectorAll(".bm").forEach(x=>{
+    x.addEventListener("mouseenter",()=>{const p=h[+x.dataset.i];
+      t.innerHTML=`<strong>Week ${p.week}</strong><br>${sgn(p.adherencePct)} · ${p.adherencePct<0?"above":"below"} plan`;
+      t.style.opacity=1;const b=x.getBoundingClientRect(),c=w.getBoundingClientRect();
+      t.style.left=Math.min(c.width-160,Math.max(0,b.left-c.left-40))+"px";t.style.top=(b.top-c.top-46)+"px";});
+    x.addEventListener("mouseleave",()=>t.style.opacity=0);
+  });
+}
+$("#q").oninput=e=>{FILTER=e.target.value;draw();};
+document.querySelectorAll("[data-grain]").forEach(b=>b.onclick=()=>{
+  GRAIN=b.dataset.grain;document.querySelectorAll("[data-grain]").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  refresh().then(()=>{if(CURRENT)open(CURRENT);});
+});
+$("#theme").onclick=()=>{const cur=document.documentElement.getAttribute("data-theme");
+  const dark=cur?cur==="dark":matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.setAttribute("data-theme",dark?"light":"dark");};
+boot();
+</script>
+</body>
+</html>

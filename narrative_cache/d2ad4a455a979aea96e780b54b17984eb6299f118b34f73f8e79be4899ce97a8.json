@@ -1,0 +1,114 @@
+{
+  "narrative": {
+    "whyChain": [
+      {
+        "why": "Why did the forecast miss?",
+        "because": "Demand arrived higher than the plan expected."
+      },
+      {
+        "why": "Why was demand higher than the plan?",
+        "because": "The queue has been consistently under‑planned over several periods."
+      },
+      {
+        "why": "Why has it been under‑planned repeatedly?",
+        "because": "Underlying demand has been moving upward while the plan stayed near older levels."
+      },
+      {
+        "why": "Why has the plan stayed near older levels?",
+        "because": "The forecast method does not adjust for ongoing changes in demand."
+      },
+      {
+        "why": "Why does the forecast method not adjust for ongoing changes?",
+        "because": "The current setup does not include a way to capture recent shifts in demand."
+      }
+    ],
+    "executiveSummary": [
+      "Demand exceeded the forecast because the queue has been under‑planned for a stretch of periods.",
+      "The plan lagged behind because the forecasting approach does not reflect the upward trend in demand."
+    ],
+    "rootCauseStatement": "The forecast miss was caused by forecast bias.",
+    "confidenceExplanation": "Confidence is low because the analysis did not survive full cross‑examination and stopped before all questions were answered.",
+    "limitations": [
+      "The cross‑examination stopped before it could fully test the conclusion, so the result is not fully validated and confidence remains low.",
+      "The field needed to evaluate asu is missing for this queue, so those possible explanations could not be checked.",
+      "The volume band information was not present in the source data and was derived from the forecast volume, making the materiality threshold provisional.",
+      "The business event repository contains no entries, so no external events could be linked to the demand; this does not affect confidence.",
+      "There is no product identifier in the source data, so we cannot attribute the demand to specific products; the offering field only reflects a support tier."
+    ],
+    "recommendationNarratives": [
+      {
+        "recommendationId": "R1",
+        "text": "Examine whether the forecast method includes a way to capture ongoing shifts in demand for this queue."
+      },
+      {
+        "recommendationId": "R2",
+        "text": "Provide the missing asu and volume category fields for this queue so they can be used in future analysis."
+      }
+    ]
+  },
+  "status": "Complete",
+  "mode": "reasoning_option_b",
+  "fingerprint": "d2ad4a455a979aea96e780b54b17984eb6299f118b34f73f8e79be4899ce97a8",
+  "promptVersion": "1.0.0",
+  "provider": "nvidia",
+  "model": "nvidia/nemotron-3-super-120b-a12b",
+  "temperature": 0,
+  "seed": 20260706,
+  "usage": {
+    "prompt_tokens": 1245,
+    "completion_tokens": 3620,
+    "total_tokens": 4865
+  },
+  "latencySeconds": 31.76,
+  "validation": [
+    {
+      "check": "schema_conformance",
+      "result": "PASS",
+      "detail": "all fields present",
+      "kind": "exact"
+    },
+    {
+      "check": "no_figures",
+      "result": "PASS",
+      "detail": "no figures present",
+      "kind": "exact"
+    },
+    {
+      "check": "no_statistical_language",
+      "result": "PASS",
+      "detail": "business language only",
+      "kind": "exact"
+    },
+    {
+      "check": "no_ruled_out_driver",
+      "result": "PASS",
+      "detail": "none of 3 ruled-out driver(s) cited",
+      "kind": "heuristic"
+    },
+    {
+      "check": "root_cause_preserved",
+      "result": "PASS",
+      "detail": "'Forecast Bias' fully named",
+      "kind": "exact"
+    },
+    {
+      "check": "confidence_level_exact",
+      "result": "PASS",
+      "detail": "expected 'Low'",
+      "kind": "exact"
+    },
+    {
+      "check": "direction_preserved",
+      "result": "PASS",
+      "detail": "direction agrees with the engine",
+      "kind": "heuristic"
+    },
+    {
+      "check": "no_data_quality_cause",
+      "result": "PASS",
+      "detail": "no data-fault framing",
+      "kind": "exact"
+    }
+  ],
+  "reasoningExcerpt": "We need to produce JSON with fields: whyChain (list of objects with why and because), executiveSummary (list of strings), rootCauseStatement (string), confidenceExplanation (string), limitations (list of strings), recommendationNarratives (list of objects with recommendationId and text).\n\nWe must no"
+}
