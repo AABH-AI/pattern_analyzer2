@@ -12,15 +12,17 @@ Local backend for the Demand Pattern RCA Agent.
   endpoint never runs on-page/client-side so a real provider key never has to sit in
   the (public) rca_console.html file.
 - everything else  -> serves the static UI from the repo root, so opening
-  http://localhost:8000/rca_console.html and clicking "Investigate Root Cause"
+  http://localhost:8010/rca_console.html and clicking "Investigate Root Cause"
   is a same-origin fetch.
 
 Run:
+    python run.py                      (one command: frees the port, installs deps, starts, opens the browser)
+  or manually:
     cd backend
     pip install -r requirements.txt
-    uvicorn sql_backend:app --port 8000
-Then open http://localhost:8000/rca_console.html  (or open the file directly;
-CORS is open so the file:// page can still reach http://localhost:8000).
+    uvicorn sql_backend:app --port 8010
+Then open http://localhost:8010/rca_console.html  (or open the file directly;
+CORS is open so the file:// page can still reach http://localhost:8010).
 
 Connection details come from backend/config.json (see config.example.json).
 config.json is gitignored so credentials are never committed.
