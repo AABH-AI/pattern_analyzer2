@@ -1,5 +1,5 @@
 {
- "executive_summary": "During Fiscal Week 202719, total demand across the NA Core Spanish queue increased by 8805 contacts, a 143x increase from the usual level. Voice demand increased by 8805 contacts. This indicates that demand genuinely surged to a level not in the plan, resulting in a forecast miss. Because the forecast baseline was built from the queue's normal weekly level with no event or seasonality signal, it could not anticipate a move of this size.",
+ "executive_summary": "During Fiscal Week 202719, total demand across the NA Core Spanish queue increased by 8805 contacts, a 143x increase from the usual level. Voice demand increased by 8805 contacts. This indicates that demand genuinely surged to a level not in the plan, so more customers contacted support this week. Because the forecast baseline was built from the queue's normal weekly level with no event or seasonality signal, it could not anticipate a move of this size.",
  "kpi_status": {
   "metric": "Forecast Adherence",
   "adherence_pct": -9599.7,
@@ -7,7 +7,7 @@
   "breached": true,
   "direction": "under_forecast"
  },
- "business_impact": "The forecast miss resulted in a significant underestimation of demand, potentially leading to understaffing and decreased customer satisfaction.",
+ "business_impact": "The large under-forecast has significant operational consequences, including potential overloading of support resources and decreased customer satisfaction.",
  "ranked_root_causes": [
   {
    "cause_type": "forecast_baseline_error",
@@ -32,56 +32,56 @@
    "rank": 2,
    "cause_type": "genuine_demand_event",
    "title": "Genuine demand surge not in the plan",
-   "explanation": "The forecast miss was caused by a genuine demand surge that was not anticipated by the forecast baseline. The queue's normal weekly level did not account for this event, resulting in a significant underestimation of demand.",
+   "explanation": "The surge in demand is not explained by any known factors such as changes in planned units for delivery or holidays. The forecast baseline was not able to anticipate this increase in demand.",
    "evidence": [
     {
-     "text": "Actual offered volume was 143x higher than usual",
+     "text": "Actual offered volume is 143x higher than usual",
      "source_field": "Actual_Offered",
      "value": 8805.0
     },
     {
-     "text": "Forecast baseline was built from the queue's normal weekly level",
+     "text": "Forecast baseline was built from the queue's normal weekly level with no event or seasonality signal",
      "source_field": "fcst_offered",
      "value": 90.78
     }
    ],
-   "confidence_pct": 90,
+   "confidence_pct": 80,
    "confidence_level": "High",
-   "business_impact": "Potential understaffing and decreased customer satisfaction",
-   "recommended_action": "Review forecast baseline and adjust for potential demand surges",
+   "business_impact": "The large under-forecast has significant operational consequences, including potential overloading of support resources and decreased customer satisfaction.",
+   "recommended_action": "Review forecast baseline and adjust to account for potential demand surges",
    "status": "Verified"
   },
   {
    "rank": 3,
    "cause_type": "inherited_from_higher_level",
    "title": "Miss inherited from Region level",
-   "explanation": "The miss is also visible at the Region level, indicating that the issue may not be specific to this queue. The Region-level miss may be contributing to the queue-level miss.",
+   "explanation": "The same miss is already visible at the Region level, so it is not specific to this queue and should be attributed there.",
    "evidence": [
     {
-     "text": "Region-level adherence was -13.6%",
-     "source_field": "higher-level check - adherence_pct",
-     "value": -13.6
+     "text": "The same miss is already visible at Region level",
+     "source_field": "higher-level check",
+     "value": "Region"
     }
    ],
-   "confidence_pct": 80,
+   "confidence_pct": 70,
    "confidence_level": "High",
-   "business_impact": "Potential impact on Region-level staffing and customer satisfaction",
-   "recommended_action": "Investigate Region-level forecast and adjust as needed",
+   "business_impact": "The issue is not specific to this queue and should be addressed at the Region level.",
+   "recommended_action": "Investigate the cause of the miss at the Region level",
    "status": "Verified"
   }
  ],
  "skeptic_review": [
   {
    "cause": "genuine_demand_event",
-   "challenge": "Is the demand surge a one-time event or a trend?",
+   "challenge": "Could the demand surge be due to a special event or seasonality?",
    "verdict": "retained",
-   "reason": "The demand surge is a significant deviation from the queue's normal weekly level, but it is not clear if it is a one-time event or a trend."
+   "reason": "There is no evidence of a special event or seasonality that could explain the demand surge."
   },
   {
    "cause": "inherited_from_higher_level",
-   "challenge": "Is the Region-level miss the primary cause of the queue-level miss?",
-   "verdict": "retained",
-   "reason": "The Region-level miss is a contributing factor, but it is not clear if it is the primary cause of the queue-level miss."
+   "challenge": "Could the miss be due to a forecasting issue specific to this queue?",
+   "verdict": "rejected",
+   "reason": "The same miss is already visible at the Region level, so it is not specific to this queue."
   },
   {
    "cause": "Genuine demand surge not in the plan",
@@ -104,11 +104,11 @@
    "Country"
   ],
   "inherited_from": "Region",
-  "narrative": "The miss is visible at the Region level and may be contributing to the queue-level miss."
+  "narrative": "The miss is inherited from the Region level and should be attributed there."
  },
  "channel_migration": {
   "detected": false,
-  "narrative": "No channel migration detected",
+  "narrative": "Channel movements do not cancel out, so this is not a like-for-like shift between channels.",
   "gaining_channels": [
    "Voice"
   ],
@@ -1189,7 +1189,7 @@
   "provider": "groq",
   "model": "llama-3.3-70b-versatile",
   "calls": 1,
-  "generated_at": "2026-08-13T06:13:41.279949+00:00"
+  "generated_at": "2026-08-13T07:32:04.494162+00:00"
  },
  "statistical_override_applied": "Statistical evidence (Plan vs seasonal norm (same week, prior years)) overrides the model's ranking: forecast_baseline_error is measured directly from this queue's own history. The model's causes are retained below as contributing factors.",
  "cause_type": "forecast_baseline_error",
@@ -1498,29 +1498,29 @@
  },
  "secondary_contributors": [
   {
-   "statement": "The forecast miss was caused by a genuine demand surge that was not anticipated by the forecast baseline. The queue's normal weekly level did not account for this event, resulting in a significant underestimation of demand.",
-   "confidence": 0.9,
+   "statement": "The surge in demand is not explained by any known factors such as changes in planned units for delivery or holidays. The forecast baseline was not able to anticipate this increase in demand.",
+   "confidence": 0.8,
    "supporting_evidence": [
     {
-     "text": "Actual offered volume was 143x higher than usual",
+     "text": "Actual offered volume is 143x higher than usual",
      "source_field": "Actual_Offered",
      "value": 8805.0
     },
     {
-     "text": "Forecast baseline was built from the queue's normal weekly level",
+     "text": "Forecast baseline was built from the queue's normal weekly level with no event or seasonality signal",
      "source_field": "fcst_offered",
      "value": 90.78
     }
    ]
   },
   {
-   "statement": "The miss is also visible at the Region level, indicating that the issue may not be specific to this queue. The Region-level miss may be contributing to the queue-level miss.",
-   "confidence": 0.8,
+   "statement": "The same miss is already visible at the Region level, so it is not specific to this queue and should be attributed there.",
+   "confidence": 0.7,
    "supporting_evidence": [
     {
-     "text": "Region-level adherence was -13.6%",
-     "source_field": "higher-level check - adherence_pct",
-     "value": -13.6
+     "text": "The same miss is already visible at Region level",
+     "source_field": "higher-level check",
+     "value": "Region"
     }
    ]
   }
@@ -1538,8 +1538,13 @@
    "value": "plan_vs_seasonal_norm"
   }
  ],
- "reasoning_narrative": "The miss is visible at the Region level and may be contributing to the queue-level miss.",
- "rejected_hypotheses": [],
+ "reasoning_narrative": "The miss is inherited from the Region level and should be attributed there.",
+ "rejected_hypotheses": [
+  {
+   "hypothesis": "inherited_from_higher_level",
+   "reason_rejected": "The same miss is already visible at the Region level, so it is not specific to this queue."
+  }
+ ],
  "historical_comparison": {
   "narrative": "Over the last 13 weeks, actual demand for this queue averaged ~61.8 contacts per week. The queue historically trends below forecast with an average adherence of 36.6%. Typical weekly error magnitude is about ~36.6%. This week's miss magnitude is 262.6x its typical historical variation. In the same fiscal week last year (FW 202619), actual demand was 144.0 contacts.",
   "data_points": [
@@ -1596,13 +1601,13 @@
   }
  ],
  "terminology_guard_applied": [
-  "ranked_root_causes[2].evidence[0].source_field: INVESTIGATION_LADDER.levels[1].adherence_pct -> higher-level check - adherence_pct",
-  "secondary_contributors[1].supporting_evidence[0].source_field: INVESTIGATION_LADDER.levels[1].adherence_pct -> higher-level check - adherence_pct"
+  "ranked_root_causes[2].evidence[0].source_field: INVESTIGATION_LADDER -> higher-level check",
+  "secondary_contributors[1].supporting_evidence[0].source_field: INVESTIGATION_LADDER -> higher-level check"
  ],
  "language_guard_applied": [
   "cause1.explanation: outlier -> unusual value",
   "cause1.evidence1: outlier -> unusual value",
-  "ranked_root_causes[2].evidence[0].source_field: INVESTIGATION_LADDER.levels[1].adherence_pct -> higher-level check - adherence_pct",
-  "secondary_contributors[1].supporting_evidence[0].source_field: INVESTIGATION_LADDER.levels[1].adherence_pct -> higher-level check - adherence_pct"
+  "ranked_root_causes[2].evidence[0].source_field: INVESTIGATION_LADDER -> higher-level check",
+  "secondary_contributors[1].supporting_evidence[0].source_field: INVESTIGATION_LADDER -> higher-level check"
  ]
 }

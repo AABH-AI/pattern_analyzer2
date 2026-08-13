@@ -12,7 +12,7 @@
    "provider": "nvidia",
    "model": "nvidia/nemotron-3-super-120b-a12b",
    "engine": "wfm-llm",
-   "seconds": 112.6,
+   "seconds": 133.8,
    "raw_file": "spec-nvidia-response.json",
    "ranked": [
     {
@@ -41,17 +41,17 @@
     },
     {
      "rank": 4,
-     "cause_type": "systematic_forecast_bias",
-     "title": "Chronic over-forecast bias masked by this week's anomaly",
+     "cause_type": "plan_restatement",
+     "title": "Forecast plan restatement affecting comparison",
      "confidence_pct": 60,
      "confidence_level": "Medium",
-     "status": "Verified"
+     "status": "Hypothesis - To be Validated"
     },
     {
      "rank": 5,
-     "cause_type": "plan_restatement",
-     "title": "Forecast plan restatement affected comparison",
-     "confidence_pct": 40,
+     "cause_type": "systematic_forecast_bias",
+     "title": "Chronic over-forecasting bias in the queue",
+     "confidence_pct": 50,
      "confidence_level": "Medium",
      "status": "Hypothesis - To be Validated"
     }
@@ -85,7 +85,7 @@
      "id": "S5",
      "clause": "Root causes: best-supported first (confidence descends, except mandated-first causes)",
      "status": "PASS",
-     "detail": "all=[82, 90, 85, 60, 40] mandated_first=['forecast_baseline_error'] checked=[90, 85, 60, 40]"
+     "detail": "all=[82, 90, 85, 60, 50] mandated_first=['forecast_baseline_error'] checked=[90, 85, 60, 50]"
     },
     {
      "id": "S6",
@@ -103,7 +103,7 @@
      "id": "S8",
      "clause": "Skeptic mode: challenges recorded with verdicts",
      "status": "PASS",
-     "detail": "10 entries, 2 rejected"
+     "detail": "10 entries, 0 rejected"
     },
     {
      "id": "S9",
@@ -115,13 +115,13 @@
      "id": "S10",
      "clause": "Technical metrics kept in their own (collapsed) section",
      "status": "PASS",
-     "detail": "15 rows"
+     "detail": "13 rows"
     },
     {
      "id": "S11",
      "clause": "Output format: executive summary, KPI status, business impact all present",
      "status": "PASS",
-     "detail": "summary=568 chars"
+     "detail": "summary=735 chars"
     },
     {
      "id": "S12",
@@ -145,7 +145,7 @@
      "id": "S15",
      "clause": "Investigation order: an inherited miss is actually reported as inherited",
      "status": "PASS",
-     "detail": "inherited_from=Region, types=['forecast_baseline_error', 'inherited_from_higher_level', 'genuine_demand_event', 'systematic_forecast_bias', 'plan_restatement']"
+     "detail": "inherited_from=Region, types=['forecast_baseline_error', 'inherited_from_higher_level', 'genuine_demand_event', 'plan_restatement', 'systematic_forecast_bias']"
     },
     {
      "id": "S16",
@@ -169,13 +169,13 @@
      "id": "S19",
      "clause": "Critical rules: every quoted figure traces to the real data",
      "status": "PASS",
-     "detail": "14 numeric citations checked, 0 unmatched"
+     "detail": "16 numeric citations checked, 0 unmatched"
     },
     {
      "id": "S20",
      "clause": "Critical rules: gaps declared rather than glossed over",
      "status": "PASS",
-     "detail": "5 item(s)"
+     "detail": "4 item(s)"
     },
     {
      "id": "S21",
@@ -189,7 +189,7 @@
    "provider": "groq",
    "model": "llama-3.3-70b-versatile",
    "engine": "wfm-llm",
-   "seconds": 3.9,
+   "seconds": 4.4,
    "raw_file": "spec-groq-response.json",
    "ranked": [
     {
@@ -204,7 +204,7 @@
      "rank": 2,
      "cause_type": "genuine_demand_event",
      "title": "Genuine demand surge not in the plan",
-     "confidence_pct": 90,
+     "confidence_pct": 80,
      "confidence_level": "High",
      "status": "Verified"
     },
@@ -212,7 +212,7 @@
      "rank": 3,
      "cause_type": "inherited_from_higher_level",
      "title": "Miss inherited from Region level",
-     "confidence_pct": 80,
+     "confidence_pct": 70,
      "confidence_level": "High",
      "status": "Verified"
     }
@@ -246,7 +246,7 @@
      "id": "S5",
      "clause": "Root causes: best-supported first (confidence descends, except mandated-first causes)",
      "status": "PASS",
-     "detail": "all=[82, 90, 80] mandated_first=['forecast_baseline_error'] checked=[90, 80]"
+     "detail": "all=[82, 80, 70] mandated_first=['forecast_baseline_error'] checked=[80, 70]"
     },
     {
      "id": "S6",
@@ -264,7 +264,7 @@
      "id": "S8",
      "clause": "Skeptic mode: challenges recorded with verdicts",
      "status": "PASS",
-     "detail": "4 entries, 0 rejected"
+     "detail": "4 entries, 1 rejected"
     },
     {
      "id": "S9",
@@ -282,7 +282,7 @@
      "id": "S11",
      "clause": "Output format: executive summary, KPI status, business impact all present",
      "status": "PASS",
-     "detail": "summary=440 chars"
+     "detail": "summary=457 chars"
     },
     {
      "id": "S12",
@@ -330,7 +330,7 @@
      "id": "S19",
      "clause": "Critical rules: every quoted figure traces to the real data",
      "status": "PASS",
-     "detail": "3 numeric citations checked, 0 unmatched"
+     "detail": "2 numeric citations checked, 0 unmatched"
     },
     {
      "id": "S20",

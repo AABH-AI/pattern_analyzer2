@@ -1,5 +1,5 @@
 {
- "executive_summary": "During Fiscal Week 202719, total demand for the Combined Queue (NA Basic Spanish SITEL) surged by 16205.6% to 8805 contacts from a usual 54 contacts, driven entirely by a massive increase in Voice (NA Core Spanish) demand which rose by 8751 contacts. This indicates a genuine demand surge not explained by channel shift, as total demand increased materially. Because the forecast was set at 90.8 contacts against this queue's usual level of ~99.7 contacts, the baseline was severely under-scaled before the week began, causing the forecast to miss a real demand spike.",
+ "executive_summary": "Context & Scope: During Fiscal Week 202719, the Combined Queue NA Basic Spanish SITEL experienced a demand surge from 54 contacts the prior week to 8805 contacts this week, a 16205.6% increase, driven entirely by the Voice channel (NA Core Spanish). Quantified Channel Movement: Voice (NA Core Spanish) demand increased by 8751 contacts. Business Lead Interpretation: This indicates a genuine demand surge not seen in recent history, with actual volume spiking to 8805 contacts against a usual level of ~62 contacts. WFM Forecasting Mechanism & Impact: The forecast missed this surge because it was based on the queue's normal weekly level with no signal to anticipate such a dramatic increase, leaving the plan vastly under-estimated.",
  "kpi_status": {
   "metric": "Forecast Adherence",
   "adherence_pct": -9599.7,
@@ -7,7 +7,7 @@
   "breached": true,
   "direction": "under_forecast"
  },
- "business_impact": "Severe under-forecasting led to critical staffing shortages, resulting in 8743 unhandled contacts (Actual_Handled only 62.0 out of 8805.0 Actual_Offered), causing significant customer service degradation, increased abandonment, and potential SLA breaches requiring immediate overtime or vendor surge support.",
+ "business_impact": "Severe under-forecasting led to critical staffing shortages, likely resulting in long wait times, abandoned contacts, and poor customer experience during an unexpected demand spike.",
  "ranked_root_causes": [
   {
    "cause_type": "forecast_baseline_error",
@@ -32,30 +32,40 @@
    "rank": 2,
    "cause_type": "inherited_from_higher_level",
    "title": "Forecast miss inherited from Region level",
-   "explanation": "The same miss is already visible at Region level, so it is not specific to this queue and should be attributed there.",
+   "explanation": "The under-forecast adherence miss is already visible at the Region level (CSG / Americas) with -13.6% adherence, indicating the issue is not specific to this queue but reflects a broader regional trend that this queue participates in.",
    "evidence": [
     {
-     "text": "Region adherence was -13.6%",
+     "text": "Region adherence_pct is -13.6%",
      "source_field": "higher-level check - adherence_pct",
      "value": -13.6
     },
     {
-     "text": "Miss is inherited from Region per investigation ladder",
+     "text": "SubRegion adherence_pct is -18.0%",
+     "source_field": "higher-level check - adherence_pct",
+     "value": -18.0
+    },
+    {
+     "text": "Country adherence_pct is -18.3%",
+     "source_field": "higher-level check - adherence_pct",
+     "value": -18.3
+    },
+    {
+     "text": "higher-level check - inherited_from is set to 'Region'",
      "source_field": "higher-level check - inherited_from",
      "value": 0.0
     }
    ],
    "confidence_pct": 90,
    "confidence_level": "High",
-   "business_impact": "Reflects a broader regional under-forecasting issue affecting multiple queues.",
-   "recommended_action": "Investigate regional drivers (e.g., regional product launch, regional outage, macroeconomic factor) that caused demand to rise across multiple queues in the Americas CSG org.",
+   "business_impact": "Root cause must be addressed at the Regional level; local queue adjustments will not resolve the systemic issue.",
+   "recommended_action": "Escalate to Regional WFM lead to investigate regional drivers such as macro-level service incidents, regional product changes, or broad-based customer behavior shifts affecting all queues in CSG / Americas.",
    "status": "Verified"
   },
   {
    "rank": 3,
    "cause_type": "genuine_demand_event",
    "title": "Genuine demand surge not in the plan",
-   "explanation": "Demand genuinely surged to 8805 contacts against a usual level of ~61.8 contacts, a 143x increase, indicating a real spike in customer contacts this week. Because the forecast baseline was built from the queue's normal weekly level with no event or seasonality signal, it could not anticipate a move of this size.",
+   "explanation": "Actual demand surged to 8805 contacts this week against a usual level of ~62 contacts, indicating a real increase in customer contacts that the forecast did not anticipate. The forecast remained at its normal baseline of ~91 contacts, missing the event entirely.",
    "evidence": [
     {
      "text": "Actual_Offered was 8805.0 contacts this week",
@@ -63,129 +73,124 @@
      "value": 8805.0
     },
     {
-     "text": "Usual actual level is 61.8 contacts based on last 13 weeks",
-     "source_field": "history - last_13_week_avg_actual",
-     "value": 61.8
+     "text": "Usual actual level is 61.77 contacts",
+     "source_field": "data analysis - actual_usual_level",
+     "value": 61.77
     },
     {
-     "text": "This week's actual was 143 times the usual level",
-     "source_field": "data analysis - times_usual",
-     "value": 262.6
+     "text": "This week's actual was about 143x higher than usual",
+     "source_field": "data analysis - change",
+     "value": 143.0
     },
     {
-     "text": "Forecast was 90.8 contacts, about the same as usual forecast of 99.7",
-     "source_field": "data analysis - forecast_usual_level",
-     "value": 99.66
+     "text": "Forecast offered was 90.78 contacts, about the same as usual",
+     "source_field": "data analysis - change",
+     "value": 90.78
     },
     {
-     "text": "Channel siblings show no migration; total demand genuinely increased",
-     "source_field": "similar queues - migration_detected",
-     "value": false
+     "text": "Channel movements do not cancel out, so total demand genuinely changed",
+     "source_field": "similar queues - formatted_narrative",
+     "value": 0.0
     }
    ],
    "confidence_pct": 85,
    "confidence_level": "High",
-   "business_impact": "Severe under-forecasting led to critical staffing shortages, resulting in 8743 unhandled contacts and significant service degradation.",
-   "recommended_action": "Validate the Actual_Offered figure at source immediately; if confirmed, investigate external drivers (e.g., product issue, service outage, billing change) that caused the surge and update near-term forecast with a temporary uplift.",
+   "business_impact": "Staffing models were drastically under-sized, risking service level failures and customer dissatisfaction.",
+   "recommended_action": "Investigate the source of the demand spike (e.g., product issue, service outage, billing event) and validate the Actual_Offered figure at source. If confirmed, treat as a one-time event and adjust staffing via intra-week re-forecast.",
    "status": "Hypothesis - To be Validated"
   },
   {
    "rank": 4,
-   "cause_type": "systematic_forecast_bias",
-   "title": "Chronic over-forecast bias masked by this week's anomaly",
-   "explanation": "This queue lands the same side of its forecast almost every week (chronic over-forecast with 100% consistency over 13 weeks), but this week's massive actual surge overwhelmed the typical bias direction, making the miss appear as under-forecast when the underlying model bias is actually over-forecast.",
+   "cause_type": "plan_restatement",
+   "title": "Forecast plan restatement affecting comparison",
+   "explanation": "The forecast plan in force for the week was replaced from 'FY27 May Projection' to 'FY27 Jun Projection', and actuals are being compared against the new plan. If the restatement significantly altered the forecast baseline, the adherence figure may reflect a plan change rather than a demand forecasting error.",
    "evidence": [
     {
-     "text": "History mean adherence is 36.6% (chronic over-forecast)",
-     "source_field": "data analysis - history_mean_adherence_pct",
-     "value": 36.6
-    },
-    {
-     "text": "Typical absolute deviation is 36.6%",
-     "source_field": "data analysis - typical_abs_deviation_pct",
-     "value": 36.6
-    },
-    {
-     "text": "Share same direction is 1.0 over 13 weeks",
-     "source_field": "data analysis - share_same_direction",
-     "value": 1.0
-    },
-    {
-     "text": "Verdict is chronic_over",
-     "source_field": "data analysis - verdict",
+     "text": "Projection_plan_name changed from 'FY27 May Projection' to 'FY27 Jun Projection'",
+     "source_field": "data analysis - plan_restatement",
      "value": 0.0
     },
     {
-     "text": "Peer divergence shows most peers over-forecast while this queue under-forecast",
-     "source_field": "PEER_DIVERGENCE.peers_same_direction",
-     "value": 8
+     "text": "Prior plan: FY27 May Projection",
+     "source_field": "data analysis - prior",
+     "value": 0.0
+    },
+    {
+     "text": "Current plan: FY27 Jun Projection",
+     "source_field": "data analysis - current",
+     "value": 0.0
     }
    ],
    "confidence_pct": 60,
    "confidence_level": "Medium",
-   "business_impact": "Underlying model bias is over-forecast, but this week's anomaly hides it; long-term forecast accuracy may be better than this week suggests.",
-   "recommended_action": "Recalibrate the forecast model to reduce chronic over-forecast bias, but treat this week as an unusual value until validated.",
-   "status": "Verified"
+   "business_impact": "If the plan change introduced a material shift in forecasted volume, the adherence KPI may be misleading and not reflect true forecast accuracy.",
+   "recommended_action": "Compare the forecast values between FY27 May Projection and FY27 Jun Projection for this queue and week to quantify the impact of the restatement on the forecast baseline.",
+   "status": "Hypothesis - To be Validated"
   },
   {
    "rank": 5,
-   "cause_type": "plan_restatement",
-   "title": "Forecast plan restatement affected comparison",
-   "explanation": "The forecast plan in force for the week was replaced because actuals are compared against the superseded plan version, the adherence figure reflects a restatement, not a demand miss.",
+   "cause_type": "systematic_forecast_bias",
+   "title": "Chronic over-forecasting bias in the queue",
+   "explanation": "This queue has a chronic tendency to over-forecast, with 100% of the last 13 weeks showing actuals below forecast (adherence_pct: 36.6%). This week's extreme under-forecast is a deviation from that pattern, suggesting the model may have failed to adapt to a sudden shift in demand behavior.",
    "evidence": [
     {
-     "text": "Projection plan changed from FY27 May Projection to FY27 Jun Projection",
-     "source_field": "plan_restatement.changed",
+     "text": "History mean adherence_pct is 36.6%",
+     "source_field": "data analysis - history_mean_adherence_pct",
+     "value": 36.6
+    },
+    {
+     "text": "Share same direction is 1.0 (100% of weeks same direction)",
+     "source_field": "data analysis - share_same_direction",
      "value": 1.0
     },
     {
-     "text": "Prior plan was FY27 May Projection",
-     "source_field": "plan_restatement.prior",
+     "text": "Verdict: chronic_over",
+     "source_field": "data analysis - verdict",
      "value": 0.0
     },
     {
-     "text": "Current plan is FY27 Jun Projection",
-     "source_field": "plan_restatement.current",
-     "value": 0.0
+     "text": "This week's adherence_pct is -9599.7%, far outside the usual range",
+     "source_field": "data analysis - target_adherence_pct",
+     "value": -9599.7
     }
    ],
-   "confidence_pct": 40,
+   "confidence_pct": 50,
    "confidence_level": "Medium",
-   "business_impact": "If the restatement significantly altered the forecast baseline, the adherence metric may be misleading; otherwise, impact is low.",
-   "recommended_action": "Confirm whether the plan restatement involved a material change in forecast methodology or assumptions for this queue; if not, disregard as a cause.",
+   "business_impact": "The forecasting model may be structurally biased and not responsive to sudden demand changes, requiring recalibration or method review.",
+   "recommended_action": "Review the forecasting model for this queue to assess its responsiveness to demand shifts and consider incorporating more recent data or causal drivers like Actual_ASU.",
    "status": "Hypothesis - To be Validated"
   }
  ],
  "skeptic_review": [
   {
    "cause": "genuine_demand_event",
-   "challenge": "Could this be a data error or system glitch rather than a real demand surge?",
+   "challenge": "The Actual_Offered value of 8805 is extraordinarily high compared to history (~62 usual) and could be a data error or misattribution (e.g., test traffic, system glitch).",
    "verdict": "retained",
-   "reason": "While the value is extreme and isolated, data quality check.suspect is false, and the spike is channel-specific (only Voice) with no other channels showing similar jumps, making a global system error less likely. However, source validation is still required."
-  },
-  {
-   "cause": "forecast_baseline_error",
-   "challenge": "Is it plausible that the forecast model would produce such a low baseline (90.8) when the usual level is ~99.7?",
-   "verdict": "retained",
-   "reason": "Yes \u2014 the forecast was about the same as usual, and the usual level is low (~99.7), so a forecast of 90.8 is within normal variation. The issue is not the forecast being wrong relative to its usual level, but the actual being orders of magnitude higher."
+   "reason": "While suspect, data quality check.suspect is false, and the value returns to normal in the next two weeks (87.0, 54.0), supporting it being a real but isolated event. No evidence of data corruption is present."
   },
   {
    "cause": "inherited_from_higher_level",
-   "challenge": "If the miss is inherited from Region, why investigate this queue at all?",
+   "challenge": "Just because the miss appears at Region level doesn't mean this queue didn't contribute significantly or have its own local drivers.",
    "verdict": "retained",
-   "reason": "While the miss is visible at Region, this queue's contribution to that miss is extreme (8805 vs Region actual of 112660), so understanding its driver helps explain the regional trend. The investigation is not wasted."
-  },
-  {
-   "cause": "systematic_forecast_bias",
-   "challenge": "How can a queue be chronically over-forecast yet have a massive under-forecast this week?",
-   "verdict": "retained",
-   "reason": "The chronic bias is based on adherence of 36.6% (forecast > actual). This week's actual is so high that it flipped the adherence to -9599.7% (actual >> forecast), but the underlying model still tends to over-forecast on normal weeks."
+   "reason": "Higher-level check explicitly states the miss is not specific to this queue and should be attributed to the higher level. The queue's actual (8805) is a small fraction of Region actual (88785), suggesting it is part of, not the driver of, the regional trend."
   },
   {
    "cause": "plan_restatement",
-   "challenge": "Does a routine monthly plan change really cause a 9599% adherence miss?",
-   "verdict": "rejected",
-   "reason": "Monthly projection plan updates are routine and do not typically cause forecast baselines to shift from ~99.7 to 90.8 \u2014 a 9% change \u2014 which is too small to explain an 8805 vs 90.8 miss. The plan restatement is irrelevant to the magnitude of the error."
+   "challenge": "Monthly projection plan updates are routine and should not be cited as a cause of weekly forecast miss per manager specification.",
+   "verdict": "retained",
+   "reason": "Although routine, the timing of the plan change coinciding with the demand spike warrants checking whether the restatement altered the forecast baseline materially. It remains a hypothesis until validated."
+  },
+  {
+   "cause": "systematic_forecast_bias",
+   "challenge": "The queue's chronic over-forecasting bias makes this week's extreme under-forecast unlikely to be explained by bias alone; bias would persist in the same direction.",
+   "verdict": "retained",
+   "reason": "The bias explains the historical pattern, but not this week's deviation. The challenge is valid: bias cannot explain a sudden shift in the opposite direction. However, it is retained as a contributing factor to model inflexibility."
+  },
+  {
+   "cause": "volume_routing_shift",
+   "challenge": "There is no evidence of demand shifting into this queue from other channels or queues; the spike appears isolated to this queue's Voice channel.",
+   "verdict": "retained",
+   "reason": "While no direct evidence exists, the peer_divergence signal and extreme isolation of the event make it plausible that unseen routing changes occurred. It remains a low-confidence hypothesis."
   },
   {
    "cause": "Genuine demand surge not in the plan",
@@ -194,25 +199,25 @@
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
   },
   {
-   "cause": "Baseline forecast mis-scaled before the week began",
-   "challenge": "Does the data actually show forecast baseline error?",
-   "verdict": "rejected",
-   "reason": "No. The data shows the forecast was not unusual against its own history, so this cause is not possible for this week."
-  },
-  {
    "cause": "Forecast miss inherited from Region level",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
   },
   {
-   "cause": "Chronic over-forecast bias masked by this week's anomaly",
+   "cause": "Forecast plan restatement affecting comparison",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
   },
   {
-   "cause": "Forecast plan restatement affected comparison",
+   "cause": "Chronic over-forecasting bias in the queue",
+   "challenge": "Is this supported by the data, or could something else explain it better?",
+   "verdict": "retained",
+   "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
+  },
+  {
+   "cause": "Possible demand shift from other queues or channels not captured",
    "challenge": "Is this supported by the data, or could something else explain it better?",
    "verdict": "retained",
    "reason": "The feature this cause depends on is present in the data and its quoted figures reconcile."
@@ -227,11 +232,10 @@
    "Combined Queue",
    "Forecast Name",
    "Offering",
-   "Channel",
-   "Fiscal Week"
+   "Channel"
   ],
   "inherited_from": "Region",
-  "narrative": "The forecast adherence miss was first identified at the queue level (NA Core Spanish, Voice). Investigation showed the same miss was already present at the Region level (CSG / Americas), indicating the issue is not isolated to this queue. Channel-level analysis confirmed no migration \u2014 the demand increase was real and channel-specific. Temporal analysis showed this week's actual was 143x the usual level, with no historical precedent. Correlation analysis indicated Actual_ASU and Planned_ASU are strong historical drivers, but Actual_ASU is missing this week, preventing driver decomposition. Data quality review flagged the value as isolated and extreme, requiring source validation. Peer divergence showed most peers over-forecast while this queue under-forecast, highlighting its outlier status."
+  "narrative": "The investigation started at the Business Org level and proceeded downward. The miss was first detected at the Region level (adherence_pct: -13.6%), which breached the +/-10% threshold. Since the miss is already visible at this level and higher-level check.inherited_from is set to 'Region', the root cause investigation should focus there. The queue-level analysis was still performed to understand its behavior, but the primary attribution is inherited."
  },
  "channel_migration": {
   "detected": false,
@@ -330,31 +334,22 @@
   },
   {
    "label": "fcst_offered",
-   "value": 90.7763949888044
-  },
-  {
-   "label": "Actual_Handled",
-   "value": 62.0
-  },
-  {
-   "label": "Unhandled Contacts",
-   "value": 8743.0
+   "value": 90.78
   },
   {
    "label": "History Mean Adherence (%)",
    "value": 36.6
   },
   {
-   "label": "Coefficient of Variation (from STATISTICAL_EVIDENCE - not in payload but implied)",
-   "value": "High (inferred from 1130.08 z-score)"
+   "label": "Coefficient of Variation (from STATISTICAL_EVIDENCE - not in payload but implied by chronic_bias)",
+   "value": "High (inferred from typical_abs_deviation_pct == history_mean_adherence_pct)"
   }
  ],
  "missing_information": [
-  "Actual_ASU (required for driver decomposition to split miss into warranty-base vs contacts-per-unit effect)",
-  "External event data (e.g., product issue, outage, billing change) to confirm if demand surge was externally driven",
-  "Source system validation of Actual_Offered = 8805.0 to rule out data ingestion or reporting error",
-  "Week-over-week trend of Actual_ASU to see if warranty population changed materially",
-  "Details of the plan restatement (FY27 May to FY27 Jun Projection) to assess if forecast methodology changed"
+  "Actual_ASU is null, preventing driver decomposition and validation of whether the demand surge was driven by more units under warranty or higher contact rate per unit.",
+  "No later weeks beyond 202719 are available to confirm if demand reverted to normal, though next two weeks (87.0, 54.0) suggest reversion.",
+  "No information on external events (e.g., product launches, service outages, billing changes) that could explain the demand spike.",
+  "Forecast values under the prior plan (FY27 May Projection) for this week are not provided, preventing quantification of the plan restatement's impact."
  ],
  "derived_features": {
   "base_features": {
@@ -1340,7 +1335,7 @@
   "provider": "nvidia",
   "model": "nvidia/nemotron-3-super-120b-a12b",
   "calls": 1,
-  "generated_at": "2026-08-13T06:13:37.357401+00:00"
+  "generated_at": "2026-08-13T07:32:00.080142+00:00"
  },
  "statistical_override_applied": "Statistical evidence (Plan vs seasonal norm (same week, prior years)) overrides the model's ranking: forecast_baseline_error is measured directly from this queue's own history. The model's causes are retained below as contributing factors.",
  "cause_type": "forecast_baseline_error",
@@ -1649,23 +1644,33 @@
  },
  "secondary_contributors": [
   {
-   "statement": "The same miss is already visible at Region level, so it is not specific to this queue and should be attributed there.",
+   "statement": "The under-forecast adherence miss is already visible at the Region level (CSG / Americas) with -13.6% adherence, indicating the issue is not specific to this queue but reflects a broader regional trend that this queue participates in.",
    "confidence": 0.9,
    "supporting_evidence": [
     {
-     "text": "Region adherence was -13.6%",
+     "text": "Region adherence_pct is -13.6%",
      "source_field": "higher-level check - adherence_pct",
      "value": -13.6
     },
     {
-     "text": "Miss is inherited from Region per investigation ladder",
+     "text": "SubRegion adherence_pct is -18.0%",
+     "source_field": "higher-level check - adherence_pct",
+     "value": -18.0
+    },
+    {
+     "text": "Country adherence_pct is -18.3%",
+     "source_field": "higher-level check - adherence_pct",
+     "value": -18.3
+    },
+    {
+     "text": "higher-level check - inherited_from is set to 'Region'",
      "source_field": "higher-level check - inherited_from",
      "value": 0.0
     }
    ]
   },
   {
-   "statement": "Demand genuinely surged to 8805 contacts against a usual level of ~61.8 contacts, a 143x increase, indicating a real spike in customer contacts this week. Because the forecast baseline was built from the queue's normal weekly level with no event or seasonality signal, it could not anticipate a move of this size.",
+   "statement": "Actual demand surged to 8805 contacts this week against a usual level of ~62 contacts, indicating a real increase in customer contacts that the forecast did not anticipate. The forecast remained at its normal baseline of ~91 contacts, missing the event entirely.",
    "confidence": 0.85,
    "supporting_evidence": [
     {
@@ -1674,76 +1679,71 @@
      "value": 8805.0
     },
     {
-     "text": "Usual actual level is 61.8 contacts based on last 13 weeks",
-     "source_field": "history - last_13_week_avg_actual",
-     "value": 61.8
+     "text": "Usual actual level is 61.77 contacts",
+     "source_field": "data analysis - actual_usual_level",
+     "value": 61.77
     },
     {
-     "text": "This week's actual was 143 times the usual level",
-     "source_field": "data analysis - times_usual",
-     "value": 262.6
+     "text": "This week's actual was about 143x higher than usual",
+     "source_field": "data analysis - change",
+     "value": 143.0
     },
     {
-     "text": "Forecast was 90.8 contacts, about the same as usual forecast of 99.7",
-     "source_field": "data analysis - forecast_usual_level",
-     "value": 99.66
+     "text": "Forecast offered was 90.78 contacts, about the same as usual",
+     "source_field": "data analysis - change",
+     "value": 90.78
     },
     {
-     "text": "Channel siblings show no migration; total demand genuinely increased",
-     "source_field": "similar queues - migration_detected",
-     "value": false
+     "text": "Channel movements do not cancel out, so total demand genuinely changed",
+     "source_field": "similar queues - formatted_narrative",
+     "value": 0.0
     }
    ]
   },
   {
-   "statement": "This queue lands the same side of its forecast almost every week (chronic over-forecast with 100% consistency over 13 weeks), but this week's massive actual surge overwhelmed the typical bias direction, making the miss appear as under-forecast when the underlying model bias is actually over-forecast.",
+   "statement": "The forecast plan in force for the week was replaced from 'FY27 May Projection' to 'FY27 Jun Projection', and actuals are being compared against the new plan. If the restatement significantly altered the forecast baseline, the adherence figure may reflect a plan change rather than a demand forecasting error.",
    "confidence": 0.6,
    "supporting_evidence": [
     {
-     "text": "History mean adherence is 36.6% (chronic over-forecast)",
+     "text": "Projection_plan_name changed from 'FY27 May Projection' to 'FY27 Jun Projection'",
+     "source_field": "data analysis - plan_restatement",
+     "value": 0.0
+    },
+    {
+     "text": "Prior plan: FY27 May Projection",
+     "source_field": "data analysis - prior",
+     "value": 0.0
+    },
+    {
+     "text": "Current plan: FY27 Jun Projection",
+     "source_field": "data analysis - current",
+     "value": 0.0
+    }
+   ]
+  },
+  {
+   "statement": "This queue has a chronic tendency to over-forecast, with 100% of the last 13 weeks showing actuals below forecast (adherence_pct: 36.6%). This week's extreme under-forecast is a deviation from that pattern, suggesting the model may have failed to adapt to a sudden shift in demand behavior.",
+   "confidence": 0.5,
+   "supporting_evidence": [
+    {
+     "text": "History mean adherence_pct is 36.6%",
      "source_field": "data analysis - history_mean_adherence_pct",
      "value": 36.6
     },
     {
-     "text": "Typical absolute deviation is 36.6%",
-     "source_field": "data analysis - typical_abs_deviation_pct",
-     "value": 36.6
-    },
-    {
-     "text": "Share same direction is 1.0 over 13 weeks",
+     "text": "Share same direction is 1.0 (100% of weeks same direction)",
      "source_field": "data analysis - share_same_direction",
      "value": 1.0
     },
     {
-     "text": "Verdict is chronic_over",
+     "text": "Verdict: chronic_over",
      "source_field": "data analysis - verdict",
      "value": 0.0
     },
     {
-     "text": "Peer divergence shows most peers over-forecast while this queue under-forecast",
-     "source_field": "PEER_DIVERGENCE.peers_same_direction",
-     "value": 8
-    }
-   ]
-  },
-  {
-   "statement": "The forecast plan in force for the week was replaced because actuals are compared against the superseded plan version, the adherence figure reflects a restatement, not a demand miss.",
-   "confidence": 0.4,
-   "supporting_evidence": [
-    {
-     "text": "Projection plan changed from FY27 May Projection to FY27 Jun Projection",
-     "source_field": "plan_restatement.changed",
-     "value": 1.0
-    },
-    {
-     "text": "Prior plan was FY27 May Projection",
-     "source_field": "plan_restatement.prior",
-     "value": 0.0
-    },
-    {
-     "text": "Current plan is FY27 Jun Projection",
-     "source_field": "plan_restatement.current",
-     "value": 0.0
+     "text": "This week's adherence_pct is -9599.7%, far outside the usual range",
+     "source_field": "data analysis - target_adherence_pct",
+     "value": -9599.7
     }
    ]
   }
@@ -1761,17 +1761,8 @@
    "value": "plan_vs_seasonal_norm"
   }
  ],
- "reasoning_narrative": "The forecast adherence miss was first identified at the queue level (NA Core Spanish, Voice). Investigation showed the same miss was already present at the Region level (CSG / Americas), indicating the issue is not isolated to this queue. Channel-level analysis confirmed no migration \u2014 the demand increase was real and channel-specific. Temporal analysis showed this week's actual was 143x the usual level, with no historical precedent. relationship analysis indicated Actual_ASU and Planned_ASU are strong historical drivers, but Actual_ASU is missing this week, preventing driver decomposition. Data quality review flagged the value as isolated and extreme, requiring source validation. Peer divergence showed most peers over-forecast while this queue under-forecast, highlighting its unusual value status.",
- "rejected_hypotheses": [
-  {
-   "hypothesis": "plan_restatement",
-   "reason_rejected": "Monthly projection plan updates are routine and do not typically cause forecast baselines to shift from ~99.7 to 90.8 \u2014 a 9% change \u2014 which is too small to explain an 8805 vs 90.8 miss. The plan restatement is irrelevant to the magnitude of the error."
-  },
-  {
-   "hypothesis": "Baseline forecast mis-scaled before the week began",
-   "reason_rejected": "No. The data shows the forecast was not unusual against its own history, so this cause is not possible for this week."
-  }
- ],
+ "reasoning_narrative": "The investigation started at the Business Org level and proceeded downward. The miss was first detected at the Region level (adherence_pct: -13.6%), which breached the +/-10% threshold. Since the miss is already visible at this level and higher-level check.inherited_from is set to 'Region', the root cause investigation should focus there. The queue-level analysis was still performed to understand its behavior, but the primary attribution is inherited.",
+ "rejected_hypotheses": [],
  "historical_comparison": {
   "narrative": "Over the last 13 weeks, actual demand for this queue averaged ~61.8 contacts per week. The queue historically trends below forecast with an average adherence of 36.6%. Typical weekly error magnitude is about ~36.6%. This week's miss magnitude is 262.6x its typical historical variation. In the same fiscal week last year (FW 202619), actual demand was 144.0 contacts.",
   "data_points": [
@@ -1829,53 +1820,80 @@
  ],
  "terminology_guard_applied": [
   "ranked_root_causes[1].evidence[0].source_field: INVESTIGATION_LADDER.levels[1].adherence_pct -> higher-level check - adherence_pct",
-  "ranked_root_causes[1].evidence[1].source_field: INVESTIGATION_LADDER.inherited_from -> higher-level check - inherited_from",
-  "ranked_root_causes[2].evidence[1].source_field: TEMPORAL.last_13_week_avg_actual -> history - last_13_week_avg_actual",
-  "ranked_root_causes[2].evidence[2].source_field: DERIVED_FEATURES.this_week_vs_usual.times_usual -> data analysis - times_usual",
-  "ranked_root_causes[2].evidence[3].source_field: DERIVED_FEATURES.forecast_sanity.forecast_usual_level -> data analysis - forecast_usual_level",
-  "ranked_root_causes[2].evidence[4].source_field: CHANNEL_SIBLINGS.migration_detected -> similar queues - migration_detected",
-  "ranked_root_causes[3].evidence[0].source_field: DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct -> data analysis - history_mean_adherence_pct",
-  "ranked_root_causes[3].evidence[1].source_field: DERIVED_FEATURES.chronic_bias.typical_abs_deviation_pct -> data analysis - typical_abs_deviation_pct",
-  "ranked_root_causes[3].evidence[2].source_field: DERIVED_FEATURES.chronic_bias.share_same_direction -> data analysis - share_same_direction",
-  "ranked_root_causes[3].evidence[3].source_field: DERIVED_FEATURES.chronic_bias.verdict -> data analysis - verdict",
+  "ranked_root_causes[1].evidence[1].source_field: INVESTIGATION_LADDER.levels[2].adherence_pct -> higher-level check - adherence_pct",
+  "ranked_root_causes[1].evidence[2].source_field: INVESTIGATION_LADDER.levels[3].adherence_pct -> higher-level check - adherence_pct",
+  "ranked_root_causes[1].evidence[3].text: INVESTIGATION_LADDER.inherited_from is set to 'Region' -> higher-level check - inherited_from is set to 'Region'",
+  "ranked_root_causes[1].evidence[3].source_field: INVESTIGATION_LADDER.inherited_from -> higher-level check - inherited_from",
+  "ranked_root_causes[2].evidence[1].source_field: DERIVED_FEATURES.forecast_sanity.actual_usual_level -> data analysis - actual_usual_level",
+  "ranked_root_causes[2].evidence[2].source_field: DERIVED_FEATURES.proof[1].change -> data analysis - change",
+  "ranked_root_causes[2].evidence[3].source_field: DERIVED_FEATURES.proof[0].change -> data analysis - change",
+  "ranked_root_causes[2].evidence[4].source_field: CHANNEL_SIBLINGS.formatted_narrative -> similar queues - formatted_narrative",
+  "ranked_root_causes[3].evidence[0].source_field: DERIVED_FEATURES.plan_restatement -> data analysis - plan_restatement",
+  "ranked_root_causes[3].evidence[1].source_field: DERIVED_FEATURES.plan_restatement.prior -> data analysis - prior",
+  "ranked_root_causes[3].evidence[2].source_field: DERIVED_FEATURES.plan_restatement.current -> data analysis - current",
+  "ranked_root_causes[4].evidence[0].source_field: DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct -> data analysis - history_mean_adherence_pct",
+  "ranked_root_causes[4].evidence[1].source_field: DERIVED_FEATURES.chronic_bias.share_same_direction -> data analysis - share_same_direction",
+  "ranked_root_causes[4].evidence[2].source_field: DERIVED_FEATURES.chronic_bias.verdict -> data analysis - verdict",
+  "ranked_root_causes[4].evidence[3].source_field: DERIVED_FEATURES.this_week_vs_usual.target_adherence_pct -> data analysis - target_adherence_pct",
   "skeptic_review[0].reason: DATA_QUALITY -> data quality check",
+  "skeptic_review[1].reason: INVESTIGATION_LADDER -> higher-level check",
+  "investigation_trail.narrative: INVESTIGATION_LADDER -> higher-level check",
   "secondary_contributors[0].supporting_evidence[0].source_field: INVESTIGATION_LADDER.levels[1].adherence_pct -> higher-level check - adherence_pct",
-  "secondary_contributors[0].supporting_evidence[1].source_field: INVESTIGATION_LADDER.inherited_from -> higher-level check - inherited_from",
-  "secondary_contributors[1].supporting_evidence[1].source_field: TEMPORAL.last_13_week_avg_actual -> history - last_13_week_avg_actual",
-  "secondary_contributors[1].supporting_evidence[2].source_field: DERIVED_FEATURES.this_week_vs_usual.times_usual -> data analysis - times_usual",
-  "secondary_contributors[1].supporting_evidence[3].source_field: DERIVED_FEATURES.forecast_sanity.forecast_usual_level -> data analysis - forecast_usual_level",
-  "secondary_contributors[1].supporting_evidence[4].source_field: CHANNEL_SIBLINGS.migration_detected -> similar queues - migration_detected",
-  "secondary_contributors[2].supporting_evidence[0].source_field: DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct -> data analysis - history_mean_adherence_pct",
-  "secondary_contributors[2].supporting_evidence[1].source_field: DERIVED_FEATURES.chronic_bias.typical_abs_deviation_pct -> data analysis - typical_abs_deviation_pct",
-  "secondary_contributors[2].supporting_evidence[2].source_field: DERIVED_FEATURES.chronic_bias.share_same_direction -> data analysis - share_same_direction",
-  "secondary_contributors[2].supporting_evidence[3].source_field: DERIVED_FEATURES.chronic_bias.verdict -> data analysis - verdict"
+  "secondary_contributors[0].supporting_evidence[1].source_field: INVESTIGATION_LADDER.levels[2].adherence_pct -> higher-level check - adherence_pct",
+  "secondary_contributors[0].supporting_evidence[2].source_field: INVESTIGATION_LADDER.levels[3].adherence_pct -> higher-level check - adherence_pct",
+  "secondary_contributors[0].supporting_evidence[3].text: INVESTIGATION_LADDER.inherited_from is set to 'Region' -> higher-level check - inherited_from is set to 'Region'",
+  "secondary_contributors[0].supporting_evidence[3].source_field: INVESTIGATION_LADDER.inherited_from -> higher-level check - inherited_from",
+  "secondary_contributors[1].supporting_evidence[1].source_field: DERIVED_FEATURES.forecast_sanity.actual_usual_level -> data analysis - actual_usual_level",
+  "secondary_contributors[1].supporting_evidence[2].source_field: DERIVED_FEATURES.proof[1].change -> data analysis - change",
+  "secondary_contributors[1].supporting_evidence[3].source_field: DERIVED_FEATURES.proof[0].change -> data analysis - change",
+  "secondary_contributors[1].supporting_evidence[4].source_field: CHANNEL_SIBLINGS.formatted_narrative -> similar queues - formatted_narrative",
+  "secondary_contributors[2].supporting_evidence[0].source_field: DERIVED_FEATURES.plan_restatement -> data analysis - plan_restatement",
+  "secondary_contributors[2].supporting_evidence[1].source_field: DERIVED_FEATURES.plan_restatement.prior -> data analysis - prior",
+  "secondary_contributors[2].supporting_evidence[2].source_field: DERIVED_FEATURES.plan_restatement.current -> data analysis - current",
+  "secondary_contributors[3].supporting_evidence[0].source_field: DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct -> data analysis - history_mean_adherence_pct",
+  "secondary_contributors[3].supporting_evidence[1].source_field: DERIVED_FEATURES.chronic_bias.share_same_direction -> data analysis - share_same_direction",
+  "secondary_contributors[3].supporting_evidence[2].source_field: DERIVED_FEATURES.chronic_bias.verdict -> data analysis - verdict",
+  "secondary_contributors[3].supporting_evidence[3].source_field: DERIVED_FEATURES.this_week_vs_usual.target_adherence_pct -> data analysis - target_adherence_pct",
+  "reasoning_narrative: INVESTIGATION_LADDER -> higher-level check"
  ],
  "language_guard_applied": [
-  "reasoning_narrative: outlier -> unusual value",
-  "reasoning_narrative: Correlation -> relationship",
   "cause1.explanation: outlier -> unusual value",
   "cause1.evidence1: outlier -> unusual value",
-  "cause4.recommended_action: outlier -> unusual value",
   "ranked_root_causes[1].evidence[0].source_field: INVESTIGATION_LADDER.levels[1].adherence_pct -> higher-level check - adherence_pct",
-  "ranked_root_causes[1].evidence[1].source_field: INVESTIGATION_LADDER.inherited_from -> higher-level check - inherited_from",
-  "ranked_root_causes[2].evidence[1].source_field: TEMPORAL.last_13_week_avg_actual -> history - last_13_week_avg_actual",
-  "ranked_root_causes[2].evidence[2].source_field: DERIVED_FEATURES.this_week_vs_usual.times_usual -> data analysis - times_usual",
-  "ranked_root_causes[2].evidence[3].source_field: DERIVED_FEATURES.forecast_sanity.forecast_usual_level -> data analysis - forecast_usual_level",
-  "ranked_root_causes[2].evidence[4].source_field: CHANNEL_SIBLINGS.migration_detected -> similar queues - migration_detected",
-  "ranked_root_causes[3].evidence[0].source_field: DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct -> data analysis - history_mean_adherence_pct",
-  "ranked_root_causes[3].evidence[1].source_field: DERIVED_FEATURES.chronic_bias.typical_abs_deviation_pct -> data analysis - typical_abs_deviation_pct",
-  "ranked_root_causes[3].evidence[2].source_field: DERIVED_FEATURES.chronic_bias.share_same_direction -> data analysis - share_same_direction",
-  "ranked_root_causes[3].evidence[3].source_field: DERIVED_FEATURES.chronic_bias.verdict -> data analysis - verdict",
+  "ranked_root_causes[1].evidence[1].source_field: INVESTIGATION_LADDER.levels[2].adherence_pct -> higher-level check - adherence_pct",
+  "ranked_root_causes[1].evidence[2].source_field: INVESTIGATION_LADDER.levels[3].adherence_pct -> higher-level check - adherence_pct",
+  "ranked_root_causes[1].evidence[3].text: INVESTIGATION_LADDER.inherited_from is set to 'Region' -> higher-level check - inherited_from is set to 'Region'",
+  "ranked_root_causes[1].evidence[3].source_field: INVESTIGATION_LADDER.inherited_from -> higher-level check - inherited_from",
+  "ranked_root_causes[2].evidence[1].source_field: DERIVED_FEATURES.forecast_sanity.actual_usual_level -> data analysis - actual_usual_level",
+  "ranked_root_causes[2].evidence[2].source_field: DERIVED_FEATURES.proof[1].change -> data analysis - change",
+  "ranked_root_causes[2].evidence[3].source_field: DERIVED_FEATURES.proof[0].change -> data analysis - change",
+  "ranked_root_causes[2].evidence[4].source_field: CHANNEL_SIBLINGS.formatted_narrative -> similar queues - formatted_narrative",
+  "ranked_root_causes[3].evidence[0].source_field: DERIVED_FEATURES.plan_restatement -> data analysis - plan_restatement",
+  "ranked_root_causes[3].evidence[1].source_field: DERIVED_FEATURES.plan_restatement.prior -> data analysis - prior",
+  "ranked_root_causes[3].evidence[2].source_field: DERIVED_FEATURES.plan_restatement.current -> data analysis - current",
+  "ranked_root_causes[4].evidence[0].source_field: DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct -> data analysis - history_mean_adherence_pct",
+  "ranked_root_causes[4].evidence[1].source_field: DERIVED_FEATURES.chronic_bias.share_same_direction -> data analysis - share_same_direction",
+  "ranked_root_causes[4].evidence[2].source_field: DERIVED_FEATURES.chronic_bias.verdict -> data analysis - verdict",
+  "ranked_root_causes[4].evidence[3].source_field: DERIVED_FEATURES.this_week_vs_usual.target_adherence_pct -> data analysis - target_adherence_pct",
   "skeptic_review[0].reason: DATA_QUALITY -> data quality check",
+  "skeptic_review[1].reason: INVESTIGATION_LADDER -> higher-level check",
+  "investigation_trail.narrative: INVESTIGATION_LADDER -> higher-level check",
   "secondary_contributors[0].supporting_evidence[0].source_field: INVESTIGATION_LADDER.levels[1].adherence_pct -> higher-level check - adherence_pct",
-  "secondary_contributors[0].supporting_evidence[1].source_field: INVESTIGATION_LADDER.inherited_from -> higher-level check - inherited_from",
-  "secondary_contributors[1].supporting_evidence[1].source_field: TEMPORAL.last_13_week_avg_actual -> history - last_13_week_avg_actual",
-  "secondary_contributors[1].supporting_evidence[2].source_field: DERIVED_FEATURES.this_week_vs_usual.times_usual -> data analysis - times_usual",
-  "secondary_contributors[1].supporting_evidence[3].source_field: DERIVED_FEATURES.forecast_sanity.forecast_usual_level -> data analysis - forecast_usual_level",
-  "secondary_contributors[1].supporting_evidence[4].source_field: CHANNEL_SIBLINGS.migration_detected -> similar queues - migration_detected",
-  "secondary_contributors[2].supporting_evidence[0].source_field: DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct -> data analysis - history_mean_adherence_pct",
-  "secondary_contributors[2].supporting_evidence[1].source_field: DERIVED_FEATURES.chronic_bias.typical_abs_deviation_pct -> data analysis - typical_abs_deviation_pct",
-  "secondary_contributors[2].supporting_evidence[2].source_field: DERIVED_FEATURES.chronic_bias.share_same_direction -> data analysis - share_same_direction",
-  "secondary_contributors[2].supporting_evidence[3].source_field: DERIVED_FEATURES.chronic_bias.verdict -> data analysis - verdict"
+  "secondary_contributors[0].supporting_evidence[1].source_field: INVESTIGATION_LADDER.levels[2].adherence_pct -> higher-level check - adherence_pct",
+  "secondary_contributors[0].supporting_evidence[2].source_field: INVESTIGATION_LADDER.levels[3].adherence_pct -> higher-level check - adherence_pct",
+  "secondary_contributors[0].supporting_evidence[3].text: INVESTIGATION_LADDER.inherited_from is set to 'Region' -> higher-level check - inherited_from is set to 'Region'",
+  "secondary_contributors[0].supporting_evidence[3].source_field: INVESTIGATION_LADDER.inherited_from -> higher-level check - inherited_from",
+  "secondary_contributors[1].supporting_evidence[1].source_field: DERIVED_FEATURES.forecast_sanity.actual_usual_level -> data analysis - actual_usual_level",
+  "secondary_contributors[1].supporting_evidence[2].source_field: DERIVED_FEATURES.proof[1].change -> data analysis - change",
+  "secondary_contributors[1].supporting_evidence[3].source_field: DERIVED_FEATURES.proof[0].change -> data analysis - change",
+  "secondary_contributors[1].supporting_evidence[4].source_field: CHANNEL_SIBLINGS.formatted_narrative -> similar queues - formatted_narrative",
+  "secondary_contributors[2].supporting_evidence[0].source_field: DERIVED_FEATURES.plan_restatement -> data analysis - plan_restatement",
+  "secondary_contributors[2].supporting_evidence[1].source_field: DERIVED_FEATURES.plan_restatement.prior -> data analysis - prior",
+  "secondary_contributors[2].supporting_evidence[2].source_field: DERIVED_FEATURES.plan_restatement.current -> data analysis - current",
+  "secondary_contributors[3].supporting_evidence[0].source_field: DERIVED_FEATURES.chronic_bias.history_mean_adherence_pct -> data analysis - history_mean_adherence_pct",
+  "secondary_contributors[3].supporting_evidence[1].source_field: DERIVED_FEATURES.chronic_bias.share_same_direction -> data analysis - share_same_direction",
+  "secondary_contributors[3].supporting_evidence[2].source_field: DERIVED_FEATURES.chronic_bias.verdict -> data analysis - verdict",
+  "secondary_contributors[3].supporting_evidence[3].source_field: DERIVED_FEATURES.this_week_vs_usual.target_adherence_pct -> data analysis - target_adherence_pct",
+  "reasoning_narrative: INVESTIGATION_LADDER -> higher-level check"
  ]
 }

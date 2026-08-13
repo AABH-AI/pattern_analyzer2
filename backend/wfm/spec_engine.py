@@ -1091,6 +1091,17 @@ def _interrogate(finding, evidence_bundle, llm_cfg, model_choice):
 _FAST_FIRST = ("groq", "nvidia")
 
 
+# Failures worth trying another provider for: quota, rate limit, upstream unavailability, timeouts.
+# Anything else (400, 401, malformed request) will fail the same way everywhere.
+_RETRYABLE = ("429", "too many requests", "quota", "rate limit",
+              "500", "502", "503", "504", "timed out", "timeout", "temporarily")
+
+
+def _is_retryable(exc):
+    text = f"{type(exc).__name__}: {exc}".lower()
+    return any(t in text for t in _RETRYABLE)
+
+
 def _call_llm(messages, llm_cfg, model_choice, prefer_fast=False):
     """One provider call returning (parsed, error). Shared by narrative and interrogation.
 
@@ -1102,7 +1113,18 @@ def _call_llm(messages, llm_cfg, model_choice, prefer_fast=False):
     from .investigation_engine import DEFAULT_MODELS, PROVIDER_ENDPOINTS
     if model_choice and model_choice.get("model"):
         picked = _slot_for_choice(model_choice, llm_cfg)
-        slots = [picked] if picked else []
+        # An explicit choice leads, but it can no longer be the ONLY option. A 429 is a quota event,
+        # not a statement about the model, and with a single slot it killed the whole step -- which is
+        # what produced "question generation unavailable: gemini/gemini-3.6-flash: HTTP Error 429".
+        # The configured chain is appended as fallback and used only when the pick fails for a
+        # RETRYABLE reason (see _RETRYABLE below). The model that actually answered is recorded, so a
+        # fallback is visible in the audit rather than silent.
+        _others = [(llm_cfg or {}).get(k) or {} for k in ("primary", "secondary", "tertiary")]
+        _others = [o for o in _others
+                   if o.get("provider") and o.get("api_key")
+                   and not (picked and o.get("provider") == picked.get("provider")
+                            and o.get("model") == picked.get("model"))]
+        slots = ([picked] if picked else []) + _others
     else:
         slots = [(llm_cfg or {}).get("primary") or {}, (llm_cfg or {}).get("secondary") or {}]
         slots = [s for s in slots if s.get("provider") and s.get("api_key")]
@@ -1110,7 +1132,9 @@ def _call_llm(messages, llm_cfg, model_choice, prefer_fast=False):
             slots.sort(key=lambda sl: _FAST_FIRST.index(sl.get("provider"))
                        if sl.get("provider") in _FAST_FIRST else len(_FAST_FIRST))
     if not slots:
-        return None, "no LLM provider configured", None
+        # 2-tuple: every caller unpacks `parsed, err = _call_llm(...)`. This line returned a 3-tuple,
+        # so a run with no configured provider raised ValueError instead of reporting the reason.
+        return None, "no LLM provider configured"
     timeout = timeout_from_config(llm_cfg)
     last = "unknown"
     for slot in slots:
@@ -1127,6 +1151,11 @@ def _call_llm(messages, llm_cfg, model_choice, prefer_fast=False):
             return chat_json(endpoint, slot["api_key"], model, messages, timeout=timeout), None
         except Exception as exc:
             last = f"{slot.get('provider')}/{model}: {exc}"
+            # A malformed prompt or a bad key will fail identically on every provider, so retrying
+            # them all just multiplies the wait. Only transport/quota failures are worth another
+            # provider.
+            if not _is_retryable(exc):
+                break
     return None, last
 
 
