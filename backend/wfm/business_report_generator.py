@@ -34,6 +34,15 @@ RESPONSE_DEFAULTS = {
     "missing_information": [],
 }
 
+# Keys the decision layer owns outright. Listed so it is obvious what is deterministic and what
+# the model may write: everything here is overwritten after the model replies.
+DECISION_OWNED_KEYS = (
+    "miss_category", "miss_category_reason", "forecastability", "root_cause_sentence",
+    "why_this_happened", "criticality", "evidence_index", "evidence_ids",
+    "forecast_response_diagnostic", "driver_diagnostics", "weekend_diagnostic",
+    "unconfirmed_signals", "wfm_action", "decision_meta",
+)
+
 
 # Longest patterns first, so "extreme outlier" wins over "outlier" and reads as English.
 _LANGUAGE_SUBSTITUTIONS = (
@@ -451,6 +460,121 @@ def _build_historical_comparison(base_features, temporal):
         dp.append({"label": f"Same week last year (FW {last_year.get('fiscal_week')}) actual", "value": f"{last_year.get('actual')} contacts"})
 
     return {"narrative": narrative, "data_points": dp}
+
+
+def apply_decision(result, decision, features=None):
+    """Re-impose the deterministic decision on the assembled response.
+
+    Runs AFTER the model and after back_compat, so nothing the model wrote can change what the
+    report claims. `cause_type` and `status` are deliberately left alone -- they are the existing
+    contract and every current consumer still reads them. `evidence_class` is attached ALONGSIDE
+    them so the new ranking is additive.
+    """
+    if not decision:
+        return result
+
+    result["miss_category"] = decision.get("miss_category")
+    result["miss_category_reason"] = decision.get("miss_category_reason")
+    result["forecastability"] = {
+        "classification": decision.get("forecastability"),
+        "reason": decision.get("forecastability_reason"),
+    }
+    result["root_cause_sentence"] = decision.get("root_cause_sentence")
+    result["why_this_happened"] = decision.get("why_bullets") or []
+    result["criticality"] = decision.get("criticality") or {}
+    result["evidence_index"] = decision.get("evidence_index") or {}
+    result["decision_meta"] = {
+        "version": decision.get("version"),
+        "rules": decision.get("rules"),
+        "note": ("miss_category and evidence_class are decided in Python from the deterministic "
+                 "evidence. The model narrates them and cannot override them."),
+    }
+
+    # Confidence: the deterministic score is authoritative, and it is EVIDENCE STRENGTH -- kept
+    # separate from criticality, which is severity.
+    conf = decision.get("confidence") or {}
+    if conf.get("score_pct") is not None:
+        result["confidence_score"] = round(conf["score_pct"] / 100.0, 3)
+        result["confidence_detail"] = conf
+
+    # evidence_class onto each ranked cause, matched on the mechanism the decision layer used.
+    by_cause_type = {}
+    for cand in decision.get("candidates") or []:
+        by_cause_type.setdefault(cand.get("cause_type"), []).append(cand)
+    for cause in result.get("ranked_root_causes") or []:
+        pool = by_cause_type.get(cause.get("cause_type")) or []
+        match = pool[0] if pool else None
+        cause["evidence_class"] = (match or {}).get("evidence_class") or "UNCONFIRMED_SIGNAL"
+        cause["evidence_ids"] = (match or {}).get("evidence_ids") or []
+        cause["direction_coherent"] = (match or {}).get("direction_coherent")
+        cause["evidence_resolution"] = (match or {}).get("resolution")
+
+    # Anything the decision layer rejected is reported as rejected, whatever the model said.
+    rejected = decision.get("rejected") or []
+    existing = result.get("rejected_hypotheses") or []
+    seen = {str(r.get("hypothesis")) for r in existing if isinstance(r, dict)}
+    for r in rejected:
+        if r.get("headline") not in seen:
+            existing.append({"hypothesis": r.get("headline"),
+                             "reason_rejected": r.get("reason")})
+    result["rejected_hypotheses"] = existing
+    result["unconfirmed_signals"] = [
+        {"headline": c.get("headline"), "cause_type": c.get("cause_type"),
+         "why_unconfirmed": c.get("why_it_mattered"), "evidence_ids": c.get("evidence_ids")}
+        for c in (decision.get("candidates") or [])
+        if c.get("evidence_class") == "UNCONFIRMED_SIGNAL"]
+
+    # The panels the UI renders straight from deterministic evidence.
+    feats = features or (result.get("derived_features") or {})
+    fr = feats.get("forecast_response") or {}
+    result["forecast_response_diagnostic"] = {
+        "available": bool(fr.get("available")),
+        "response": fr.get("response"),
+        "movement_test": fr.get("movement_test"),
+        "signals": fr.get("signals"),
+        "miss_decomposition": fr.get("miss_decomposition"),
+        "forecastability": fr.get("forecastability"),
+        "reason": fr.get("reason"),
+    }
+    lag = feats.get("lag_analysis") or {}
+    result["driver_diagnostics"] = {
+        "available": bool(lag.get("available")),
+        "lags_tested": lag.get("lags_tested"),
+        "drivers": [{"driver": d.get("driver"), "subject": d.get("subject"),
+                     "coverage": d.get("coverage"),
+                     "weeks_with_a_value": d.get("weeks_with_a_value"),
+                     "weeks_in_window": d.get("weeks_in_window"),
+                     "best_lag_weeks": d.get("best_lag_weeks"),
+                     "relationship_strength": d.get("relationship_strength"),
+                     "relationship_type": d.get("relationship_type"),
+                     "stability": d.get("stability"),
+                     "usable_as_evidence": d.get("usable_as_evidence"),
+                     "interpretation": d.get("interpretation")}
+                    for d in (lag.get("drivers") or [])],
+        "reason": lag.get("reason"),
+    }
+    gran = feats.get("data_granularity") or {}
+    result["weekend_diagnostic"] = {
+        "grain": gran.get("grain"),
+        "supported": bool((gran.get("capabilities") or {}).get("weekend_volume_effect")),
+        "statement": gran.get("weekend_statement"),
+        "holiday_day_structure": feats.get("holiday_day_structure"),
+    }
+    result["holiday_response"] = feats.get("holiday_response") or {}
+
+    # Limitations are additive to whatever the model flagged, deduped.
+    missing = list(result.get("missing_information") or [])
+    for lim in decision.get("limitations") or []:
+        if lim and lim not in missing:
+            missing.append(lim)
+    result["missing_information"] = missing
+
+    # One concrete action, taken from the leading supported mechanism.
+    primary = next((c for c in (decision.get("candidates") or [])
+                    if c.get("evidence_class") == "PRIMARY_DRIVER"), None)
+    result["wfm_action"] = (primary or {}).get("action") or (
+        "Confirm the figures for this week before acting: the evidence does not establish a cause.")
+    return result
 
 
 def back_compat(result, base_features):

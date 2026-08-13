@@ -29,3 +29,7 @@ results/**/video/
 # committed as the shareable record. Convert with:
 #   ffmpeg -i <session>.webm -c:v libx264 -crf 24 -pix_fmt yuv420p -movflags +faststart out.mp4
 !results/**/*.mp4
+
+# Offline SQLite mirror of the source spreadsheet (results/offline_source.py --build).
+# Derived data, rebuildable, and large - never committed.
+results/_offline_cache/

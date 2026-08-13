@@ -159,18 +159,112 @@ one is exactly the guesswork §4 forbids. They surface in `needs_review` when th
 
 ---
 
+## 2026-08-14 — Phase 2 step 2: the offline rig, and the deterministic decision layer
+
+### Offline rig — the real SQL path, without the VPN
+
+`results/offline_source.py` mirrors the source spreadsheet into SQLite and hands the engine a
+cursor that speaks enough T-SQL (`SELECT TOP n` → `LIMIT n`) for `data_access.fetch_wfm_context` to
+run **its own queries unchanged**. Faking the context would have left the SQL layer untested
+exactly where a widened `_HISTORY_COLS` can break it.
+`results/run_offline_investigation.py` drives a full investigation from it, with `--llm` optional
+(the model APIs are public internet; only SQL needs the VPN).
+
+Which local file matters, measured rather than assumed:
+
+| File | Rows | Queues | Verdict |
+|---|---:|---:|---|
+| `Input_To_ML_20260706110242.csv.xlsx` | 7,350 | 42 | **contains no Indonesia at all** — cannot run the regression case; Voice-only |
+| `SA_INDONESIA_CLIENT.xlsx` | 138,529 | 427 | the extract behind `Input_To_ML_Full`; 5 channels, 4 offerings, includes the regression queue |
+
+The larger file is the default. Its header row is only partly labelled, so its columns are mapped
+by **position** against the known schema (it is the `Input_To_ML` schema minus `Priority`), and the
+loader refuses rather than guesses if the column count ever stops matching.
+
+Two honest limits of the rig: `dbo.CQN_Mapping` does not exist locally, so channel grouping falls
+back to the locality proxy; and in this extract the regression queue is the one of 427 whose scope
+columns are blank, so its ladder stops at Country. **Live SQL validation is still required.**
+
+### `wfm/rca_decision.py` — what may be claimed
+
+Runs on the Phase 1 evidence and **before** the model, and is re-imposed on the response afterwards
+by `business_report_generator.apply_decision`.
+
+- **`miss_category`** — `FORECAST_BASELINE_FAILURE`, `FORECAST_RESPONSE_FAILURE`,
+  `CALENDAR_RESPONSE_FAILURE`, `DRIVER_RESPONSE_FAILURE`, `DEMAND_EVENT`, `COMPOUND_MISS`,
+  `DATA_LIMITATION`. Decided from the evidence, never by the model.
+- **`evidence_class`** — `PRIMARY_DRIVER` / `SECONDARY_CONTRIBUTOR` / `CONTEXTUAL_FACTOR` /
+  `UNCONFIRMED_SIGNAL` / `REJECTED`, ranked on total evidence rather than on the model's order or a
+  raw coefficient.
+- **Direction coherence** — a mechanism that pushes demand the wrong way for this miss is rejected
+  outright, whatever else supports it. This is the automated form of the check an earlier engine
+  failed when it blamed a demand-suppressing holiday for a busier week.
+- **Contradiction resolution** — `supported` / `mixed` / `rejected`, with the contradicting
+  evidence named. Two explanations can no longer ship as "Verified" while disagreeing.
+- **Confidence** — evidence strength over six weighted dimensions (mechanism strength, history
+  depth, absence of contradiction, forecastability, driver coverage, presence of the evidence the
+  explanation depends on). A tiny sample cannot raise it.
+- **Criticality** — severity, deliberately independent: the absolute contact gap sets the band and
+  a large relative gap can lift it one step, so a small queue with a huge percentage cannot
+  outrank a large queue with a real staffing hole.
+- **Evidence index E1–E17** — every claim traces to a metric, a window and an availability
+  statement.
+
+The governing rule is enforced in code: a mechanism is only a response failure where a signal
+existed **before** the week **and** has behaved repeatably for that queue.
+
+### Prompt, API and UI
+
+- `prompts.py` gains a section stating the decision is already made: the model may not change
+  `miss_category`, re-rank mechanisms, promote a rejected one, or compute any number. It also
+  carries the exact wording to use for `absent` / `sparse` / weak / lagged drivers, the calendar
+  rules, the weekend rule, and a ban on unsupported service-level claims.
+- The response gains `miss_category`, `forecastability`, `root_cause_sentence`,
+  `why_this_happened`, `criticality`, `confidence_detail`, `evidence_index`,
+  `forecast_response_diagnostic`, `driver_diagnostics`, `weekend_diagnostic`,
+  `unconfirmed_signals`, `wfm_action` — all **additive**. `cause_type` and `status` keep their
+  meanings; `evidence_class` is attached alongside them. All 12 legacy keys verified present.
+- `rca_console.html` gains WFM-only panels in the section 26 order (Root Cause, Confidence &
+  Criticality, Why This Happened, Statistical Evidence, Forecast Response, Driver Evidence, then
+  history/rejected/missing and WFM Action). `renderDecisionCard()` — `?mode=spec` — is untouched,
+  and the panels degrade to the legacy layout against an older backend.
+
+### Three defects the semantic tests caught
+
+1. **`adequate` for a plan that moved away from the expected level.** When the implied change was
+   ~0, any forecast movement was called adequate. A plan that drifts a long way from the expected
+   level when nothing asked it to has still failed; now classified `wrong_direction`.
+2. **A blank `Country` reported "no holiday".** Unresolvable countries now return
+   `available: false` with a reason — "holiday effects were NOT checked" is not the same claim as
+   "no holiday applies", and this is a live path (one queue of 427).
+3. **A fixed COMPOUND_MISS sentence asserted a response failure** even when the second mechanism
+   was an unforeseeable demand event. The sentence is now composed from the mechanisms present.
+
+Two further "failures" were fixture bugs where the engine was right and the test was wrong: a
+momentum fixture that reset every cycle (so momentum genuinely had never followed through) and a
+staircase whose tail sat mid-plateau. Both are documented in the test file so the next reader does
+not "fix" the engine to match a bad fixture.
+
+**Validation:** deterministic 148/148, semantic 51/51, smoke 11 passed / 0 failed / 1 skipped,
+`compileall` clean, payload and response both serialise with SQL unreachable, `?mode=spec`
+untouched (`spec_engine` does not reference the decision layer).
+
+---
+
 ## Open items
 
 | Item | Where | Status |
 |---|---|---|
-| `miss_category` / `evidence_class` additive taxonomy | Phase 2 §5–§7 | not started |
-| Deterministic contradiction resolution + direction coherence | Phase 2 §8–§9 | not started |
-| Confidence integration, deterministic criticality (miss size × queue volume) | Phase 2 §17–§18 | not started |
-| Evidence-class ranking and evidence IDs | Phase 2 §19, §23 | not started |
-| Prompt update — model narrates, never overrides | Phase 2 §24 | not started |
-| Response / Decision Card serialisation | Phase 2 §25 | not started |
-| WFM UI panel restructure (spec renderer untouched) | Phase 2 §26 | not started |
-| 12 semantic regression cases | Phase 2 §27 | not started |
+| `miss_category` / `evidence_class` additive taxonomy | Phase 2 §5–§7 | **done** |
+| Deterministic contradiction resolution + direction coherence | Phase 2 §8–§9 | **done** |
+| Confidence integration, deterministic criticality (miss size × queue volume) | Phase 2 §17–§18 | **done** |
+| Evidence-class ranking and evidence IDs (E1–E17) | Phase 2 §19, §23 | **done** |
+| Prompt update — model narrates, never overrides | Phase 2 §24 | **done** |
+| Response serialisation, additive, `back_compat` intact | Phase 2 §25 | **done** |
+| WFM UI panel restructure (spec renderer untouched) | Phase 2 §26 | **done** |
+| 12 semantic regression cases + Indonesia regression | Phase 2 §27–§28 | **done** (51 checks) |
+| Waisak/Vesak transliteration variants | Phase 2 §4 | open — needs a mapping the source does not provide |
+| CQN mapping absent offline (locality proxy used) | offline rig | open — resolves with live SQL |
 | Confidence ordering breaking check L3 | baseline finding | open |
 | Drift total span convention (`slope × n`) | baseline finding | open |
 | `seasonality` baseline includes the target week | baseline finding | open |

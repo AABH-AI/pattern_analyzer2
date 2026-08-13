@@ -1900,7 +1900,23 @@ function formatInvestigation(resp, ctx){
     confidence_score: resp.confidence_score!=null? resp.confidence_score : null,
     missing_information: resp.missing_information||[],
     proof: proofArr,
-    investigation_meta: resp.investigation_meta||{}
+    investigation_meta: resp.investigation_meta||{},
+    /* Deterministic decision layer (?mode=wfm). Passed through verbatim -- these are decided in
+       Python, so the front end formats them and never derives them. Absent on an older backend,
+       in which case the decision panels simply do not render and the legacy layout is used. */
+    root_cause_sentence: resp.root_cause_sentence||'',
+    miss_category: resp.miss_category||null,
+    miss_category_reason: resp.miss_category_reason||'',
+    forecastability: resp.forecastability||null,
+    why_this_happened: resp.why_this_happened||[],
+    criticality: resp.criticality||null,
+    confidence_detail: resp.confidence_detail||null,
+    evidence_index: resp.evidence_index||null,
+    forecast_response_diagnostic: resp.forecast_response_diagnostic||null,
+    driver_diagnostics: resp.driver_diagnostics||null,
+    weekend_diagnostic: resp.weekend_diagnostic||null,
+    unconfirmed_signals: resp.unconfirmed_signals||[],
+    wfm_action: resp.wfm_action||''
   };
 }
 
@@ -2535,7 +2551,185 @@ function renderInvestigationReport(f, ctx){
 
   const metaHtml=`<div class="inv-meta">Engine: ${invEsc(meta.engine||'—')}${meta.model?' · '+invEsc(meta.model):''} · generated ${meta.generated_at?new Date(meta.generated_at).toLocaleString():'—'} · based on ${(meta.based_on_fields||[]).length} field(s) gathered generically from the source file</div>`;
 
+  /* ---- Deterministic decision panels (?mode=wfm only).
+     The old order opened with volume restatement and buried the actual answer, and the Root Cause
+     panel showed a long model paragraph. These panels render the DECISION LAYER instead: the
+     numbers and the verdicts are computed in Python, so nothing here can drift from the evidence.
+     mode=spec is untouched -- it has its own renderer, renderDecisionCard(). ---- */
+  const dRoot   = rcaRootCausePanel(f);
+  const dConf   = rcaConfidenceCriticalityPanel(f);
+  const dWhy    = rcaWhyPanel(f);
+  const dEvid   = rcaEvidenceTablePanel(f);
+  const dResp   = rcaForecastResponsePanel(f);
+  const dDriver = rcaDriverEvidencePanel(f);
+  const dAction = rcaActionPanel(f);
+
+  /* Spec section 26 order: Root Cause, Confidence+Criticality, WHY bullets, Statistical Evidence
+     immediately below, Forecast Response, Driver Evidence, Historical/Calendar, Rejected, Missing,
+     WFM Action. The legacy panels stay available underneath so nothing that used to be visible is
+     lost -- proof and key findings are the raw values behind the same story. */
+  const decisionUI = dRoot || dWhy;
+  if (decisionUI) {
+    return summaryHtml + dRoot + dConf + dWhy + dEvid + statsHtml + dResp + dDriver
+         + historyHtml + rejectedHtml + missingHtml + dAction
+         + proofHtml + findingsHtml + evidenceHtml + recsHtml + metaHtml;
+  }
   return summaryHtml+proofHtml+findingsHtml+narrativeHtml+statsHtml+evidenceHtml+rejectedHtml+historyHtml+recsHtml+missingHtml+metaHtml;
+}
+
+/* ============ Deterministic decision-layer panels (?mode=wfm) ============
+   Every value below is read straight from the response. None of these functions computes anything:
+   if a number is not in the payload it is not shown, which is what keeps the screen and the
+   evidence in step. */
+
+function rcaBadge(text, bg, fg){
+  return `<span style="display:inline-block;padding:2px 9px;border-radius:11px;font-size:11px;
+    font-weight:800;letter-spacing:.4px;background:${bg};color:${fg};">${invEsc(text)}</span>`;
+}
+
+const RCA_CLASS_STYLE = {
+  PRIMARY_DRIVER:        ['#1b4d2b', '#8ff0b0'],
+  SECONDARY_CONTRIBUTOR: ['#1b3a4d', '#8fd4f0'],
+  CONTEXTUAL_FACTOR:     ['#3d3a1b', '#f0e08f'],
+  UNCONFIRMED_SIGNAL:    ['#3d2a1b', '#f0bc8f'],
+  REJECTED:              ['#4d1b1b', '#f08f8f'],
+};
+const RCA_CRIT_STYLE = {
+  Critical: ['#4d1b1b', '#ff9c9c'], High: ['#4d331b', '#ffc98f'],
+  Medium:   ['#3d3a1b', '#f0e08f'], Low:  ['#1b3a2b', '#9fe0b8'],
+};
+
+function rcaRootCausePanel(f){
+  const sentence = (f.root_cause_sentence || '').trim();
+  if (!sentence) return '';
+  const cat = f.miss_category || '';
+  const catLine = cat ? `<div style="margin-top:9px;font-size:11.5px;color:var(--muted);">
+      ${rcaBadge(cat.replace(/_/g,' '), '#22303d', '#a9d5f5')}
+      <span style="margin-left:8px;">${invEsc(f.miss_category_reason||'')}</span></div>` : '';
+  return `<details class="inv-sec" open><summary>Root Cause</summary><div class="body">
+    ${secDesc('Why the forecast missed. Decided from the data before any model was asked.')}
+    <div style="font-size:15px;font-weight:800;line-height:1.5;color:var(--text);">
+      ${invEsc(sentence)}</div>
+    ${catLine}
+  </div></details>`;
+}
+
+function rcaConfidenceCriticalityPanel(f){
+  const conf = f.confidence_detail || {};
+  const crit = f.criticality || {};
+  if (conf.score_pct == null && !crit.level) return '';
+  const cs = RCA_CRIT_STYLE[crit.level] || ['#22303d','#a9d5f5'];
+  const dims = (conf.dimensions||[]).map(d=>`<tr>
+      <td style="padding:3px 10px 3px 0;color:var(--muted);">${invEsc(d.dimension)}</td>
+      <td style="padding:3px 10px 3px 0;text-align:right;">${invEsc(String(d.score))}</td>
+      <td style="padding:3px 0;color:var(--muted);font-size:11px;">${invEsc(d.note||'')}</td></tr>`).join('');
+  return `<details class="inv-sec" open><summary>Confidence &amp; Criticality</summary><div class="body">
+    ${secDesc('Two independent questions: how strong is the evidence, and how much does this miss matter operationally.')}
+    <div style="display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start;">
+      <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700;">Confidence — evidence strength</div>
+        <div style="font-size:19px;font-weight:800;margin-top:3px;">${invEsc(conf.level||'—')}${conf.score_pct!=null?` <span style="font-size:13px;color:var(--muted);">(${conf.score_pct}%)</span>`:''}</div></div>
+      <div><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700;">Criticality — operational severity</div>
+        <div style="margin-top:5px;">${rcaBadge(crit.level||'—', cs[0], cs[1])}</div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:5px;max-width:460px;">${invEsc(crit.reason||'')}</div></div>
+    </div>
+    ${dims?`<details style="margin-top:12px;"><summary style="cursor:pointer;font-size:11.5px;color:var(--muted);">How confidence was scored</summary>
+      <table style="margin-top:7px;font-size:12px;border-collapse:collapse;">${dims}</table></details>`:''}
+  </div></details>`;
+}
+
+function rcaWhyPanel(f){
+  const bullets = f.why_this_happened || [];
+  if (!bullets.length) return '';
+  const items = bullets.map(b=>{
+    const st = RCA_CLASS_STYLE[b.evidence_class] || ['#22303d','#a9d5f5'];
+    const contra = (b.contradictions||[]).map(c=>`<div style="margin-top:6px;font-size:11.5px;
+        color:#f0bc8f;"><b>Argues against:</b> ${invEsc(c)}</div>`).join('');
+    const ids = (b.evidence_ids||[]).length
+      ? `<div style="margin-top:6px;font-size:11px;color:var(--muted);">Evidence: ${(b.evidence_ids||[]).map(invEsc).join(', ')}</div>` : '';
+    return `<li style="padding:12px 0;border-bottom:1px solid var(--border);list-style:none;">
+      <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;">
+        <span style="font-weight:800;font-size:13.5px;">${b.rank}. ${invEsc(b.headline||'')}</span>
+        ${rcaBadge((b.evidence_class||'').replace(/_/g,' '), st[0], st[1])}
+      </div>
+      <div style="margin-top:6px;font-size:12.5px;line-height:1.6;">${invEsc(b.what_happened||'')}</div>
+      <div style="margin-top:4px;font-size:12.5px;line-height:1.6;color:var(--muted);">${invEsc(b.why_it_mattered||'')}</div>
+      <div style="margin-top:4px;font-size:12.5px;line-height:1.6;"><b>Forecast mechanism:</b> ${invEsc(b.forecast_mechanism||'')}</div>
+      ${contra}${ids}</li>`;
+  }).join('');
+  return `<details class="inv-sec" open><summary>Why This Happened</summary><div class="body">
+    ${secDesc('Ranked by how strongly the evidence supports each mechanism, strongest first.')}
+    <ul style="padding:0;margin:0;">${items}</ul></div></details>`;
+}
+
+function rcaEvidenceTablePanel(f){
+  const idx = f.evidence_index || {};
+  const order = ['E1a','E1b','E1','E1c','E2','E3','E5','E4','E9','E10','E7','E8','E11','E13','E15'];
+  const rows = order.filter(k=>idx[k]).map(k=>{
+    const e = idx[k];
+    let v = e.value;
+    if (v && typeof v === 'object') v = Object.entries(v).filter(([,x])=>x!=null)
+      .map(([a,b])=>`${a}: ${Array.isArray(b)?b.length+' item(s)':b}`).join(' · ');
+    if (v === null || v === undefined || v === '') v = '—';
+    return `<tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:6px 10px 6px 0;color:var(--muted);white-space:nowrap;font-size:11px;">${invEsc(e.id)}</td>
+      <td style="padding:6px 10px 6px 0;font-weight:600;">${invEsc(e.label)}</td>
+      <td style="padding:6px 10px 6px 0;text-align:right;white-space:nowrap;">${invEsc(String(v))}</td>
+      <td style="padding:6px 0;color:var(--muted);font-size:11.5px;">${invEsc(e.available?(e.source||''):(e.note||'not available'))}</td></tr>`;
+  }).join('');
+  if (!rows) return '';
+  return `<details class="inv-sec" open><summary>Statistical Evidence</summary><div class="body">
+    ${secDesc('Every figure behind the explanation above, with where it came from. All computed in Python; the model creates no numbers.')}
+    <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">${rows}</table></div>
+  </div></details>`;
+}
+
+function rcaForecastResponsePanel(f){
+  const d = f.forecast_response_diagnostic || {};
+  if (!d.available) return d.reason ? `<details class="inv-sec"><summary>Forecast Response Diagnostic</summary>
+    <div class="body"><div class="inv-empty">${invEsc(d.reason)}</div></div></details>` : '';
+  const r = d.response || {}, fc = d.forecastability || {};
+  const moves = (d.movement_test||[]).filter(m=>m.testable).map(m=>`<tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:5px 10px 5px 0;">${m.lookback_weeks} week(s) back</td>
+      <td style="padding:5px 10px 5px 0;">Demand ${invEsc(m.actual_direction)}</td>
+      <td style="padding:5px 10px 5px 0;">Plan ${invEsc(m.forecast_direction)}</td>
+      <td style="padding:5px 0;color:${m.directions_opposed?'#f08f8f':'var(--muted)'};">${m.directions_opposed?'opposed':'aligned'}</td></tr>`).join('');
+  const sigs = (d.signals||[]).map(s=>`<li style="padding:4px 0;">${s.detected?'●':'○'} ${invEsc(s.signal)} — ${invEsc(s.detected?(s.reading||'detected'):(s.reason||s.reading||'not detected'))}</li>`).join('');
+  return `<details class="inv-sec" open><summary>Forecast Response Diagnostic</summary><div class="body">
+    ${secDesc('Was there something to react to before the week, and did the plan react to it?')}
+    <div style="font-size:12.5px;margin-bottom:9px;"><b>Response:</b> ${invEsc((r.classification||'—').replace(/_/g,' '))} — ${invEsc(r.reason||'')}</div>
+    <div style="font-size:12.5px;margin-bottom:9px;"><b>Forecastability:</b> ${invEsc(fc.classification||'—')} — ${invEsc(fc.reason||'')}</div>
+    ${moves?`<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-top:10px;">Demand movement vs plan movement</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-top:5px;">${moves}</table>`:''}
+    ${sigs?`<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-top:12px;">Signals available before the week</div>
+      <ul style="list-style:none;padding:0;margin:5px 0 0;font-size:12.5px;">${sigs}</ul>`:''}
+  </div></details>`;
+}
+
+function rcaDriverEvidencePanel(f){
+  const d = f.driver_diagnostics || {};
+  const drivers = d.drivers || [];
+  if (!drivers.length) return '';
+  const rows = drivers.map(x=>{
+    const cov = x.coverage||'—';
+    const covColour = cov==='populated' ? 'var(--muted)' : '#f0bc8f';
+    return `<tr style="border-bottom:1px solid var(--border);vertical-align:top;">
+      <td style="padding:6px 10px 6px 0;font-weight:600;white-space:nowrap;">${invEsc(x.subject||x.driver)}</td>
+      <td style="padding:6px 10px 6px 0;color:${covColour};white-space:nowrap;">${invEsc(cov)} (${x.weeks_with_a_value}/${x.weeks_in_window})</td>
+      <td style="padding:6px 10px 6px 0;white-space:nowrap;">${x.best_lag_weeks==null?'—':(x.best_lag_weeks+' wk lead')}</td>
+      <td style="padding:6px 0;color:var(--muted);font-size:11.5px;">${invEsc(x.interpretation||'')}</td></tr>`;
+  }).join('');
+  return `<details class="inv-sec"><summary>Driver Evidence</summary><div class="body">
+    ${secDesc('Does any operational driver lead demand for this queue, and was there enough history to tell?')}
+    <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;">${rows}</table></div>
+  </div></details>`;
+}
+
+function rcaActionPanel(f){
+  const action = (f.wfm_action||'').trim();
+  if (!action) return '';
+  return `<details class="inv-sec" open><summary>WFM Action</summary><div class="body">
+    ${secDesc('What the forecasting team should change, from the leading supported mechanism.')}
+    <div style="font-size:13px;line-height:1.6;font-weight:600;">${invEsc(action)}</div></div></details>`;
 }
 
 /* ---- RCA Trigger — orchestrates the pipeline above; owns nothing except sequencing.

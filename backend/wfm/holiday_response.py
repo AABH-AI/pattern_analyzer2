@@ -295,6 +295,19 @@ def analyse(history, target_week, country, target_actual=None, target_forecast=N
         return {"available": False, "reason": span.get("reason"),
                 "phase": _cal.PHASE_NONE, "applies": False}
 
+    # A queue whose Country is blank, or whose Country the master does not know, cannot be checked
+    # against a calendar. Reporting phase "none" there would state that no holiday applies, which
+    # is a claim the data does not support -- the honest answer is that the check could not run.
+    # (Some extracts genuinely carry blank scope columns for a queue, so this is a live path.)
+    if not str(country or "").strip() or not span.get("countries_resolved"):
+        return {"available": False, "phase": _cal.PHASE_NONE, "applies": False,
+                "country_resolved": span.get("countries_resolved") or [],
+                "reason": (f"the queue's Country is "
+                           f"{'blank' if not str(country or '').strip() else repr(country)}, so it "
+                           f"cannot be matched to the holiday calendar"),
+                "note": ("Holiday effects were NOT checked for this queue. This is not the same as "
+                         "finding no holiday.")}
+
     rows = _rows(history, target_week)
     cache = {}
     historical = _historical_phase_effect(rows, country, cache)

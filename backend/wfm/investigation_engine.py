@@ -39,6 +39,7 @@ from . import (
     holiday_response,
     hypothesis_generator,
     lag_analysis,
+    rca_decision,
     skeptic,
     statistical_evidence as stats_engine,
     temporal_reasoner,
@@ -94,7 +95,37 @@ def derive_wfm_features(context_bundle, wfm_context, band):
     features["forecast_response"] = forecast_response.analyse(
         history, week, actual, forecast,
         lag_result=features["lag_analysis"], holiday_result=features["holiday_response"])
+
+    # --- THE DECISION LAYER. Runs on the deterministic evidence and BEFORE the model, so what
+    #     may be claimed is settled before anything is narrated. miss_category, evidence_class,
+    #     direction coherence, contradiction resolution, confidence and criticality all come from
+    #     here; _assemble re-imposes them afterwards so a model cannot talk its way past them. ---
+    features["decision"] = rca_decision.decide(features, actual, forecast, adherence, band)
     return features, adherence
+
+
+def _decision_for_model(decision):
+    """The decision block the model is shown -- the verdicts and their evidence, without the
+    internal scoring machinery it has no business reasoning about."""
+    if not decision:
+        return {}
+    return {
+        "miss_category": decision.get("miss_category"),
+        "miss_category_reason": decision.get("miss_category_reason"),
+        "forecastability": decision.get("forecastability"),
+        "forecastability_reason": decision.get("forecastability_reason"),
+        "root_cause_sentence": decision.get("root_cause_sentence"),
+        "why_bullets": decision.get("why_bullets"),
+        "rejected": decision.get("rejected"),
+        "confidence": {"level": (decision.get("confidence") or {}).get("level"),
+                       "score_pct": (decision.get("confidence") or {}).get("score_pct")},
+        "criticality": {"level": (decision.get("criticality") or {}).get("level"),
+                        "reason": (decision.get("criticality") or {}).get("reason")},
+        "evidence_index": decision.get("evidence_index"),
+        "limitations": decision.get("limitations"),
+        "instruction": ("These verdicts are already decided from the data. Narrate them in "
+                        "business language. Do not recompute, reorder or contradict them."),
+    }
 
 
 def _payload(context_bundle, features, adherence, band):
@@ -124,6 +155,9 @@ def _payload(context_bundle, features, adherence, band):
         "HOLIDAY": features.get("holiday_response"),
         "HOLIDAY_DAY_STRUCTURE": features.get("holiday_day_structure"),
         "DATA_GRANULARITY": features.get("data_granularity"),
+        # The decisions are already made. The model's job is to narrate these, not to revisit
+        # them -- the prompt says so, and _assemble enforces it whatever the model returns.
+        "DECISION": _decision_for_model(features.get("decision") or {}),
         "ELIGIBLE_CAUSE_TYPES": skeptic.eligible_cause_types(features),
         "FIELD_GLOSSARY": FIELD_DEFINITIONS,
     }
@@ -176,6 +210,10 @@ def _assemble(parsed, features, adherence, band, provider, model):
     # override is what decides who holds rank 1.
     out = report.apply_statistical_override(out, features)
     out = report.back_compat(out, features.get("base_features") or {})
+    # The deterministic verdicts are re-imposed AFTER the model and after back_compat, so a model
+    # that renames the category, reorders the mechanisms or upgrades its own confidence cannot
+    # change what the report actually claims.
+    out = report.apply_decision(out, features.get("decision") or {}, features)
     # The prompt's BUSINESS LANGUAGE rule, enforced rather than requested.
     return report.apply_language_guard(out)
 
@@ -220,7 +258,11 @@ def _fallback(features, adherence, band, reason):
         "investigation_meta": {"engine": "wfm-deterministic-fallback", "generated_at": _now()},
     }
     out = report.apply_statistical_override(out, features)
-    return report.apply_language_guard(report.back_compat(out, base))
+    out = report.back_compat(out, base)
+    # The decision layer is deterministic, so it is just as valid without a model as with one.
+    # A fallback report therefore still carries miss_category, criticality and the ranked why.
+    out = report.apply_decision(out, features.get("decision") or {}, features)
+    return report.apply_language_guard(out)
 
 
 def investigate_wfm(context_bundle, llm_cfg, wfm_context, model_choice=None, band=None):

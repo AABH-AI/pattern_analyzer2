@@ -15,6 +15,7 @@ Code: the `backend/wfm/` package + a ~40-line opt-in branch in `backend/sql_back
 | `wfm/holiday_response.py` | pre / holiday / post phases over H−2…H+2, effects **measured** per queue, forecast-capture verdict |
 | `wfm/holiday_events.py` | holiday EVENT normalisation — one multi-day holiday is one event; two spellings are one event |
 | `wfm/data_granularity.py` | what the source can and cannot support; blocks weekend claims at weekly grain |
+| `wfm/rca_decision.py` | **the decision layer** — `miss_category`, `evidence_class`, direction coherence, contradiction resolution, confidence, criticality, evidence IDs |
 | `wfm/hypothesis_catalogue.py` | the fixed catalogue of 23 candidate hypotheses |
 | `wfm/cross_examination.py` | 18 challenge questions that try to disprove each hypothesis |
 | `wfm/confidence.py` | confidence calculated from 8 weighted dimensions, never assigned |
@@ -48,12 +49,21 @@ derive features (all deterministic)
   -> holiday_response          which phase this week is in, and what that phase does HERE
        (holiday_events normalises spellings and multi-day rows into events first)
   -> forecast_response         was there a signal, did the plan react, was it forecastable
+  -> rca_decision.decide       WHAT MAY BE CLAIMED: miss_category, evidence_class, direction
+                               coherence, contradiction resolution, confidence, criticality
   -> threshold gate            never investigate inside the band
-  -> ONE model call            rank + explain + challenge, in business language
+  -> ONE model call            narrates the decisions; it is shown DECISION and told not to
+                               recompute, reorder or contradict it
   -> skeptic.review            reject causes the features cannot support
   -> hypothesis_generator.mark downgrade over-confident statuses
   -> business_report_generator recompute the KPI, build the report, back-fill legacy keys
+  -> report.apply_decision     RE-IMPOSE the deterministic verdicts on the assembled response
 ```
+
+The last step is the guarantee: whatever the model returns, `miss_category`, `evidence_class`,
+criticality and the ranked why-bullets are written back from `rca_decision`, so a model cannot talk
+its way past them. The decision layer is deterministic, so the no-model fallback path carries the
+same verdicts.
 
 The four modules after `derive features` are a dependency chain, not a preference:
 `forecast_response` asks "did a signal fire and did the plan react", and two of its candidate

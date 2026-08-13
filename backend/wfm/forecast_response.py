@@ -578,12 +578,23 @@ def _adequacy(rows, target_week, target_forecast, expected_demand, signals, ordi
            "implied_change": _rnd(implied), "forecast_change_made": _rnd(made),
            "signals_considered": [s.get("signal") for s in detected]}
 
-    # A negligible implied change means the plan was already at the expected level; there was
-    # nothing to move, so adequacy is about not moving AWAY from it.
+    # A negligible implied change means the prior plan was already at the expected level. That is
+    # only "adequate" if the plan STAYED there -- a plan that moved a long way away from the
+    # expected level when nothing asked it to has still failed, and calling that adequate was a
+    # real defect caught by the wrong-direction regression case.
     if abs(implied) < max(1.0, abs(prior_forecast) * NO_RESPONSE_RATIO * 0.1):
-        out.update({"classification": "adequate", "response_ratio": None,
-                    "reason": ("The prior forecast was already at the expected demand level, so no "
-                               "material change was required.")})
+        drift_away = target_forecast - expected_demand
+        material_drift = abs(drift_away) > max(1.0, abs(expected_demand) * UNUSUAL_SHARE * 0.5)
+        if not material_drift:
+            out.update({"classification": "adequate", "response_ratio": None,
+                        "reason": ("The prior forecast was already at the expected demand level "
+                                   "and stayed there, so no material change was required.")})
+        else:
+            out.update({"classification": "wrong_direction", "response_ratio": None,
+                        "reason": (f"No change was required -- the prior plan already sat at the "
+                                   f"expected level of {_rnd(expected_demand)} -- but the plan "
+                                   f"moved {_rnd(made)} contacts to {_rnd(target_forecast)}, away "
+                                   f"from it.")})
         return out
     ratio = made / implied
     out["response_ratio"] = _rnd(ratio)
