@@ -38,6 +38,7 @@ DEPENDENCIES: standard library, plus the existing holiday calendar repository.
 """
 import statistics as _st
 
+from . import holiday_events
 from .context_repository import holiday_calendar as _cal
 
 # --- how far either side of the target week to look for holidays (spec section 16: H-2..H+2). ---
@@ -321,7 +322,15 @@ def analyse(history, target_week, country, target_actual=None, target_forecast=N
     expected_direction = (phase_block or {}).get("direction")
     consistency = (phase_block or {}).get("consistency")
 
-    reading = _reading(phase, span, phase_block, capture, row_holiday_count)
+    # Collapse spellings and multi-day rows into EVENTS before anything counts them, so holiday
+    # pressure is never overstated by the master's naming (see holiday_events for the measured
+    # scale of the problem). Raw names are retained inside each instance for traceability.
+    all_rows = [h for group in (span.get("offsets") or {}).values() for h in group]
+    events = holiday_events.normalise(all_rows)
+    reaching_events = [e for e in events if e.get("reaches_target_week")]
+    event_summary = holiday_events.summarise(events, reaching_only=True)
+
+    reading = _reading(phase, span, phase_block, capture, row_holiday_count, event_summary)
     return {
         "available": True,
         "country_resolved": span.get("countries_resolved"),
@@ -330,6 +339,11 @@ def analyse(history, target_week, country, target_actual=None, target_forecast=N
         "span_weeks": SPAN_WEEKS,
         "names": span.get("names"),
         "families": span.get("families"),
+        # Event-normalised view. `event_count` is the number a narrative should quote;
+        # `raw_name_count` sits beside it so the collapsed inflation stays auditable.
+        "events": events,
+        "events_reaching_target_week": reaching_events,
+        "event_summary": event_summary,
         "holidays_by_offset": span.get("offsets"),
         "holidays_reaching_target_week": span.get("reaching"),
         "row_holiday_count": row_holiday_count,
@@ -347,12 +361,16 @@ def analyse(history, target_week, country, target_actual=None, target_forecast=N
     }
 
 
-def _reading(phase, span, phase_block, capture, row_holiday_count):
+def _reading(phase, span, phase_block, capture, row_holiday_count, event_summary=None):
     """One plain-English paragraph, safe to put in front of an executive."""
     if phase == _cal.PHASE_NONE:
         return ("No holiday falls in this week, and none in the surrounding weeks has an impact "
                 "window wide enough to reach it.")
-    names = ", ".join(span.get("names") or []) or "a holiday"
+    # Quote EVENTS, not raw name spellings: the same holiday under two spellings, or a four-day
+    # holiday listed once per day, would otherwise read as several separate holidays crowding the
+    # week and make the calendar explanation look stronger than the calendar warrants.
+    canonical = (event_summary or {}).get("canonical_names") or []
+    names = ", ".join(canonical or span.get("names") or []) or "a holiday"
     where = {_cal.PHASE_HOLIDAY: "falls in this week",
              _cal.PHASE_PRE: "falls shortly after this week, so this week is the run-up",
              _cal.PHASE_POST: "fell shortly before this week, so this week is the wind-down"}.get(

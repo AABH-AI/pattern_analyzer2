@@ -646,6 +646,113 @@ def test_holiday_day_structure():
 
 
 # ---------------------------------------------------------------------------
+# 8b. holiday EVENT normalisation (Phase 2 section 4)
+# ---------------------------------------------------------------------------
+def test_event_key_collapses_spellings_not_bridge_days():
+    from wfm import holiday_events
+    k1, _, _ = holiday_events.event_key("Ascension of Jesus Christ")
+    k2, _, _ = holiday_events.event_key("Ascension Day of Jesus Christ")
+    eq("EVT-1 two spellings of one holiday share an event key", k1, k2)
+
+    k3, m3, _ = holiday_events.event_key("Day after Ascension Day")
+    check("EVT-2 a bridge day is NOT the holiday it adjoins", k3 != k1, f"{k3} vs {k1}")
+    eq("EVT-3 the bridge modifier is captured", m3, "after")
+
+    k4, m4, _ = holiday_events.event_key("Joint Holiday for Waisak Day")
+    k5, _, _ = holiday_events.event_key("Waisak Day")
+    check("EVT-4 a joint/bridge holiday stays distinct from its anchor", k4 != k5, f"{k4} vs {k5}")
+    eq("EVT-5 the joint modifier is captured", m4, "joint")
+
+    k6, m6, _ = holiday_events.event_key("2nd Christmas Day")
+    k7, _, _ = holiday_events.event_key("Christmas Day")
+    check("EVT-6 a second day stays distinct from the first", k6 != k7, f"{k6} vs {k7}")
+    eq("EVT-7 the ordinal modifier is captured", m6, "second")
+
+    # Semantic_Family wins when the master supplies it
+    k8, _, _ = holiday_events.event_key("Chinese New Year", semantic_family="Lunar New Year")
+    k9, _, _ = holiday_events.event_key("Tet", semantic_family="Lunar New Year")
+    eq("EVT-8 Semantic_Family unifies two regional names", k8, k9)
+    check("EVT-9 a family key is marked as such", k8.startswith("family:"), k8)
+
+
+def test_multi_day_holiday_is_one_event():
+    from wfm import holiday_events
+    rows = [{"name": "Eid al-Adha Holiday", "date": f"2025-06-{d:02d}", "country": "bahrain",
+             "before": 3, "after": 3, "fiscal_week": 202619, "reaches_target_week": True}
+            for d in (7, 8, 9, 10)]
+    evs = holiday_events.normalise(rows)
+    eq("EVT-10 four consecutive days are ONE event", len(evs), 1)
+    eq("EVT-11 the day count is retained", evs[0]["days_in_event"], 4)
+    eq("EVT-12 the collapsed row count is reported", evs[0]["rows_collapsed"], 3)
+    s = holiday_events.summarise(evs)
+    eq("EVT-13 the summary counts one event", s["event_count"], 1)
+    eq("EVT-14 total holiday days are still four", s["total_holiday_days"], 4)
+    check("EVT-15 the multi-day event is named as such",
+          "Eid al-Adha Holiday" in s["multi_day_events"], str(s["multi_day_events"]))
+
+
+def test_same_event_two_dates_is_flagged_not_merged():
+    from wfm import holiday_events
+    rows = [
+        {"name": "Ascension of Jesus Christ", "date": "2026-05-14", "country": "indonesia",
+         "before": 3, "after": 3, "fiscal_week": 202715, "reaches_target_week": True},
+        {"name": "Ascension Day of Jesus Christ", "date": "2026-05-27", "country": "indonesia",
+         "before": 3, "after": 3, "fiscal_week": 202717, "needs_review": True,
+         "reaches_target_week": True},
+    ]
+    evs = holiday_events.normalise(rows)
+    eq("EVT-16 two dates 13 days apart stay TWO occurrences", len(evs), 2)
+    check("EVT-17 both are flagged as possible mis-dating",
+          all(e.get("possible_misdating") for e in evs), str([e.get("possible_misdating") for e in evs]))
+    check("EVT-18 the review note explains rather than merges",
+          all("rather than merged" in (e.get("review_note") or "") for e in evs), "")
+    s = holiday_events.summarise(evs)
+    check("EVT-19 the review flag surfaces in the summary",
+          bool(s["possible_misdating"]), str(s["possible_misdating"]))
+
+
+def test_raw_names_retained_for_traceability():
+    from wfm import holiday_events
+    rows = [{"name": "Ascension of Jesus Christ", "date": "2026-05-14", "country": "x",
+             "before": 3, "after": 3, "reaches_target_week": True},
+            {"name": "Ascension Day of Jesus Christ", "date": "2026-05-14", "country": "x",
+             "before": 3, "after": 3, "reaches_target_week": True}]
+    evs = holiday_events.normalise(rows)
+    eq("EVT-20 same event, same date, two spellings -> one event", len(evs), 1)
+    eq("EVT-21 both raw names are kept", len(evs[0]["raw_names"]), 2)
+    eq("EVT-22 the variant count is reported", evs[0]["name_variants"], 2)
+    s = holiday_events.summarise(evs)
+    eq("EVT-23 the summary shows 1 event against 2 raw names",
+       (s["event_count"], s["raw_name_count"]), (1, 2))
+
+
+def test_aggregate_group_is_not_used_as_an_event_family():
+    """AMER_GROUP spans 64 distinct holidays across 2 countries -- grouping by it would merge
+    Columbus Day with Thanksgiving Day. Guard against a future 'fix' reintroducing that."""
+    from wfm import holiday_events
+    rows = [{"name": "Columbus Day", "date": "2023-10-09", "country": "amer_holiday_1",
+             "group": "AMER_GROUP", "before": 3, "after": 3, "reaches_target_week": True},
+            {"name": "Thanksgiving Day", "date": "2023-10-09", "country": "amer_holiday_1",
+             "group": "AMER_GROUP", "before": 3, "after": 3, "reaches_target_week": True}]
+    evs = holiday_events.normalise(rows)
+    eq("EVT-24 two different holidays sharing an Aggregate_Group stay separate", len(evs), 2)
+
+
+def test_holiday_response_reports_events():
+    with _FakeCalendar(holiday_every_n_weeks()):
+        res = holiday_response.analyse(phase_effect_history(), POST_HOLIDAY_TARGET, "testland",
+                                       target_actual=130.0, target_forecast=100.0,
+                                       row_holiday_count=0.0)
+        s = res.get("event_summary") or {}
+        check("EVT-25 the holiday block carries an event summary", bool(s), str(res.keys()))
+        check("EVT-26 event_count never exceeds the raw name count",
+              (s.get("event_count") or 0) <= (s.get("raw_name_count") or 0),
+              f"{s.get('event_count')} vs {s.get('raw_name_count')}")
+        check("EVT-27 the note explains that events, not rows, are counted",
+              "EVENTS" in (s.get("note") or ""), str(s.get("note"))[:80])
+
+
+# ---------------------------------------------------------------------------
 # 9. no hard-coded queue / week / country anywhere (spec section 5)
 # ---------------------------------------------------------------------------
 def test_no_hardcoded_case():
@@ -686,6 +793,9 @@ def main():
         test_inconsistent_holiday_history_blocks_blame,
         test_weekly_grain_blocks_weekend_claims, test_daily_grain_would_flip_the_capability,
         test_holiday_day_structure,
+        test_event_key_collapses_spellings_not_bridge_days, test_multi_day_holiday_is_one_event,
+        test_same_event_two_dates_is_flagged_not_merged, test_raw_names_retained_for_traceability,
+        test_aggregate_group_is_not_used_as_an_event_family, test_holiday_response_reports_events,
         test_no_hardcoded_case,
     ]
     print("=" * 92)

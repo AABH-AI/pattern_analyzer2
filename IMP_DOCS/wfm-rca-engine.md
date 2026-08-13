@@ -10,6 +10,11 @@ Code: the `backend/wfm/` package + a ~40-line opt-in branch in `backend/sql_back
 |---|---|
 | `wfm/investigation_engine.py` | orchestrates the workflow |
 | `wfm/spec_engine.py` | **FC_RCA v2.0.0** — the 15-step canonical sequence (`?mode=spec`) |
+| `wfm/lag_analysis.py` | **does a driver LEAD demand?** Spearman at lags 0/1/2/4/8, level and change families, stability, coverage classes |
+| `wfm/forecast_response.py` | **did the plan react?** demand-side vs forecast-side split, exact miss decomposition, response adequacy, forecastability |
+| `wfm/holiday_response.py` | pre / holiday / post phases over H−2…H+2, effects **measured** per queue, forecast-capture verdict |
+| `wfm/holiday_events.py` | holiday EVENT normalisation — one multi-day holiday is one event; two spellings are one event |
+| `wfm/data_granularity.py` | what the source can and cannot support; blocks weekend claims at weekly grain |
 | `wfm/hypothesis_catalogue.py` | the fixed catalogue of 23 candidate hypotheses |
 | `wfm/cross_examination.py` | 18 challenge questions that try to disprove each hypothesis |
 | `wfm/confidence.py` | confidence calculated from 8 weighted dimensions, never assigned |
@@ -36,12 +41,24 @@ Run order, mirroring the prompt's own rules:
 
 ```
 derive features (all deterministic)
+     base_features, temporal, channel_siblings, investigation_ladder,
+     data_quality, correlations, statistical_evidence
+  -> data_granularity          what the data can support (blocks weekend claims at weekly grain)
+  -> lag_analysis              which driver leads demand, and at what lag
+  -> holiday_response          which phase this week is in, and what that phase does HERE
+       (holiday_events normalises spellings and multi-day rows into events first)
+  -> forecast_response         was there a signal, did the plan react, was it forecastable
   -> threshold gate            never investigate inside the band
   -> ONE model call            rank + explain + challenge, in business language
   -> skeptic.review            reject causes the features cannot support
   -> hypothesis_generator.mark downgrade over-confident statuses
   -> business_report_generator recompute the KPI, build the report, back-fill legacy keys
 ```
+
+The four modules after `derive features` are a dependency chain, not a preference:
+`forecast_response` asks "did a signal fire and did the plan react", and two of its candidate
+signals (a leading driver, a holiday transition) are produced by `lag_analysis` and
+`holiday_response` respectively.
 
 ## The two modules that close real gaps
 
