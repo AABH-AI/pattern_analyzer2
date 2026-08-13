@@ -93,6 +93,48 @@ def _q(key, category, text, applies_to, answer_fn):
             "applies_to": applies_to, "answer": answer_fn}
 
 
+def _direction_coherence(f, _h):
+    """Does a calendar cause push demand the way the miss actually went?
+
+    Sign conventions, both from the engine and deliberately restated here because getting either
+    backwards is what produced the two wrong reports:
+        adherence_pct  > 0  ->  actual BELOW plan (over-forecast)
+        adherence_pct  < 0  ->  actual ABOVE plan (under-forecast)
+        difference_pct < 0  ->  holiday weeks run BELOW normal for this queue
+    A holiday that suppresses demand can only explain an OVER-forecast. Pairing it with an
+    under-forecast is self-contradictory, however many contacts the gap is.
+    """
+    adh = _g(f, "forecast_summary", "adherence_pct")
+    if adh is None:
+        adh = _g(f, "deviation", "adherence_pct")
+    eff = f.get("holiday_effect") or {}
+    delta = eff.get("difference_pct")
+    in_week = list((_g(f, "period", "holiday", "in_week") or []))
+
+    if adh is None or delta is None:
+        return _a(UNANSWERED,
+                  "The holiday effect for this queue has not been measured against its own history, "
+                  "so the direction this explanation implies cannot be compared with the direction "
+                  "of the miss.", ["holiday"])
+
+    suppresses = delta < 0
+    over_forecast = adh > 0
+    if suppresses == over_forecast:
+        return _a(SUPPORTS,
+                  f"Holiday weeks run {delta:+.0f}% against normal for this queue, and the week came "
+                  f"in {'below' if over_forecast else 'above'} plan by {abs(adh):.0f}% -- the "
+                  f"direction of the explanation matches the direction of the miss.",
+                  ["holiday", "direction"])
+
+    tail = "" if in_week else ", and no holiday falls in the week itself"
+    return _a(REFUTES,
+              f"Holiday weeks run {delta:+.0f}% against normal for this queue, which would push the "
+              f"week {'below' if suppresses else 'above'} plan -- but the week came in "
+              f"{'below' if over_forecast else 'above'} plan by {abs(adh):.0f}%. The explanation "
+              f"points the opposite way to the miss, so it cannot be the cause{tail}.",
+              ["holiday", "direction"])
+
+
 CATALOGUE = [
     # ---- Statistical Validation (4) ----
     _q("STAT_SIGNIFICANCE", STAT,
@@ -210,6 +252,14 @@ CATALOGUE = [
            _a(WEAKENS, f"Only {abs(_g(f,'deviation','abs_variance',default=0) or 0):,.0f} contacts "
                        f"in absolute terms -- below the materiality floor, so the percentage "
                        f"overstates the business significance.", ["materiality"]))),
+
+    # ---- Logical coherence (1), added 2026-08-11 ----
+    # The question neither reviewed report was asked. Both accepted a holiday cause on a week that
+    # came in far ABOVE plan while their own evidence said holidays REDUCE that queue's demand.
+    _q("LOGIC_DIRECTION_COHERENCE", BIZ,
+       "Does this explanation push demand in the same direction as the miss actually went?",
+       ("Calendar",),
+       _direction_coherence),
 
     # ---- Data Validation (4) ----
     _q("DATA_SUFFICIENCY", DATA,

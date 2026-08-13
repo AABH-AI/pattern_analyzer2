@@ -274,6 +274,102 @@ which is what surfaced the mistake.
       `#tab-console` (not `#tab-rca`), and Canary cannot `setInputFiles` from a real path — the file
       must be base64'd into `~/.canary/tmp` and passed as a buffer.
 
+## P0 — spec-v2, from three reviewed reports (2026-08-11 → 13)
+
+Each item below was found by checking a generated report against the source data, not by reading code.
+
+- [x] **DONE — a cause could explain a miss it would push the other way.** Two reports blamed a
+      holiday for a week that came in far ABOVE plan, while their own evidence said holidays make
+      that queue quieter. If a holiday suppresses demand and the plan failed to reduce, the week
+      lands OVER-forecast; both landed heavily UNDER. Cross-examination asked 16 and 13 questions and
+      passed the hypothesis both times, because nothing compared the direction a cause implies with
+      the direction the miss took. `LOGIC_DIRECTION_COHERENCE` added to `cross_examination.py`
+      (Calendar causes only). Unit-tested on four cases: refutes both reviewed reports, supports a
+      legitimate holiday cause, returns unanswered where the effect was never measured.
+      *Effect: `Czech Republic Comm Client ProSupport Chat` FW202709 and `SA Indonesia Client Basic`
+      FW202716 both now reject Holiday, and survivors fell from 6-of-6 to 3-of-5.*
+
+- [x] **DONE — no report on any queue had ever used a measured statement.** `_select_root_cause`
+      guarded it with `top["cause_type"] == best["cause_type"]`, and catalogue entries have **no
+      `cause_type` key** — verified: DEM-01 carries only id/category/name/condition/predicate/
+      metrics/evidence_types. The test was always `None != <string>`, so every report fell through to
+      the catalogue's CONDITION text and headlined with a dictionary definition
+      (*"Demand Spike — actual exceeds forecast beyond the volatility band"*). Now matches on
+      `rank_basis` against the catalogue's `metrics`, and falls back to the why-chain's opening claim
+      before the condition.
+
+- [x] **DONE — causes were not ordered by confidence.** A live run returned `[70, 90, 60, 40]` and
+      nothing sorted them, so the report claimed "best-supported first" while ranking a 70% cause
+      above a 90% one.
+
+- [ ] **Cross-examination still under-eliminates, and that pins confidence.** Before the direction
+      gate, two unrelated queues both had **6 of 6** hypotheses survive with
+      `ContradictoryEvidence = 0.3774` — identical to four decimal places — so gate 5 capped every
+      report to Low. The gate improved it to 3-of-5 on one queue; the mechanism is still that
+      surviving alternatives drive ContradictoryEvidence (weight **0.20**, the heaviest) below the
+      0.40 cap. A confidence score that is almost always Low carries no information.
+
+- [ ] **`recommendations` comes back empty on Complete reports.** Measured on
+      `CHK Cons eBiz Basic` FW202722.
+
+## P1 — computed then discarded (the pattern behind most weak output)
+
+The engine's recurring failure is not analysis: it computes the good answer and drops it before the
+screen. Six instances, five now fixed.
+
+- [x] `ranked_root_causes[].title` — the one-line why, rendered nowhere. Now the panel headline.
+- [x] Holiday names — computed, then dropped from the payload because `finding` took only
+      `ctx["calendar"]`. On `India Cons IW` FW202632 the engine correctly generated and accepted
+      CAL-01 from the impact window (Milad un-Nabi/Id-e-Milad and Onam in FW202631, `Holiday_Count`
+      0 in the target week) and named no holiday. Now surfaced and rendered.
+- [x] `driver_gate` note — 0 UI references, and the most decision-relevant line in the payload
+      (*"No driver passes the relevance gate ... so the investigation routes to calendar, volume and
+      data-quality hypotheses"*). Now in **Business Context Used**.
+- [x] `data_quality` — 0 UI references. Now shown.
+- [x] The plan vintage and forecaster — on the queue card, nowhere in the report. Now shown.
+- [ ] `executive_summary` and `investigation_trail` still have **0 UI references**. The 4-part
+      narrative reaches the screen only via `reasoning_narrative`.
+- [ ] `contradictory_evidence` and `major_deviation` — still 0 UI references.
+
+## P2 — correctness and hygiene
+
+- [x] **Gemini never worked at all.** Three faults in a chain: no `gemini` entry in
+      `PROVIDER_ENDPOINTS`; `_narrate` returning its placeholder `"unknown"` when no endpoint
+      resolved; and Google rejecting `seed` with `HTTP 400 Unknown name "seed"`. Fixed — `seed` is
+      omitted only for Gemini, since NVIDIA and Groq honour it and it is what makes a re-run
+      reproducible. Still rate-limits (429) under repeated use: `gemini-3.6-flash` failed where
+      `gemini-flash-lite-latest` succeeded, so the chain should try siblings before giving up.
+- [x] **Holiday calendar published to SQL** — `load_holiday_to_sql.py` writes `dbo.Holiday_Master`
+      (9,757), `dbo.Fiscal_Calendar_Week` (521), `dbo.Holiday_Country_Alias` (50) and
+      `dbo.Holiday_Aggregate_Group` (8), sourced from the JSON the engine reads so the two agree by
+      construction. Validated: **40 of 40** sampled country-weeks return identical holidays from SQL
+      and from `holiday_context()`. The alias table is what makes the join work — 45 of 49 countries
+      match directly, and without it `north america`, `korea` and the two "multiple ... countries"
+      values join to nothing, which reads as "no holiday" rather than "not joined".
+- [x] **`run.py`** — port check, config check, holiday-master pre-flight, `--test` gate, health wait.
+      Port **8000**, matching this branch's own run.bat/run.sh/CLAUDE.md/AGENTS.md.
+- [x] **Spec check S18 was a false positive, twice.** It flagged "marketing campaign" and
+      "product launch" inside a *recommendation to investigate one*. Now searches only asserting text.
+- [ ] **`renderProbe` throws on every page load** — `document.getElementById('kbCount')` with no
+      null guard. Logged in every Canary run since V0.1. Real console errors are easy to miss.
+- [ ] **`active_rows` is misleading** in `holiday_master.json`: it counts rows *read* (12,197), not
+      rows *kept* (9,757).
+- [ ] **Holiday de-duplication should key on `Semantic_Family`**, not exact name. *Ascension of Jesus
+      Christ* and *Ascension Day of Jesus Christ* are one event and were reported as two.
+- [ ] **No permanent holiday validation tool.** The 40/40 check was ad hoc.
+
+## P3 — data quality at source
+
+- [ ] **`SA Indonesia Client Basic` is the only queue of 427** whose extract has blank Region,
+      SubRegion, Country, Offering, channel, Forecaster and plan name — all 174 rows. SQL has them,
+      so the export is at fault.
+- [ ] **12% of rows file-wide (16,598 of 138,529) carry no `Projection_plan_name`**, which is why
+      plan-vintage questions come back unanswerable.
+- [ ] **The config week filter disagrees with the loaded data**: `config.json` says
+      `202500..202699`, the table holds `202401..202752`. A reload would truncate differently.
+- [ ] Holiday source mixes `Public Holiday` rows with rows typed `Derived from INPUT_TO_ML`, and the
+      derived ones duplicate the public ones. Provenance should decide precedence.
+
 ## P2 — dashboard / UX polish (post-deadline OK)
 - [x] High-cardinality dimension cards showed 0% shares — now show row counts; Fiscal_Week dropped from the grid; panel made bolder/cleaner. (2026-07-22)
 - [ ] Trend charts: optional brush/zoom for the 325-week span; shared hover legend across the two trend charts.

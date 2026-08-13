@@ -43,6 +43,7 @@ is collected, the confidence is calculated and the recommendations are derived. 
 prose. If it fails, the RCA is still complete and is marked Incomplete -- an LLM failure
 never blocks an RCA.
 """
+import time as _time
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -423,7 +424,15 @@ def _weigh(items):
 # ==============================================================================
 # Step 13 -- Root cause selection (deterministic decision matrix)
 # ==============================================================================
-def _select_root_cause(survivors, reports, stats):
+# The finding's `rank_basis` and the catalogue's `metrics` name the same things with two small
+# spelling differences. Mapping them is what lets a measured statement become the headline.
+_RANK_BASIS_TO_METRIC = {
+    "coefficient_of_variation": "variability",
+    "trend+momentum": "trend",
+}
+
+
+def _select_root_cause(survivors, reports, stats, why=None):
     """Step 13. Deterministic: weigh cross-examination outcome, then statistical support.
 
     Returns Inconclusive when nothing survives. That is a correct outcome, not a failure --
@@ -438,14 +447,41 @@ def _select_root_cause(survivors, reports, stats):
     by_id = {r["hypothesis_id"]: r for r in reports}
     order = {cx.ACCEPTED: 0, cx.ACCEPTED_WITH_CAVEATS: 1}
 
+    # Which hypothesis does the STRONGEST measured evidence actually point at? Ranking on
+    # cross-examination outcome alone let a hypothesis win while the best evidence in the payload
+    # belonged to a different one -- on SA Indonesia FW202716 "Demand Spike" won on support counts
+    # while the decisive finding (the plan set 48% below the week's own 3-year average) belonged to
+    # Forecast Bias, so the report headlined a restatement of the miss instead of its cause.
+    # Outcome still dominates: a hypothesis that failed challenge cannot be promoted by evidence.
+    _top = (stats or {}).get("strongest_finding") or {}
+    _top_basis = _RANK_BASIS_TO_METRIC.get(_top.get("rank_basis"), _top.get("rank_basis"))
+
     def rank(h):
         r = by_id.get(h["id"]) or {}
-        return (order.get(r.get("outcome"), 9), -(r.get("supports") or 0), r.get("weakens") or 0)
+        carries_top = bool(_top_basis and _top_basis in (h.get("metrics") or []))
+        return (order.get(r.get("outcome"), 9),
+                0 if carries_top else 1,          # the strongest evidence breaks the tie
+                -(r.get("supports") or 0), r.get("weakens") or 0)
 
     best = sorted(survivors, key=rank)[0]
     rep = by_id.get(best["id"]) or {}
     top = (stats or {}).get("strongest_finding") or {}
-    statement = top.get("statement") if top.get("cause_type") == best.get("cause_type") else None
+    # Match on what the two vocabularies actually share. The previous guard compared
+    # top["cause_type"] against best["cause_type"], and catalogue entries have no cause_type key at
+    # all -- so it was always None != a real string, and no report ever used a measured statement.
+    _basis = top.get("rank_basis")
+    _basis = _RANK_BASIS_TO_METRIC.get(_basis, _basis)
+    statement = top.get("statement") if (_basis and _basis in (best.get("metrics") or [])) else None
+
+    # Fall back to the why-chain's opening claim before the catalogue condition. The condition is a
+    # test ("actual exceeds forecast beyond the volatility band"), not a finding; the why-chain's
+    # first level is written about this queue and this week.
+    if not statement:
+        for lv in ((why or {}).get("levels") or []):
+            claim = (lv.get("answer") or lv.get("claim") or "").strip()
+            if claim:
+                statement = claim
+                break
 
     return {
         "cause_type": best.get("id"),
@@ -701,13 +737,17 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
 
     # --- Step 11 -- BEFORE confidence ------------------------------------------
     feat["alternatives"] = {"count": max(0, len(generated) - 1)}
+    # The measured holiday effect for THIS queue -- holiday weeks vs normal weeks over its own
+    # history. Needed by LOGIC_DIRECTION_COHERENCE, which compares the direction a calendar cause
+    # implies against the direction the miss actually took.
+    feat["holiday_effect"] = _m_for_why.get("holiday_effect")
     survivors, reports = cx.examine_all(generated, feat)
     _step(11, "Execute Cross-Examination",
           f"{len(survivors)} of {len(generated)} survived; "
           f"{sum(r['questions_asked'] for r in reports)} question(s) asked")
 
     # --- Step 12 ---------------------------------------------------------------
-    root_cause = _select_root_cause(survivors, reports, stats)
+    root_cause = _select_root_cause(survivors, reports, stats, why)
     top_report = next((r for r in reports
                        if r["hypothesis_id"] == root_cause.get("hypothesis_id")), {})
     # Cross-examination IS a contradiction search, and it runs before confidence precisely
@@ -758,6 +798,15 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
     finding = {
         "queue": key,
         "period": ctx["calendar"],
+        # THE HOLIDAY CONTEXT WAS COMPUTED AND THROWN AWAY. `ctx` carries it, and it decides whether
+        # CAL-01 Holiday is even generated -- but `finding` took only ctx["calendar"], so the names
+        # never reached the response. On India Cons IW FW202632 the engine correctly generated and
+        # ACCEPTED CAL-01 because two holidays in FW202631 (Milad un-Nabi/Id-e-Milad, Onam, both with
+        # a 3-day window) reach into the week -- while the source row's own Holiday_Count is 0. The
+        # report then said "Holiday: Accepted with Caveats" and named no holiday, no date and no
+        # reason, which reads as the engine inventing a calendar cause out of nothing.
+        "holiday": ctx.get("holiday"),
+        "context_elements": ctx.get("elements"),
         "grain": grain,
         "forecast_summary": {"forecast": rnd(forecast), "actual": rnd(actual),
                              "adherence_pct": rnd(adherence),
@@ -773,7 +822,9 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
     }
 
     # --- Step 14 -- the ONLY LLM call ------------------------------------------
-    narrative, narrative_error = _narrate(finding, llm_cfg, model_choice)
+    _narr_t0 = _time.time()
+    narrative, narrative_error, narrative_model = _narrate(finding, llm_cfg, model_choice)
+    _narr_secs = round(_time.time() - _narr_t0, 2)
     _step(14, "Generate Executive Summary",
           "narrative generated" if narrative else f"narrative unavailable: {narrative_error}")
 
@@ -848,6 +899,10 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
     # --- Step 15 ---------------------------------------------------------------
     audit = {
         "input_fingerprint": fingerprint,
+        # WHO wrote the summary and HOW LONG it took. Neither was recorded before, so the footer
+        # could only show version numbers that are the same on every report.
+        "narrative_model": narrative_model,
+        "narrative_seconds": _narr_secs,
         "started_at": started,
         "completed_at": datetime.now(timezone.utc).isoformat(),
         "catalogue_version": cat.CATALOGUE_VERSION,
@@ -1055,13 +1110,18 @@ def _call_llm(messages, llm_cfg, model_choice, prefer_fast=False):
             slots.sort(key=lambda sl: _FAST_FIRST.index(sl.get("provider"))
                        if sl.get("provider") in _FAST_FIRST else len(_FAST_FIRST))
     if not slots:
-        return None, "no LLM provider configured"
+        return None, "no LLM provider configured", None
     timeout = timeout_from_config(llm_cfg)
     last = "unknown"
     for slot in slots:
         endpoint = slot.get("endpoint") or PROVIDER_ENDPOINTS.get(slot.get("provider"))
         model = slot.get("model") or DEFAULT_MODELS.get(slot.get("provider"))
         if not endpoint:
+            # Do not fall through leaving `last` as its initial "unknown" -- that is exactly how a
+            # missing gemini endpoint surfaced as "Investigation Incomplete: ... did not succeed:
+            # unknown", which says nothing a reader can act on.
+            last = (f"provider '{slot.get('provider')}' has no endpoint configured "
+                    f"(add it to PROVIDER_ENDPOINTS or set `endpoint` on the slot in config.json)")
             continue
         try:
             return chat_json(endpoint, slot["api_key"], model, messages, timeout=timeout), None
@@ -1084,7 +1144,7 @@ def _narrate(finding, llm_cfg, model_choice):
         picked = _slot_for_choice(model_choice, llm_cfg)
         if not picked:
             return None, (f"selected model '{model_choice.get('model')}' has no API key "
-                          f"configured for provider '{model_choice.get('provider')}'")
+                          f"configured for provider '{model_choice.get('provider')}'"), None
         # An explicit choice is honoured exactly -- never silently answered by a different
         # model, or the comparison the picker exists for would be meaningless.
         slots = [picked]
@@ -1107,12 +1167,13 @@ def _narrate(finding, llm_cfg, model_choice):
                 parsed = chat_json(endpoint, slot["api_key"], model, messages, timeout=timeout)
                 ok, errors = narrative_prompt.validate(parsed, finding)
                 if ok:
-                    return parsed, None
+                    # the model that actually answered, not the one that was asked first
+                    return parsed, None, f"{slot.get('provider')}/{model}"
                 last = "; ".join(errors)
             except Exception as exc:
                 last = f"{slot.get('provider')}/{model}: {exc}"
                 break
-    return None, last
+    return None, last, None
 
 
 def _in_band(context_bundle, steps, started, fingerprint, adherence):

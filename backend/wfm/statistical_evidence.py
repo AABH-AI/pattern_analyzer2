@@ -51,6 +51,10 @@ DRIFT_MATERIAL_PCT = 0.25   # adherence points per week; over ~13 weeks that is 
 MOMENTUM_MATERIAL_PCT = 10.0
 TREND_R2_MEANINGFUL = 0.30  # below this a slope is noise, not a trend
 SEASONAL_INDEX_MATERIAL = 0.15   # +/-15% off the annual mean for this week-of-year
+# How far the PLAN may sit from what this week of the year normally brings before that gap is the
+# story. Deliberately looser than SEASONAL_INDEX_MATERIAL: a week needs only a mild seasonal lift for
+# a plan set at half the seasonal level to miss badly, and it is the plan we can act on.
+PLAN_VS_NORM_MATERIAL = 0.25
 OUTLIER_MOD_Z = 3.5         # modified z-score (median/MAD based), the standard robust cutoff
 MIN_N = 6                   # fewer points than this and we report "insufficient history", not a number
 
@@ -359,6 +363,71 @@ def _seasonality(rows, target_week):
             "overall_mean_actual": _rnd(overall), "reading": reading}
 
 
+def _plan_vs_seasonal_norm(rows, target_week, target_forecast, target_actual):
+    """Was the PLAN set away from what this week of the year normally brings?
+
+    Separate from _seasonality, which measures whether DEMAND is seasonal. A queue can have only a
+    mild seasonal lift and still be missed badly because the plan was set at half the seasonal level
+    -- which is exactly what happened on SA Indonesia FW202716 (plan 63.79, seasonal norm 122.33,
+    reported as "no special seasonal pattern" because the demand index was 1.118 and the bar is 1.15).
+
+    Compares the plan against BOTH the same-week history and the queue's overall level, so a plan
+    that is low against everything is not mistaken for a purely seasonal problem.
+    """
+    if not rows or target_week is None or not target_forecast:
+        return {"available": False, "note": "no history, target week or plan"}
+    wk = _week_of_year(target_week)
+    same = [(w, ac) for w, _, ac in rows
+            if _week_of_year(w) == wk and int(w) != int(target_week)]
+    acts = [ac for _, _, ac in rows if int(_) != int(target_week)] if False else \
+           [ac for w, _, ac in rows if int(w) != int(target_week)]
+    if len(same) < 2 or not acts:
+        return {"available": False, "week_of_fiscal_year": wk, "prior_years_found": len(same),
+                "note": (f"week {wk} appears in only {len(same)} earlier year(s); at least 2 are "
+                         f"needed before a plan can be judged against the week's own history")}
+    norm = sum(a for _, a in same) / len(same)
+    overall = sum(acts) / len(acts)
+    gap_vs_norm = (target_forecast - norm) / norm if norm else None
+    gap_vs_overall = (target_forecast - overall) / overall if overall else None
+    if gap_vs_norm is None:
+        return {"available": False, "note": "no seasonal baseline"}
+
+    material = abs(gap_vs_norm) >= PLAN_VS_NORM_MATERIAL
+    below = gap_vs_norm < 0
+    # Does the plan gap point the same way as the miss? Under-plan should give under-forecast.
+    actual_above_plan = (target_actual is not None and target_actual > target_forecast)
+    coherent = (below == actual_above_plan)
+
+    years = ", ".join(f"FW{int(w)} {a:,.0f}" for w, a in sorted(same))
+    if material and coherent:
+        reading = (
+            f"The plan was set at {target_forecast:,.0f} contacts for a week that has averaged "
+            f"{norm:,.0f} across {len(same)} earlier years ({years}) -- "
+            f"{abs(gap_vs_norm) * 100:.0f}% {'below' if below else 'above'} what this week of the "
+            f"year normally brings"
+            + (f", and {abs(gap_vs_overall) * 100:.0f}% {'below' if gap_vs_overall < 0 else 'above'} "
+               f"the queue's usual {overall:,.0f}" if gap_vs_overall is not None else "")
+            + (f". Demand of {target_actual:,.0f} is in line with the week's own history, so the plan "
+               f"is the outlier, not the demand." if target_actual is not None else "."))
+    elif material:
+        reading = (
+            f"The plan ({target_forecast:,.0f}) sits {abs(gap_vs_norm) * 100:.0f}% "
+            f"{'below' if below else 'above'} this week's {len(same)}-year average of {norm:,.0f}, "
+            f"but the miss went the other way, so the plan level does not explain it.")
+    else:
+        reading = (f"The plan ({target_forecast:,.0f}) is in line with this week's "
+                   f"{len(same)}-year average of {norm:,.0f} "
+                   f"({gap_vs_norm * 100:+.0f}%), so the plan level is not the issue.")
+    return {"available": True, "week_of_fiscal_year": wk, "prior_years_found": len(same),
+            "plan": _rnd(target_forecast), "same_week_mean_actual": _rnd(norm),
+            "overall_mean_actual": _rnd(overall),
+            "plan_vs_seasonal_norm_pct": _rnd(gap_vs_norm * 100),
+            "plan_vs_overall_pct": _rnd(gap_vs_overall * 100 if gap_vs_overall is not None else None),
+            "prior_years": [{"fiscal_week": int(w), "actual": _rnd(a)} for w, a in sorted(same)],
+            "direction_coherent": coherent, "plan_gap_material": bool(material and coherent),
+            "reading": reading}
+
+
 def _outliers(rows, target_week):
     """Robust outlier detection over the long window, on ACTUAL demand.
 
@@ -483,6 +552,19 @@ def _verdict(blocks, target_adherence, band):
             "statement": out_b.get("reading"),
             "metric": "Outlier Detection (modified z on 104 weeks)"})
 
+    pvn = blocks.get("plan_vs_seasonal_norm") or {}
+    if pvn.get("plan_gap_material"):
+        # Ranked ABOVE drift and bias: it names a specific, correctable decision -- the plan level for
+        # a known week -- rather than describing the shape of the error.
+        findings.append({
+            "cause_type": "forecast_baseline_error", "rank_basis": "plan_vs_seasonal_norm",
+            "confidence_pct": 82,
+            "title": (f"Plan set {abs(pvn.get('plan_vs_seasonal_norm_pct') or 0):.0f}% "
+                      f"{'below' if (pvn.get('plan_vs_seasonal_norm_pct') or 0) < 0 else 'above'} "
+                      f"what this week normally brings"),
+            "statement": pvn.get("reading"),
+            "metric": "Plan vs seasonal norm (same week, prior years)"})
+
     if seas.get("seasonal_material"):
         findings.append({
             "cause_type": "calendar_seasonality", "rank_basis": "seasonality",
@@ -575,6 +657,14 @@ def statistical_evidence(history_104, target_week, target_adherence=None, band=1
         "drift_year": _drift(year, f"last {YEAR_WEEKS} weeks"),
         "momentum": _momentum(rows),
         "seasonality": _seasonality(rows_all, target_week),
+        # Asks of the PLAN what _seasonality asks of demand. On SA Indonesia FW202716 this is the
+        # only block that identifies the actual cause.
+        "plan_vs_seasonal_norm": _plan_vs_seasonal_norm(
+            rows_all, target_week,
+            next((f for w, f, _a in rows_all if target_week is not None
+                  and int(w) == int(target_week)), None),
+            next((a for w, _f, a in rows_all if target_week is not None
+                  and int(w) == int(target_week)), None)),
         "outliers": _outliers(rows_all, target_week),
         "correlations_pearson": _correlations(history_104, target_week),
     }

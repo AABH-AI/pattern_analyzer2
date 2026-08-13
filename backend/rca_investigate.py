@@ -42,10 +42,19 @@ from datetime import datetime, timezone
 PROVIDER_ENDPOINTS = {
     "groq": "https://api.groq.com/openai/v1/chat/completions",
     "nvidia": "https://integrate.api.nvidia.com/v1/chat/completions",
+    # Google's OpenAI-compatibility layer: same request/response shape as the two above, so
+    # _call_openai_compatible needs no special case. config.json has carried a `tertiary` gemini
+    # slot with a working api_key since 2026-08-05, and /api/models advertises four gemini models
+    # -- but this map had no "gemini" entry, so _slot_for_choice resolved endpoint=None, _narrate
+    # skipped the slot and returned its initial `last = "unknown"`. Selecting any Gemini model
+    # therefore produced an Incomplete report with no usable reason. Only flash-tier models work on
+    # this account; the pro tier returns 429 quota=0 until billing is enabled.
+    "gemini": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
 }
 DEFAULT_MODELS = {
     "groq": "llama-3.3-70b-versatile",
     "nvidia": "nvidia/nemotron-3-super-120b-a12b",
+    "gemini": "gemini-3.6-flash",
 }
 
 # Columns whose "outlier" / "changed" flags are meaningless and were driving generic

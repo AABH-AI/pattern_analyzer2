@@ -9,6 +9,16 @@ Code: the `backend/wfm/` package + a ~40-line opt-in branch in `backend/sql_back
 | Module | Responsibility |
 |---|---|
 | `wfm/investigation_engine.py` | orchestrates the workflow |
+| `wfm/spec_engine.py` | **FC_RCA v2.0.0** — the 15-step canonical sequence (`?mode=spec`) |
+| `wfm/hypothesis_catalogue.py` | the fixed catalogue of 23 candidate hypotheses |
+| `wfm/cross_examination.py` | 18 challenge questions that try to disprove each hypothesis |
+| `wfm/confidence.py` | confidence calculated from 8 weighted dimensions, never assigned |
+| `wfm/driver_gate.py` | a driver is only a cause where \|r\| >= 0.30 for that queue |
+| `wfm/statistical_evidence.py` | 15 metrics over 13/52/104-week windows, stdlib only |
+| `wfm/recursive_why.py` · `why_rephrase.py` | the why-chain, and its rewrite into business wording |
+| `wfm/decision_card.py` | the 10-section Executive Decision Card |
+| `wfm/fiscal_calendar.py` | 4-4-5 fiscal periods, 53-week years as 4-5-5 |
+| `wfm/context_repository/` | the Holiday Calendar (Phase 1 of the Context Repository) |
 | `wfm/hierarchy_analyzer.py` | Business Org → Region → SubRegion → Country → Channel drill-down |
 | `wfm/channel_migration_detector.py` | Voice ↔ Chat ↔ Email shifts within one locality |
 | `wfm/temporal_reasoner.py` | 104 weeks, prior week / 4 / 13, same week last year |
@@ -345,6 +355,113 @@ The legacy engine gets the same pass via `_fix_terminology_legacy()` in `rca_inv
 circular; wrapped in try/except so a cosmetic pass can never fail an investigation).
 
 Verified live on both engines: **0 occurrences** of the old term in either response.
+
+---
+
+## FC_RCA v2.0.0 — the spec engine on this branch (`?mode=spec`)
+
+Added on `spec-v2-refactor`, alongside the WFM engine rather than replacing it: the same queue can be
+investigated both ways and compared, and rollback is a query parameter rather than a revert. The
+**Engine** dropdown beside *Investigate Root Cause* selects it; it defaults to `WFM (current)`, so a
+fresh page load shows the older engine.
+
+### What is different in kind
+
+The LLM is **demoted from investigator to writer**. Every figure, hypothesis, confidence score and
+gate decision is computed in Python; the model only phrases what has already been decided, and every
+number it writes is reconciled against the finding it came from.
+
+| Module | Owns |
+|---|---|
+| `spec_engine.py` | the 15-step canonical sequence, the gates, response assembly |
+| `hypothesis_catalogue.py` | a **fixed catalogue of 23** hypotheses, conditions evaluated in Python |
+| `confidence.py` | confidence **calculated** from 8 weighted dimensions — never assigned by the model |
+| `cross_examination.py` | 18 challenge questions that try to **disprove** each hypothesis |
+| `driver_gate.py` | a driver may only be a cause where `\|r\| >= 0.30` **for that queue** |
+| `recursive_why.py` | asks WHY to a bounded depth over the findings actually made |
+| `statistical_evidence.py` | 15 metrics over 13/52/104-week windows, standard library only |
+| `fiscal_calendar.py` | real 4-4-5, 53-week years absorbed into Q4 as 4-5-5 |
+| `context_repository/holiday_calendar.py` | holiday lookup with an impact window into adjacent weeks |
+| `decision_card.py` | the 10-section Executive Decision Card |
+| `why_rephrase.py` · `narrative_prompt.py` · `why_prompt.py` | the three places an LLM is invoked |
+
+### Three LLM calls, not one
+
+`narrative_prompt.py` describes itself as "the ONLY place an LLM is invoked". It is not — a spec run
+makes **three** calls: `why_rephrase.apply` (step 10b, rewrites the deterministic why-chain),
+`_narrate` (step 14, the executive summary) and `_interrogate` (step 14b, optional, and it runs
+*after* the RCA is fixed so it cannot influence a conclusion). The principle holds — none of them
+decides anything — but the docstring understates the surface area.
+
+### Key thresholds
+
+| | |
+|---|---|
+| Generation threshold | **±5%** (the WFM engine uses ±10%) |
+| Materiality floor | 50 contacts |
+| Major deviation | 75% |
+| Driver relevance | `\|r\| >= 0.30` over n >= 30 |
+| History fetched | 157 weeks (`WFM_HISTORY_WEEKS`) |
+| Trend fit floor | r² >= 0.30 |
+| Plan vs seasonal norm | 25% |
+| LLM | temperature 0.0, top_p 1.0, seed 20260730, timeout 150s |
+
+Confidence weights (v2.0.0): ContradictoryEvidence 0.20 · EvidenceStrength 0.18 ·
+BusinessRuleValidation 0.15 · StatisticalAgreement 0.14 · DataSufficiency 0.12 ·
+ContextCompleteness 0.10 · HistoricalConsistency 0.06 · ModelAgreement 0.05.
+
+---
+
+## RCA type priority (business decision, 2026-08-13)
+
+The order in which the RCA types are to be built out. Recorded because work has already been done
+out of order and one line of it was rejected on review.
+
+**1 — Channel mix (highest).** Volume shifting between channels: Voice→Chat, Chat→Email, Email→Case
+and every other combination. The engine must quantify how much moved out of which channel and into
+which, inside the drill-down group.
+
+*State:* built and then **parked, not merged**, on branch `wip/rca-drilldown` (commit `f9601ff`).
+The analysis was correct — verified on `Americas / NA / United States / Basic` FW202304, where the
+group total moved only +1.5% while 4,133 contacts moved out of Voice, Chat and Email into Social
+Media. The **presentation** was rejected, not the logic. Measured while building it: grouping the
+mix by the mapped Combined Queue fires on only **10%** of groups (1.15 channels on average), while
+grouping by `Region → SubRegion → Country → Offering` fires on **79%** (2.53 channels) — so the
+drill-down path, not the CQN, has to be the grouping. Recoverable with
+`git switch wip/rca-drilldown`; the useful parts can be cherry-picked without the rejected panel.
+
+**2 — Holiday.** A major factor in explaining a high or low contact rate. Already substantially
+built: `FC_RCA_Holiday_Master_Production.xlsx` → `holiday_master.json` (12,197 rows read, 9,757 kept
+after de-duplicating repeated names within a country-week; 6,698 country-weeks; 79 country keys),
+published to SQL as `dbo.Holiday_Master` and three companion tables, with `CAL-01 Holiday` generated
+from the calendar's **impact window** — so it fires even when the source row's own `Holiday_Count`
+is 0 because a holiday in an adjacent week reaches in.
+
+**3 — Plan vs seasonal norm (base case).** Was the plan set away from the level this week of the
+year reliably brings. Implemented as a metric and a ranked finding, but see the open spec gap below:
+it has no hypothesis of its own, so it cannot yet become the reported cause.
+
+---
+
+## OPEN SPEC GAP — the plan-level cause has no hypothesis
+
+`FC_RCA_RCA_Methodology.md` (on branch `MD`) defines the Candidate Hypothesis Catalogue, and its
+**Forecast** category contains exactly two entries:
+
+| Hypothesis | Generated when |
+|---|---|
+| Forecast Bias | consistent one-sided deviation across recent periods |
+| Trend Misidentification | trend direction in actuals differs from forecast |
+
+Neither covers *"the plan was set away from what this week of the year reliably brings"*. On
+`SA Indonesia Client Basic` FW202716 that is the actual cause — plan 63.79 against a 3-year week-16
+average of 122.33, **48% below**, with demand of 152 entirely normal for the week — and the queue has
+no one-sided bias (+1.8 contacts over 52 weeks) and no trend mismatch, so **no Forecast hypothesis
+can fire**. The finding is computed and ranked at 82% but cannot become the headline.
+
+The methodology document makes this binding: *"Every hypothesis originates from the catalogue"* is an
+acceptance criterion, and §6 *"prevails"* over other documents. So this needs a **24th catalogue
+entry** — a specification amendment, not a code patch. That document's Approver is still "Pending".
 
 ---
 

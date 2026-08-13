@@ -1,289 +1,289 @@
 {
-  "table": "dbo.Input_To_ML_P1",
+  "table": "dbo.Input_To_ML_Full",
   "cases": [
     [
       "most stable",
-      "India Comm Client Workstation English Upsell"
+      "India Client Core Chat"
     ],
     [
       "most volatile",
-      "India Cons IW"
+      "NA Core Spanish"
     ],
     [
       "largest volume",
-      "NA Cons CMG"
+      "Social Media English Basic"
     ]
   ],
   "checks": [
     {
-      "check": "[India Comm Client Workstation English Upsell] target week excluded from the baseline window",
+      "check": "[India Client Core Chat] target week excluded from the baseline window",
       "status": "PASS",
-      "detail": "engine=174 independent=174"
+      "detail": "engine=177 independent=177"
     },
     {
-      "check": "[India Comm Client Workstation English Upsell] mae (13 wks)",
+      "check": "[India Client Core Chat] mae (13 wks)",
       "status": "PASS",
-      "detail": "engine=42.63 independent=42.6283"
+      "detail": "engine=187.89 independent=187.8893"
     },
     {
-      "check": "[India Comm Client Workstation English Upsell] mape_pct (13 wks)",
+      "check": "[India Client Core Chat] mape_pct (13 wks)",
       "status": "PASS",
-      "detail": "engine=7.74 independent=7.7407"
+      "detail": "engine=9.6 independent=9.5996"
     },
     {
-      "check": "[India Comm Client Workstation English Upsell] wape_pct (13 wks)",
+      "check": "[India Client Core Chat] wape_pct (13 wks)",
       "status": "PASS",
-      "detail": "engine=7.71 independent=7.7107"
+      "detail": "engine=9.28 independent=9.2788"
     },
     {
-      "check": "[India Comm Client Workstation English Upsell] rmse (13 wks)",
+      "check": "[India Client Core Chat] rmse (13 wks)",
       "status": "PASS",
-      "detail": "engine=46.26 independent=46.2578"
+      "detail": "engine=225.92 independent=225.9229"
     },
     {
-      "check": "[India Comm Client Workstation English Upsell] bias (13 wks)",
+      "check": "[India Client Core Chat] bias (13 wks)",
       "status": "PASS",
-      "detail": "engine=-8.78 independent=-8.7779"
+      "detail": "engine=-158.72 independent=-158.7163"
     },
     {
-      "check": "[India Comm Client Workstation English Upsell] forecast_variance (13 wks)",
+      "check": "[India Client Core Chat] forecast_variance (13 wks)",
       "status": "PASS",
-      "detail": "engine=2234.63 independent=2234.6251"
+      "detail": "engine=28004.46 independent=28004.463"
     },
     {
-      "check": "[India Comm Client Workstation English Upsell] coefficient_of_variation (104 wks)",
+      "check": "[India Client Core Chat] coefficient_of_variation (104 wks)",
       "status": "PASS",
-      "detail": "engine=0.1813 independent=0.1813"
+      "detail": "engine=0.1405 independent=0.1405"
     },
     {
-      "check": "[India Comm Client Workstation English Upsell] coefficient_of_regression per week (13 wks)",
+      "check": "[India Client Core Chat] coefficient_of_regression per week (13 wks)",
       "status": "PASS",
-      "detail": "engine=2.14 independent=2.1429"
+      "detail": "engine=14.29 independent=14.2857"
     },
     {
-      "check": "[India Comm Client Workstation English Upsell] drift pts per week (13 wks)",
+      "check": "[India Client Core Chat] drift pts per week (13 wks)",
       "status": "PASS",
-      "detail": "engine=-0.134 independent=-0.1344"
+      "detail": "engine=0.894 independent=0.8944"
     },
     {
-      "check": "[India Comm Client Workstation English Upsell] momentum change_pct",
+      "check": "[India Client Core Chat] momentum change_pct",
       "status": "PASS",
-      "detail": "engine=8.78 independent=8.784"
+      "detail": "engine=6.39 independent=6.393"
     },
     {
-      "check": "[India Comm Client Workstation English Upsell] pearson_r for Holiday_Count",
+      "check": "[India Client Core Chat] pearson_r for Holiday_Count",
       "status": "PASS",
-      "detail": "engine=-0.283 independent=-0.2827"
+      "detail": "engine=-0.382 independent=-0.3817"
     },
     {
-      "check": "[India Comm Client Workstation English Upsell] pearson_r within [-1, 1]",
-      "status": "PASS",
-      "detail": ""
-    },
-    {
-      "check": "[India Comm Client Workstation English Upsell] RMSE >= MAE (Jensen)",
-      "status": "PASS",
-      "detail": "rmse=46.26 mae=42.63"
-    },
-    {
-      "check": "[India Comm Client Workstation English Upsell] |bias| <= MAE",
-      "status": "PASS",
-      "detail": "bias=-8.78 mae=42.63"
-    },
-    {
-      "check": "[India Comm Client Workstation English Upsell] WAPE > 0 and finite",
-      "status": "PASS",
-      "detail": "wape=7.71"
-    },
-    {
-      "check": "[India Comm Client Workstation English Upsell] every metric block reports its window and n",
+      "check": "[India Client Core Chat] pearson_r within [-1, 1]",
       "status": "PASS",
       "detail": ""
     },
     {
-      "check": "[India Comm Client Workstation English Upsell] findings only cite measured preconditions",
+      "check": "[India Client Core Chat] RMSE >= MAE (Jensen)",
       "status": "PASS",
-      "detail": "[]"
+      "detail": "rmse=225.92 mae=187.89"
     },
     {
-      "check": "[India Cons IW] target week excluded from the baseline window",
+      "check": "[India Client Core Chat] |bias| <= MAE",
       "status": "PASS",
-      "detail": "engine=174 independent=174"
+      "detail": "bias=-158.72 mae=187.89"
     },
     {
-      "check": "[India Cons IW] mae (13 wks)",
+      "check": "[India Client Core Chat] WAPE > 0 and finite",
       "status": "PASS",
-      "detail": "engine=230.43 independent=230.4315"
+      "detail": "wape=9.28"
     },
     {
-      "check": "[India Cons IW] mape_pct (13 wks)",
-      "status": "PASS",
-      "detail": "engine=6.9 independent=6.8986"
-    },
-    {
-      "check": "[India Cons IW] wape_pct (13 wks)",
-      "status": "PASS",
-      "detail": "engine=6.66 independent=6.6636"
-    },
-    {
-      "check": "[India Cons IW] rmse (13 wks)",
-      "status": "PASS",
-      "detail": "engine=294.81 independent=294.8091"
-    },
-    {
-      "check": "[India Cons IW] bias (13 wks)",
-      "status": "PASS",
-      "detail": "engine=-210.27 independent=-210.2734"
-    },
-    {
-      "check": "[India Cons IW] forecast_variance (13 wks)",
-      "status": "PASS",
-      "detail": "engine=46255.67 independent=46255.6676"
-    },
-    {
-      "check": "[India Cons IW] coefficient_of_variation (104 wks)",
-      "status": "PASS",
-      "detail": "engine=0.6726 independent=0.6726"
-    },
-    {
-      "check": "[India Cons IW] coefficient_of_regression per week (13 wks)",
-      "status": "PASS",
-      "detail": "engine=-39.08 independent=-39.0824"
-    },
-    {
-      "check": "[India Cons IW] drift pts per week (13 wks)",
-      "status": "PASS",
-      "detail": "engine=0.346 independent=0.3465"
-    },
-    {
-      "check": "[India Cons IW] momentum change_pct",
-      "status": "PASS",
-      "detail": "engine=-4.13 independent=-4.127"
-    },
-    {
-      "check": "[India Cons IW] pearson_r for Actual_ASU",
-      "status": "PASS",
-      "detail": "engine=-0.209 independent=-0.2087"
-    },
-    {
-      "check": "[India Cons IW] pearson_r within [-1, 1]",
+      "check": "[India Client Core Chat] every metric block reports its window and n",
       "status": "PASS",
       "detail": ""
     },
     {
-      "check": "[India Cons IW] RMSE >= MAE (Jensen)",
+      "check": "[India Client Core Chat] findings only cite measured preconditions",
       "status": "PASS",
-      "detail": "rmse=294.81 mae=230.43"
+      "detail": "['drift', 'bias', 'coefficient_of_variation']"
     },
     {
-      "check": "[India Cons IW] |bias| <= MAE",
+      "check": "[NA Core Spanish] target week excluded from the baseline window",
       "status": "PASS",
-      "detail": "bias=-210.27 mae=230.43"
+      "detail": "engine=177 independent=177"
     },
     {
-      "check": "[India Cons IW] WAPE > 0 and finite",
+      "check": "[NA Core Spanish] mae (13 wks)",
       "status": "PASS",
-      "detail": "wape=6.66"
+      "detail": "engine=698.21 independent=698.206"
     },
     {
-      "check": "[India Cons IW] every metric block reports its window and n",
+      "check": "[NA Core Spanish] mape_pct (13 wks)",
+      "status": "PASS",
+      "detail": "engine=54.35 independent=54.3514"
+    },
+    {
+      "check": "[NA Core Spanish] wape_pct (13 wks)",
+      "status": "PASS",
+      "detail": "engine=94.86 independent=94.865"
+    },
+    {
+      "check": "[NA Core Spanish] rmse (13 wks)",
+      "status": "PASS",
+      "detail": "engine=2417.1 independent=2417.1011"
+    },
+    {
+      "check": "[NA Core Spanish] bias (13 wks)",
+      "status": "PASS",
+      "detail": "engine=644.07 independent=644.0719"
+    },
+    {
+      "check": "[NA Core Spanish] forecast_variance (13 wks)",
+      "status": "PASS",
+      "detail": "engine=5879844.88 independent=5879844.8806"
+    },
+    {
+      "check": "[NA Core Spanish] coefficient_of_variation (104 wks)",
+      "status": "PASS",
+      "detail": "engine=4.4031 independent=4.4031"
+    },
+    {
+      "check": "[NA Core Spanish] coefficient_of_regression per week (13 wks)",
+      "status": "PASS",
+      "detail": "engine=192.17 independent=192.1703"
+    },
+    {
+      "check": "[NA Core Spanish] drift pts per week (13 wks)",
+      "status": "PASS",
+      "detail": "engine=-212.817 independent=-212.8174"
+    },
+    {
+      "check": "[NA Core Spanish] momentum change_pct",
+      "status": "PASS",
+      "detail": "engine=3436.35 independent=3436.346"
+    },
+    {
+      "check": "[NA Core Spanish] pearson_r for Actual_ASU",
+      "status": "PASS",
+      "detail": "engine=0.86 independent=0.8599"
+    },
+    {
+      "check": "[NA Core Spanish] pearson_r within [-1, 1]",
       "status": "PASS",
       "detail": ""
     },
     {
-      "check": "[India Cons IW] findings only cite measured preconditions",
+      "check": "[NA Core Spanish] RMSE >= MAE (Jensen)",
+      "status": "PASS",
+      "detail": "rmse=2417.1 mae=698.21"
+    },
+    {
+      "check": "[NA Core Spanish] |bias| <= MAE",
+      "status": "PASS",
+      "detail": "bias=644.07 mae=698.21"
+    },
+    {
+      "check": "[NA Core Spanish] WAPE > 0 and finite",
+      "status": "PASS",
+      "detail": "wape=94.86"
+    },
+    {
+      "check": "[NA Core Spanish] every metric block reports its window and n",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "[NA Core Spanish] findings only cite measured preconditions",
       "status": "PASS",
       "detail": "['drift', 'seasonality', 'bias', 'coefficient_of_variation']"
     },
     {
-      "check": "[NA Cons CMG] target week excluded from the baseline window",
+      "check": "[Social Media English Basic] target week excluded from the baseline window",
       "status": "PASS",
-      "detail": "engine=174 independent=174"
+      "detail": "engine=177 independent=177"
     },
     {
-      "check": "[NA Cons CMG] mae (13 wks)",
+      "check": "[Social Media English Basic] mae (13 wks)",
       "status": "PASS",
-      "detail": "engine=612.98 independent=612.9785"
+      "detail": "engine=2196.52 independent=2196.519"
     },
     {
-      "check": "[NA Cons CMG] mape_pct (13 wks)",
+      "check": "[Social Media English Basic] mape_pct (13 wks)",
       "status": "PASS",
-      "detail": "engine=17.2 independent=17.1996"
+      "detail": "engine=13.81 independent=13.8051"
     },
     {
-      "check": "[NA Cons CMG] wape_pct (13 wks)",
+      "check": "[Social Media English Basic] wape_pct (13 wks)",
       "status": "PASS",
-      "detail": "engine=17.11 independent=17.108"
+      "detail": "engine=14.42 independent=14.4153"
     },
     {
-      "check": "[NA Cons CMG] rmse (13 wks)",
+      "check": "[Social Media English Basic] rmse (13 wks)",
       "status": "PASS",
-      "detail": "engine=702.92 independent=702.9201"
+      "detail": "engine=2620.52 independent=2620.5183"
     },
     {
-      "check": "[NA Cons CMG] bias (13 wks)",
+      "check": "[Social Media English Basic] bias (13 wks)",
       "status": "PASS",
-      "detail": "engine=-557.87 independent=-557.8704"
+      "detail": "engine=1441.74 independent=1441.7386"
     },
     {
-      "check": "[NA Cons CMG] forecast_variance (13 wks)",
+      "check": "[Social Media English Basic] forecast_variance (13 wks)",
       "status": "PASS",
-      "detail": "engine=198117.0 independent=198116.9978"
+      "detail": "engine=5187548.08 independent=5187548.0813"
     },
     {
-      "check": "[NA Cons CMG] coefficient_of_variation (104 wks)",
+      "check": "[Social Media English Basic] coefficient_of_variation (104 wks)",
       "status": "PASS",
-      "detail": "engine=0.372 independent=0.372"
+      "detail": "engine=0.1795 independent=0.1795"
     },
     {
-      "check": "[NA Cons CMG] coefficient_of_regression per week (13 wks)",
+      "check": "[Social Media English Basic] coefficient_of_regression per week (13 wks)",
       "status": "PASS",
-      "detail": "engine=-47.82 independent=-47.8242"
+      "detail": "engine=311.88 independent=311.8791"
     },
     {
-      "check": "[NA Cons CMG] drift pts per week (13 wks)",
+      "check": "[Social Media English Basic] drift pts per week (13 wks)",
       "status": "PASS",
-      "detail": "engine=-1.741 independent=-1.7411"
+      "detail": "engine=-2.686 independent=-2.686"
     },
     {
-      "check": "[NA Cons CMG] momentum change_pct",
+      "check": "[Social Media English Basic] momentum change_pct",
       "status": "PASS",
-      "detail": "engine=-9.41 independent=-9.407"
+      "detail": "engine=9.82 independent=9.823"
     },
     {
-      "check": "[NA Cons CMG] pearson_r for Planned_ASU",
+      "check": "[Social Media English Basic] pearson_r for Planned_ASU",
       "status": "PASS",
-      "detail": "engine=0.965 independent=0.9649"
+      "detail": "engine=0.593 independent=0.5926"
     },
     {
-      "check": "[NA Cons CMG] pearson_r within [-1, 1]",
+      "check": "[Social Media English Basic] pearson_r within [-1, 1]",
       "status": "PASS",
       "detail": ""
     },
     {
-      "check": "[NA Cons CMG] RMSE >= MAE (Jensen)",
+      "check": "[Social Media English Basic] RMSE >= MAE (Jensen)",
       "status": "PASS",
-      "detail": "rmse=702.92 mae=612.98"
+      "detail": "rmse=2620.52 mae=2196.52"
     },
     {
-      "check": "[NA Cons CMG] |bias| <= MAE",
+      "check": "[Social Media English Basic] |bias| <= MAE",
       "status": "PASS",
-      "detail": "bias=-557.87 mae=612.98"
+      "detail": "bias=1441.74 mae=2196.52"
     },
     {
-      "check": "[NA Cons CMG] WAPE > 0 and finite",
+      "check": "[Social Media English Basic] WAPE > 0 and finite",
       "status": "PASS",
-      "detail": "wape=17.11"
+      "detail": "wape=14.42"
     },
     {
-      "check": "[NA Cons CMG] every metric block reports its window and n",
+      "check": "[Social Media English Basic] every metric block reports its window and n",
       "status": "PASS",
       "detail": ""
     },
     {
-      "check": "[NA Cons CMG] findings only cite measured preconditions",
+      "check": "[Social Media English Basic] findings only cite measured preconditions",
       "status": "PASS",
-      "detail": "['drift', 'bias', 'coefficient_of_variation']"
+      "detail": "['drift', 'bias']"
     },
     {
       "check": "thin history degrades without raising",

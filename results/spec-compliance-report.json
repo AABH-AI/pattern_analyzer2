@@ -12,16 +12,16 @@
    "provider": "nvidia",
    "model": "nvidia/nemotron-3-super-120b-a12b",
    "engine": "wfm-llm",
-   "seconds": 45.7,
+   "seconds": 112.6,
    "raw_file": "spec-nvidia-response.json",
    "ranked": [
     {
      "rank": 1,
-     "cause_type": "systematic_forecast_bias",
-     "title": "Chronic forecast bias present in historical data",
-     "confidence_pct": 60,
-     "confidence_level": "Medium",
-     "status": "Hypothesis - To be Validated"
+     "cause_type": "forecast_baseline_error",
+     "title": "Plan set 49% below what this week normally brings",
+     "confidence_pct": 82,
+     "confidence_level": "High",
+     "status": "Verified"
     },
     {
      "rank": 2,
@@ -30,6 +30,30 @@
      "confidence_pct": 90,
      "confidence_level": "High",
      "status": "Verified"
+    },
+    {
+     "rank": 3,
+     "cause_type": "genuine_demand_event",
+     "title": "Genuine demand surge not in the plan",
+     "confidence_pct": 85,
+     "confidence_level": "High",
+     "status": "Hypothesis - To be Validated"
+    },
+    {
+     "rank": 4,
+     "cause_type": "systematic_forecast_bias",
+     "title": "Chronic over-forecast bias masked by this week's anomaly",
+     "confidence_pct": 60,
+     "confidence_level": "Medium",
+     "status": "Verified"
+    },
+    {
+     "rank": 5,
+     "cause_type": "plan_restatement",
+     "title": "Forecast plan restatement affected comparison",
+     "confidence_pct": 40,
+     "confidence_level": "Medium",
+     "status": "Hypothesis - To be Validated"
     }
    ],
    "checks": [
@@ -37,19 +61,19 @@
      "id": "S1",
      "clause": "KPI: Forecast Adherence formula + threshold recorded",
      "status": "PASS",
-     "detail": "{\"metric\": \"Forecast Adherence\", \"adherence_pct\": -24.0, \"threshold_pct\": 10.0, \"breached\": true, \"direction\": \"under_forecast\"}"
+     "detail": "{\"metric\": \"Forecast Adherence\", \"adherence_pct\": -9599.7, \"threshold_pct\": 10.0, \"breached\": true, \"direction\": \"under_forecast\"}"
     },
     {
      "id": "S2",
      "clause": "KPI: breach flag agrees with |adherence| > threshold",
      "status": "PASS",
-     "detail": "adherence=-24.0 breached=True"
+     "detail": "adherence=-9599.7 breached=True"
     },
     {
      "id": "S3",
      "clause": "Root causes: multiple explanations, ranked, capped at 5",
      "status": "PASS",
-     "detail": "2 causes, ranks=[1, 2]"
+     "detail": "5 causes, ranks=[1, 2, 3, 4, 5]"
     },
     {
      "id": "S4",
@@ -61,7 +85,7 @@
      "id": "S5",
      "clause": "Root causes: best-supported first (confidence descends, except mandated-first causes)",
      "status": "PASS",
-     "detail": "all=[60, 90] mandated_first=['systematic_forecast_bias'] checked=[90]"
+     "detail": "all=[82, 90, 85, 60, 40] mandated_first=['forecast_baseline_error'] checked=[90, 85, 60, 40]"
     },
     {
      "id": "S6",
@@ -79,7 +103,7 @@
      "id": "S8",
      "clause": "Skeptic mode: challenges recorded with verdicts",
      "status": "PASS",
-     "detail": "4 entries, 1 rejected"
+     "detail": "10 entries, 2 rejected"
     },
     {
      "id": "S9",
@@ -91,37 +115,37 @@
      "id": "S10",
      "clause": "Technical metrics kept in their own (collapsed) section",
      "status": "PASS",
-     "detail": "10 rows"
+     "detail": "15 rows"
     },
     {
      "id": "S11",
      "clause": "Output format: executive summary, KPI status, business impact all present",
      "status": "PASS",
-     "detail": "summary=717 chars"
+     "detail": "summary=568 chars"
     },
     {
      "id": "S12",
      "clause": "Core principle: observations exist separately from the ranked cause",
      "status": "PASS",
-     "detail": "2 key findings"
+     "detail": "4 key findings"
     },
     {
      "id": "S13",
      "clause": "Temporal: prior week / last 4 / last 13 / same week last year computed",
      "status": "PASS",
-     "detail": "present=['previous_week', 'last_4_week_avg_actual', 'last_13_week_avg_actual', 'same_week_last_year'] (of 4); history weeks=103"
+     "detail": "present=['previous_week', 'last_4_week_avg_actual', 'last_13_week_avg_actual', 'same_week_last_year'] (of 4); history weeks=156"
     },
     {
      "id": "S14",
      "clause": "Investigation order: higher levels checked before concluding",
      "status": "PASS",
-     "detail": "levels=['Business Org', 'Region', 'SubRegion', 'Country', 'Channel'] inherited_from=Region"
+     "detail": "levels=['Business Org', 'Region', 'SubRegion', 'Country'] inherited_from=Region"
     },
     {
      "id": "S15",
      "clause": "Investigation order: an inherited miss is actually reported as inherited",
      "status": "PASS",
-     "detail": "inherited_from=Region, types=['systematic_forecast_bias', 'inherited_from_higher_level']"
+     "detail": "inherited_from=Region, types=['forecast_baseline_error', 'inherited_from_higher_level', 'genuine_demand_event', 'systematic_forecast_bias', 'plan_restatement']"
     },
     {
      "id": "S16",
@@ -133,7 +157,7 @@
      "id": "S17",
      "clause": "Correlation analysis: relationships retained/rejected on evidence",
      "status": "PASS",
-     "detail": "retained=[], rejected=4"
+     "detail": "retained=['Actual_ASU', 'Planned_ASU'], rejected=2"
     },
     {
      "id": "S18",
@@ -145,13 +169,13 @@
      "id": "S19",
      "clause": "Critical rules: every quoted figure traces to the real data",
      "status": "PASS",
-     "detail": "6 numeric citations checked, 0 unmatched"
+     "detail": "14 numeric citations checked, 0 unmatched"
     },
     {
      "id": "S20",
      "clause": "Critical rules: gaps declared rather than glossed over",
      "status": "PASS",
-     "detail": "2 item(s)"
+     "detail": "5 item(s)"
     },
     {
      "id": "S21",
@@ -165,23 +189,31 @@
    "provider": "groq",
    "model": "llama-3.3-70b-versatile",
    "engine": "wfm-llm",
-   "seconds": 4.0,
+   "seconds": 3.9,
    "raw_file": "spec-groq-response.json",
    "ranked": [
     {
      "rank": 1,
-     "cause_type": "systematic_forecast_bias",
-     "title": "Forecast baseline is drifting, not just missing",
-     "confidence_pct": 78,
+     "cause_type": "forecast_baseline_error",
+     "title": "Plan set 49% below what this week normally brings",
+     "confidence_pct": 82,
      "confidence_level": "High",
      "status": "Verified"
     },
     {
      "rank": 2,
+     "cause_type": "genuine_demand_event",
+     "title": "Genuine demand surge not in the plan",
+     "confidence_pct": 90,
+     "confidence_level": "High",
+     "status": "Verified"
+    },
+    {
+     "rank": 3,
      "cause_type": "inherited_from_higher_level",
      "title": "Miss inherited from Region level",
-     "confidence_pct": 60,
-     "confidence_level": "Medium",
+     "confidence_pct": 80,
+     "confidence_level": "High",
      "status": "Verified"
     }
    ],
@@ -190,19 +222,19 @@
      "id": "S1",
      "clause": "KPI: Forecast Adherence formula + threshold recorded",
      "status": "PASS",
-     "detail": "{\"metric\": \"Forecast Adherence\", \"adherence_pct\": -24.0, \"threshold_pct\": 10.0, \"breached\": true, \"direction\": \"under_forecast\"}"
+     "detail": "{\"metric\": \"Forecast Adherence\", \"adherence_pct\": -9599.7, \"threshold_pct\": 10.0, \"breached\": true, \"direction\": \"under_forecast\"}"
     },
     {
      "id": "S2",
      "clause": "KPI: breach flag agrees with |adherence| > threshold",
      "status": "PASS",
-     "detail": "adherence=-24.0 breached=True"
+     "detail": "adherence=-9599.7 breached=True"
     },
     {
      "id": "S3",
      "clause": "Root causes: multiple explanations, ranked, capped at 5",
      "status": "PASS",
-     "detail": "2 causes, ranks=[1, 2]"
+     "detail": "3 causes, ranks=[1, 2, 3]"
     },
     {
      "id": "S4",
@@ -214,7 +246,7 @@
      "id": "S5",
      "clause": "Root causes: best-supported first (confidence descends, except mandated-first causes)",
      "status": "PASS",
-     "detail": "all=[78, 60] mandated_first=['systematic_forecast_bias'] checked=[60]"
+     "detail": "all=[82, 90, 80] mandated_first=['forecast_baseline_error'] checked=[90, 80]"
     },
     {
      "id": "S6",
@@ -232,7 +264,7 @@
      "id": "S8",
      "clause": "Skeptic mode: challenges recorded with verdicts",
      "status": "PASS",
-     "detail": "4 entries, 1 rejected"
+     "detail": "4 entries, 0 rejected"
     },
     {
      "id": "S9",
@@ -244,37 +276,37 @@
      "id": "S10",
      "clause": "Technical metrics kept in their own (collapsed) section",
      "status": "PASS",
-     "detail": "8 rows"
+     "detail": "10 rows"
     },
     {
      "id": "S11",
      "clause": "Output format: executive summary, KPI status, business impact all present",
      "status": "PASS",
-     "detail": "summary=381 chars"
+     "detail": "summary=440 chars"
     },
     {
      "id": "S12",
      "clause": "Core principle: observations exist separately from the ranked cause",
      "status": "PASS",
-     "detail": "2 key findings"
+     "detail": "4 key findings"
     },
     {
      "id": "S13",
      "clause": "Temporal: prior week / last 4 / last 13 / same week last year computed",
      "status": "PASS",
-     "detail": "present=['previous_week', 'last_4_week_avg_actual', 'last_13_week_avg_actual', 'same_week_last_year'] (of 4); history weeks=103"
+     "detail": "present=['previous_week', 'last_4_week_avg_actual', 'last_13_week_avg_actual', 'same_week_last_year'] (of 4); history weeks=156"
     },
     {
      "id": "S14",
      "clause": "Investigation order: higher levels checked before concluding",
      "status": "PASS",
-     "detail": "levels=['Business Org', 'Region', 'SubRegion', 'Country', 'Channel'] inherited_from=Region"
+     "detail": "levels=['Business Org', 'Region', 'SubRegion', 'Country'] inherited_from=Region"
     },
     {
      "id": "S15",
      "clause": "Investigation order: an inherited miss is actually reported as inherited",
      "status": "PASS",
-     "detail": "inherited_from=Region, types=['systematic_forecast_bias', 'inherited_from_higher_level']"
+     "detail": "inherited_from=Region, types=['forecast_baseline_error', 'genuine_demand_event', 'inherited_from_higher_level']"
     },
     {
      "id": "S16",
@@ -286,7 +318,7 @@
      "id": "S17",
      "clause": "Correlation analysis: relationships retained/rejected on evidence",
      "status": "PASS",
-     "detail": "retained=[], rejected=4"
+     "detail": "retained=['Actual_ASU', 'Planned_ASU'], rejected=2"
     },
     {
      "id": "S18",
@@ -298,13 +330,13 @@
      "id": "S19",
      "clause": "Critical rules: every quoted figure traces to the real data",
      "status": "PASS",
-     "detail": "1 numeric citations checked, 0 unmatched"
+     "detail": "3 numeric citations checked, 0 unmatched"
     },
     {
      "id": "S20",
      "clause": "Critical rules: gaps declared rather than glossed over",
      "status": "PASS",
-     "detail": "2 item(s)"
+     "detail": "1 item(s)"
     },
     {
      "id": "S21",

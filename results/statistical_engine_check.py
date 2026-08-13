@@ -137,7 +137,15 @@ def main():
         cur.execute(f"SELECT * FROM {tbl} WHERE Forecast_name = ? ORDER BY Fiscal_Week", q)
         cols = [d[0] for d in cur.description]
         hist = [dict(zip(cols, r)) for r in cur.fetchall()]
-        target = hist[-1]
+        # The LAST row is often a future week: this dataset carries forecasts past the final actual,
+        # so hist[-1] picked a forecast-only week and float(None) raised. Pick the most recent week
+        # that is actually scoreable. (Same fix already applied in the pattern_analyzer2 worktree.)
+        target = next((r for r in reversed(hist)
+                       if r.get("Actual_Offered") is not None
+                       and r.get("fcst_offered") not in (None, 0)), None)
+        if target is None:
+            add(f"[{q}] has at least one scoreable week", False, "every week is NULL or zero-forecast")
+            continue
         wk = int(target["Fiscal_Week"])
         fo, ao = float(target["fcst_offered"]), float(target["Actual_Offered"])
         adh = (1 - ao / fo) * 100

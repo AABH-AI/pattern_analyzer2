@@ -261,7 +261,25 @@ def check_spec(resp, had_sql):
         f"rejected={len(rel.get('rejected', []))}")
 
     # --- CRITICAL RULES: never fabricate ---
-    fab = sorted({w for w in FABRICATION if w in low})
+    # Search only text that ASSERTS a cause. Naming a hypothetical external event is legitimate in a
+    # recommendation -- a live run produced "Investigate external drivers (e.g. product issue,
+    # service outage, marketing campaign) that caused the sudden demand spike", which recommends
+    # checking, it does not claim a campaign happened. It is also legitimate in a skeptic rebuttal
+    # ("no marketing campaign is recorded") and in missing_information, which the spec asks for.
+    # Only an assertion is fabrication, so only the asserting fields are searched.
+    _asserting = []
+    for _c in causes:
+        if isinstance(_c, dict):
+            _asserting += [str(_c.get("title") or ""), str(_c.get("explanation") or "")]
+            for _e in (_c.get("evidence") or []):
+                if isinstance(_e, dict):
+                    _asserting.append(str(_e.get("text") or ""))
+    _asserting += [str(resp.get("executive_summary") or ""),
+                   str((resp.get("primary_root_cause") or {}).get("statement") or "")]
+    _rn = resp.get("reasoning_narrative")
+    _asserting += ([str(x) for x in _rn] if isinstance(_rn, list) else [str(_rn or "")])
+    _assert_low = " ".join(_asserting).lower()
+    fab = sorted({w for w in FABRICATION if w in _assert_low})
     add("S18", "Critical rules: no invented campaigns / product launches asserted",
         not fab, f"found={fab}")
     pool = real_numbers(feats)

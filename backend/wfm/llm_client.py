@@ -52,9 +52,26 @@ def timeout_from_config(llm_cfg):
         return DEFAULT_TIMEOUT_SECONDS
 
 
+# Endpoints whose OpenAI-compatibility layer rejects `seed` outright. Google's answers
+#   HTTP 400  Invalid JSON payload received. Unknown name "seed": Cannot find field.
+# and it is a hard reject, not a warning -- so every Gemini call failed, and because
+# spec_engine's `_narrate` only records a reason when it reaches the request, the report
+# surfaced "the language model call did not succeed: unknown" with nothing to act on.
+# `seed` is omitted for these providers rather than dropped globally: NVIDIA and Groq honour
+# it, and it is what makes an identical re-run reproducible. Determinism for Gemini therefore
+# rests on temperature 0 alone, which the audit record should be read as meaning.
+_NO_SEED_HOSTS = ("generativelanguage.googleapis.com",)
+
+
+def _supports_seed(endpoint):
+    return not any(h in (endpoint or "") for h in _NO_SEED_HOSTS)
+
+
 def _post(endpoint, api_key, model, messages, timeout, use_response_format):
     payload = {"model": model, "messages": messages,
-               "temperature": TEMPERATURE, "top_p": TOP_P, "seed": SEED}
+               "temperature": TEMPERATURE, "top_p": TOP_P}
+    if _supports_seed(endpoint):
+        payload["seed"] = SEED
     if use_response_format:
         payload["response_format"] = {"type": "json_object"}
     req = urllib.request.Request(

@@ -2085,7 +2085,7 @@ function renderDecisionCard(resp, ctx){
       <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Executive Decision Card</div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-left:auto;">${rcaModelPickerHtml()}</div>
     </div>
-    <div class="rmeta" style="margin:2px 0 10px;">${invEsc(h.queue||'—')} · ${invEsc(h.period||'—')} · ${invEsc(h.grain||'weekly')}${markers?' &nbsp; '+markers:''}</div>
+    ${markers?`<div class="rmeta" style="margin:2px 0 10px;">${markers}</div>`:''}
     ${c.incomplete_reason?`<div style="margin:0 0 10px;background:#fff4e5;border-left:3px solid #b26a00;border-radius:0 4px 4px 0;padding:8px 12px;font-size:12px;line-height:1.6;">${invEsc(c.incomplete_reason)}</div>`:''}
     <div class="inv-kv-grid">
       <div class="kvi"><div class="l">Forecast Adherence</div><div class="v" style="color:${adhColour};font-weight:800;">${adh>0?'+':''}${invEsc(adh)}%</div></div>
@@ -2183,11 +2183,23 @@ function renderDecisionCard(resp, ctx){
       </div>
       <div style="font-size:12.5px;font-weight:800;color:${barCol};white-space:nowrap;">${invEsc(cp.score_pct)}% ${invEsc(cp.final_level||'')}</div>
     </div>`;
-  const conf=`<div class="inv-card" style="border:2px solid #123a7a;">
-    <div class="rhead" style="gap:10px;flex-wrap:wrap;align-items:center;">
-      <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Confidence</div>
-      ${confBar}
-    </div>
+  // COLLAPSIBLE, but the closed header still carries the score AND the cap. The spec's rule
+  // ("never collapsed") exists so a prominent number cannot disagree with a hidden caveat -- on
+  // this queue the score reads 67.4% while the level is capped at Low. Hiding the cap behind a
+  // click would reproduce exactly the failure the rule guards against, so the cap rides in the
+  // summary line and only the dimension breakdown collapses.
+  const _capBadge = cp.capped
+    ? `<span style="background:#fff4e5;color:#b26a00;border:1px solid #ffd9a0;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;">capped at ${invEsc(cp.final_level)} (calculated ${invEsc(cp.calculated_level)})</span>`
+    : '';
+  const conf=`<details class="inv-sec" style="border:2px solid #123a7a;border-radius:8px;padding:10px 12px;">
+    <summary style="cursor:pointer;list-style:none;">
+      <div class="rhead" style="gap:10px;flex-wrap:wrap;align-items:center;margin:0;">
+        <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Confidence</div>
+        ${confBar}
+        ${_capBadge}
+        <span style="font-size:11px;color:#6b7280;margin-left:auto;">click to expand</span>
+      </div>
+    </summary>
     ${cp.capped?`<div style="font-size:11px;color:#b26a00;margin-top:4px;">Bar shows the calculated score of ${invEsc(cp.score_pct)}% (${invEsc(cp.calculated_level)}); the level is capped at ${invEsc(cp.final_level)}.</div>`:''}
     ${cp.in_plain_words?`<div style="margin:8px 0;line-height:1.7;">${invEsc(cp.in_plain_words)}</div>`:''}
     ${cp.cap_statement?`<div style="margin:8px 0;background:#fff4e5;border:1px solid #ffd9a0;border-radius:4px;padding:8px 10px;line-height:1.6;font-size:12px;">${invEsc(cp.cap_statement)}</div>`:
@@ -2199,7 +2211,7 @@ function renderDecisionCard(resp, ctx){
     </table>
     <div style="margin-top:10px;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">What would change it</div>
     <ul style="margin:6px 0 0 18px;line-height:1.6;">${(cp.what_would_change_it||[]).map(w=>`<li>${invEsc(w)}</li>`).join('')}</ul>
-  </div>`;
+  </details>`;
 
   /* --- Interrogation: Prompt 2 asked, Prompt 1 answered from evidence --- */
   const ig=rc.interrogation||{};
@@ -2246,16 +2258,102 @@ function renderDecisionCard(resp, ctx){
   /* --- 6: four visually distinct hypothesis states --- */
   const hc=s['6_hypothesis_comparison']||{};
   const counts=Object.entries(hc.counts||{}).map(([k,v])=>`<span style="background:${CARD_STATE_BG[k]};color:${CARD_STATE_COLOUR[k]};border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;margin-right:6px;">${invEsc(k)}: ${v}</span>`).join('');
-  const hrows=(hc.rows||[]).map(r=>`<div style="border-left:3px solid ${CARD_STATE_COLOUR[r.state]};background:${CARD_STATE_BG[r.state]};padding:6px 10px;margin:4px 0;border-radius:0 4px 4px 0;">
+  // Only states that carry a JUDGEMENT are listed. The catalogue is fixed, so every hypothesis
+  // that could not apply to this queue printed its own grey "Never relevant -- no action, no
+  // penalty" block: BUS-01..05, CAL-02, CAL-03, DEM-01 and more, burying the accepted finding.
+  // The counts chips above still report them, so nothing disappears without being accounted for.
+  const _JUDGED=new Set(['Accepted','Rejected','Suppressed']);
+  const _allRows=(hc.rows||[]);
+  const _shown=_allRows.filter(r=>_JUDGED.has(r.state));
+  const _hidden=_allRows.length-_shown.length;
+  // Name the holiday ON the Holiday row. The engine accepts CAL-01 from the holiday calendar's
+  // impact window -- which can fire when the source row's own Holiday_Count is 0, because a holiday
+  // in an adjacent week reaches into this one. Without the name and the date, "Holiday: Accepted"
+  // reads as the engine inventing a calendar cause.
+  const _hol = resp.holiday || {};
+  const _holNames = (arr)=> (arr||[]).map(h=>h && (h.name||h.holiday)).filter(Boolean);
+  const _holLine = (()=>{
+    if (!_hol.available) return '';
+    const inw=_holNames(_hol.in_week), win=_holNames(_hol.in_window);
+    if (inw.length) return 'In this week: '+inw.join(', ')+'.';
+    if (win.length) return 'None in this week itself, but within the impact window: '+win.join(', ')+'.';
+    return 'No holiday in this week or close enough to reach it.';
+  })();
+  const hrows=_shown.map(r=>`<div style="border-left:3px solid ${CARD_STATE_COLOUR[r.state]};background:${CARD_STATE_BG[r.state]};padding:6px 10px;margin:4px 0;border-radius:0 4px 4px 0;">
       <div style="font-weight:700;font-size:12px;color:${CARD_STATE_COLOUR[r.state]};">${invEsc(r.state)} · ${invEsc(r.id)} ${invEsc(r.name)}</div>
       <div style="font-size:12px;margin-top:2px;">${invEsc(r.action_hint||'')}</div>
+      ${(r.id==='CAL-01'&&_holLine)?`<div style="font-size:11.5px;color:#0b5d2e;margin-top:3px;line-height:1.5;font-weight:600;">${invEsc(_holLine)}</div>`:''}
       ${r.detail?`<div style="font-size:11.5px;color:#555;margin-top:2px;line-height:1.5;">${invEsc(r.detail)}</div>`:''}
       ${(r.doubts_raised&&r.doubts_raised.length)?`<div style="font-size:11.5px;color:#8a5a00;margin-top:4px;">Doubts raised:<ul style="margin:2px 0 0 16px;line-height:1.5;">${r.doubts_raised.map(d=>`<li>${invEsc(d)}</li>`).join('')}</ul></div>`:''}
     </div>`).join('');
+  const ctxHtml=(()=>{
+    const per=resp.period||{}, ce=resp.context_elements||{};
+    if(!_hol.available && !per.label) return '';
+    const els=(ce.elements||[]).map(e=>{
+      const state=e.available?'Available':(e.applicable?'Missing':'Not applicable');
+      const col=e.available?'#0b7a3b':(e.applicable?'#a01b2b':'#6b7280');
+      return `<span style="background:#f3f4f6;color:${col};border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;margin:0 6px 4px 0;display:inline-block;">${invEsc(e.element)}: ${state}</span>`;
+    }).join('');
+    return `<div class="inv-card">
+      <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Business Context Used</div>
+      <div style="font-size:11.5px;color:#6b7280;font-style:italic;margin-top:6px;line-height:1.55;">The context the investigation had available. An element that does not apply to this queue carries no confidence penalty; one that applies but is missing does.</div>
+      ${per.label?`<div style="font-size:12.5px;margin-top:8px;"><b>Period</b> — ${invEsc(per.label)}${per.period_label_quarter?' · '+invEsc(per.period_label_quarter):''}${per.calendar_month?' · '+invEsc(per.calendar_month):''}</div>`:''}
+      ${_holLine?`<div style="font-size:12.5px;margin-top:6px;"><b>Holiday calendar</b> — ${invEsc(_holLine)}</div>`:''}
+      ${_hol.reading?`<div style="font-size:11.5px;color:#555;margin-top:3px;line-height:1.55;">${invEsc(_hol.reading)}</div>`:''}
+      ${els?`<div style="margin-top:10px;">${els}</div>`:''}
+      ${(ce.available!=null)?`<div style="font-size:11.5px;color:#6b7280;margin-top:6px;">${invEsc(ce.available)} of ${invEsc(ce.applicable)} applicable elements available.</div>`:''}
+      ${(()=>{
+        // DRIVER RELEVANCE GATE -- 0 UI references before this, and the single most
+        // decision-relevant line in the payload for a queue like this one:
+        // "No driver passes the relevance gate ... so the investigation routes to calendar,
+        // volume and data-quality hypotheses." That explains WHY the RCA went where it went.
+        const dg = resp.driver_gate || {};
+        if (!dg.note && !(dg.results||[]).length) return '';
+        const rows = (dg.results||[]).map(x=>{
+          const v = String(x.verdict||'');
+          const col = v.indexOf('relevant')===0 ? '#0b7a3b' : '#6b7280';
+          const nm = (String(x.reason||'').match(/^[^(]+/)||[''])[0].trim() || x.field || '—';
+          return `<li style="padding:3px 0;font-size:12px;"><span style="color:${col};font-weight:700;">${invEsc(v||'—')}</span> — ${invEsc(nm)}</li>`;
+        }).join('');
+        return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+          <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Demand drivers tested against this queue</div>
+          ${dg.offering?`<div style="font-size:11.5px;color:#6b7280;margin-top:3px;">Offering: ${invEsc(dg.offering)}${dg.primary_driver?' · primary driver: '+invEsc(dg.primary_driver):' · no primary driver'}</div>`:''}
+          ${rows?`<ul style="list-style:none;padding:0;margin:6px 0 0;">${rows}</ul>`:''}
+          ${dg.note?`<div style="font-size:12px;line-height:1.6;margin-top:6px;color:#333;">${invEsc(dg.note)}</div>`:''}
+        </div>`;
+      })()}
+      ${(()=>{
+        // DATA QUALITY -- also 0 UI references. "clean" is worth stating: it tells the reader the
+        // figures were checked, not merely used.
+        const dq = resp.data_quality || {};
+        if (dq.clean === undefined && !(dq.issues||[]).length) return '';
+        const issues = (dq.issues||[]);
+        const col = dq.clean ? '#0b7a3b' : '#a01b2b';
+        return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+          <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Data quality of the figures used</div>
+          <div style="font-size:12.5px;margin-top:4px;color:${col};font-weight:600;">${dq.clean?'Checked and clean':'Issues found'}${dq.mandatory_blank_count!=null?` — ${invEsc(dq.mandatory_blank_count)} mandatory field(s) blank`:''}</div>
+          ${issues.length?`<ul style="margin:4px 0 0 16px;font-size:12px;line-height:1.55;">${issues.map(i=>`<li>${invEsc(typeof i==='string'?i:(i.detail||i.issue||JSON.stringify(i)))}</li>`).join('')}</ul>`:''}
+        </div>`;
+      })()}
+      ${(()=>{
+        // THE PLAN IN FORCE. A forecaster's first question about a miss is which plan vintage it
+        // was measured against -- it is on the queue card but was nowhere in the report.
+        const f = (ctx && ctx.target && ctx.target.fields) || {};
+        const plan = f.Projection_plan_name, who = f.Forecaster;
+        if (!plan && !who) return '';
+        return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+          <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Plan measured against</div>
+          <div style="font-size:12.5px;margin-top:4px;">${plan?invEsc(plan):'—'}${who?` · forecaster ${invEsc(who)}`:''}</div>
+        </div>`;
+      })()}
+    </div>`;
+  })();
+
   const hyp=`<div class="inv-card">
     <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Hypotheses Considered</div>
     <div style="font-size:11.5px;color:#6b7280;font-style:italic;margin-top:6px;line-height:1.55;">Every explanation in the catalogue is checked against this queue. Those that could apply are then put through a fixed set of challenge questions designed to DISPROVE them — what survives is what the data could not knock down.</div>
     <div style="margin:8px 0;">${counts}</div>${hrows}
+    ${_hidden?`<div style="font-size:11.5px;color:#6b7280;margin-top:8px;">${_hidden} further hypothes${_hidden===1?'is':'es'} in the catalogue never applied to this queue &mdash; no action and no confidence penalty, so they are not listed. They remain in the response for audit.</div>`:''}
   </div>`;
 
   /* --- 7 + 8 + 10 --- */
@@ -2271,10 +2369,27 @@ function renderDecisionCard(resp, ctx){
     <ul style="margin:8px 0 0 18px;line-height:1.7;">${lims}</ul>
   </div>
   <div class="inv-card">
-    <div class="rmeta">Audit ${invEsc(audit.fingerprint||'—')} · catalogue v${invEsc(audit.catalogue_version||'—')} · confidence weights v${invEsc(audit.confidence_weights_version||'—')} · prompt v${invEsc(audit.prompt_version||'—')} · ${invEsc(resp.status||'')} · engine ${invEsc(resp.engine||'')}</div>
+    ${(()=>{
+      // What a reader asks of a footer: which model wrote this, how long it took, and can I trace
+      // it. `audit.fingerprint` never existed -- the backend writes input_fingerprint -- so the
+      // hash rendered as an em-dash here. The three version numbers are identical on every report,
+      // so they move to the hover title rather than spending a line each.
+      const model = audit.narrative_model || (resp.narrative_error ? 'no model (summary unavailable)' : '—');
+      const secs  = (audit.narrative_seconds!=null) ? (audit.narrative_seconds+'s') : '—';
+      let total = '';
+      if (audit.started_at && audit.completed_at) {
+        const d=(new Date(audit.completed_at)-new Date(audit.started_at))/1000;
+        if (isFinite(d) && d>=0) total = ' · analysis '+d.toFixed(2)+'s';
+      }
+      const versions = 'catalogue v'+(audit.catalogue_version||'?')
+        + ' · challenge v'+(audit.challenge_catalogue_version||'?')
+        + ' · confidence weights v'+(audit.confidence_weights_version||'?')
+        + ' · prompt v'+(audit.prompt_version||'?');
+      return `<div class="rmeta" title="${invAttr(versions)}">Model ${invEsc(model)} · summary ${invEsc(secs)}${invEsc(total)} · ${invEsc(resp.status||'')} · engine ${invEsc(resp.engine||'')} · audit ${invEsc(audit.input_fingerprint||audit.fingerprint||'—')}</div>`;
+    })()}
   </div>`;
 
-  return head+cause+interro+conf+evidence+hyp+tail;
+  return head+cause+interro+conf+evidence+ctxHtml+hyp+tail;
 }
 
 function renderInvestigationReport(f, ctx){

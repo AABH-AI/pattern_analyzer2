@@ -230,7 +230,9 @@ def apply_statistical_override(result, features):
             # that: a 45%-confidence cause sitting above a 90% one with no stated reason).
             same["evidence_grade"] = "statistical (deterministic)"
             same["statistically_confirmed_by"] = top.get("metric")
-            ranked = [same] + [c for c in ranked if c is not same]
+            _rest = sorted((c for c in ranked if c is not same),
+                           key=lambda c: (c.get("confidence_pct") or 0), reverse=True)
+            ranked = [same] + _rest
         note = (f"Statistical evidence ({top.get('metric')}) confirms the model's "
                 f"{top.get('cause_type')} conclusion; the measured figures were attached and the "
                 f"cause promoted to rank 1.")
@@ -249,6 +251,12 @@ def apply_statistical_override(result, features):
             "evidence_grade": "statistical (deterministic)",
         }
         if decisive:
+            # Sort the model's causes by confidence BEFORE the statistical cause is placed on top.
+            # The model returns them in whatever order it wrote them -- a live run came back
+            # [70, 90, 60, 40] -- and nothing sorted them, so the report claimed "best-supported
+            # first" while ranking a 70% cause above a 90% one (spec check S5). Only the mandated
+            # leader is exempt from descending order; everything below it must earn its place.
+            ranked.sort(key=lambda c: (c.get("confidence_pct") or 0), reverse=True)
             ranked.insert(0, entry)
             note = (f"Statistical evidence ({top.get('metric')}) overrides the model's ranking: "
                     f"{top.get('cause_type')} is measured directly from this queue's own history. The "

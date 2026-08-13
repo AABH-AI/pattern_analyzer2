@@ -145,7 +145,10 @@ CATALOGUE = [
     _h("FC-01", FORECAST, "Forecast Bias",
        "consistent one-sided deviation across recent periods",
        lambda f: bool(_g(f, "forecast", "one_sided_bias")),
-       ["bias", "error_metrics"], ["deterministic_statistic"]),
+       # plan_vs_seasonal_norm belongs here: "the plan was set away from the level this week of the
+       # year reliably brings" is a forecast defect. Without it the plan-level finding had no
+       # hypothesis to attach to and could never become the reported cause.
+       ["bias", "error_metrics", "plan_vs_seasonal_norm"], ["deterministic_statistic"]),
 
     _h("FC-02", FORECAST, "Trend Misidentification",
        "trend direction in actuals differs from the forecast",
