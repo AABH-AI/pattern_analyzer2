@@ -1,0 +1,579 @@
+{
+ "queue": "SA Indonesia Client Basic",
+ "fiscal_week": 202716,
+ "table": "dbo.Input_To_ML_Full",
+ "checks": [
+  {
+   "id": "W1",
+   "check": "rows fetched inside the 157 cap",
+   "mine": 157,
+   "engine": 157,
+   "pass": true
+  },
+  {
+   "id": "W2",
+   "check": "usable (forecast, actual) pairs",
+   "mine": 155,
+   "engine": 155,
+   "pass": true
+  },
+  {
+   "id": "W3",
+   "check": "weeks used excluding the target",
+   "mine": 154,
+   "engine": 154,
+   "pass": true
+  },
+  {
+   "id": "K1",
+   "check": "adherence_pct = (1 - actual/forecast) * 100",
+   "mine": -138.3,
+   "engine": -138.3,
+   "pass": true
+  },
+  {
+   "id": "K2",
+   "check": "error = actual - forecast",
+   "mine": 88.21,
+   "engine": 88.21,
+   "pass": true
+  },
+  {
+   "id": "A-recent-mae",
+   "check": "mae over 13 weeks",
+   "mine": 36.64,
+   "engine": 36.64,
+   "pass": true
+  },
+  {
+   "id": "A-recent-mape_pct",
+   "check": "mape_pct over 13 weeks",
+   "mine": 52.2,
+   "engine": 52.2,
+   "pass": true
+  },
+  {
+   "id": "A-recent-wape_pct",
+   "check": "wape_pct over 13 weeks",
+   "mine": 40.57,
+   "engine": 40.57,
+   "pass": true
+  },
+  {
+   "id": "A-recent-rmse",
+   "check": "rmse over 13 weeks",
+   "mine": 45.31,
+   "engine": 45.31,
+   "pass": true
+  },
+  {
+   "id": "A-recent-bias",
+   "check": "bias over 13 weeks",
+   "mine": -4.22,
+   "engine": -4.22,
+   "pass": true
+  },
+  {
+   "id": "A-recent-bias_pct",
+   "check": "bias_pct over 13 weeks",
+   "mine": -4.67,
+   "engine": -4.67,
+   "pass": true
+  },
+  {
+   "id": "A-recent-forecast_error_std_dev",
+   "check": "forecast_error_std_dev over 13 weeks",
+   "mine": 46.95,
+   "engine": 46.95,
+   "pass": true
+  },
+  {
+   "id": "A-recent-forecast_variance",
+   "check": "forecast_variance over 13 weeks",
+   "mine": 2204.69,
+   "engine": 2204.69,
+   "pass": true
+  },
+  {
+   "id": "A-recent-mean_actual",
+   "check": "mean_actual over 13 weeks",
+   "mine": 90.31,
+   "engine": 90.31,
+   "pass": true
+  },
+  {
+   "id": "A-year-mae",
+   "check": "mae over 52 weeks",
+   "mine": 20.15,
+   "engine": 20.15,
+   "pass": true
+  },
+  {
+   "id": "A-year-mape_pct",
+   "check": "mape_pct over 52 weeks",
+   "mine": 24.72,
+   "engine": 24.72,
+   "pass": true
+  },
+  {
+   "id": "A-year-wape_pct",
+   "check": "wape_pct over 52 weeks",
+   "mine": 20.76,
+   "engine": 20.76,
+   "pass": true
+  },
+  {
+   "id": "A-year-rmse",
+   "check": "rmse over 52 weeks",
+   "mine": 28.01,
+   "engine": 28.01,
+   "pass": true
+  },
+  {
+   "id": "A-year-bias",
+   "check": "bias over 52 weeks",
+   "mine": 1.77,
+   "engine": 1.77,
+   "pass": true
+  },
+  {
+   "id": "A-year-bias_pct",
+   "check": "bias_pct over 52 weeks",
+   "mine": 1.82,
+   "engine": 1.82,
+   "pass": true
+  },
+  {
+   "id": "A-year-forecast_error_std_dev",
+   "check": "forecast_error_std_dev over 52 weeks",
+   "mine": 28.22,
+   "engine": 28.22,
+   "pass": true
+  },
+  {
+   "id": "A-year-forecast_variance",
+   "check": "forecast_variance over 52 weeks",
+   "mine": 796.5,
+   "engine": 796.5,
+   "pass": true
+  },
+  {
+   "id": "A-year-mean_actual",
+   "check": "mean_actual over 52 weeks",
+   "mine": 97.06,
+   "engine": 97.06,
+   "pass": true
+  },
+  {
+   "id": "A-long-mae",
+   "check": "mae over 104 weeks",
+   "mine": 17.77,
+   "engine": 17.77,
+   "pass": true
+  },
+  {
+   "id": "A-long-mape_pct",
+   "check": "mape_pct over 104 weeks",
+   "mine": 20.64,
+   "engine": 20.64,
+   "pass": true
+  },
+  {
+   "id": "A-long-wape_pct",
+   "check": "wape_pct over 104 weeks",
+   "mine": 17.77,
+   "engine": 17.77,
+   "pass": true
+  },
+  {
+   "id": "A-long-rmse",
+   "check": "rmse over 104 weeks",
+   "mine": 24.19,
+   "engine": 24.19,
+   "pass": true
+  },
+  {
+   "id": "A-long-bias",
+   "check": "bias over 104 weeks",
+   "mine": -1.22,
+   "engine": -1.22,
+   "pass": true
+  },
+  {
+   "id": "A-long-bias_pct",
+   "check": "bias_pct over 104 weeks",
+   "mine": -1.22,
+   "engine": -1.22,
+   "pass": true
+  },
+  {
+   "id": "A-long-forecast_error_std_dev",
+   "check": "forecast_error_std_dev over 104 weeks",
+   "mine": 24.27,
+   "engine": 24.27,
+   "pass": true
+  },
+  {
+   "id": "A-long-forecast_variance",
+   "check": "forecast_variance over 104 weeks",
+   "mine": 589.14,
+   "engine": 589.14,
+   "pass": true
+  },
+  {
+   "id": "A-long-mean_actual",
+   "check": "mean_actual over 104 weeks",
+   "mine": 99.99,
+   "engine": 99.99,
+   "pass": true
+  },
+  {
+   "id": "CV-recent",
+   "check": "CV over 13 weeks (sample sd / mean)",
+   "mine": 0.3096,
+   "engine": 0.3096,
+   "pass": true
+  },
+  {
+   "id": "CV-long",
+   "check": "CV over 104 weeks (sample sd / mean)",
+   "mine": 0.2415,
+   "engine": 0.2415,
+   "pass": true
+  },
+  {
+   "id": "T-recent-slope",
+   "check": "trend slope of actual, 13 weeks",
+   "mine": 2.92,
+   "engine": 2.92,
+   "pass": true
+  },
+  {
+   "id": "T-recent-r2",
+   "check": "trend r^2, 13 weeks",
+   "mine": 0.165,
+   "engine": 0.165,
+   "pass": true
+  },
+  {
+   "id": "D-recent-slope",
+   "check": "adherence drift slope, 13 weeks",
+   "mine": -9.842,
+   "engine": -9.842,
+   "pass": true
+  },
+  {
+   "id": "D-recent-r2",
+   "check": "drift r^2, 13 weeks",
+   "mine": 0.289,
+   "engine": 0.289,
+   "pass": true
+  },
+  {
+   "id": "D-recent-total(x n)",
+   "check": "drift total as slope x n, 13 weeks",
+   "mine": -127.95,
+   "engine": -127.95,
+   "pass": true
+  },
+  {
+   "id": "D-recent-total(x n-1)",
+   "check": "drift total as slope x (n-1), 13 weeks \u2014 span convention, FYI",
+   "mine": -118.11,
+   "engine": -127.95,
+   "pass": null
+  },
+  {
+   "id": "T-year-slope",
+   "check": "trend slope of actual, 52 weeks",
+   "mine": 0.1,
+   "engine": 0.1,
+   "pass": true
+  },
+  {
+   "id": "T-year-r2",
+   "check": "trend r^2, 52 weeks",
+   "mine": 0.003,
+   "engine": 0.003,
+   "pass": true
+  },
+  {
+   "id": "D-year-slope",
+   "check": "adherence drift slope, 52 weeks",
+   "mine": -0.609,
+   "engine": -0.609,
+   "pass": true
+  },
+  {
+   "id": "D-year-r2",
+   "check": "drift r^2, 52 weeks",
+   "mine": 0.056,
+   "engine": 0.056,
+   "pass": true
+  },
+  {
+   "id": "D-year-total(x n)",
+   "check": "drift total as slope x n, 52 weeks",
+   "mine": -31.67,
+   "engine": -31.67,
+   "pass": true
+  },
+  {
+   "id": "D-year-total(x n-1)",
+   "check": "drift total as slope x (n-1), 52 weeks \u2014 span convention, FYI",
+   "mine": -31.06,
+   "engine": -31.67,
+   "pass": null
+  },
+  {
+   "id": "M1",
+   "check": "momentum: last 4 weeks mean",
+   "mine": 105.75,
+   "engine": 105.75,
+   "pass": true
+  },
+  {
+   "id": "M2",
+   "check": "momentum: prior 8 weeks mean",
+   "mine": 87.0,
+   "engine": 87.0,
+   "pass": true
+  },
+  {
+   "id": "M3",
+   "check": "momentum change %",
+   "mine": 21.55,
+   "engine": 21.55,
+   "pass": true
+  },
+  {
+   "id": "S1",
+   "check": "prior-year same-week count",
+   "mine": 3,
+   "engine": 3,
+   "pass": true
+  },
+  {
+   "id": "S2",
+   "check": "same-week mean actual",
+   "mine": 122.33,
+   "engine": 122.33,
+   "pass": true
+  },
+  {
+   "id": "S3",
+   "check": "plan vs seasonal norm %",
+   "mine": -47.85,
+   "engine": -47.85,
+   "pass": true
+  },
+  {
+   "id": "S4",
+   "check": "plan vs overall mean %",
+   "mine": -41.56,
+   "engine": -41.56,
+   "pass": true
+  },
+  {
+   "id": "S5",
+   "check": "seasonal index \u2014 denominator excludes target (FYI)",
+   "mine": 1.121,
+   "engine": 1.118,
+   "pass": null
+  },
+  {
+   "id": "S6",
+   "check": "seasonal index when the target IS included (explains S5)",
+   "mine": 1.118,
+   "engine": 1.118,
+   "pass": true
+  },
+  {
+   "id": "Z1",
+   "check": "usual forecast (13-week mean)",
+   "mine": 94.53,
+   "engine": 94.53,
+   "pass": true
+  },
+  {
+   "id": "Z2",
+   "check": "usual actual (13-week mean)",
+   "mine": 90.31,
+   "engine": 90.31,
+   "pass": true
+  },
+  {
+   "id": "Z3",
+   "check": "z of actual vs own 13-week history",
+   "mine": 2.21,
+   "engine": 2.21,
+   "pass": true
+  },
+  {
+   "id": "Z4",
+   "check": "z of forecast vs own 13-week history",
+   "mine": -1.04,
+   "engine": -1.04,
+   "pass": true
+  },
+  {
+   "id": "Z-Holiday_Count",
+   "check": "z of Holiday_Count (n=13 history weeks)",
+   "mine": -0.63,
+   "engine": -0.63,
+   "pass": true
+  },
+  {
+   "id": "Z-Final_upp_units",
+   "check": "z of Final_upp_units (n=2 history weeks)",
+   "mine": 23.33,
+   "engine": 23.33,
+   "pass": true
+  },
+  {
+   "id": "Z-COVERAGE",
+   "check": "Final_upp_units non-NULL weeks out of 157 \u2014 WHY its z is unsound",
+   "mine": {
+    "weeks_with_a_value": 3,
+    "values": [
+     [
+      202714,
+      77.0
+     ],
+     [
+      202715,
+      75.0
+     ],
+     [
+      202716,
+      109.0
+     ]
+    ]
+   },
+   "engine": "z 23.33 treated as material",
+   "pass": null
+  },
+  {
+   "id": "Z5",
+   "check": "usual Planned_ASU (13-week mean)",
+   "mine": 26672.77,
+   "engine": 26672.77,
+   "pass": true
+  },
+  {
+   "id": "R-Actual_ASU",
+   "check": "Spearman rho, Actual_ASU vs Actual_Offered (139 weeks)",
+   "mine": 0.47,
+   "engine": 0.47,
+   "pass": true
+  },
+  {
+   "id": "R-Planned_ASU",
+   "check": "Spearman rho, Planned_ASU vs Actual_Offered (155 weeks)",
+   "mine": 0.4,
+   "engine": 0.4,
+   "pass": true
+  },
+  {
+   "id": "R-Final_Units",
+   "check": "Spearman rho, Final_Units vs Actual_Offered (155 weeks)",
+   "mine": -0.01,
+   "engine": -0.01,
+   "pass": true
+  },
+  {
+   "id": "R-Holiday_Count",
+   "check": "Spearman rho, Holiday_Count vs Actual_Offered (155 weeks)",
+   "mine": -0.37,
+   "engine": -0.37,
+   "pass": true
+  },
+  {
+   "id": "R-BOUNDARY",
+   "check": "Actual_ASU rho over the FULL history \u2014 straddles the 0.5 retention cutoff",
+   "mine": {
+    "weeks": 154,
+    "rho": 0.5
+   },
+   "engine": {
+    "weeks": 139,
+    "rho": 0.47,
+    "outcome": "rejected"
+   },
+   "pass": null
+  },
+  {
+   "id": "L-Business Org",
+   "check": "adherence at Business Org",
+   "mine": -3.9,
+   "engine": -3.9,
+   "pass": true
+  },
+  {
+   "id": "L-Region",
+   "check": "adherence at Region",
+   "mine": -1.6,
+   "engine": -1.6,
+   "pass": true
+  },
+  {
+   "id": "L-SubRegion",
+   "check": "adherence at SubRegion",
+   "mine": 1.2,
+   "engine": 1.2,
+   "pass": true
+  },
+  {
+   "id": "L-Country",
+   "check": "adherence at Country",
+   "mine": 0.8,
+   "engine": 0.8,
+   "pass": true
+  },
+  {
+   "id": "L-Offering",
+   "check": "adherence at Offering",
+   "mine": -138.3,
+   "engine": -138.3,
+   "pass": true
+  },
+  {
+   "id": "L-Channel",
+   "check": "adherence at Channel",
+   "mine": -138.3,
+   "engine": -138.3,
+   "pass": true
+  },
+  {
+   "id": "Q1",
+   "check": "typical (median) week actual",
+   "mine": 107.0,
+   "engine": 107.0,
+   "pass": true
+  },
+  {
+   "id": "Q2",
+   "check": "this week as a multiple of typical",
+   "mine": 1.42,
+   "engine": 1.42,
+   "pass": true
+  },
+  {
+   "id": "Q3",
+   "check": "the 3 following weeks (reversion test)",
+   "mine": [
+    73.0,
+    70.0,
+    85.0
+   ],
+   "engine": [
+    73.0,
+    70.0,
+    85.0
+   ],
+   "pass": true
+  }
+ ],
+ "asserted": 72,
+ "passed": 72
+}

@@ -1,0 +1,478 @@
+{
+ "meta": {
+  "band_threshold": 10.0,
+  "schema_note": "results/run_validation.py"
+ },
+ "target": {
+  "key": {
+   "Forecast_name": "SA Indonesia Client Basic",
+   "Fiscal_Week": "202716"
+  },
+  "fields": {
+   "Fiscal_Week": 202716,
+   "Week_Ending": "2026-05-22",
+   "Region": "APJ",
+   "SubRegion": "SA",
+   "Country": "Indonesia",
+   "Forecast_name": "SA Indonesia Client Basic",
+   "Forecaster": "Brian Tan",
+   "Offering": "Basic",
+   "Projection_plan_name": "FY27 May Projection",
+   "channel": "Voice",
+   "business_org": "CSG",
+   "Actual_Offered": 152.0,
+   "Actual_Handled": 141.0,
+   "fcst_offered": 63.7921553653377,
+   "fcst_handled": 57.412939828804,
+   "Planned_ASU": 30050.0,
+   "Actual_ASU": null,
+   "Final_Units": 41.0,
+   "Final_Y5": 0.0,
+   "Final_Y4": 0.0,
+   "Final_Y3": 41.0,
+   "Final_Y2": 41.0,
+   "Final_Y1": 41.0,
+   "Final_upp_units": 109.0,
+   "Holiday_Count": 0.0,
+   "Monday": 0.0,
+   "Tuesday": 0.0,
+   "Wednesday": 0.0,
+   "Thursday": 0.0,
+   "Friday": 0.0,
+   "Saturday": 0.0,
+   "Sunday": 0.0,
+   "Volume_Category": "<=100"
+  },
+  "computed": {
+   "forecast": 63.7921553653377,
+   "actual": 152.0,
+   "error": 88.20784463466231,
+   "adherence_pct": -138.27381145768777,
+   "accuracy_pct": 238.27381145768777,
+   "direction": "under",
+   "severity": 13.8
+  }
+ },
+ "history": [
+  {
+   "key": {
+    "Forecast_name": "SA Indonesia Client Basic",
+    "Fiscal_Week": "202703"
+   },
+   "computed": {
+    "forecast": 99.0961932983288,
+    "actual": 55.0,
+    "error": -44.0961932983288,
+    "adherence_pct": 44.49837257176705,
+    "accuracy_pct": 55.50162742823295,
+    "direction": "over",
+    "severity": 4.4
+   }
+  },
+  {
+   "key": {
+    "Forecast_name": "SA Indonesia Client Basic",
+    "Fiscal_Week": "202704"
+   },
+   "computed": {
+    "forecast": 114.083748973851,
+    "actual": 105.0,
+    "error": -9.083748973851002,
+    "adherence_pct": 7.9623513914616195,
+    "accuracy_pct": 92.03764860853838,
+    "direction": "over",
+    "severity": 0.8
+   }
+  },
+  {
+   "key": {
+    "Forecast_name": "SA Indonesia Client Basic",
+    "Fiscal_Week": "202705"
+   },
+   "computed": {
+    "forecast": 91.065691376138,
+    "actual": 104.0,
+    "error": 12.934308623861995,
+    "adherence_pct": -14.203272855457815,
+    "accuracy_pct": 114.20327285545781,
+    "direction": "under",
+    "severity": 1.4
+   }
+  },
+  {
+   "key": {
+    "Forecast_name": "SA Indonesia Client Basic",
+    "Fiscal_Week": "202706"
+   },
+   "computed": {
+    "forecast": 145.480706492016,
+    "actual": 91.0,
+    "error": -54.480706492016,
+    "adherence_pct": 37.4487502884143,
+    "accuracy_pct": 62.5512497115857,
+    "direction": "over",
+    "severity": 3.7
+   }
+  },
+  {
+   "key": {
+    "Forecast_name": "SA Indonesia Client Basic",
+    "Fiscal_Week": "202707"
+   },
+   "computed": {
+    "forecast": 103.79134359732,
+    "actual": 48.0,
+    "error": -55.791343597319994,
+    "adherence_pct": 53.753368694959825,
+    "accuracy_pct": 46.246631305040175,
+    "direction": "over",
+    "severity": 5.4
+   }
+  },
+  {
+   "key": {
+    "Forecast_name": "SA Indonesia Client Basic",
+    "Fiscal_Week": "202708"
+   },
+   "computed": {
+    "forecast": 126.675129175934,
+    "actual": 42.0,
+    "error": -84.675129175934,
+    "adherence_pct": 66.84432037036419,
+    "accuracy_pct": 33.155679629635806,
+    "direction": "over",
+    "severity": 6.7
+   }
+  },
+  {
+   "key": {
+    "Forecast_name": "SA Indonesia Client Basic",
+    "Fiscal_Week": "202709"
+   },
+   "computed": {
+    "forecast": 88.9645214627199,
+    "actual": 74.0,
+    "error": -14.964521462719901,
+    "adherence_pct": 16.8207744128548,
+    "accuracy_pct": 83.1792255871452,
+    "direction": "over",
+    "severity": 1.7
+   }
+  },
+  {
+   "key": {
+    "Forecast_name": "SA Indonesia Client Basic",
+    "Fiscal_Week": "202710"
+   },
+   "computed": {
+    "forecast": 56.3277238724868,
+    "actual": 107.0,
+    "error": 50.6722761275132,
+    "adherence_pct": -89.95974387714254,
+    "accuracy_pct": 189.95974387714253,
+    "direction": "under",
+    "severity": 9.0
+   }
+  },
+  {
+   "key": {
+    "Forecast_name": "SA Indonesia Client Basic",
+    "Fiscal_Week": "202711"
+   },
+   "computed": {
+    "forecast": 64.4079427037157,
+    "actual": 125.0,
+    "error": 60.592057296284295,
+    "adherence_pct": -94.07544279905828,
+    "accuracy_pct": 194.0754427990583,
+    "direction": "under",
+    "severity": 9.4
+   }
+  },
+  {
+   "key": {
+    "Forecast_name": "SA Indonesia Client Basic",
+    "Fiscal_Week": "202712"
+   },
+   "computed": {
+    "forecast": 114.899969895248,
+    "actual": 131.0,
+    "error": 16.100030104751994,
+    "adherence_pct": -14.012214380412868,
+    "accuracy_pct": 114.01221438041287,
+    "direction": "under",
+    "severity": 1.4
+   }
+  },
+  {
+   "key": {
+    "Forecast_name": "SA Indonesia Client Basic",
+    "Fiscal_Week": "202713"
+   },
+   "computed": {
+    "forecast": 89.6592013445527,
+    "actual": 93.0,
+    "error": 3.3407986554473013,
+    "adherence_pct": -3.7261079792679563,
+    "accuracy_pct": 103.72610797926795,
+    "direction": "under",
+    "severity": 0.4
+   }
+  },
+  {
+   "key": {
+    "Forecast_name": "SA Indonesia Client Basic",
+    "Fiscal_Week": "202714"
+   },
+   "computed": {
+    "forecast": 35.8956677921438,
+    "actual": 103.0,
+    "error": 67.1043322078562,
+    "adherence_pct": -186.94270460833386,
+    "accuracy_pct": 286.9427046083338,
+    "direction": "under",
+    "severity": 18.7
+   }
+  },
+  {
+   "key": {
+    "Forecast_name": "SA Indonesia Client Basic",
+    "Fiscal_Week": "202715"
+   },
+   "computed": {
+    "forecast": 98.4881962785273,
+    "actual": 96.0,
+    "error": -2.4881962785272975,
+    "adherence_pct": 2.5263903417325317,
+    "accuracy_pct": 97.47360965826746,
+    "direction": "over",
+    "severity": 0.3
+   }
+  }
+ ],
+ "peers": [
+  {
+   "key": {
+    "Forecast_name": "SA Comm Client Indonesia ProSupport Bahasa Indonesia",
+    "Fiscal_Week": "202716"
+   },
+   "computed": {
+    "forecast": 276.39995368091553,
+    "actual": 285.0,
+    "error": 8.60004631908447,
+    "adherence_pct": -3.1114499856293776,
+    "accuracy_pct": 103.11144998562938,
+    "direction": "under",
+    "severity": 0.3
+   }
+  }
+ ],
+ "statistical_summary": {
+  "numeric": {
+   "Actual_Handled": {
+    "history_mean": 86.6923076923077,
+    "history_stdev": 26.483908999568694,
+    "target_value": 141.0,
+    "z_score": 2.050592014516314,
+    "n": 13
+   },
+   "Actual_Offered": {
+    "history_mean": 90.3076923076923,
+    "history_stdev": 27.956467991577593,
+    "target_value": 152.0,
+    "z_score": 2.2067275347834943,
+    "n": 13
+   },
+   "Final_Units": {
+    "history_mean": 669.0,
+    "history_stdev": 809.9257167584362,
+    "target_value": 41.0,
+    "z_score": -0.7753797502732015,
+    "n": 13
+   },
+   "Final_Y1": {
+    "history_mean": 669.0,
+    "history_stdev": 809.9257167584362,
+    "target_value": 41.0,
+    "z_score": -0.7753797502732015,
+    "n": 13
+   },
+   "Final_Y2": {
+    "history_mean": 668.8461538461538,
+    "history_stdev": 810.021588822776,
+    "target_value": 41.0,
+    "z_score": -0.7750980498663225,
+    "n": 13
+   },
+   "Final_Y3": {
+    "history_mean": 653.3846153846154,
+    "history_stdev": 800.3823605483338,
+    "target_value": 41.0,
+    "z_score": -0.7651150819529267,
+    "n": 13
+   },
+   "Final_Y4": {
+    "history_mean": 205.23076923076923,
+    "history_stdev": 288.8483321301319,
+    "target_value": 0.0,
+    "z_score": -0.7105139493701792,
+    "n": 13
+   },
+   "Final_Y5": {
+    "history_mean": 26.384615384615383,
+    "history_stdev": 44.636566589771185,
+    "target_value": 0.0,
+    "z_score": -0.5910986753775462,
+    "n": 13
+   },
+   "Final_upp_units": {
+    "history_mean": 76.0,
+    "history_stdev": 1.4142135623730951,
+    "target_value": 109.0,
+    "z_score": 23.33452377915607,
+    "n": 2
+   },
+   "Fiscal_Week": {
+    "history_mean": 202709.0,
+    "history_stdev": 3.8944404818493075,
+    "target_value": 202716,
+    "z_score": 1.7974340685458343,
+    "n": 13
+   },
+   "Friday": {
+    "history_mean": 0.3076923076923077,
+    "history_stdev": 0.48038446141526137,
+    "target_value": 0.0,
+    "z_score": -0.6405126152203486,
+    "n": 13
+   },
+   "Holiday_Count": {
+    "history_mean": 0.8461538461538461,
+    "history_stdev": 1.344504484072964,
+    "target_value": 0.0,
+    "z_score": -0.6293425244596854,
+    "n": 13
+   },
+   "Monday": {
+    "history_mean": 0.07692307692307693,
+    "history_stdev": 0.27735009811261463,
+    "target_value": 0.0,
+    "z_score": -0.2773500981126145,
+    "n": 13
+   },
+   "Planned_ASU": {
+    "history_mean": 26672.76923076923,
+    "history_stdev": 2072.307978794262,
+    "target_value": 30050.0,
+    "z_score": 1.6296953945985169,
+    "n": 13
+   },
+   "Saturday": {
+    "history_mean": 0.07692307692307693,
+    "history_stdev": 0.27735009811261463,
+    "target_value": 0.0,
+    "z_score": -0.2773500981126145,
+    "n": 13
+   },
+   "Sunday": {
+    "history_mean": 0.07692307692307693,
+    "history_stdev": 0.27735009811261463,
+    "target_value": 0.0,
+    "z_score": -0.2773500981126145,
+    "n": 13
+   },
+   "Thursday": {
+    "history_mean": 0.15384615384615385,
+    "history_stdev": 0.3755338080994054,
+    "target_value": 0.0,
+    "z_score": -0.40967324519935133,
+    "n": 13
+   },
+   "Tuesday": {
+    "history_mean": 0.07692307692307693,
+    "history_stdev": 0.27735009811261463,
+    "target_value": 0.0,
+    "z_score": -0.2773500981126145,
+    "n": 13
+   },
+   "Wednesday": {
+    "history_mean": 0.07692307692307693,
+    "history_stdev": 0.27735009811261463,
+    "target_value": 0.0,
+    "z_score": -0.2773500981126145,
+    "n": 13
+   },
+   "fcst_handled": {
+    "history_mean": 85.07326404897566,
+    "history_stdev": 26.521123419556975,
+    "target_value": 57.412939828804,
+    "z_score": -1.04295447001218,
+    "n": 13
+   },
+   "fcst_offered": {
+    "history_mean": 94.5258489433063,
+    "history_stdev": 29.467914910618905,
+    "target_value": 63.7921553653377,
+    "z_score": -1.0429544700121816,
+    "n": 13
+   }
+  },
+  "categorical": {
+   "Country": {
+    "target_value": "Indonesia",
+    "prior_value": "Indonesia",
+    "changed": false
+   },
+   "Forecast_name": {
+    "target_value": "SA Indonesia Client Basic",
+    "prior_value": "SA Indonesia Client Basic",
+    "changed": false
+   },
+   "Forecaster": {
+    "target_value": "Brian Tan",
+    "prior_value": "Brian Tan",
+    "changed": false
+   },
+   "Offering": {
+    "target_value": "Basic",
+    "prior_value": "Basic",
+    "changed": false
+   },
+   "Projection_plan_name": {
+    "target_value": "FY27 May Projection",
+    "prior_value": "FY27 May Projection",
+    "changed": false
+   },
+   "Region": {
+    "target_value": "APJ",
+    "prior_value": "APJ",
+    "changed": false
+   },
+   "SubRegion": {
+    "target_value": "SA",
+    "prior_value": "SA",
+    "changed": false
+   },
+   "Volume_Category": {
+    "target_value": "<=100",
+    "prior_value": "<=100",
+    "changed": false
+   },
+   "Week_Ending": {
+    "target_value": "2026-05-22",
+    "prior_value": "2026-05-15",
+    "changed": true
+   },
+   "business_org": {
+    "target_value": "CSG",
+    "prior_value": "CSG",
+    "changed": false
+   },
+   "channel": {
+    "target_value": "Voice",
+    "prior_value": "Voice",
+    "changed": false
+   }
+  }
+ }
+}
