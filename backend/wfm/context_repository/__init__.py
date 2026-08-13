@@ -5,6 +5,6 @@
 Event, Observation and Lineage repositories are not built yet and report themselves as
 NotApplicable rather than pretending to be empty-but-present.
 """
-from .holiday_calendar import holiday_context, loaded
+from .holiday_calendar import holiday_context, holiday_span, loaded
 
-__all__ = ["holiday_context", "loaded"]
+__all__ = ["holiday_context", "holiday_span", "loaded"]

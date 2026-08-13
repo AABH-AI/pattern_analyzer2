@@ -91,3 +91,34 @@ def prior_year_week(fiscal_week):
 
 def rnd(v, places=1):
     return round(v, places) if isinstance(v, (int, float)) else v
+
+
+def week_ordinals(fiscal_weeks):
+    """Map YYYYWW values onto a continuous week counter so lag arithmetic survives year rollover.
+
+    `Fiscal_Week` is YYYYWW, so plain subtraction breaks at every fiscal-year boundary: the week
+    before 202701 is 202652, not 202700. Any analysis that pairs a week with "the week k weeks
+    earlier" therefore loses a pair at each boundary -- roughly three per lag over a 157-week
+    window, and silently, which is the worst way to lose data.
+
+    The year length is taken from the DATA (the highest week number observed in that year) rather
+    than assumed to be 52, so a 53-week fiscal year is handled without a special case. This is the
+    same principle fiscal_calendar states in its own docstring: the calendar is derived from the
+    data, not from an anchor date.
+
+    Returns {fiscal_week: ordinal}. Genuine gaps stay gaps -- a missing week leaves a hole in the
+    ordinals, so callers pairing on `ordinal - k` still refuse to pair weeks that are not really
+    k apart.
+    """
+    weeks = sorted({int(w) for w in fiscal_weeks if w is not None})
+    if not weeks:
+        return {}
+    length = {}
+    for wk in weeks:
+        year, week = divmod(wk, 100)
+        length[year] = max(length.get(year, 0), week)
+    base, running = {}, 0
+    for year in sorted(length):
+        base[year] = running
+        running += length[year]
+    return {wk: base[wk // 100] + (wk % 100) for wk in weeks}

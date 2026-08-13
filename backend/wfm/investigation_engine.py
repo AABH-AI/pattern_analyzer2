@@ -32,9 +32,13 @@ from . import (
     business_report_generator as report,
     channel_migration_detector,
     correlation_engine,
+    data_granularity,
     data_quality,
+    forecast_response,
     hierarchy_analyzer,
+    holiday_response,
     hypothesis_generator,
+    lag_analysis,
     skeptic,
     statistical_evidence as stats_engine,
     temporal_reasoner,
@@ -76,6 +80,20 @@ def derive_wfm_features(context_bundle, wfm_context, band):
         # at "inherited from SubRegion" without ever characterising the queue itself.
         "statistical_evidence": stats_engine.statistical_evidence(history, week, adherence, band),
     }
+
+    # --- WHY the forecast missed, as opposed to BY HOW MUCH. Order is a real dependency chain,
+    #     not a preference: forecast_response asks "did a signal fire and did the plan react", and
+    #     two of its candidate signals are produced here. ---
+    features["data_granularity"] = data_granularity.analyse(history, fields)
+    features["holiday_day_structure"] = data_granularity.holiday_day_structure(
+        fields, features["data_granularity"])
+    features["lag_analysis"] = lag_analysis.analyse(history, week)
+    features["holiday_response"] = holiday_response.analyse(
+        history, week, fields.get("Country"), target_actual=actual, target_forecast=forecast,
+        row_holiday_count=fields.get("Holiday_Count"))
+    features["forecast_response"] = forecast_response.analyse(
+        history, week, actual, forecast,
+        lag_result=features["lag_analysis"], holiday_result=features["holiday_response"])
     return features, adherence
 
 
@@ -95,6 +113,17 @@ def _payload(context_bundle, features, adherence, band):
         "INVESTIGATION_LADDER": features.get("investigation_ladder"),
         "DATA_QUALITY": features.get("data_quality"),
         "CORRELATIONS": features.get("correlations"),
+        # The prompt has had a whole "# STATISTICAL EVIDENCE" section instructing the model to
+        # reason from STATISTICAL_EVIDENCE.findings and .metrics[].reading since that section was
+        # written, but the block was never actually put in the payload -- the model was being told
+        # to use data it could not see. Supplying it is what makes those instructions real.
+        "STATISTICAL_EVIDENCE": features.get("statistical_evidence"),
+        # WHY the forecast missed. Deterministic; the model ranks and narrates, never recomputes.
+        "LAG_ANALYSIS": features.get("lag_analysis"),
+        "FORECAST_RESPONSE": features.get("forecast_response"),
+        "HOLIDAY": features.get("holiday_response"),
+        "HOLIDAY_DAY_STRUCTURE": features.get("holiday_day_structure"),
+        "DATA_GRANULARITY": features.get("data_granularity"),
         "ELIGIBLE_CAUSE_TYPES": skeptic.eligible_cause_types(features),
         "FIELD_GLOSSARY": FIELD_DEFINITIONS,
     }
