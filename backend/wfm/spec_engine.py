@@ -51,6 +51,7 @@ import json
 from . import confidence as conf
 from . import cross_examination as cx
 from . import driver_gate
+from . import fc_evidence
 from . import fiscal_calendar as fcal
 from . import hypothesis_catalogue as cat
 from . import decision_card
@@ -409,6 +410,263 @@ def _evidence(features, stats, gates, ladder):
     return supporting, contradictory
 
 
+def _fc_evidence_items(fc):
+    """Turn the new deterministic blocks into FC evidence items (steps 7 and 8).
+
+    THREE RULES, each of which exists because breaking it produced a wrong report.
+
+    STRENGTH FOLLOWS COVERAGE, NOT MAGNITUDE. A sparse driver is never Strong however extreme its
+    coefficient. This is the exact failure the upgrade exists to fix: a z-score of 23.33 computed
+    from two observations armed a precondition and shipped a cause at 85% confidence. A big number
+    from a tiny sample is weak evidence, and the strength label has to say so.
+
+    SOURCE FAMILY IS ASSIGNED HONESTLY. Confidence Gate 6 caps at Low when every item comes from a
+    single family, so mislabelling statistics as business rules would defeat a cap that exists to
+    catch exactly that. The holiday CALENDAR is a business record; the holiday EFFECT measured from
+    this queue's history is a statistic; the plan vintage is a recorded process fact; phase
+    instances and momentum precedents are historical precedent. They are tagged as what they are.
+
+    CONTRADICTORY MEANS ARGUES AGAINST, NOT MERELY UNHELPFUL. A mechanism rejected on direction is
+    genuine contradictory evidence. An absent driver is a limitation, not a contradiction, and
+    filing it as one would inflate the ContradictoryEvidence weight and depress confidence for
+    having less data -- which is backwards.
+    """
+    supporting, contradictory = [], []
+
+    def add(bucket, text, strength, family, source, evidence_id=None):
+        if not text:
+            return
+        item = {"text": text, "strength": strength, "family": family, "source": source}
+        if evidence_id:
+            item["evidence_id"] = evidence_id
+        bucket.append(item)
+
+    resp, lag = fc.get("response") or {}, fc.get("lag") or {}
+    hol, asu = fc.get("holiday") or {}, fc.get("asu") or {}
+    plan, mech = fc.get("plan") or {}, fc.get("mechanism") or {}
+
+    # --- the miss decomposition: which side of the gap was already there (section 13) ---
+    dec = resp.get("miss_decomposition") or {}
+    if dec.get("available") and dec.get("reconciles"):
+        add(supporting, dec.get("reading"), "Strong", "deterministic_statistic",
+            "miss_decomposition", "E2")
+
+    # --- the forecast-response test and its gate (sections 14-15) ---
+    r = resp.get("response") or {}
+    gate = resp.get("forecastability_gate") or {}
+    if r.get("classification") and r.get("classification") != "not_testable":
+        supported = gate.get("supports_forecast_response_failure")
+        add(supporting if supported else contradictory,
+            (f"Forecast response: {r.get('classification').replace('_', ' ')}. "
+             f"{r.get('reason')}" if supported else
+             f"{gate.get('verdict')} ({r.get('classification').replace('_', ' ')}: "
+             f"{r.get('reason')})"),
+            "Strong" if supported else "Moderate",
+            "deterministic_statistic", "forecast_response", "E5")
+
+    fcb = resp.get("forecastability") or {}
+    if fcb.get("classification") in ("LOW_PREDICTABILITY", "NOT_TESTABLE"):
+        # Evidence AGAINST calling this a forecast failure. It belongs in the contradictory list
+        # because that is precisely what it argues against.
+        add(contradictory, fcb.get("reason"), "Strong", "historical_precedent",
+            "forecastability", "E5")
+
+    # --- driver lags (sections 16-18) ---
+    for d in lag.get("drivers") or []:
+        if d.get("usable_as_evidence"):
+            # Stability moderates strength: halves that disagree cannot carry a Strong label.
+            strength = "Strong" if d.get("stability") == "stable" else "Moderate"
+            add(supporting, d.get("reading"), strength, "deterministic_statistic",
+                d.get("driver"), "E7" if d.get("driver") == "Final_Units" else None)
+        elif d.get("coverage") == "sparse":
+            add(contradictory, d.get("reading"), "Weak", "deterministic_statistic",
+                d.get("driver"), "E8" if d.get("driver") == "Final_upp_units" else None)
+        # `absent` is deliberately NOT filed as contradictory -- see the docstring.
+
+    # --- calendar (sections 22-24) ---
+    if hol.get("applies") and hol.get("calendar_names"):
+        add(supporting,
+            f"Holiday calendar: {', '.join(hol['calendar_names'])}. {hol.get('reading') or ''}"
+            .strip(),
+            "Moderate", "business_rule", "holiday_calendar", "E10")
+    cap = hol.get("forecast_capture") or {}
+    if cap.get("classification") in ("under_reacted", "over_reacted", "wrong_direction",
+                                     "delayed"):
+        add(supporting, cap.get("reason"), "Moderate", "historical_precedent",
+            "holiday_forecast_capture", "E11")
+    elif cap.get("classification") == "inconsistent_history":
+        # Section 24, stated explicitly: a visible pattern that is not consistent enough to be a
+        # forecastable signal argues AGAINST holding the plan to it.
+        add(contradictory, cap.get("reason"), "Strong", "historical_precedent",
+            "holiday_forecast_capture", "E11")
+
+    # --- ASU decomposition (section 19) ---
+    if asu.get("available"):
+        add(supporting, asu.get("reading"), "Strong", "deterministic_statistic",
+            "asu_decomposition", "E6")
+    elif asu.get("availability") == MISSING_AVAILABILITY:
+        add(contradictory, f"ASU decomposition could not be performed: {asu.get('reason')}",
+            "Weak", "deterministic_statistic", "asu_decomposition", "E6")
+
+    # --- plan vintage (section 8) ---
+    if plan.get("available") and plan.get("state") in (fc_evidence.PLAN_NOT_REVISITED,
+                                                       fc_evidence.PLAN_REVISED_STILL_WRONG):
+        add(supporting, plan.get("reading"), "Strong", "business_rule", "plan_vintage", "E15")
+    elif plan.get("state") == fc_evidence.PLAN_REVISED_APPROPRIATELY:
+        add(contradictory, plan.get("reading"), "Moderate", "business_rule", "plan_vintage",
+            "E15")
+
+    # --- mechanisms rejected on direction (section 32) ---
+    for c in mech.get("rejected_for_direction") or []:
+        add(contradictory, (c.get("direction_coherence") or {}).get("reason"),
+            "Strong", "business_rule", "direction_coherence", "E14")
+
+    return supporting, contradictory
+
+
+# `confidence.MISSING` under a local name -- the availability vocabulary is confidence.py's, and
+# importing the constant rather than repeating the string keeps the two from drifting apart.
+MISSING_AVAILABILITY = conf.MISSING
+
+
+# ==============================================================================
+# Confidence INPUT builders (section 28 -- inputs enhanced, model untouched)
+# ==============================================================================
+def _precedent_inputs(fc_holiday, fc_response):
+    """(precedents_found, precedent_score) for `conf.historical_consistency`.
+
+    BR-118 asks for provenance-weighted precedent. Two things now measure real precedent for a
+    queue, and both carry their own instance count and their own consistency rate, so the combined
+    score is an instance-weighted mean rather than an average of averages -- a phase with 30
+    instances should not be outvoted by one with 4.
+
+    Returns (0, None) when nothing measured precedent, which lands on NotApplicable exactly as
+    before. A queue with no comparable history is not concealing evidence; there is genuinely
+    nothing to be consistent with, and it must not be penalised for that.
+    """
+    parts = []      # (instances, consistency)
+
+    phases = (fc_holiday or {}).get("historical_response") or {}
+    if phases.get("available"):
+        # The precedent that matters is for the phase the TARGET week is actually in. The other
+        # phases are measured, but they are not this week's precedent.
+        target_phase = (fc_holiday or {}).get("phase")
+        blk = (phases.get("phases") or {}).get(target_phase) or {}
+        if blk.get("testable") and blk.get("consistency") is not None:
+            parts.append((blk.get("instances") or 0, blk["consistency"]))
+
+    mom = (fc_response or {}).get("momentum_repeatability") or {}
+    if mom.get("testable") and mom.get("consistency") is not None:
+        parts.append((mom.get("precedents") or 0, mom["consistency"]))
+
+    parts = [(n, c) for n, c in parts if n > 0]
+    if not parts:
+        return 0, None
+    total = sum(n for n, _ in parts)
+    score = sum(n * c for n, c in parts) / total
+    return total, max(0.0, min(1.0, score))
+
+
+def _method_agreement_inputs(root_cause, fc_mechanism):
+    """(methods_executed, methods_concurring) for `conf.model_agreement`.
+
+    The two methods are genuinely independent and share no code:
+
+        1. catalogue applicability -> cross-examination -> `_select_root_cause`
+        2. measured evidence -> mechanism candidates -> direction-coherence gate
+
+    They CONCUR when the surviving mechanism's evidence bears on the very hypothesis that was
+    promoted -- that is, the two paths reached compatible explanations. They DISAGREE when the
+    mechanism evidence points at a different family of hypotheses entirely, which is real
+    information and should cost confidence.
+
+    Returns (1, 1) when the mechanism path could not run, which lands on NotApplicable exactly as
+    before -- one method means nothing to cross-check, and that is not a weakness.
+    """
+    mech = fc_mechanism or {}
+    if not mech.get("candidates"):
+        return 1, 1
+    attaches = set(mech.get("attaches_to") or ())
+    if not attaches:
+        return 1, 1
+    hid = (root_cause or {}).get("hypothesis_id")
+    return 2, (2 if hid and hid in attaches else 1)
+
+
+def _business_rule_state(dq, root_cause, fc_mechanism):
+    """One of supportive | neutral | not_evaluable | contradicts, for `conf.business_rule_validation`.
+
+    THE DIRECTION-COHERENCE GATE IS A BUSINESS RULE (section 32), and in the Evidence Hierarchy a
+    business rule outranks statistics. So when the promoted cause rests only on mechanisms the gate
+    rejected, the rule CONTRADICTS the conclusion: the dimension scores 0.00 and Gate 2 caps the
+    final level at Low. Arithmetic must not be able to outvote a rule saying the conclusion points
+    the wrong way.
+
+    Data quality still takes precedence -- a blank mandatory field means the rules could not be
+    evaluated at all, and that is a different statement from a rule disagreeing.
+    """
+    if not (dq or {}).get("clean"):
+        return "not_evaluable"
+
+    mech = fc_mechanism or {}
+    rejected = mech.get("rejected_for_direction") or []
+    if not mech.get("candidates") and not rejected:
+        return "neutral"
+
+    hid = (root_cause or {}).get("hypothesis_id")
+    if not hid:
+        return "neutral"
+
+    surviving = set(mech.get("attaches_to") or ())
+    rejected_ids = set()
+    for c in rejected:
+        rejected_ids |= set(fc_evidence.MECHANISM_HYPOTHESES.get(c.get("mechanism"), ()))
+
+    # The promoted hypothesis is carried ONLY by a mechanism that failed the direction gate.
+    if hid in rejected_ids and hid not in surviving:
+        return "contradicts"
+    if hid in surviving:
+        # Coherent AND the mechanism evidence bears on it -- the rule actively supports it.
+        return "supportive"
+    return "neutral"
+
+
+def _context_counts(ctx, fc_holiday, fc_lag, fc_weekend):
+    """(available, applicable) context elements, including what the new evidence establishes.
+
+    `_context_elements` counts the seven original elements. Three more are now genuinely resolved
+    or genuinely absent on every run, and a queue where all three were established should not be
+    scored as though that context were missing. The Available/NotApplicable distinction is kept:
+    an element that does not apply to the queue is EXCLUDED rather than counted as a zero, because
+    counting it would penalise a queue for a question that could not sensibly be asked of it.
+    """
+    els = (ctx or {}).get("elements") or {}
+    available = els.get("available") or 0
+    applicable = els.get("applicable") or 0
+
+    # Holiday phase: applicable wherever the holiday calendar itself is applicable for the queue.
+    hol_applicable = any(e.get("element") == "Holiday calendar" and e.get("applicable")
+                         for e in (els.get("elements") or []))
+    if hol_applicable:
+        applicable += 1
+        if (fc_holiday or {}).get("available"):
+            available += 1
+
+    # Driver lag: applicable only where a hypothesis actually requested a driver.
+    if (fc_lag or {}).get("requested_drivers"):
+        applicable += 1
+        if (fc_lag or {}).get("availability") == conf.AVAILABLE:
+            available += 1
+
+    # Data grain: always applicable and always resolved -- the module reports the grain it found,
+    # so this element is Available even when the grain turns out to limit what can be analysed.
+    applicable += 1
+    if (fc_weekend or {}).get("grain"):
+        available += 1
+
+    return available, applicable
+
+
 def _weigh(items):
     """Total independence-weighted strength, for the ContradictoryEvidence dimension."""
     seen, total = set(), 0.0
@@ -499,10 +757,112 @@ def _select_root_cause(survivors, reports, stats, why=None):
 # ==============================================================================
 # Step 14 -- Recommendations (rule-derived, max 3)
 # ==============================================================================
-def _recommendations(root_cause, features, deviation):
+def _mechanism_recommendations(fc_mechanism, fc_lag, fc_plan, fc_signals=None):
+    """Section 44. The action follows the VERIFIED mechanism, not the hypothesis label.
+
+    Section 44 forbids a generic "monitor the situation" where a specific action is supported, and
+    it equally forbids the opposite error: telling WFM to fix a model that could not have predicted
+    the movement. A low-predictability event gets an honest recommendation that says so, because
+    the alternative -- demanding a model change for an unforeseeable event -- is advice that cannot
+    be acted on and quietly blames the team for the weather.
+
+    Ordered most-specific first. `_recommendations` puts these ahead of the generic rules and then
+    applies the existing three-item cap.
+    """
+    out = []
+    mech = fc_mechanism or {}
+    present = set(mech.get("mechanisms") or ())
+
+    if fc_evidence.FORECAST_BASELINE_FAILURE in present:
+        out.append({"id": "M1", "priority": "High",
+                    "text": ("Review the seasonal baseline and re-levelling logic for this queue: "
+                             "the plan entered the period away from the level this week of the "
+                             "year reliably brings."),
+                    "impact": ("Corrects a standing level error that repeats every week until the "
+                               "baseline is reset."),
+                    "owner": "Demand / Forecast Team",
+                    "follows_mechanism": fc_evidence.FORECAST_BASELINE_FAILURE})
+
+    if fc_evidence.FORECAST_RESPONSE_FAILURE in present:
+        signals = ", ".join(s.get("signal", "") for s in (fc_signals or [])
+                            if s.get("detected")) or None
+        out.append({"id": "M2", "priority": "High",
+                    "text": ("Incorporate the identified leading signal and its observed lag into "
+                             "the forecast process"
+                             + (f" (signal: {signals})" if signals else "")
+                             + ": the signal was available before the week and the plan did not "
+                               "respond adequately to it."),
+                    "impact": ("Turns a signal the process already receives into a plan movement, "
+                               "which is where this miss was avoidable."),
+                    "owner": "Demand / Forecast Team",
+                    "follows_mechanism": fc_evidence.FORECAST_RESPONSE_FAILURE})
+
+    if fc_evidence.CALENDAR_RESPONSE_FAILURE in present:
+        out.append({"id": "M3", "priority": "High",
+                    "text": ("Revisit the pre-holiday, holiday and post-holiday adjustments for "
+                             "this queue: the calendar pattern is established in its own history "
+                             "and the plan did not capture it."),
+                    "impact": ("Holiday phases recur on a known calendar, so this is a correction "
+                               "that pays back every year."),
+                    "owner": "Demand / Forecast Team",
+                    "follows_mechanism": fc_evidence.CALENDAR_RESPONSE_FAILURE})
+
+    if fc_evidence.DRIVER_RESPONSE_FAILURE in present:
+        for d in (fc_lag or {}).get("drivers") or []:
+            if d.get("usable_as_evidence") and (d.get("best_lag_weeks") or 0) > 0:
+                out.append({
+                    "id": f"M4-{d['driver']}", "priority": "Medium",
+                    "text": (f"Evaluate {d.get('subject') or d['driver']} as a leading demand "
+                             f"input at a {d['best_lag_weeks']}-week lag, which is where its "
+                             f"relationship with this queue's demand is strongest and most "
+                             f"stable."),
+                    "impact": ("A lagged driver is usable prospectively: the value is already "
+                               "known weeks before the demand it precedes."),
+                    "owner": "Demand / Forecast Team",
+                    "follows_mechanism": fc_evidence.DRIVER_RESPONSE_FAILURE})
+                break
+
+    if fc_evidence.DEMAND_EVENT_LOW_PREDICTABILITY in present:
+        out.append({"id": "M5", "priority": "Medium",
+                    "text": ("Do not treat this as a model defect. No sufficiently repeatable "
+                             "leading signal existed before the week, so keep monitoring the "
+                             "available drivers and revisit adding a predictive feature only if "
+                             "the pattern recurs."),
+                    "impact": ("Prevents effort being spent re-tuning a model against an event it "
+                               "could not have seen, and records the pattern for next time."),
+                    "owner": "Demand / Forecast Team",
+                    "follows_mechanism": fc_evidence.DEMAND_EVENT_LOW_PREDICTABILITY})
+
+    if (fc_plan or {}).get("state") == fc_evidence.PLAN_REVISED_STILL_WRONG:
+        out.append({"id": "M6", "priority": "High",
+                    "text": ("Review the re-forecast method itself, not the cadence: the plan WAS "
+                             "reissued during this miss run and the revised plan kept missing the "
+                             "same way."),
+                    "impact": ("Distinguishes a process that was not run from a process that was "
+                               "run and produced the same error -- they need different fixes."),
+                    "owner": "Demand / Forecast Team",
+                    "follows_mechanism": "plan_revised_but_remained_wrong"})
+    elif (fc_plan or {}).get("state") == fc_evidence.PLAN_NOT_REVISITED:
+        out.append({"id": "M7", "priority": "High",
+                    "text": (f"Reissue this queue's plan: it has stood unchanged through a "
+                             f"{fc_plan.get('streak_weeks')}-week run of "
+                             f"{fc_plan.get('streak_direction')}-forecasting."),
+                    "impact": "Stops a known gap continuing purely because the plan was not revisited.",
+                    "owner": "Demand / Forecast Team",
+                    "follows_mechanism": "plan_not_revisited"})
+
+    return out
+
+
+def _recommendations(root_cause, features, deviation, fc_mechanism=None, fc_lag=None,
+                     fc_plan=None, fc_signals=None):
     """BR-701/702/704. Rule-derived, never model-generated. Maximum three, and fewer
-    where fewer are warranted -- padding a list to a target is noise, not advice."""
-    recs = []
+    where fewer are warranted -- padding a list to a target is noise, not advice.
+
+    Mechanism-derived advice leads, because it is the specific action section 44 asks for. The
+    original rules follow and still fire; the three-item cap is unchanged.
+    """
+    recs = list(_mechanism_recommendations(fc_mechanism, fc_lag, fc_plan, fc_signals))
     cid = (root_cause or {}).get("hypothesis_id") or ""
 
     if cid.startswith("FC-") or cid.startswith("STA-02"):
@@ -680,17 +1040,66 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
           f"{len(generated)} generated from a catalogue of {len(cat.CATALOGUE)}; "
           f"{len(not_generated)} recorded as not generated")
 
+    # --- The new deterministic evidence ----------------------------------------
+    # PLACED HERE DELIBERATELY, between steps 6 and 7. Two constraints decide the position and
+    # they point at the same slot:
+    #
+    #   * `lagged_driver_evidence` takes the GENERATED hypothesis IDs and tests only the drivers
+    #     they require, so it cannot run before step 6. That is the hypothesis-first principle
+    #     (spec sections 4 and 48) doing real work rather than being asserted.
+    #   * steps 7 and 8 COLLECT evidence, so the measurements must exist by then.
+    #
+    # This mirrors how the engine already treats `stats`: computed above, evaluated and recorded
+    # at step 9. Nothing is reordered and no step is skipped -- what each step DOES is unchanged.
+    generated_ids = {h["id"] for h in generated}
+    fc_lag = fc_evidence.lagged_driver_evidence(history, target_week, generated_ids)
+    fc_holiday = fc_evidence.holiday_evidence(history, target_week, fields, ctx.get("holiday"))
+    fc_response = fc_evidence.response_evidence(history, target_week, actual, forecast,
+                                                fc_lag, fc_holiday)
+    fc_asu = fc_evidence.asu_decomposition(fields.get("Planned_ASU"), fields.get("Actual_ASU"),
+                                           forecast, actual)
+    fc_plan_timeline = _plan_vintage_timeline(history)
+    fc_plan = fc_evidence.plan_revision(history, fc_plan_timeline, target_week)
+    fc_weekend = fc_evidence.weekend_evidence(history, fields)
+    fc_mechanism = fc_evidence.miss_mechanism(adherence, fc_response, fc_holiday, fc_lag,
+                                              fc_asu, dq["clean"])
+    fc_unexplained = fc_evidence.unexplained_observations(fc_mechanism, generated_ids)
+
+    # Criticality (section 30) -- the queue's own recent MEDIAN actual is the typical week, not a
+    # mean: a mean over a window containing the outlier being investigated is dragged by it.
+    _typical = ((fc_response.get("baselines") or {}).get("recent_13_week_median_actual")
+                if fc_response.get("available") else None)
+    fc_criticality = fc_evidence.criticality(abs_variance, adherence, _typical,
+                                             fc_plan.get("streak_weeks"),
+                                             fields.get("Volume_Category"))
+
+    # Anything the evidence supports but the catalogue could not carry is SUPPRESSED as a
+    # catalogue gap, never promoted into an ad-hoc cause (section 9).
+    fc_blocks = {"lag": fc_lag, "holiday": fc_holiday, "response": fc_response, "asu": fc_asu,
+                 "plan": fc_plan, "weekend": fc_weekend, "mechanism": fc_mechanism,
+                 "criticality": fc_criticality, "unexplained": fc_unexplained}
+
     # --- Steps 7-8 -------------------------------------------------------------
     supporting, contradictory = _evidence(feat, stats, gates, ladder)
-    _step(7, "Collect Supporting Evidence", f"{len(supporting)} item(s)")
+    _fc_supporting, _fc_contradictory = _fc_evidence_items(fc_blocks)
+    supporting.extend(_fc_supporting)
+    contradictory.extend(_fc_contradictory)
+    _step(7, "Collect Supporting Evidence",
+          f"{len(supporting)} item(s) ({len(_fc_supporting)} from the forecast-response, "
+          f"calendar, lag and plan-vintage evidence)")
     _step(8, "Collect Contradictory Evidence",
-          f"{len(contradictory)} item(s) -- actively sought, not incidental")
+          f"{len(contradictory)} item(s) -- actively sought, not incidental "
+          f"({len(_fc_contradictory)} from the new deterministic tests)")
 
     # --- Step 9 ----------------------------------------------------------------
     selected_metrics = cat.metrics_for(generated)
     _step(9, "Evaluate Statistical Evidence",
           f"{len(selected_metrics)} metric(s) selected BY hypothesis: "
-          f"{', '.join(sorted(selected_metrics)) or 'none'}")
+          f"{', '.join(sorted(selected_metrics)) or 'none'}"
+          + (f"; driver lags requested for {', '.join(fc_lag.get('requested_drivers') or [])}"
+             if fc_lag.get("requested_drivers") else "; no driver lag was requested")
+          + f"; forecast response {(fc_response.get('response') or {}).get('classification')}"
+          + f"; mechanism {fc_mechanism.get('primary')}")
 
     # --- Step 10 -- ask WHY of each answer until it stops being answerable -------
     _scope_for_why = decision_card.scope_analysis(
@@ -741,6 +1150,21 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
     # history. Needed by LOGIC_DIRECTION_COHERENCE, which compares the direction a calendar cause
     # implies against the direction the miss actually took.
     feat["holiday_effect"] = _m_for_why.get("holiday_effect")
+    # The new deterministic evidence, put where the CHALLENGE can reach it. The extra questions
+    # added for section 27 -- timing, lag support, forecastability and calendar interaction -- are
+    # answered from these blocks, so they must be on `feat` before examine_all runs. Placed here
+    # rather than at construction because `fc_lag` needs the generated hypothesis IDs.
+    feat["forecast_response"] = fc_response.get("response") or {}
+    feat["forecastability"] = fc_response.get("forecastability") or {}
+    feat["forecastability_gate"] = fc_response.get("forecastability_gate") or {}
+    feat["signals"] = fc_response.get("signals") or []
+    feat["miss_decomposition"] = fc_response.get("miss_decomposition") or {}
+    feat["lag"] = fc_lag
+    feat["holiday_phase"] = fc_holiday
+    feat["mechanism"] = fc_mechanism
+    feat["plan_revision"] = fc_plan
+    feat["weekend"] = fc_weekend
+    feat["asu_decomposition"] = fc_asu
     survivors, reports = cx.examine_all(generated, feat)
     _step(11, "Execute Cross-Examination",
           f"{len(survivors)} of {len(generated)} survived; "
@@ -761,21 +1185,54 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
 
     families = {e.get("family") for e in (supporting + contradictory) if e.get("family")}
 
+    # --- Confidence INPUTS are enhanced; the model is not (section 28) -----------
+    # The eight dimensions, their weights, the 0.20 Missing floor, the renormalisation rule and
+    # all eight caps are untouched. What changes is that three dimensions which previously had
+    # nothing to score can now be scored from real measurements. Each is a genuine improvement in
+    # the same direction the spec intends -- confidence must never rise because evidence was lost,
+    # and here it moves because evidence was FOUND.
+    #
+    # HistoricalConsistency was hardcoded (None, 0), i.e. permanently NotApplicable. That was
+    # honest when nothing measured precedent; it is no longer, because the holiday phase analysis
+    # counts comparable prior instances and the momentum test counts prior occurrences with a
+    # follow-through rate. A queue with genuine precedent should not be scored as though it had
+    # none.
+    _precedents, _precedent_score = _precedent_inputs(fc_holiday, fc_response)
+
+    # ModelAgreement was hardcoded (1, 1), i.e. permanently NotApplicable -- one method, nothing
+    # to cross-check. There are now genuinely TWO independent deterministic paths to an
+    # explanation: the catalogue-plus-cross-examination path that produced `root_cause`, and the
+    # mechanism-evidence path that produced `fc_mechanism`. They share no code and can disagree.
+    # They CONCUR when the mechanism's evidence bears on the very hypothesis that was promoted.
+    _methods, _concurring = _method_agreement_inputs(root_cause, fc_mechanism)
+
+    # BusinessRuleValidation: the direction-coherence gate IS a business rule, and it outranks
+    # statistics in the Evidence Hierarchy. When the promoted cause rests on a mechanism the gate
+    # rejected, the rule CONTRADICTS the conclusion -- which scores 0.00 and arms Gate 2 to cap the
+    # final level at Low. That is the intended behaviour: arithmetic must not outvote a rule saying
+    # the conclusion is directionally impossible.
+    _rule_state = _business_rule_state(dq, root_cause, fc_mechanism)
+
+    # ContextCompleteness gains the elements the new evidence actually establishes, so a queue
+    # where the holiday phase, driver lag coverage and data grain were all resolved is no longer
+    # scored as though that context were absent.
+    _ctx_available, _ctx_applicable = _context_counts(ctx, fc_holiday, fc_lag, fc_weekend)
+
     dims = [
         conf.data_sufficiency(weeks_of_actuals, ctx["weeks_with_actuals"],
                               ctx["weeks_in_period"], dq["mandatory_blank_count"], 4),
         conf.statistical_agreement(feat["statistics"]["supporting"], feat["statistics"]["executed"]),
-        conf.model_agreement(1, 1),
-        conf.context_completeness(ctx["elements"]["available"], ctx["elements"]["applicable"]),
+        conf.model_agreement(_concurring, _methods),
+        conf.context_completeness(_ctx_available, _ctx_applicable),
         conf.evidence_strength(supporting),
         conf.contradictory_evidence(_weigh(supporting), _weigh(contradictory),
                                     search_performed=True),
-        conf.business_rule_validation("neutral" if dq["clean"] else "not_evaluable"),
-        conf.historical_consistency(None, 0),
+        conf.business_rule_validation(_rule_state),
+        conf.historical_consistency(_precedent_score, _precedents),
     ]
     confidence = conf.calculate(dims, {
         "coverage_ratio": ctx["coverage_ratio"],
-        "business_rule_state": "neutral" if dq["clean"] else "not_evaluable",
+        "business_rule_state": _rule_state,
         "evidence_families": families,
         "primary_driver_missing": not gates.get("any_driver_relevant"),
         "cross_examination_outcome": ("survived" if top_report.get("survived")
@@ -788,12 +1245,53 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
              if confidence.get("binding_cap") else ""))
 
     # --- Step 13 ---------------------------------------------------------------
-    recs = _recommendations(root_cause, feat, feat["deviation"])
+    recs = _recommendations(root_cause, feat, feat["deviation"], fc_mechanism, fc_lag, fc_plan,
+                            fc_response.get("signals"))
+
+    # The mechanism, the direction verdict and the contradiction resolution are attached to the
+    # root cause ALONGSIDE the existing keys -- `cause_type`, `hypothesis_id`, `hypothesis`,
+    # `category`, `statement`, `cross_examination`, `caveats` and `selected_because` are all
+    # untouched. `cause_type` remains the catalogue ID; the mechanism answers the different
+    # question of WHY the forecast missed, which a hypothesis label alone does not.
+    fc_resolution = fc_evidence.evidence_resolution(supporting, contradictory, top_report,
+                                                    fc_mechanism)
+    root_cause["miss_mechanism"] = fc_mechanism.get("primary")
+    root_cause["miss_mechanism_meaning"] = fc_mechanism.get("meaning")
+    root_cause["miss_mechanisms_supported"] = fc_mechanism.get("mechanisms")
+    root_cause["compound"] = bool(fc_mechanism.get("compound"))
+    root_cause["evidence_resolution"] = fc_resolution.get("state")
+    root_cause["evidence_ids"] = sorted({e["evidence_id"] for e in supporting
+                                         if e.get("evidence_id")})
+    # COMPOUND_MISS is not itself a candidate mechanism -- it is the label for "more than one
+    # survived". Looking it up among the candidates found nothing and reported the direction verdict
+    # as None, i.e. "not tested", on exactly the reports where every contributing mechanism HAD been
+    # tested and had passed. For a compound miss the verdict is the conjunction over its parts.
+    _cands = fc_mechanism.get("candidates") or []
+    if fc_mechanism.get("compound"):
+        _verdicts = [(c.get("direction_coherence") or {}).get("coherent")
+                     for c in _cands if c.get("mechanism") in (fc_mechanism.get("compound_of") or [])]
+        _tested = [v for v in _verdicts if v is not None]
+        root_cause["direction_coherent"] = (all(_tested) if _tested else None)
+    else:
+        _promoted = next((c for c in _cands
+                          if c.get("mechanism") == fc_mechanism.get("primary")), None)
+        root_cause["direction_coherent"] = (
+            ((_promoted or {}).get("direction_coherence") or {}).get("coherent")
+            if _promoted else None)
+
     _step(13, "Generate RCA",
           f"root cause: {root_cause.get('hypothesis') or root_cause.get('cause_type')}; "
+          f"mechanism: {root_cause.get('miss_mechanism')}; "
+          f"evidence {fc_resolution.get('state')}; "
+          f"criticality {fc_criticality.get('band')}; "
           f"{len(recs)} recommendation(s)")
 
-    limitations = _limitations(ctx, gates, weeks_of_actuals, confidence, root_cause)
+    # De-duplicated ACROSS both sources, not just within each. The weekend-grain sentence arrived
+    # twice on a real report: once from `_fc_limitations` and once as a cross-examination caveat via
+    # `root_cause["caveats"]`. The same sentence printed twice reads as two separate limitations.
+    limitations = _dedupe(_limitations(ctx, gates, weeks_of_actuals, confidence, root_cause)
+                          + _fc_limitations(fc_lag, fc_weekend, fc_holiday, fc_response, fc_asu,
+                                            fc_unexplained))
 
     finding = {
         "queue": key,
@@ -819,6 +1317,26 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
         "recommendations": recs,
         "limitations": limitations,
         "why_chain": why,
+        # --- ADDITIVE. Section 38: no existing key is removed or repurposed. -------
+        "forecast_response_diagnostic": fc_response,
+        "forecastability": fc_response.get("forecastability"),
+        "forecastability_gate": fc_response.get("forecastability_gate"),
+        "lagged_driver_evidence": fc_lag,
+        "holiday_response": fc_holiday,
+        "weekend_diagnostic": fc_weekend,
+        "asu_decomposition": fc_asu,
+        "plan_revision": fc_plan,
+        "plan_vintage_timeline": fc_plan_timeline,
+        "miss_mechanism": fc_mechanism,
+        "criticality": fc_criticality,
+        "evidence_resolution": fc_resolution,
+        "unexplained_observations": fc_unexplained,
+        "fc_evidence_index": fc_evidence.evidence_index(
+            {"forecast": rnd(forecast), "actual": rnd(actual), "adherence_pct": rnd(adherence),
+             "absolute_variance_contacts": rnd(abs_variance),
+             "direction": ("Over-forecast" if adherence > 0 else "Under-forecast")},
+            fc_response, fc_lag, fc_holiday, fc_weekend, fc_asu, fc_plan, _scope_for_why,
+            fc_resolution),
     }
 
     # --- Step 14 -- the ONLY LLM call ------------------------------------------
@@ -970,6 +1488,68 @@ def _limitations(ctx, gates, weeks, confidence, root_cause):
     return out
 
 
+def _dedupe(items):
+    """Order-preserving de-duplication of the limitation sentences."""
+    seen, out = set(), []
+    for s in items or []:
+        if s and s not in seen:
+            seen.add(s)
+            out.append(s)
+    return out
+
+
+def _fc_limitations(fc_lag, fc_weekend, fc_holiday, fc_response, fc_asu, fc_unexplained):
+    """What the NEW evidence could not establish, and why.
+
+    Section 54: where evidence is insufficient the gap is stated, never filled with a plausible
+    business story. Each of these is a sentence a reader can act on -- get the data, or accept that
+    the question is unanswerable from this source -- rather than a silence they have to interpret.
+    """
+    out = []
+
+    if not (fc_weekend or {}).get("weekend_analysis_supported"):
+        out.append((fc_weekend or {}).get("statement")
+                   or "Weekend impact could not be isolated from fiscal-week totals.")
+
+    for d in (fc_lag or {}).get("drivers") or []:
+        if d.get("coverage") == "sparse":
+            out.append(f"{d.get('subject') or d.get('driver')} is present for this queue, but "
+                       f"available historical observations are insufficient to establish a "
+                       f"reliable relationship, so it was not used as evidence.")
+        elif d.get("coverage") == "absent" and d.get("requested_by"):
+            out.append(f"{d.get('driver')} was required by "
+                       f"{', '.join(d['requested_by'])} but has no usable history for this queue, "
+                       f"so that relationship could not be tested either way.")
+
+    hol = fc_holiday or {}
+    if not hol.get("available") and hol.get("reason"):
+        out.append(f"Holiday phase analysis did not run: {hol['reason']}")
+    cap = hol.get("forecast_capture") or {}
+    if cap.get("classification") == "inconsistent_history":
+        out.append(cap.get("reason"))
+    if hol.get("row_flag_disagreement"):
+        out.append(hol["row_flag_disagreement"])
+    for name in (hol.get("names_needing_review") or []):
+        out.append(f"The holiday '{name}' is flagged for review in the holiday master, so any "
+                   f"calendar finding resting on it carries that caveat. No mapping was invented "
+                   f"to resolve it.")
+
+    if (fc_asu or {}).get("availability") == conf.MISSING:
+        out.append(f"ASU decomposition: {(fc_asu or {}).get('reason')}")
+
+    fcb = (fc_response or {}).get("forecastability") or {}
+    if fcb.get("classification") == "NOT_TESTABLE":
+        out.append(f"Forecastability could not be tested: {fcb.get('reason')}")
+
+    for u in (fc_unexplained or []):
+        out.append(f"Catalogue gap: the evidence supports {u['observation']} "
+                   f"({u.get('meaning')}), but no catalogue hypothesis that could represent it was "
+                   f"generated for this queue. Recorded for catalogue extension rather than turned "
+                   f"into an ad-hoc cause.")
+
+    return _dedupe(out)
+
+
 
 def _interrogate(finding, evidence_bundle, llm_cfg, model_choice):
     """Prompt 2 asks, Prompt 1 answers -- both server-side, both fail-safe.
@@ -1110,7 +1690,12 @@ def _call_llm(messages, llm_cfg, model_choice, prefer_fast=False):
             slots.sort(key=lambda sl: _FAST_FIRST.index(sl.get("provider"))
                        if sl.get("provider") in _FAST_FIRST else len(_FAST_FIRST))
     if not slots:
-        return None, "no LLM provider configured", None
+        # TWO values. `_call_llm` returns (parsed, error) and all four call sites unpack two --
+        # this path returned three, raising `ValueError: too many values to unpack (expected 2)`.
+        # See the matching note in `_narrate`: the two fixes are transposed halves of the same
+        # mistake, and both fire only when no provider is configured, which is exactly the
+        # section 37 fallback that has to keep working.
+        return None, "no LLM provider configured"
     timeout = timeout_from_config(llm_cfg)
     last = "unknown"
     for slot in slots:
@@ -1152,7 +1737,14 @@ def _narrate(finding, llm_cfg, model_choice):
         slots = [(llm_cfg or {}).get("primary") or {}, (llm_cfg or {}).get("secondary") or {}]
         slots = [s for s in slots if s.get("provider") and s.get("api_key")]
     if not slots:
-        return None, "no LLM provider configured"
+        # THREE values. The caller unpacks (narrative, error, model); this path returned two, so
+        # `investigate()` raised
+        #     ValueError: not enough values to unpack (expected 3, got 2)
+        # on every run with no configured provider -- and the endpoint answered 500 instead of the
+        # complete deterministic RCA that section 37 requires. Found by running the engine offline
+        # against an empty llm_cfg. Covered by results/test_fc_spec_semantics.py so it cannot
+        # regress silently.
+        return None, "no LLM provider configured", None
 
     messages = narrative_prompt.build_messages(finding)
     timeout = timeout_from_config(llm_cfg)

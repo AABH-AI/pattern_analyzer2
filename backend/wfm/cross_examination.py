@@ -45,10 +45,25 @@ The spec fixes the five categories and their counts (4 / 3 / 3 / 4 / 3 = 17) and
 one example key per category. The remaining keys are authored here to those counts and
 category meanings. They are versioned configuration -- `CATALOGUE_VERSION` is recorded on
 every RCA so a change is visible.
+
+Beyond the spec's 17: LOGIC_DIRECTION_COHERENCE (2026-08-11) and the five forecast-challenge
+questions added for the Decision Card upgrade (section 27). All 23 are answered from features, all
+have fixed semantic keys, and every addition is additive -- nothing in the original 17 changed.
+
+WHY THE NEW QUESTIONS RETURN UNANSWERED RATHER THAN SUPPORTS WHEN UNMEASURED
+----------------------------------------------------------------------------
+A question whose evidence is absent must not be scored as though the evidence agreed. UNANSWERED
+keeps the question visible in the report and out of the support count, which is what stops a queue
+with less data from looking better challenged than one with more.
 """
 from .common import num
 
-CATALOGUE_VERSION = "2.0.0"
+# 2.1.0: five forecast-challenge questions added for the Decision Card upgrade (section 27) --
+# signal timing, lag support, whether the forecast could reasonably have reacted, calendar phase
+# interaction, and weekend attribution against the data grain. The version is recorded on every
+# RCA precisely so this change is visible rather than silent. No existing question was removed,
+# reworded or reclassified.
+CATALOGUE_VERSION = "2.1.0"
 MAX_ITERATIONS = 3
 
 # --- Outcomes -----------------------------------------------------------------
@@ -299,6 +314,84 @@ CATALOGUE = [
            if _g(f, "lineage", "event_in_period") or _g(f, "data_quality", "unmapped_dimension")
            else _a(SUPPORTS, "No mapping or lineage change affects this queue in this period.",
                    ["lineage"]))),
+
+    # ---- Forecast challenge (5), added for the Decision Card upgrade, section 27 ----
+    # These are the questions neither the original 17 nor the direction check could ask. Each is
+    # answered from the deterministic blocks on `feat`, and each returns UNANSWERED -- never
+    # SUPPORTS -- when the measurement is absent. Scoring an unmeasured question as support would
+    # reward missing evidence, which is the failure the whole confidence model is built to avoid.
+    _q("FCST_SIGNAL_TIMING", BIZ,
+       "Did the signal being blamed actually exist BEFORE the target week?",
+       ALL_CATS,
+       lambda f, h: (
+           _a(SUPPORTS, "The signal was visible from fiscal week "
+                        f"{next((s.get('visible_from_fiscal_week') for s in (f.get('signals') or []) if s.get('detected') and s.get('visible_from_fiscal_week')), 'earlier')}"
+                        ", before the week under investigation.", ["forecast_response"])
+           if any(s.get("detected") for s in (f.get("signals") or [])) else
+           _a(WEAKENS, "No leading signal was detected before this week, so nothing was available "
+                       "in advance for the plan to have responded to.", ["forecast_response"])
+           if isinstance(f.get("signals"), list) else
+           _a(UNANSWERED, "The signal test could not be run on this queue's history."))),
+
+    _q("FCST_LAG_SUPPORT", BIZ,
+       "Is the lag being relied on historically supported for this queue, or assumed?",
+       ("Business", "Statistical", "Forecast"),
+       lambda f, h: (
+           _a(SUPPORTS, "; ".join(d.get("reading") for d in (_g(f, "lag", "drivers") or [])
+                                  if d.get("usable_as_evidence") and d.get("reading")),
+              ["lag_analysis"])
+           if (_g(f, "lag", "usable_drivers") or []) else
+           _a(WEAKENS, f"No driver relationship reached the strength and stability required to be "
+                       f"used ({_g(f, 'lag', 'coverage_summary', default={})}), so any lag would "
+                       f"be assumed rather than measured.", ["lag_analysis"])
+           if _g(f, "lag", "available") else
+           _a(UNANSWERED, _g(f, "lag", "reason")
+              or "no driver lag was requested by the generated hypotheses."))),
+
+    _q("FCST_COULD_HAVE_REACTED", BIZ,
+       "Could the forecast reasonably have reacted, given what was knowable beforehand?",
+       ALL_CATS,
+       lambda f, h: (
+           _a(SUPPORTS, _g(f, "forecastability_gate", "verdict"), ["forecastability"])
+           if _g(f, "forecastability_gate", "supports_forecast_response_failure") else
+           _a(WEAKENS, _g(f, "forecastability_gate", "verdict"), ["forecastability"])
+           if _g(f, "forecastability_gate", "conditions") else
+           _a(UNANSWERED, "Forecastability could not be tested for this queue."))),
+
+    # For a CALENDAR hypothesis this is fatal rather than weakening: if the queue's own history
+    # does not respond consistently to the phase, a calendar explanation has no forecastable
+    # signal to rest on. Section 24 requires the distinction to be explicit.
+    _q("CAL_PHASE_INTERACTION", BIZ,
+       "Is this actually a pre- or post-holiday effect rather than a direct holiday-week effect?",
+       ("Calendar",),
+       lambda f, h: (
+           _a(SUPPORTS, f"The week sits in the {_g(f, 'holiday_phase', 'phase')} phase and this "
+                        f"queue's own history responds to that phase consistently "
+                        f"({(_g(f, 'holiday_phase', 'historical_consistency') or 0) * 100:.0f}% of "
+                        f"comparable instances moved the same way).", ["holiday_phase"])
+           if (_g(f, "holiday_phase", "applies")
+               and (_g(f, "holiday_phase", "historical_consistency") or 0) >= 0.70) else
+           _a(REFUTES, "A calendar pattern is visible, but its magnitude and direction are not "
+                       "consistent enough in this queue's own history to establish a reliable "
+                       "forecastable signal, so a calendar explanation cannot stand on it.",
+              ["holiday_phase"])
+           if _g(f, "holiday_phase", "applies") else
+           _a(REFUTES, f"No holiday falls in this week or close enough to reach it "
+                       f"({_g(f, 'holiday_phase', 'reason') or 'no holiday in the impact window'}), "
+                       f"so a calendar explanation has no calendar behind it.", ["holiday_phase"])
+           if _g(f, "holiday_phase", "available") else
+           _a(UNANSWERED, _g(f, "holiday_phase", "reason")
+              or "the holiday calendar could not be consulted for this queue."))),
+
+    _q("FCST_WEEKEND_ATTRIBUTION", DATA,
+       "If a weekend effect is being claimed, does the data grain support isolating one?",
+       ALL_CATS,
+       lambda f, h: (
+           _a(SUPPORTS, "Day-level data is available, so a weekend effect can be isolated.",
+              ["weekend"])
+           if _g(f, "weekend", "weekend_analysis_supported") else
+           _a(WEAKENS, _g(f, "weekend", "statement")
+              or "Weekend impact cannot be isolated from fiscal-week totals.", ["weekend"]))),
 
     # ---- Alternative Explanation (3) ----
     _q("ALT_STRONGER_HYPOTHESIS", ALT,
