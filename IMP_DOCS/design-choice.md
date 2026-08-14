@@ -163,3 +163,67 @@ decisions worth recording here:
 Note on the Timeline hard-set date above: the "today" marker being pinned to **22 Jul** is now a
 tracked defect — the header computes the real date while the legend hardcodes it, so the two
 contradict each other on screen (Canary V0.1/V0.2, `TODO.md` P1c).
+
+## RCA engine v4 — the FC Decision Card upgrade (`?mode=spec`, branch `test2`)
+
+Full detail: **`fc-decision-card-engine.md`**. Only the design decisions worth recording here.
+
+- **Enhanced inside the existing architecture, not rewritten.** The 15-step sequence, the ±5%
+  threshold, the 23-hypothesis catalogue, the four catalogue states, the driver cascade and the
+  eight-dimension confidence model are all untouched. The new deterministic evidence is computed
+  between steps 6 and 7, and that position is *forced* rather than chosen: the driver-lag test takes
+  the **generated** hypothesis IDs, so it cannot run before step 6, and steps 7–8 collect evidence,
+  so it must exist by then. Hypothesis-first stopped being an assertion and became a data dependency.
+
+- **The confidence MODEL was preserved; only its INPUTS improved.** Two dimensions were hardcoded to
+  permanently NotApplicable — `HistoricalConsistency` at `(None, 0)` and `ModelAgreement` at
+  `(1, 1)`. That was honest when nothing measured precedent and there was only one method. It is no
+  longer. Confidence numbers therefore move on some queues; they move because evidence was **found**,
+  never because evidence was lost, which is the invariant the model exists to protect.
+
+- **The direction-coherence gate is a business rule, not a filter.** It runs before confidence, and
+  when the promoted cause rests only on a mechanism it rejected, `BusinessRuleValidation` scores 0.00
+  and Gate 2 caps the level at Low. Arithmetic must not be able to outvote a rule saying the
+  conclusion points the wrong way. On live data it duly raised `FORECAST_RESPONSE_FAILURE` from an
+  over-response and then rejected it, because the plan sat 42.6% *below* expected — which implies
+  actual above plan, while the miss went down.
+
+- **Criticality was added because it did not exist, and it is deliberately not confidence.** The
+  absolute contact gap sets the band; the relative gap and persistence can lift it one step and never
+  lower it. The absolute gap leads on purpose: a percentage on a tiny queue is arithmetically large
+  and operationally irrelevant, which is why the 50-contact materiality floor already existed — and
+  that floor is reused as the bottom edge rather than inventing a second, disagreeing threshold.
+
+- **"Not a forecast failure" is a first-class outcome.** `Actual > Forecast` is never on its own a
+  forecast failure: all four forecastability conditions must hold, and each is published with the
+  figure that decided it. `DEMAND_EVENT_LOW_PREDICTABILITY` gets a recommendation that explicitly
+  says *not* to treat it as a model defect — demanding a model change for something no signal
+  predicted is advice nobody can act on, and it quietly blames the team for the weather.
+
+- **Coverage discipline is the actual fix.** The arithmetic was never the problem. A z-score of 23.33
+  computed from two observations once armed a precondition and shipped a cause at 85% confidence.
+  `populated` / `sparse` / `absent` are three different findings with three different actions, they
+  are never collapsed, and strength follows coverage rather than magnitude — a sparse driver is never
+  Strong evidence however extreme its coefficient.
+
+- **Section 40 became checkable rather than instructed.** The banned-term list is code
+  (`decision_card.EXEC_JARGON`), every bullet carries its own `jargon_found`, and the suite asserts
+  the executive prose is clean. A style note cannot be tested; a list can.
+
+- **The ranked bullets are evidence, so the model cannot reorder them.** It may reword; a reply that
+  reorders is discarded and the deterministic order kept. Rewording is matched **by rank**, not by
+  position — matching by position would let a reordered reply attach one bullet's prose to another
+  bullet's evidence ID, which is invisible on the rendered card.
+
+- **Two pre-existing bugs meant `?mode=spec` returned HTTP 500 whenever no LLM provider was
+  configured.** `_call_llm` returned a 3-tuple where its callers unpack two, and `_narrate` returned
+  a 2-tuple where its caller unpacks three — transposed halves of one mistake, both on the
+  no-provider path, i.e. exactly the fallback the spec requires to work. Found by running the engine
+  offline against an empty config, not by reading it.
+
+- **The first live validation run was contaminated and was discarded.** A uvicorn started hours
+  earlier by `run.py` was bound to `0.0.0.0:8000` running pre-upgrade code; on Windows two sockets
+  can bind the same port and it is undefined which receives a connection, so requests split between
+  the old build and the new one. Nothing errored and the output looked real. The validation script
+  now uses a private port, refuses to start if anything is listening on it, and aborts if a completed
+  response arrives without `criticality`.

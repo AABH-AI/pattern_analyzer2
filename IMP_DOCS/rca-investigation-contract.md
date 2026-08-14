@@ -99,6 +99,51 @@ model returned. `investigation_meta.engine` is one of `wfm-llm`,
 
 Full detail, including the CQN definition conflict and known gaps: `IMP_DOCS/wfm-rca-engine.md`.
 
+## FC Decision Card mode (`?mode=spec`) — additive
+
+`POST /api/rca-investigate?mode=spec` selects the canonical FC RCA methodology and the Executive
+Decision Card (`backend/wfm/spec_engine.py`). Same ContextBundle; extra query parameters
+`grain` (`weekly` | `monthly` | `quarterly`) and `interrogate` (`1` | `0`).
+
+It returns its own response shape rather than the InvestigationResponse above — the console detects
+it by the presence of `decision_card` and routes to `renderDecisionCard`, or to `renderSpecStatus`
+when there is no card (which is a legitimate outcome: inside the ±5% generation threshold, or the
+investigation stopped early with a reason).
+
+**Every key below was present before the Decision Card upgrade and is unchanged:**
+
+`queue`, `period`, `holiday`, `context_elements`, `grain`, `forecast_summary`, `root_cause`,
+`confidence`, `supporting_evidence`, `contradictory_evidence`, `recommendations`, `limitations`,
+`why_chain`, `hypotheses`, `cross_examination`, `driver_gate`, `statistical_evidence`,
+`data_quality`, `major_deviation`, `material`, `audit`, `engine`, `decision_card`, `status`,
+`narrative`, `narrative_error`, `incomplete_reason`, `interrogation`.
+
+**Added by the upgrade, all additive:**
+
+`forecast_response_diagnostic`, `forecastability`, `forecastability_gate`,
+`lagged_driver_evidence`, `holiday_response`, `weekend_diagnostic`, `asu_decomposition`,
+`plan_revision`, `plan_vintage_timeline`, `miss_mechanism`, `criticality`, `evidence_resolution`,
+`unexplained_observations`, `fc_evidence_index`, `decision_card_why`.
+
+On `root_cause`, alongside the existing `cause_type` / `hypothesis_id` / `hypothesis` / `category` /
+`statement` / `cross_examination` / `caveats` / `selected_because`:
+`miss_mechanism`, `miss_mechanism_meaning`, `miss_mechanisms_supported`, `compound`,
+`evidence_resolution`, `evidence_ids`, `direction_coherent`.
+
+**`root_cause.cause_type` is still the catalogue hypothesis ID.** The mechanism answers a different
+question — *why did the forecast miss* — and never replaces it.
+
+`decision_card.card_version` is `2.1.0`: the ten mandatory sections are unchanged and eight are
+added, numbered `11_`…`18_` so a renderer that does not know them shows the original card.
+
+Full detail, including what was deliberately preserved and the known limitations:
+`IMP_DOCS/fc-decision-card-engine.md`.
+
+> `?mode=spec` = canonical FC RCA methodology + Executive Decision Card
+> `?mode=wfm` = WFM-specific forecast diagnostic engine
+>
+> The two are independent. They may be compared; neither is made to match the other.
+
 ## Where each piece lives
 
 | Module | File | Function |
