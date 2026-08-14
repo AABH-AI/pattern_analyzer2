@@ -857,6 +857,17 @@ def _root_cause_sentence(cands, miss_category, actual, forecast, features):
         sentence = " and ".join(parts)
         return sentence[0].upper() + sentence[1:] + "."
 
+    # DATA_LIMITATION with a mechanism still standing is a PARTIAL answer, not no answer. Live
+    # validation surfaced this on a queue-week that is the first week in the table: there is no
+    # history to diagnose from, yet the ASU decomposition still reconciles exactly. Saying only
+    # "insufficient evidence" while showing a primary mechanism reads as a contradiction.
+    if miss_category == "DATA_LIMITATION":
+        if primary and not primary.get("context_only") and primary["key"] != "data_quality":
+            return (f"Only a partial explanation is available: {clause_for(primary)}. "
+                    f"There is not enough history for this queue-week to establish the rest.")
+        return ("The available evidence is not sufficient to establish why the forecast missed for "
+                "this week.")
+
     if miss_category == "FORECAST_BASELINE_FAILURE" and (actual or 0) < (forecast or 0):
         lead = "Forecast entered the week above the level this week of the year normally brings"
     if lead is None:

@@ -251,6 +251,60 @@ untouched (`spec_engine` does not reference the decision layer).
 
 ---
 
+## 2026-08-14 — LIVE validation (VPN available): no longer blocked
+
+`results/run_live_validation.py` drives `POST /api/rca-investigate?mode=wfm` over HTTP against the
+configured database (`dbo.Input_To_ML_Full`, 88,816 rows, 427 queues) and the configured provider.
+Cases are picked by PREDICATE from the live table, not hand-chosen, so the queue-agnostic
+requirement is exercised rather than asserted.
+
+**Result: 109/109 live checks passed over 4 real queue-weeks, every one `engine = wfm-llm`.**
+
+| Case (selected by predicate) | Queue / week | `miss_category` | Forecastability | Confidence | Criticality |
+|---|---|---|---|---|---|
+| regression | SA Indonesia Client Basic FW202716 | `COMPOUND_MISS` | PARTIALLY_PREDICTABLE | High 74 % | High (88.2 contacts) |
+| largest absolute breach, high volume | Social Media China Basic FW202401 | `DATA_LIMITATION` | — | Medium 57 % | Critical (20,986.5) |
+| both ASU figures present | ANZ Comm Client DSP Upsell FW202652 | `COMPOUND_MISS` | PARTIALLY_PREDICTABLE | High 86 % | Medium (66.4) |
+| moderate breach outside the band | ANZ Client Core Email FW202722 | `DEMAND_EVENT` | LOW_PREDICTABILITY | High 86 % | Medium (114.5) |
+
+Checks covered: the model genuinely answered; every `miss_category` / `evidence_class` /
+criticality value legal; the response category and ranked order **identical to the deterministic
+decision**; all 10 legacy keys present with `cause_type` and `status` intact and `evidence_class`
+added alongside; no unsupported service-level language; no weekend attribution at weekly grain; no
+sparse or absent driver promoted to a cause; a low-predictability week never called a forecast
+failure; root cause a sentence rather than a label; an action stated; evidence index populated.
+
+The existing smoke suite now runs **12 passed / 0 failed / 0 skipped** — the `data_access` SQL test
+no longer skips.
+
+### Two things live data taught us
+
+**Gemini free-tier quota is exhausted after roughly one call on this account.** The regression case
+completed on `gemini-3.5-flash` (33.5 s, `wfm-llm`); the next three returned HTTP 429. The engine
+did exactly the right thing — fell back to the deterministic report and said so in
+`missing_information` — and the remaining cases were validated on the configured primary,
+`nvidia/nemotron-3-super-120b-a12b`. Worth knowing before anyone plans a Gemini-backed batch run.
+
+**That failure produced the strongest evidence for the whole design.** For those three cases the
+deterministic verdicts were byte-identical between the fallback run (no model) and the later
+`wfm-llm` run: same `miss_category`, same confidence and criticality, same ranked bullets in the
+same order. The model demonstrably cannot move the decision.
+
+### One defect live data exposed, now fixed
+
+`Social Media China Basic FW202401` is the FIRST week in the table, so there is no history to
+diagnose from — correctly `DATA_LIMITATION`. But the ASU decomposition still reconciles exactly, so
+the report showed a `PRIMARY_DRIVER` under a root-cause sentence that said the evidence was
+insufficient. A partial answer is not no answer, and presenting both read as a contradiction. The
+`DATA_LIMITATION` sentence now names what IS established:
+
+> "Only a partial explanation is available: the supported-base assumptions behind the plan did not
+> hold. There is not enough history for this queue-week to establish the rest."
+
+Captured responses: `results/live-validation-nvidia.json`, `results/live-validation-gemini.json`.
+
+---
+
 ## Open items
 
 | Item | Where | Status |
@@ -263,8 +317,10 @@ untouched (`spec_engine` does not reference the decision layer).
 | Response serialisation, additive, `back_compat` intact | Phase 2 §25 | **done** |
 | WFM UI panel restructure (spec renderer untouched) | Phase 2 §26 | **done** |
 | 12 semantic regression cases + Indonesia regression | Phase 2 §27–§28 | **done** (51 checks) |
+| Live SQL + live model validation | Phase 2 §29 | **done — 109/109 over 4 real queue-weeks, all `wfm-llm`** |
 | Waisak/Vesak transliteration variants | Phase 2 §4 | open — needs a mapping the source does not provide |
-| CQN mapping absent offline (locality proxy used) | offline rig | open — resolves with live SQL |
+| CQN mapping absent offline (locality proxy used) | offline rig | resolved live; still a limit of the offline rig |
+| Gemini free-tier quota ≈ 1 call per run on this account | live validation | open — use NVIDIA for batch runs, or enable billing |
 | Confidence ordering breaking check L3 | baseline finding | open |
 | Drift total span convention (`slope × n`) | baseline finding | open |
 | `seasonality` baseline includes the target week | baseline finding | open |
