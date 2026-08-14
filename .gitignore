@@ -6,6 +6,15 @@ Input_To_ML_*.xlsx
 *.xlsx
 *.csv
 
+# The offline SQL mirror. This is a LOCAL CACHE of Playground.dbo.Input_To_ML built from the
+# spreadsheet by results/offline_source.py -- i.e. the same client data the rules above already
+# refuse to commit, just in a different container. `*.xlsx` and `*.csv` did not cover it and a
+# 31 MB copy of the source table reached a commit before this line existed.
+results/_offline_cache/
+*.sqlite
+*.sqlite3
+*.db
+
 # Backend secrets & Python cruft
 backend/config.json
 .env

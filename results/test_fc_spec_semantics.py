@@ -814,6 +814,56 @@ check("S41-3", "no bullet carries a null-valued key that a template could print"
       all(v is not None for b in _wb["bullets"] for v in b.values()))
 check("S40-2", "the deterministic bullets are themselves jargon-free",
       not _wb.get("jargon_found"), json.dumps(_wb.get("jargon_found")))
+
+# Found on LIVE output: the same sentence printed as bullets 2 and 3, because the
+# FORECAST_BASELINE_FAILURE candidate's `evidence` IS `miss_decomposition.reading`. Both sources are
+# legitimate, so the de-duplication is in why_bullets rather than at either source -- suppressing one
+# upstream would lose the bullet entirely on reports where only that source fires.
+_dup_reading = "Against an expected 100 contacts, the plan sat 40 below expectation."
+_wb_dup = decision_card.why_bullets({
+    "miss_mechanism": {"candidates": [{"mechanism": fce.FORECAST_BASELINE_FAILURE,
+                                       "evidence": _dup_reading,
+                                       "direction_coherence": {"coherent": True,
+                                                               "miss_direction": "up",
+                                                               "implied_direction": "up"}}],
+                       "compound": False},
+    "forecast_response_diagnostic": {
+        "miss_decomposition": {"available": True, "reconciles": True, "leading_side": "forecast",
+                               "forecast_side_share": 0.8, "demand_side_share": 0.2,
+                               "reading": _dup_reading},
+        "baseline_error": {"material": True, "reading": _dup_reading}},
+    "lagged_driver_evidence": {}, "holiday_response": {}, "plan_revision": {},
+    "asu_demposition": {}, "asu_decomposition": {}, "evidence_resolution": {},
+    "root_cause": {"miss_mechanism_meaning": "m"}, "forecast_summary": {}})
+_texts = [b.get("what_happened") for b in _wb_dup["bullets"]]
+check("S41-5", "the same finding is never printed as two bullets",
+      len(_texts) == len(set(_texts)) and _wb_dup.get("duplicates_dropped", 0) >= 1,
+      f"dropped={_wb_dup.get('duplicates_dropped')} texts={json.dumps(_texts, default=str)[:200]}")
+check("S41-6", "and the HIGHER-ranked occurrence is the one kept",
+      _wb_dup["bullets"][0]["rank"] == 1 and _texts[0] == _dup_reading)
+
+# Also found on LIVE output: DATA_LIMITATION reached by the all-rejected-on-direction path is NOT a
+# data gap, and the stock meaning ("critical evidence is missing") misdescribed a case with 156 weeks
+# of history.
+_mech_all_rej = fce.miss_mechanism(
+    -25.0,
+    {"available": True,
+     "demand_side": {"vs_expected": {"unusual": False}},
+     "forecast_side": {"vs_expected": {"direction": "above", "difference_pct": 20.0}},
+     "miss_decomposition": {"available": True, "reconciles": True, "forecast_side_share": 0.9},
+     "response": {"classification": "no_response"},
+     "forecastability": {"classification": "PREDICTABLE"},
+     "forecastability_gate": {"supports_forecast_response_failure": False, "conditions": [],
+                              "verdict": "no"},
+     "baseline_error": {"material": True, "reading": "plan ABOVE the norm"}},
+    {}, {}, {}, True)
+check("S54-1", "every candidate rejected on direction still yields DATA_LIMITATION",
+      _mech_all_rej.get("primary") == fce.DATA_LIMITATION,
+      json.dumps(_mech_all_rej.get("mechanisms"), default=str))
+check("S54-2", "but it is flagged as ruled-out-by-data, NOT as missing data",
+      _mech_all_rej.get("all_candidates_rejected_on_direction") is True
+      and "not missing data" in (_mech_all_rej.get("meaning") or ""),
+      str(_mech_all_rej.get("meaning"))[:200])
 _overlay = decision_card._with_narrative(_wb, {"whyThisHappened": [{"rank": 1, "text": "REWRITTEN"}]})
 check("S41-4", "model rewording is matched BY RANK and keeps the deterministic text alongside",
       _overlay["bullets"][0]["text"] == "REWRITTEN"

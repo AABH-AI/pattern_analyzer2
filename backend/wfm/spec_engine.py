@@ -1256,7 +1256,11 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
     fc_resolution = fc_evidence.evidence_resolution(supporting, contradictory, top_report,
                                                     fc_mechanism)
     root_cause["miss_mechanism"] = fc_mechanism.get("primary")
-    root_cause["miss_mechanism_meaning"] = fc_mechanism.get("meaning")
+    # Prefer the block's OWN meaning where it set one. The all-rejected-on-direction path lands on
+    # DATA_LIMITATION but is not a data gap, and the stock meaning would say it was.
+    root_cause["miss_mechanism_meaning"] = (
+        fc_mechanism.get("meaning")
+        or fc_evidence.MECHANISM_MEANING.get(fc_mechanism.get("primary")))
     root_cause["miss_mechanisms_supported"] = fc_mechanism.get("mechanisms")
     root_cause["compound"] = bool(fc_mechanism.get("compound"))
     root_cause["evidence_resolution"] = fc_resolution.get("state")

@@ -599,12 +599,31 @@ def why_bullets(result):
                conflict.get("resolution"), evidence_id="E14", strength="Moderate")
 
     out.sort(key=lambda b: b["rank_basis"])
+
+    # De-duplicate on what_happened, keeping the HIGHER-ranked occurrence.
+    #
+    # Live output printed the same sentence as bullets 2 and 3: the FORECAST_BASELINE_FAILURE
+    # candidate's `evidence` IS `miss_decomposition.reading`, and the decomposition bullet uses the
+    # same string. Both are legitimately derived, so the fix is here rather than at either source --
+    # suppressing one of them upstream would lose the bullet entirely on reports where only that
+    # source fires. A reader seeing one finding printed twice reads it as two findings.
+    seen, unique = set(), []
+    for b in out:
+        keyed = (b.get("what_happened") or "").strip()
+        if keyed and keyed in seen:
+            continue
+        seen.add(keyed)
+        unique.append(b)
+    dropped = len(out) - len(unique)
+    out = unique
+
     for i, b in enumerate(out, start=1):
         b["rank"] = i
         b["jargon_found"] = jargon_in(b["text"])
     return {
         "bullets": out,
         "count": len(out),
+        "duplicates_dropped": dropped,
         "ranking_basis": ["causal coherence", "forecastability", "historical consistency",
                           "statistical strength", "data sufficiency", "contradiction resolution"],
         "ranked_deterministically": True,

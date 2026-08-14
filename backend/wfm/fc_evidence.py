@@ -924,9 +924,18 @@ def miss_mechanism(adherence, response_block, holiday_block, lag_block, asu_bloc
             kept.append(c)
 
     if not kept:
+        # DATA_LIMITATION is the right BAND -- no defensible mechanism can be stated -- but its stock
+        # meaning ("critical evidence is missing") would mislead here, and did on a live case with 156
+        # weeks of history where every candidate was rejected on DIRECTION. Nothing was missing; every
+        # explanation the evidence raised pointed the wrong way. Those are different findings and want
+        # different follow-up, so this path carries its own meaning.
         return {
             "mechanisms": [DATA_LIMITATION], "primary": DATA_LIMITATION,
             "candidates": candidates, "rejected_for_direction": rejected,
+            "all_candidates_rejected_on_direction": True,
+            "meaning": ("Every explanation the evidence raised would push demand the OPPOSITE way "
+                        "to the miss, so none of them can be the cause. This is not missing data -- "
+                        "it is data that rules out each candidate."),
             "reason": ("every mechanism the evidence raised points the opposite way to the miss, "
                        "so none of them can be the cause. No defensible mechanism remains."),
         }
