@@ -41,7 +41,7 @@ python results/test_wfm_diagnostics.py            # the shared diagnostic module
 python results/smoke_test_modules.py              # 12 modules load and wire up
 node   results/check_ui_render.js                 # the REAL renderers over REAL captured responses
 cd backend && python ../results/run_offline_investigation.py     # offline, no SQL, no model
-cd backend && python ../results/run_live_spec_validation.py --llm  # live SQL + live model
+cd backend && python ../results/run_live_spec_validation.py  # live SQL + live model
 ```
 `run_live_spec_validation.py` uses port **8011**, not 8000, and refuses to start if anything is
 already listening — a stale server on 8000 silently answered part of a run with pre-upgrade code.

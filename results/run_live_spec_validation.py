@@ -196,8 +196,15 @@ def _confirm_our_server(base):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--llm", action="store_true", help="also call the configured model (step 14)")
-    ap.add_argument("--interrogate", action="store_true", help="also run the WHY interrogation")
+    # NO --llm FLAG, deliberately. It was here and it did nothing, which is worse than absent: the
+    # endpoint always uses whatever `llm.primary` in config.json points at, and nothing a client
+    # passes can turn that off. A flag that looks like it controls the model but does not would make
+    # every result ambiguous about whether a model ran.
+    #
+    # To exercise the NO-MODEL path, use results/test_fc_spec_semantics.py (scenario 21): it calls
+    # investigate() directly with an empty llm_cfg, which is the only way to reach that branch.
+    ap.add_argument("--interrogate", action="store_true",
+                    help="also run the WHY interrogation (2 extra model calls per case)")
     ap.add_argument("--no-server", action="store_true",
                     help="assume a server is already listening on RCA_BASE")
     args = ap.parse_args()

@@ -301,7 +301,7 @@ python results/test_fc_spec_semantics.py
 node results/check_ui_render.js
 
 # live SQL + live model, ten scenarios selected from real data
-cd backend && python ../results/run_live_spec_validation.py --llm
+cd backend && python ../results/run_live_spec_validation.py
 ```
 
 `run_live_spec_validation.py` starts its **own** server on port **8011**, not 8000, and refuses to
