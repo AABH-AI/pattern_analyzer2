@@ -741,6 +741,11 @@ def calendar_panel(holiday, weekend):
                        "reading": v.get("reading") or v.get("reason")}
                    for k, v in phases.items()},
         "forecast_capture": h.get("forecast_capture"),
+        # A DIFFERENT question from forecast_capture, and both are shown: capture asks whether the
+        # plan applied the pattern to THIS week; plan_bias asks whether the plan has been missing the
+        # same way, or by a growing amount, on these weeks for years. Only the second justifies
+        # changing the adjustment rule rather than this week's number.
+        "plan_bias": h.get("plan_bias"),
         "historical_consistency": h.get("historical_consistency"),
         "expected_direction": h.get("expected_direction"),
         "statement": h.get("reading"),

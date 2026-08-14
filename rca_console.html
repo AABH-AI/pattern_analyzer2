@@ -2211,7 +2211,39 @@ function cardCalendarPanel(s){
       <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:4px;">
         <tr style="background:#f6f7f9;font-weight:700;text-align:left;"><td style="padding:5px 8px;">Phase</td><td style="padding:5px 8px;text-align:right;">Instances</td><td style="padding:5px 8px;text-align:right;">Effect</td><td style="padding:5px 8px;text-align:right;">Consistency</td><td style="padding:5px 8px;">Planned for?</td><td style="padding:5px 8px;">Reading</td></tr>
         ${ph}</table>`:''}
-    ${(c.forecast_capture&&c.forecast_capture.reason)?`<div style="margin-top:10px;"><b>Did the plan capture it?</b> ${invEsc(String(c.forecast_capture.classification||'').replace(/_/g,' '))} — ${invEsc(c.forecast_capture.reason)}</div>`:''}
+    ${(c.forecast_capture&&c.forecast_capture.reason)?`<div style="margin-top:10px;"><b>Did the plan capture it?</b> ${invEsc(String(c.forecast_capture.classification||'').replace(/_/g,' '))} — ${invEsc(c.forecast_capture.reason)}
+      ${(typeof c.forecast_capture.capture_ratio==='number')?`<div style="font-size:11.5px;color:#6b7280;margin-top:3px;">Adjustment applied was ${invEsc(c.forecast_capture.capture_ratio)}× the historical phase effect${c.forecast_capture.tolerance_band?` (tolerance for “captured”: ${invEsc(c.forecast_capture.tolerance_band)})`:''}.</div>`:''}
+    </div>`:''}
+    ${(()=>{
+      /* The standing-bias finding. Deliberately its own block rather than folded into the capture
+         line above: capture judges THIS week, this judges the adjustment rule across years, and
+         they can disagree — a week can sit inside the "captured" tolerance every time while the
+         adjustment drifts. Only this one justifies changing a process. */
+      const pb=c.plan_bias||{};
+      if(!pb.available) return '';
+      const flagged=pb.systematic||pb.deteriorating;
+      const col=pb.systematic?'#a01b2b':(pb.deteriorating?'#b26a00':'#0b7a3b');
+      const bg=pb.systematic?'#fdecee':(pb.deteriorating?'#fff4e5':'#e8f6ee');
+      const rows=Object.entries(pb.phases||{}).map(([k,v])=>{
+        if(!v.testable) return `<tr style="border-top:1px solid #eef0f3;"><td style="padding:5px 8px;font-weight:600;">${invEsc(k.replace(/_/g,'-'))}</td><td colspan="5" style="padding:5px 8px;color:#6b7280;font-size:11.5px;">${invEsc(v.reason||'not testable')}</td></tr>`;
+        return `<tr style="border-top:1px solid #eef0f3;">
+          <td style="padding:5px 8px;font-weight:600;">${invEsc(k.replace(/_/g,'-'))}</td>
+          <td style="padding:5px 8px;text-align:right;">${invEsc(v.instances)}</td>
+          <td style="padding:5px 8px;text-align:right;">${invEsc(v.weeks_plan_too_low)} low / ${invEsc(v.weeks_plan_too_high)} high</td>
+          <td style="padding:5px 8px;text-align:right;">${cardPct(v.median_adherence_pct)}</td>
+          <td style="padding:5px 8px;text-align:right;">${(v.earlier_half_median_abs!=null&&v.later_half_median_abs!=null)?invEsc(v.earlier_half_median_abs)+'% → '+invEsc(v.later_half_median_abs)+'%':'—'}</td>
+          <td style="padding:5px 8px;color:${v.systematic?'#a01b2b':(v.widening?'#b26a00':'#0b7a3b')};font-weight:700;white-space:nowrap;">${v.systematic?'one-sided':(v.widening?'widening':'no bias')}</td>
+        </tr>`;}).join('');
+      return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid #e5e7eb;">
+        <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">Is the holiday adjustment itself right? — measured across this queue's whole history</div>
+        <div style="font-size:11.5px;color:#6b7280;font-style:italic;margin-top:4px;line-height:1.55;">A recurring adjustment error is only visible across weeks. Each individual week can look captured and the rule still be drifting. A one-sided bias and a widening miss are different findings.</div>
+        ${flagged?`<div style="margin-top:8px;background:${bg};border:1px solid ${col}33;border-left:3px solid ${col};border-radius:0 4px 4px 0;padding:8px 12px;line-height:1.65;">${invEsc(pb.reading||'')}</div>`:`<div style="margin-top:8px;color:#0b7a3b;line-height:1.65;">${invEsc(pb.reading||'')}</div>`}
+        ${rows?`<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;">
+          <tr style="background:#f6f7f9;font-weight:700;text-align:left;"><td style="padding:5px 8px;">Phase</td><td style="padding:5px 8px;text-align:right;">Weeks</td><td style="padding:5px 8px;text-align:right;">Plan too low / high</td><td style="padding:5px 8px;text-align:right;">Median miss</td><td style="padding:5px 8px;text-align:right;">Earlier → later</td><td style="padding:5px 8px;">Verdict</td></tr>
+          ${rows}</table>`:''}
+        ${(pb.action||pb.deteriorating_action)?`<div style="margin-top:8px;font-weight:600;line-height:1.65;">${invEsc(pb.action||pb.deteriorating_action)}</div>`:''}
+      </div>`;
+    })()}
     ${review.length?`<div style="margin-top:10px;background:#fff4e5;border-left:3px solid #b26a00;border-radius:0 4px 4px 0;padding:8px 12px;font-size:11.5px;line-height:1.6;">Flagged for review in the holiday master: ${invEsc(review.join(', '))}. No mapping was invented to resolve this.</div>`:''}
     ${c.row_flag_disagreement?`<div style="margin-top:8px;background:#fff4e5;border-left:3px solid #b26a00;border-radius:0 4px 4px 0;padding:8px 12px;font-size:11.5px;line-height:1.6;">${invEsc(c.row_flag_disagreement)}</div>`:''}
     ${w.statement?`<div style="margin-top:12px;padding-top:10px;border-top:1px solid #e5e7eb;">

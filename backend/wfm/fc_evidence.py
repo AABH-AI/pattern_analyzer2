@@ -108,6 +108,18 @@ MECHANISM_HYPOTHESES = {
     DATA_LIMITATION: ("DQ-01", "DQ-02", "DQ-03", "DQ-04"),
 }
 
+# Section 40: the response class is an internal token, and executive prose needs a sentence. These
+# lead the bullet, so they name what the plan DID rather than what the field is called.
+RESPONSE_PROSE = {
+    "over_response": "The plan over-reacted.",
+    "under_response": "The plan under-reacted.",
+    "no_response": "The plan did not react at all.",
+    "wrong_direction": "The plan moved the wrong way.",
+    "delayed_response": "The plan reacted, but too late.",
+    "adequate": "The plan reacted proportionately.",
+    "not_testable": "The plan's reaction could not be judged.",
+}
+
 # Which drivers each BUSINESS hypothesis needs tested. Section 48: the hypothesis selects the
 # evidence, the engine does not test everything and then hunt for a story.
 HYPOTHESIS_DRIVERS = {
@@ -869,9 +881,9 @@ def miss_mechanism(adherence, response_block, holiday_block, lag_block, asu_bloc
             "mechanism": FORECAST_RESPONSE_FAILURE,
             # The class name is an internal token. `over_response` reached executive prose verbatim
             # on a real card; section 40 wants the business story readable, and an underscore in a
-            # sentence is a leaked identifier.
-            "evidence": (f"The plan's reaction was judged "
-                         f"{str(resp.get('classification') or '').replace('_', ' ')}. "
+            # sentence is a leaked identifier. Stripping the underscore was not enough -- "judged
+            # over response" is still not English. Each class gets a phrase written for a reader.
+            "evidence": (f"{RESPONSE_PROSE.get(resp.get('classification'), 'The plan reacted.')} "
                          f"{resp.get('reason')}"),
             "share_of_miss": None,
         })

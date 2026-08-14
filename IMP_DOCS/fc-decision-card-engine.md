@@ -68,6 +68,16 @@ against the outcome. Judging against the outcome would make every miss a forecas
 definition. Classes: `adequate`, `under_response`, `over_response`, `wrong_direction`,
 `delayed_response`, `no_response`, `not_testable`.
 
+**When little movement was implied, the class is decided by SIGN, not assumed.** If the prior plan
+already sat near the expected level, any material move is judged on whether it went the *same* way as
+the (small) implied change — `over_response` — or the *opposite* way — `wrong_direction`. With the
+implied change at exactly zero there is no direction to be wrong about, so it is `over_response`.
+
+This mattered on a real card: UKI Comm Client DSP Standard FW202717 had implied `−2.3` and a move of
+`−82.61` — the **same** sign — and was reported as `wrong_direction`. That contradicts §14's own
+definition ("moves *opposite* the expected direction") and pointed the remedy the wrong way: fiscal
+week 17 is a holiday week every year, so a cut *was* correct and only its size was wrong.
+
 ### Forecastability gate — `forecastability_gate`
 
 **`Actual > Forecast` is never on its own a forecast failure.** All four conditions must hold:
@@ -164,6 +174,34 @@ none; `zero_count_but_adjacent` marks exactly that case and the card states it i
 is inconsistent, the finding is that no reliable forecastable signal exists — not that the plan
 should have caught it. Capture classes: `captured`, `under_reacted`, `over_reacted`,
 `wrong_direction`, `delayed`, `inconsistent_history`, `not_testable`.
+
+`captured` spans a wide band — 0.5× to 1.75× the historical effect — so the **`capture_ratio` and
+`overshoot_pct` are published** and the sentence quotes the multiple. A bare "captured" hid a 51%
+over-cut (−40.04% applied against −26.54% implied, 1.51×). The threshold itself is deliberately
+**unchanged**: it is versioned configuration no client has confirmed, and moving it would flip
+existing verdicts across every queue.
+
+### Is the holiday adjustment itself right? — `holiday_response.plan_bias`
+
+A different question from `forecast_capture`, and both are reported. Capture asks whether the plan
+applied the pattern to **this** week. `plan_bias` asks whether the plan has been missing the same way,
+or by a **growing** amount, on these weeks for years. Only the second justifies changing the
+adjustment *rule* rather than this week's number — and a week can sit inside the `captured` tolerance
+every single time while the rule drifts.
+
+Two findings, reported **separately** because they want different actions:
+
+| finding | test | action |
+|---|---|---|
+| **standing one-sided bias** | ≥70% of that phase's weeks miss the same way **and** median \|adherence\| ≥ 10% | review the adjustment rule — it is consistently too deep or too shallow |
+| **widening miss** | the later half's median absolute miss exceeds the earlier half's by ≥5 points | review how the adjustment is *sized* — direction is not the problem, magnitude is drifting |
+
+**Widening is reported independently of direction.** The first version required a consistent direction
+first, and on UKI Comm Client DSP Standard that correctly found *no* bias — 10 of 17 holiday weeks too
+low is 59%, barely better than a coin flip — which disproved a "systematically too deep" reading of
+the raw counts. But the same queue's misses are clearly growing on every phase (holiday 16.9%→22.6%,
+pre 11.4%→20.9%, post 10.7%→29.9% median absolute). Requiring a direction would have hidden a real,
+actionable finding.
 
 Event identity is `Semantic_Family` where present, else a modifier + core-token key, so bridge days
 stay separate from their anchor and spelling variants merge. **`Aggregate_Group` is not an event

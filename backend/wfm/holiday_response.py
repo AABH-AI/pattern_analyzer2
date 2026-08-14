@@ -203,6 +203,191 @@ def _phase_reading(phase, block):
     return text
 
 
+# --- Systematic plan bias on holiday weeks -------------------------------------------------------
+# A share this high of holiday weeks missing the SAME way is a standing bias in the adjustment, not
+# a run of bad luck. Same figure as CONSISTENT_SHARE and for the same reason: below it, the pattern
+# is not repeatable enough to hold the process to.
+BIAS_SHARE = 0.70
+# Median absolute adherence must exceed this for the bias to be worth reporting -- a systematic but
+# tiny bias is arithmetically real and operationally irrelevant.
+BIAS_MATERIAL_PCT = 10.0
+# The later half's median miss must exceed the earlier half's by this much to call it widening.
+BIAS_WIDENING_PCT = 5.0
+
+
+def _adherence(actual, forecast):
+    """Signed adherence. Negative means actual came in ABOVE plan."""
+    if actual is None or not forecast:
+        return None
+    return (1.0 - actual / forecast) * 100.0
+
+
+def plan_bias_by_phase(rows, country, cache):
+    """Across this queue's HISTORY, does the plan miss the same way on holiday-phase weeks?
+
+    WHY THIS IS A SEPARATE FINDING FROM `_capture`
+    ----------------------------------------------
+    `_capture` asks whether the plan applied the phase pattern to THIS week. It can answer
+    "captured" -- correctly -- while the adjustment has been systematically too deep for years,
+    because "captured" spans 0.5x to 1.75x the historical effect and every week can sit inside that
+    band on the same side of it.
+
+    On UKI Comm Client DSP Standard the plan came in BELOW actual on 12 of 20 holiday weeks and the
+    recent misses were widening (-28.9%, -37.4%, -69.9%). Each week individually looked captured or
+    close to it. The recurring defect is only visible across weeks, so it has to be measured across
+    weeks.
+
+    That distinction matters for the action: `_capture` failing points at THIS week's plan, whereas a
+    standing bias points at the holiday adjustment RULE. Only the second one is worth changing a
+    process for.
+
+    Returns a per-phase block plus a `systematic` summary naming the worst offender.
+    """
+    buckets = {_cal.PHASE_HOLIDAY: [], _cal.PHASE_PRE: [], _cal.PHASE_POST: []}
+    # `_phase_of` returns a (phase, span) TUPLE, not a label -- unpack it the same way
+    # `_historical_phase_effect` does. `rows` are (week, forecast, actual), forecast FIRST.
+    for week, forecast, actual in rows:
+        phase, _span = _phase_of(country, week, cache)
+        if phase in buckets:
+            adh = _adherence(actual, forecast)
+            if adh is not None:
+                buckets[phase].append((week, adh))
+
+    phases, worst = {}, None
+    for phase, series in buckets.items():
+        if len(series) < MIN_PHASE_INSTANCES:
+            phases[phase] = {
+                "testable": False, "instances": len(series),
+                "reason": (f"only {len(series)} {phase.replace('_', ' ')} week(s) with both figures; "
+                           f"{MIN_PHASE_INSTANCES} are required to judge a standing bias.")}
+            continue
+
+        adhs = [a for _, a in series]
+        # adherence < 0 means actual ABOVE plan, i.e. the plan was too LOW for that week.
+        too_low = [a for a in adhs if a < 0]
+        too_high = [a for a in adhs if a > 0]
+        n = len(adhs)
+        share_low, share_high = len(too_low) / n, len(too_high) / n
+        median_adh = _st.median(adhs)
+
+        direction = None
+        share = 0.0
+        if share_low >= BIAS_SHARE:
+            direction, share = "plan_too_low", share_low
+        elif share_high >= BIAS_SHARE:
+            direction, share = "plan_too_high", share_high
+
+        # Widening? Compare the median absolute miss of the earlier half against the later half.
+        half = n // 2
+        earlier = [abs(a) for _, a in series[:half]]
+        later = [abs(a) for _, a in series[half:]]
+        widening, earlier_med, later_med = None, None, None
+        if half >= 2:
+            earlier_med, later_med = _st.median(earlier), _st.median(later)
+            widening = (later_med - earlier_med) >= BIAS_WIDENING_PCT
+
+        material = abs(median_adh) >= BIAS_MATERIAL_PCT
+        systematic = bool(direction and material)
+
+        blk = {
+            "testable": True,
+            "instances": n,
+            "weeks_plan_too_low": len(too_low),
+            "weeks_plan_too_high": len(too_high),
+            "share_same_way": _rnd(share, 3) if direction else None,
+            "median_adherence_pct": _rnd(median_adh),
+            "worst_adherence_pct": _rnd(min(adhs, key=lambda a: a) if median_adh < 0
+                                        else max(adhs, key=lambda a: a)),
+            "recent_weeks": [{"fiscal_week": w, "adherence_pct": _rnd(a)} for w, a in series[-4:]],
+            "earlier_half_median_abs": _rnd(earlier_med) if earlier_med is not None else None,
+            "later_half_median_abs": _rnd(later_med) if later_med is not None else None,
+            "widening": widening,
+            "material": material,
+            "systematic": systematic,
+            "bias_direction": direction,
+        }
+        if systematic:
+            side = ("BELOW actual -- the adjustment is consistently too deep"
+                    if direction == "plan_too_low" else
+                    "ABOVE actual -- the adjustment is consistently too shallow")
+            blk["reading"] = (
+                f"Across {n} {phase.replace('_', ' ')} week(s) in this queue's history the plan came "
+                f"in {side}: {len(too_low) if direction == 'plan_too_low' else len(too_high)} of {n} "
+                f"({share:.0%}), with a median miss of {median_adh:+.1f}%."
+                + (f" The misses are WIDENING -- the later half medians "
+                   f"{later_med:.1f}% against {earlier_med:.1f}% earlier."
+                   if widening else ""))
+            if worst is None or abs(median_adh) > abs(worst[1]):
+                worst = (phase, median_adh, blk)
+        else:
+            blk["reading"] = (
+                f"No standing bias: across {n} {phase.replace('_', ' ')} week(s) the plan missed "
+                f"both ways ({len(too_low)} too low, {len(too_high)} too high), median "
+                f"{median_adh:+.1f}%.")
+        phases[phase] = blk
+
+    # WIDENING IS REPORTED INDEPENDENTLY OF DIRECTION, and that was not the first design.
+    #
+    # The first version only surfaced a bias when it was one-SIDED at >= 70%. Run against UKI Comm
+    # Client DSP Standard it correctly found none -- 10 of 17 holiday weeks too low is 59%, barely
+    # better than a coin flip -- which disproved the "systematically too deep" reading of the raw
+    # counts. Good: the gate did its job and refused a finding the data does not support.
+    #
+    # But the same queue shows the misses GETTING BIGGER on every phase (holiday 16.9% -> 22.6%,
+    # pre 11.4% -> 20.9%, post 10.7% -> 29.9% median absolute). A widening miss with no consistent
+    # direction is still a deteriorating adjustment and still worth acting on -- it is just a
+    # different finding from a standing bias, and it wants different wording. Requiring a direction
+    # before reporting it would have hidden it.
+    deteriorating = [p for p, b in phases.items() if b.get("testable") and b.get("widening")]
+
+    summary = {"available": True, "phases": phases, "systematic": bool(worst),
+               "deteriorating_phases": deteriorating,
+               "deteriorating": bool(deteriorating)}
+    if worst:
+        phase, median_adh, blk = worst
+        summary.update({
+            "worst_phase": phase,
+            "bias_direction": blk["bias_direction"],
+            "median_adherence_pct": blk["median_adherence_pct"],
+            "widening": blk["widening"],
+            "reading": blk["reading"],
+            "action": (
+                "Review the holiday adjustment RULE for this queue, not just this week's plan: the "
+                "same error repeats across holiday weeks."
+                if blk["bias_direction"] == "plan_too_low" else
+                "Review the holiday adjustment RULE for this queue -- it consistently removes too "
+                "little volume."),
+        })
+    else:
+        summary["reading"] = ("No holiday phase shows a standing one-sided plan bias for this "
+                              "queue -- the misses go both ways.")
+
+    # Appended rather than replacing, so a queue can be BOTH biased and deteriorating and have both
+    # stated. Where there is no bias this is the only finding, and it should not be silent.
+    if deteriorating:
+        detail = "; ".join(
+            f"{p.replace('_', ' ')} {phases[p]['earlier_half_median_abs']:.1f}% -> "
+            f"{phases[p]['later_half_median_abs']:.1f}%"
+            for p in deteriorating)
+        summary["deteriorating_reading"] = (
+            f"The size of the miss on holiday-phase weeks is GROWING for this queue, comparing the "
+            f"median absolute miss of the earlier half of each phase's history against the later "
+            f"half: {detail}. The misses are not consistently one-sided, so this is a widening "
+            f"adjustment rather than a standing bias.")
+        summary["deteriorating_action"] = (
+            "Revisit how the holiday adjustment is sized for this queue. It is not consistently too "
+            "deep or too shallow, so the direction is not the problem -- the magnitude is drifting "
+            "further from what the weeks actually deliver.")
+        summary["reading"] = summary["reading"] + " " + summary["deteriorating_reading"]
+
+    summary["note"] = ("Measured across the queue's whole history, which is the only place a "
+                       "recurring adjustment error is visible. A single week can sit inside the "
+                       "'captured' tolerance every time and still be biased or deteriorating. "
+                       "A one-sided bias and a widening miss are DIFFERENT findings and are "
+                       "reported separately.")
+    return summary
+
+
 def _capture(target_phase, phase_block, target_actual, target_forecast, base_actual, base_forecast,
              neighbour_forecast_shares):
     """Did THIS week's forecast anticipate the phase effect the history establishes?
@@ -265,9 +450,26 @@ def _capture(target_phase, phase_block, target_actual, target_forecast, base_act
                                f"{_rnd(expected_share * 100)}%; the plan moved only "
                                f"{_rnd(forecast_share * 100)}%.")})
     elif ratio <= OVER_CAPTURE:
+        # "captured" spans a wide band -- anything from half the historical effect to 1.75x it. A
+        # bare "captured" hid a 51% overshoot on UKI Comm Client DSP Standard FW202717, where the
+        # plan cut -40.04% against the -26.54% history implies. The THRESHOLD is deliberately left
+        # at 1.75 (it is versioned configuration no client has confirmed), but the size of the
+        # over- or under-shoot inside the band is now stated rather than left for the reader to
+        # divide two percentages in their head.
+        overshoot = (ratio - 1.0) * 100.0
+        if abs(overshoot) >= 15.0:
+            tail = (f" That is {_rnd(abs(overshoot))}% "
+                    f"{'more' if overshoot > 0 else 'less'} adjustment than the pattern calls for "
+                    f"-- inside the tolerance for 'captured', but worth noting.")
+        else:
+            tail = ""
         out.update({"classification": "captured",
+                    "overshoot_pct": _rnd(overshoot),
+                    "within_tolerance": True,
+                    "tolerance_band": f"{CAPTURE_TOLERANCE}x to {OVER_CAPTURE}x the phase effect",
                     "reason": (f"The plan moved {_rnd(forecast_share * 100)}% against the "
-                               f"{_rnd(expected_share * 100)}% the phase historically implies.")})
+                               f"{_rnd(expected_share * 100)}% the phase historically implies "
+                               f"({_rnd(ratio)}x).{tail}")})
     else:
         out.update({"classification": "over_reacted",
                     "reason": (f"The plan moved {_rnd(forecast_share * 100)}%, well beyond the "
@@ -311,6 +513,9 @@ def analyse(history, target_week, country, target_actual=None, target_forecast=N
     rows = _rows(history, target_week)
     cache = {}
     historical = _historical_phase_effect(rows, country, cache)
+    # Standing bias across ALL holiday-phase weeks in history. Shares the phase cache, so it costs a
+    # pass over rows already in memory rather than another calendar lookup per week.
+    plan_bias = plan_bias_by_phase(rows, country, cache)
     phase = span.get("phase")
     phase_block = ((historical.get("phases") or {}).get(phase)
                    if historical.get("available") else None)
@@ -363,6 +568,10 @@ def analyse(history, target_week, country, target_actual=None, target_forecast=N
         "row_flag_disagreement": context.get("row_flag_disagreement"),
         "names_needing_review": context.get("names_needing_review"),
         "historical_response": historical,
+        # ADDITIVE. Answers a different question from forecast_capture: not "did the plan apply the
+        # pattern to THIS week" but "has the plan been missing the same way on these weeks for
+        # years". Only the second one justifies changing the adjustment rule.
+        "plan_bias": plan_bias,
         "phase_effect": phase_block,
         "expected_direction": expected_direction,
         "historical_consistency": consistency,

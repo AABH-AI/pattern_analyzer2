@@ -757,7 +757,7 @@ def _select_root_cause(survivors, reports, stats, why=None):
 # ==============================================================================
 # Step 14 -- Recommendations (rule-derived, max 3)
 # ==============================================================================
-def _mechanism_recommendations(fc_mechanism, fc_lag, fc_plan, fc_signals=None):
+def _mechanism_recommendations(fc_mechanism, fc_lag, fc_plan, fc_signals=None, fc_holiday=None):
     """Section 44. The action follows the VERIFIED mechanism, not the hypothesis label.
 
     Section 44 forbids a generic "monitor the situation" where a specific action is supported, and
@@ -833,6 +833,26 @@ def _mechanism_recommendations(fc_mechanism, fc_lag, fc_plan, fc_signals=None):
                     "owner": "Demand / Forecast Team",
                     "follows_mechanism": fc_evidence.DEMAND_EVENT_LOW_PREDICTABILITY})
 
+    # The holiday adjustment RULE, not this week's number. Emitted from the standing-bias measurement
+    # rather than from the target week's capture verdict, because a week can sit inside the "captured"
+    # tolerance every time while the adjustment drifts -- which is exactly what UKI Comm Client DSP
+    # Standard does. Both branches are grounded in a measured finding; neither fires on a single week.
+    _bias = ((fc_holiday or {}).get("plan_bias") or {})
+    if _bias.get("systematic") and _bias.get("action"):
+        out.append({"id": "M8", "priority": "High",
+                    "text": _bias["action"],
+                    "impact": ("Corrects a repeating calendar error rather than one week's plan, so "
+                               "it pays back on every future holiday week."),
+                    "owner": "Demand / Forecast Team",
+                    "follows_mechanism": "holiday_plan_bias"})
+    elif _bias.get("deteriorating") and _bias.get("deteriorating_action"):
+        out.append({"id": "M9", "priority": "Medium",
+                    "text": _bias["deteriorating_action"],
+                    "impact": ("The direction of the adjustment is not the problem; its size is "
+                               "drifting, and that is measurable and correctable."),
+                    "owner": "Demand / Forecast Team",
+                    "follows_mechanism": "holiday_plan_bias_widening"})
+
     if (fc_plan or {}).get("state") == fc_evidence.PLAN_REVISED_STILL_WRONG:
         out.append({"id": "M6", "priority": "High",
                     "text": ("Review the re-forecast method itself, not the cadence: the plan WAS "
@@ -855,14 +875,14 @@ def _mechanism_recommendations(fc_mechanism, fc_lag, fc_plan, fc_signals=None):
 
 
 def _recommendations(root_cause, features, deviation, fc_mechanism=None, fc_lag=None,
-                     fc_plan=None, fc_signals=None):
+                     fc_plan=None, fc_signals=None, fc_holiday=None):
     """BR-701/702/704. Rule-derived, never model-generated. Maximum three, and fewer
     where fewer are warranted -- padding a list to a target is noise, not advice.
 
     Mechanism-derived advice leads, because it is the specific action section 44 asks for. The
     original rules follow and still fire; the three-item cap is unchanged.
     """
-    recs = list(_mechanism_recommendations(fc_mechanism, fc_lag, fc_plan, fc_signals))
+    recs = list(_mechanism_recommendations(fc_mechanism, fc_lag, fc_plan, fc_signals, fc_holiday))
     cid = (root_cause or {}).get("hypothesis_id") or ""
 
     if cid.startswith("FC-") or cid.startswith("STA-02"):
@@ -1246,7 +1266,7 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
 
     # --- Step 13 ---------------------------------------------------------------
     recs = _recommendations(root_cause, feat, feat["deviation"], fc_mechanism, fc_lag, fc_plan,
-                            fc_response.get("signals"))
+                            fc_response.get("signals"), fc_holiday)
 
     # The mechanism, the direction verdict and the contradiction resolution are attached to the
     # root cause ALONGSIDE the existing keys -- `cause_type`, `hypothesis_id`, `hypothesis`,

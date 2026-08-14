@@ -864,6 +864,177 @@ check("S54-2", "but it is flagged as ruled-out-by-data, NOT as missing data",
       _mech_all_rej.get("all_candidates_rejected_on_direction") is True
       and "not missing data" in (_mech_all_rej.get("meaning") or ""),
       str(_mech_all_rej.get("meaning"))[:200])
+
+# ==============================================================================
+# The near-zero implied-change branch -- sign-aware, not hardcoded
+# ==============================================================================
+# Found on a real card: UKI Comm Client DSP Standard FW202717 reported `wrong_direction` with
+# implied_change -2.3 and forecast_change_made -82.61 -- the SAME sign. Section 14 defines
+# wrong_direction as moving OPPOSITE the expected direction, so the label contradicted the spec on
+# its own terms. Worse, it pointed the remedy the wrong way: FW17 is a holiday week every year and a
+# cut WAS correct; only its size was wrong.
+print("\n-- Section 14: near-zero implied change is classified by SIGN --")
+from wfm import forecast_response as _fr                                        # noqa: E402
+
+
+def adequacy(prior_plan, target_plan, expected):
+    """Drive _adequacy directly.
+
+    `rows` are 4-tuples (week, forecast, actual, _) and a DETECTED signal is required -- without one
+    the function correctly returns not_testable, because there was nothing to respond to.
+    """
+    rows = [(202716, prior_plan, 400.0, None), (202717, target_plan, 397.0, None)]
+    signals = [{"signal": "demand_momentum", "detected": True}]
+    return _fr._adequacy(rows, 202717, target_plan, expected, signals)
+
+
+# implied ~0, plan moves the SAME way as the (tiny) implied change -> over_response
+_a1 = adequacy(316.3, 233.7, 314.0)
+check("SGN-1", "a big move in the SAME direction as a tiny implied change is over_response",
+      _a1["classification"] == "over_response",
+      f"got {_a1['classification']}: {_a1['reason']}")
+check("SGN-2", "and the reason no longer claims 'no change was required'",
+      "No change was required" not in _a1["reason"],
+      _a1["reason"])
+check("SGN-3", "it states where the plan needed to be and how far past it went",
+      "314.0" in _a1["reason"] and "233.7" in _a1["reason"]
+      and _a1.get("over_move_contacts") is not None,
+      f"over_move_contacts={_a1.get('over_move_contacts')} :: {_a1['reason']}")
+check("SGN-4", "and it is NOT labelled wrong_direction",
+      _a1["classification"] != "wrong_direction",
+      "section 14 reserves wrong_direction for a move OPPOSITE the implied direction")
+
+# implied ~0, plan moves the OPPOSITE way -> wrong_direction is the correct label
+_a2 = adequacy(316.3, 420.0, 314.0)
+check("SGN-5", "a big move OPPOSITE a tiny implied change is still wrong_direction",
+      _a2["classification"] == "wrong_direction",
+      f"got {_a2['classification']}: {_a2['reason']}")
+
+# implied ~0 and the plan stayed put -> adequate, unchanged behaviour
+_a3 = adequacy(316.3, 315.0, 314.0)
+check("SGN-6", "a plan that stayed at the expected level is still adequate",
+      _a3["classification"] == "adequate", f"got {_a3['classification']}")
+
+# a genuine opposite move with a LARGE implied change still routes through the ratio path
+_a4 = adequacy(200.0, 150.0, 400.0)
+check("SGN-7", "the non-negligible path is untouched: opposite move -> wrong_direction",
+      _a4["classification"] == "wrong_direction" and _a4.get("response_ratio") is not None,
+      f"got {_a4['classification']} ratio={_a4.get('response_ratio')}")
+# implied 200, moved 360 -> ratio 1.8. Deliberately NOT 1.5: that is exactly OVER_RESPONSE_RATIO and
+# the boundary is inclusive, so a ratio of 1.5 is correctly `adequate`. The first version of this
+# check sat on the boundary and read the right answer as a failure.
+_a5 = adequacy(200.0, 560.0, 400.0)
+check("SGN-8", "and a large same-way overshoot is still over_response via the ratio",
+      _a5["classification"] == "over_response" and _a5.get("response_ratio") == 1.8,
+      f"got {_a5['classification']} ratio={_a5.get('response_ratio')}")
+check("SGN-9", "a ratio exactly at the 1.50 over-response threshold stays adequate",
+      adequacy(200.0, 500.0, 400.0)["classification"] == "adequate",
+      "the boundary is inclusive by design; this pins it so a later change is deliberate")
+# Section 40: the class token must not reach executive prose, and "judged over response" -- which is
+# what a bare underscore-strip produced -- is not English either.
+check("SGN-10", "every response class has a written sentence for the executive bullet",
+      set(fce.RESPONSE_PROSE) >= set(_fr.RESPONSE_CLASSES),
+      f"missing prose for {sorted(set(_fr.RESPONSE_CLASSES) - set(fce.RESPONSE_PROSE))}")
+check("SGN-11", "and none of those sentences contains an underscore or a raw class name",
+      all("_" not in v and v[0].isupper() and v.endswith(".")
+          for v in fce.RESPONSE_PROSE.values()),
+      json.dumps(fce.RESPONSE_PROSE))
+
+# ==============================================================================
+# Holiday capture: the ratio is stated, the threshold is NOT moved
+# ==============================================================================
+print("\n-- Sections 24/49: the capture ratio is stated inside the 'captured' band --")
+check("CAP-1", "OVER_CAPTURE is still 1.75 -- the threshold was deliberately NOT tightened",
+      hr.OVER_CAPTURE == 1.75, f"got {hr.OVER_CAPTURE}")
+check("CAP-2", "CAPTURE_TOLERANCE is still 0.50",
+      hr.CAPTURE_TOLERANCE == 0.50, f"got {hr.CAPTURE_TOLERANCE}")
+_cap = hr._capture("holiday",
+                   {"testable": True, "consistent": True, "consistency": 0.94,
+                    "actual_effect_pct": -26.54},
+                   397.0, 233.7, 396.8, 389.8, [])
+check("CAP-3", "a 1.5x over-cut still classifies as captured (threshold unchanged)",
+      _cap["classification"] == "captured", f"got {_cap['classification']}")
+check("CAP-4", "but the ratio and the overshoot are now stated on the block",
+      _cap.get("capture_ratio") is not None and _cap.get("overshoot_pct") is not None,
+      json.dumps({k: _cap.get(k) for k in ("capture_ratio", "overshoot_pct")}))
+check("CAP-5", "and the reason quotes the multiple, so a reader need not divide two percentages",
+      "x" in _cap["reason"].lower() and "%" in _cap["reason"],
+      _cap["reason"])
+check("CAP-6", "the tolerance band is published so 'captured' can be interpreted",
+      bool(_cap.get("tolerance_band")), str(_cap.get("tolerance_band")))
+
+# ==============================================================================
+# Standing holiday plan bias -- and the refusal to claim one that is not there
+# ==============================================================================
+print("\n-- Section 8/24: standing vs widening holiday plan bias --")
+# A queue whose plan is consistently BELOW actual on holiday weeks.
+_biased = [(202400 + i, 100.0, 150.0) for i in range(1, 13)]     # every week: actual >> plan
+_pb = hr.plan_bias_by_phase(_biased, None, {})
+check("BIAS-1", "with no country resolvable, no phase is testable and no bias is claimed",
+      _pb.get("systematic") is False
+      and all(not v.get("testable") for v in (_pb.get("phases") or {}).values()),
+      json.dumps({k: v.get("testable") for k, v in (_pb.get("phases") or {}).items()}))
+
+# Drive the per-phase maths directly with synthetic phase series, so the assertion does not depend
+# on the shipped calendar containing a particular country.
+def bias_block(adherences):
+    """Build the phase block the summary reads, via the real function, using a fake phase mapper."""
+    import wfm.holiday_response as H
+    real = H._phase_of
+    weeks = [202400 + i for i in range(1, len(adherences) + 1)]
+    # actual/forecast pair that yields the wanted adherence: adh = (1 - a/f) * 100
+    rows = [(w, 100.0, 100.0 * (1 - adh / 100.0)) for w, adh in zip(weeks, adherences)]
+    H._phase_of = lambda country, week, cache: (H._cal.PHASE_HOLIDAY, {})
+    try:
+        return H.plan_bias_by_phase(rows, "x", {})
+    finally:
+        H._phase_of = real
+
+
+# 11 of 12 weeks with the plan too low, median miss well past 10% -> a standing one-sided bias
+_one_sided = bias_block([-30, -35, -28, -40, -33, -31, -45, -38, -29, -36, -42, +4])
+_hb = (_one_sided.get("phases") or {}).get("holiday") or {}
+check("BIAS-2", "11 of 12 holiday weeks missing the same way IS a standing bias",
+      _hb.get("systematic") is True and _hb.get("bias_direction") == "plan_too_low",
+      json.dumps({k: _hb.get(k) for k in ("systematic", "bias_direction", "share_same_way",
+                                          "median_adherence_pct")}))
+check("BIAS-3", "and it recommends changing the RULE, not this week's plan",
+      "rule" in (_one_sided.get("action") or "").lower(),
+      str(_one_sided.get("action")))
+
+# 7 of 12 one way, 5 the other -> NOT a bias. This is the real UKI shape and the gate must refuse it.
+_coin_flip = bias_block([-30, -35, +28, -40, +33, -31, +45, -38, +29, -36, +42, -20])
+_cb = (_coin_flip.get("phases") or {}).get("holiday") or {}
+check("BIAS-4", "a near-even split is NOT reported as a systematic bias",
+      _cb.get("systematic") is False,
+      f"share_same_way={_cb.get('share_same_way')} -- 58% is not a pattern, and claiming one "
+      f"would be exactly the fabrication section 54 forbids")
+check("BIAS-5", "one-sided but IMMATERIAL misses are not reported either",
+      (bias_block([-2, -3, -2, -4, -3, -2, -1, -3]).get("phases") or {})
+      .get("holiday", {}).get("systematic") is False,
+      "a systematic but tiny bias is arithmetically real and operationally irrelevant")
+
+# Widening is reported INDEPENDENTLY of direction -- the finding the UKI case actually supports.
+_widening = bias_block([-6, +5, -7, +6, -40, +38, -45, +42])
+_wsum = _widening
+check("BIAS-6", "growing misses are reported even with NO consistent direction",
+      _wsum.get("deteriorating") is True and _wsum.get("systematic") is False,
+      json.dumps({k: _wsum.get(k) for k in ("systematic", "deteriorating",
+                                            "deteriorating_phases")}))
+check("BIAS-7", "and it is worded as a widening adjustment, not as a standing bias",
+      "widening" in (_wsum.get("deteriorating_reading") or "").lower()
+      and "not consistently one-sided" in (_wsum.get("deteriorating_reading") or ""),
+      str(_wsum.get("deteriorating_reading"))[:220])
+check("BIAS-8", "its action targets the SIZE of the adjustment, not its direction",
+      "magnitude" in (_wsum.get("deteriorating_action") or "").lower(),
+      str(_wsum.get("deteriorating_action"))[:200])
+check("BIAS-9", "a stable, unbiased queue gets neither finding",
+      (lambda s: s.get("systematic") is False and s.get("deteriorating") is False)(
+          bias_block([-5, +4, -6, +5, -4, +6, -5, +4])),
+      "no bias and no widening -> the panel says so rather than staying silent")
+check("BIAS-10", "the two findings are documented as DIFFERENT questions",
+      "DIFFERENT findings" in (_wsum.get("note") or ""),
+      str(_wsum.get("note"))[:200])
 _overlay = decision_card._with_narrative(_wb, {"whyThisHappened": [{"rank": 1, "text": "REWRITTEN"}]})
 check("S41-4", "model rewording is matched BY RANK and keeps the deterministic text alongside",
       _overlay["bullets"][0]["text"] == "REWRITTEN"
