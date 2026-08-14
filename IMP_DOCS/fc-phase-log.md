@@ -143,6 +143,81 @@ Also: `TOP 1` per query had put the same queue-week in four different scenario s
 "scenarios" tested four distinct investigations. Selection now takes the first candidate not already
 used.
 
+### The clean run — 135/135 over 10 real investigations · `e0e248d`
+
+Against `dbo.Input_To_ML_Full` (88,816 rows, FW202401–202752), narrated by
+`nvidia/nemotron-3-super-120b-a12b` at 53–81s per case.
+
+| scenario | mechanism | conf | criticality | cause |
+|---|---|---|---|---|
+| under-forecast | `COMPOUND_MISS` | High | Critical | FC-01 |
+| over-forecast | `DEMAND_EVENT_LOW_PREDICTABILITY` | Medium | Critical | STA-02 |
+| baseline error | `DATA_LIMITATION` | Low | High | DEM-02 |
+| holiday week | `CALENDAR_RESPONSE_FAILURE` | Medium | Critical | STA-02 |
+| post-holiday (row has **no** holiday) | `FORECAST_RESPONSE_FAILURE` | High | Critical | STA-02 |
+| lagged driver available | `FORECAST_BASELINE_FAILURE` | High | Critical | FC-02 |
+| sparse driver | `COMPOUND_MISS` | High | High | FC-01 |
+| data limitation (short history) | `DATA_LIMITATION` | Low | Critical | DQ-04 |
+| persistent plan miss | `COMPOUND_MISS` | Medium | Critical | STA-02 |
+| hierarchy context | `COMPOUND_MISS` | High | Critical | FC-01 |
+
+**Six of the seven mechanisms appeared on real data** — the evidence that the classification
+discriminates rather than defaulting. Every case: HTTP 200, 15 steps, 18 card sections, and
+`jargon=[]` in the ranked bullets *with a live model rewording every one of them*.
+
+### Two more defects, exposed only by live output
+
+1. **The same sentence printed as two bullets.** The `FORECAST_BASELINE_FAILURE` candidate's
+   `evidence` *is* `miss_decomposition.reading`, so one finding appeared twice. De-duplicated in
+   `why_bullets` on `what_happened`, keeping the higher-ranked occurrence — fixed there rather than
+   at either source, because both derivations are legitimate and suppressing one upstream would lose
+   the bullet on reports where only that source fires.
+2. **`DATA_LIMITATION` misdescribed a case with 156 weeks of history.** FW202703 reached it because
+   *every* candidate was rejected on direction, not because anything was missing. The band is right;
+   the stock meaning ("critical evidence is missing") was the opposite of the truth. That path now
+   carries its own meaning and an `all_candidates_rejected_on_direction` flag. The underlying
+   behaviour was already correct — it is §54 working on live data.
+
+### One finding that looked like a bug and is not
+
+`plan_revised_but_remained_wrong` came back on all ten cases, which is exactly the shape of a
+false positive after fixing two bugs in that function. Checked against the live table:
+`Projection_plan_name` holds **monthly** projections ("FY27 Jun Projection") — 40 distinct names over
+208 rows for one queue, about one change per five weeks. A 19-week miss streak genuinely contains four
+reissues. The finding is real, and damning: the plan was reissued on schedule and kept missing the
+same way.
+
+---
+
+## Step 5 — SA Indonesia FW202716 before/after · `80adc26`
+
+Both sides run against **live SQL with a live model**; "before" came from a git worktree at `74f46c5`,
+so it is the actual old code rather than a reconstruction.
+`results/indonesia-fw202716-{before,after}.json`, reproducible via
+`results/run_indonesia_before_after.py`.
+
+**Unchanged** — and this matters as much as what moved: adherence −138.3%, gap 88.2 contacts, root
+cause `DEM-01 Demand Spike`, `cause_type` `DEM-01`, 157 history rows, status Complete.
+
+**Moved:** mechanism none → `COMPOUND_MISS`; criticality none → Moderate (88 contacts is 92% of a
+typical week, lifting one step from Low); holiday phase none → `post_holiday` on a week whose row
+records `Holiday_Count = 0`, with capture `inconsistent_history` at 51.9% — so the engine explicitly
+does **not** blame the holiday; evidence index none → 11/15; ranked bullets 0 → 6; card 10 → 18
+sections; recommendations 1 → 3, replacing a generic "review this period manually" with the seasonal
+baseline and the leading signal, each tagged with the mechanism it follows.
+
+**Confidence Low (61.9%) → Medium (60.5%)** — the score fell slightly while the level rose, which
+needs explaining rather than glossing:
+
+- `ContradictoryEvidence` 0.3226 → 0.4178. Four supporting items instead of one improves the ratio,
+  lifting the dimension **above** the 0.40 Gate 5 threshold — so Gate 5 stops binding and the Medium
+  calculated level is no longer capped down to Low.
+- `EvidenceStrength` 0.8 → 0.7231. Lower, and correctly so: the new items are honestly graded,
+  including Moderate and Weak ones, where the single old item was Strong.
+- `ModelAgreement` NotApplicable → 0.5; `HistoricalConsistency` NotApplicable → 0.4029.
+
+The level moved because evidence was **found**, never because it was lost.
+
 ---
 
 ## Open items
