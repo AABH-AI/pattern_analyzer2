@@ -72,15 +72,40 @@ for (const [i, src] of scripts.entries()) {
 }
 console.log(`  ${loaded === scripts.length ? 'PASS' : 'FAIL'}  all ${scripts.length} script block(s) load`);
 
-/* Every function the WFM report path needs must be reachable at top level. */
-const REQUIRED = ['formatInvestigation', 'renderInvestigationReport', 'secDesc', 'invEsc',
-  'rcaRootCausePanel', 'rcaConfidenceCriticalityPanel', 'rcaWhyPanel', 'rcaEvidenceTablePanel',
-  'rcaForecastResponsePanel', 'rcaDriverEvidencePanel', 'rcaActionPanel',
-  'renderDecisionCard'];
+/* Every function EITHER report path needs must be reachable at top level.
+ *
+ * The Decision Card panels are listed here for the same reason `secDesc` is: they are top-level
+ * functions called from inside renderDecisionCard, and one of them being out of scope would replace
+ * the entire card with an error box. Asserting they are callable is the cheap half of the check;
+ * actually running them over real responses, below, is the half that catches a bad property read.
+ */
+const REQUIRED = ['formatInvestigation', 'renderInvestigationReport', 'invEsc',
+  'renderDecisionCard', 'renderSpecStatus',
+  'cardWhyPanel', 'cardCriticalityPanel', 'cardForecastResponsePanel', 'cardCalendarPanel',
+  'cardDriverPanel', 'cardEvidenceIndexPanel', 'cardSecDesc', 'cardTitle', 'cardPct', 'cardNum'];
+
+/* Panels belonging to the WFM engine upgrade, which lives on the `test` branch. This branch is the
+ * FC Decision Card upgrade and deliberately carries NO WFM changes (section 1 of the brief), so
+ * their absence here is correct and must not fail the run. They are reported so that running this
+ * guard on a branch that HAS them still checks them. */
+const WFM_UPGRADE_ONLY = ['secDesc', 'rcaRootCausePanel', 'rcaConfidenceCriticalityPanel',
+  'rcaWhyPanel', 'rcaEvidenceTablePanel', 'rcaForecastResponsePanel', 'rcaDriverEvidencePanel',
+  'rcaActionPanel'];
+
 for (const fn of REQUIRED) {
   const ok = typeof sandbox[fn] === 'function';
   if (!ok) failures++;
   console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${fn} is callable at top level`);
+}
+const wfmPresent = WFM_UPGRADE_ONLY.filter(fn => typeof sandbox[fn] === 'function');
+if (wfmPresent.length === WFM_UPGRADE_ONLY.length) {
+  console.log(`  PASS  all ${WFM_UPGRADE_ONLY.length} WFM-upgrade panels callable at top level`);
+} else if (wfmPresent.length === 0) {
+  console.log(`  n/a   WFM-upgrade panels absent — correct for the FC-only branch`);
+} else {
+  failures++;
+  console.log(`  FAIL  WFM-upgrade panels only PARTLY present (${wfmPresent.join(', ')}) — a partial `
+    + `port is the scope error that caused "secDesc is not defined"`);
 }
 
 /* Render every captured live response. */
@@ -123,5 +148,92 @@ for (const file of captures) {
     }
   }
 }
-console.log(`\n  ${failures ? failures + ' FAILURE(S)' : 'all checks passed'} over ${cases} rendered response(s)`);
+/* ---- The FC Decision Card (?mode=spec) ----------------------------------------------------
+ * Same principle, different renderer. These captures come from the offline rig
+ * (results/_offline_cache/spec-offline-results.json) and from any live spec capture, and they are
+ * put through the REAL renderDecisionCard.
+ *
+ * The panel list below is the acceptance criteria from section 39 expressed as assertions: a card
+ * that renders but silently drops Criticality or Forecast Response has not met the brief, and only
+ * running it can tell.
+ */
+const CARD_PANELS = {
+  'Executive Decision Card': (o) => o.includes('Executive Decision Card'),
+  'Root Cause': (o) => o.includes('>Root Cause<'),
+  'Why This Happened': (o) => o.includes('Why This Happened'),
+  'Confidence (never collapsed)': (o) => /Confidence/.test(o),
+  'Criticality': (o) => o.includes('Criticality'),
+  'Evidence': (o) => o.includes('>Evidence<'),
+  'Forecast Response': (o) => o.includes('Forecast Response'),
+  'Calendar Context': (o) => o.includes('Calendar Context'),
+  'Driver Evidence': (o) => o.includes('Driver Evidence'),
+  'Hypotheses Considered': (o) => o.includes('Hypotheses Considered'),
+  'Evidence Index': (o) => o.includes('Evidence Index'),
+  'Recommendations': (o) => o.includes('Recommendations'),
+  'Limitations': (o) => o.includes('Limitations'),
+};
+const specFiles = [];
+const offlineCard = path.join(ROOT, 'results', '_offline_cache', 'spec-offline-results.json');
+if (fs.existsSync(offlineCard)) specFiles.push(offlineCard);
+for (const f of fs.readdirSync(path.join(ROOT, 'results'))) {
+  if (/^spec-.*response\.json$/.test(f) || /^live-spec-.*\.json$/.test(f)) {
+    specFiles.push(path.join(ROOT, 'results', f));
+  }
+}
+if (!specFiles.length) console.log('  SKIP  no ?mode=spec captures found to render');
+
+let cardCases = 0;
+for (const file of specFiles) {
+  let parsed;
+  try { parsed = JSON.parse(fs.readFileSync(file, 'utf8')); }
+  catch (e) { failures++; console.log(`  FAIL  ${path.basename(file)} is not valid JSON: ${e.message}`); continue; }
+  // A capture file is either {key: response, ...} or ONE response object. Detecting that by
+  // `decision_card` alone was wrong: a single response with no card (in-band, or stopped early) got
+  // treated as a map, and every one of its own top-level keys was rendered as if it were a separate
+  // response. Look for the fields every response carries instead.
+  const looksLikeOneResponse = ['decision_card', 'forecast_summary', 'engine', 'investigation_meta',
+    'root_cause'].some(k => k in parsed);
+  const entries = looksLikeOneResponse
+    ? [[path.basename(file), parsed]]
+    : Object.entries(parsed).filter(([, v]) => v && typeof v === 'object' && !Array.isArray(v));
+  for (const [key, resp] of entries) {
+    if (!resp || typeof resp !== 'object') continue;
+    // No card is a legitimate outcome (inside the +/-5% threshold, or stopped early). That path has
+    // its OWN renderer and is asserted separately rather than skipped.
+    if (!resp.decision_card) {
+      cardCases++;
+      try {
+        const out = sandbox.renderSpecStatus(resp, { target: { fields: {} } });
+        const ok = out && out.length > 100;
+        if (!ok) { failures++; console.log(`  FAIL  ${path.basename(file)} :: ${key} -> renderSpecStatus produced nothing`); }
+        else console.log(`  PASS  ${path.basename(file)} :: ${key} (no card -> status renderer, ${out.length.toLocaleString()} chars)`);
+      } catch (e) {
+        failures++;
+        console.log(`  FAIL  ${path.basename(file)} :: ${key} -> renderSpecStatus threw ${e.constructor.name}: ${e.message}`);
+      }
+      continue;
+    }
+    cardCases++;
+    try {
+      const out = sandbox.renderDecisionCard(resp, { target: { fields: {} } });
+      const bad = Object.entries(CARD_PANELS).filter(([, t]) => !t(out)).map(([n]) => n);
+      if (out.includes('>undefined<')) bad.push('a literal "undefined" reached the markup');
+      if (out.includes('>null<')) bad.push('a literal "null" reached the markup');
+      if (/>None</.test(out)) bad.push('a Python "None" reached the markup');
+      if (bad.length) {
+        failures++;
+        console.log(`  FAIL  ${path.basename(file)} :: ${key} -> ${bad.join(', ')}`);
+      } else {
+        console.log(`  PASS  ${path.basename(file)} :: ${key} (card, ${out.length.toLocaleString()} chars)`);
+      }
+    } catch (e) {
+      failures++;
+      console.log(`  FAIL  ${path.basename(file)} :: ${key} -> renderDecisionCard threw ${e.constructor.name}: ${e.message}`);
+      if (e.stack) console.log('        ' + e.stack.split('\n').slice(1, 3).join('\n        '));
+    }
+  }
+}
+
+console.log(`\n  ${failures ? failures + ' FAILURE(S)' : 'all checks passed'} over ${cases} WFM report(s) `
+  + `and ${cardCases} Decision Card(s)`);
 process.exit(failures ? 1 : 0);

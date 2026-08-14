@@ -193,8 +193,13 @@ def criticality(abs_variance, adherence_pct, typical_week_actual, streak_weeks=N
     if relative is not None:
         reading += f", about {relative:.0%} of a typical week for this queue"
     reading += "."
-    if lifts:
-        reading += (f" Lifted one step from {base} because " + lifts[0] + ".")
+    # Only claim a lift when the band ACTUALLY MOVED. At the top band the lift saturates, and the
+    # sentence "Lifted one step from Critical" -- read on a real report -- is simply wrong.
+    if lifts and final != base:
+        reading += f" Lifted one step from {base} because {lifts[0]}."
+    elif lifts:
+        reading += (f" Already at the highest band, so the lift did not change it, but note that "
+                    f"{lifts[0]}.")
     return {
         "band": final,
         "band_before_lifts": base,
@@ -837,7 +842,12 @@ def miss_mechanism(adherence, response_block, holiday_block, lag_block, asu_bloc
     if gate.get("supports_forecast_response_failure"):
         candidates.append({
             "mechanism": FORECAST_RESPONSE_FAILURE,
-            "evidence": f"{resp.get('classification')}: {resp.get('reason')}",
+            # The class name is an internal token. `over_response` reached executive prose verbatim
+            # on a real card; section 40 wants the business story readable, and an underscore in a
+            # sentence is a leaked identifier.
+            "evidence": (f"The plan's reaction was judged "
+                         f"{str(resp.get('classification') or '').replace('_', ' ')}. "
+                         f"{resp.get('reason')}"),
             "share_of_miss": None,
         })
 

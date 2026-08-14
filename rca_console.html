@@ -2072,6 +2072,224 @@ function renderSpecStatus(resp, ctx){
   </div>`;
 }
 
+/* ---- The additive Decision Card panels (sections 11-18 of the card).
+   DELIBERATELY TOP-LEVEL FUNCTIONS, not closures inside renderDecisionCard. A helper declared
+   inside the renderer and called from a panel defined outside it is a ReferenceError that replaces
+   the WHOLE report with an error card -- that exact mistake shipped to a user once, with `secDesc`.
+   Everything these use (invEsc, invAttr, cardNum, CARD_STATE_*) is itself top level.
+
+   Each returns '' when its section is absent, so an older backend that does not send these keys
+   renders the original card unchanged rather than a row of empty boxes. ---- */
+const CARD_CRIT_COLOUR={'Critical':'#a01b2b','High':'#c2410c','Moderate':'#b26a00','Low':'#0b7a3b','Negligible':'#6b7280'};
+const CARD_CRIT_BG={'Critical':'#fdecee','High':'#fff1e8','Moderate':'#fff4e5','Low':'#e8f6ee','Negligible':'#f3f4f6'};
+const CARD_COV_COLOUR={'populated':'#0b7a3b','sparse':'#b26a00','absent':'#6b7280'};
+
+function cardSecDesc(t){ return `<div style="font-size:11.5px;color:#6b7280;font-style:italic;margin-top:6px;line-height:1.55;">${invEsc(t)}</div>`; }
+function cardTitle(t){ return `<div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">${invEsc(t)}</div>`; }
+function cardPct(v,nd){ return (typeof v==='number')? (v>0?'+':'')+v.toFixed(nd==null?1:nd)+'%' : '—'; }
+
+/* Why This Happened -- ranked bullets. The ORDER is the backend's and is not re-sorted here:
+   section 41 makes the ranking deterministic evidence, so a front end that re-sorted would be
+   overriding the finding. */
+function cardWhyPanel(s){
+  const w=s['12_why_this_happened']||{};
+  const bl=w.bullets||[];
+  if(!bl.length) return '';
+  const rows=bl.map(b=>`<li style="margin-bottom:8px;line-height:1.65;">
+      <div style="font-weight:600;">${invEsc(b.what_happened||'')}</div>
+      ${b.why_it_mattered?`<div style="font-size:12px;color:#444;margin-top:2px;">${invEsc(b.why_it_mattered)}</div>`:''}
+      ${b.forecast_mechanism?`<div style="font-size:12px;color:#1f4e79;margin-top:2px;">${invEsc(b.forecast_mechanism)}</div>`:''}
+      ${b.evidence_id?`<span style="display:inline-block;margin-top:3px;background:#eef2f7;color:#1f4e79;border-radius:3px;padding:1px 6px;font-size:10.5px;font-weight:700;">${invEsc(b.evidence_id)}</span>`:''}
+      ${b.strength?`<span style="display:inline-block;margin-top:3px;margin-left:4px;color:#6b7280;font-size:10.5px;font-weight:700;">${invEsc(b.strength)}</span>`:''}
+    </li>`).join('');
+  return `<div class="inv-card">
+    ${cardTitle('Why This Happened')}
+    ${cardSecDesc('Ranked strongest first by the evidence itself — causal coherence, then whether the plan could have reacted, then this queue’s own history, then measurement strength, then data sufficiency, then what argues against. The wording may be polished by the summary model; the order, the figures and the set of points are fixed by the analysis.')}
+    <ol style="margin:10px 0 0 20px;">${rows}</ol>
+  </div>`;
+}
+
+/* Criticality -- its own panel, beside confidence and never inside it. */
+function cardCriticalityPanel(s){
+  const c=s['11_criticality']||{};
+  if(!c.available) return '';
+  const col=CARD_CRIT_COLOUR[c.band]||'#6b7280', bg=CARD_CRIT_BG[c.band]||'#f3f4f6';
+  const lifts=(c.lifts_applied||[]).map(l=>`<li>${invEsc(l)}</li>`).join('');
+  return `<div class="inv-card">
+    ${cardTitle('Criticality — how much this miss matters')}
+    ${cardSecDesc(c.not_confidence||'')}
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;">
+      <span style="background:${bg};color:${col};border:1px solid ${col}33;border-radius:4px;padding:4px 12px;font-size:14px;font-weight:800;">${invEsc(c.band||'—')}</span>
+      ${c.lifted?`<span style="font-size:11.5px;color:#6b7280;">calculated ${invEsc(c.band_before_lifts)}, lifted one step</span>`:''}
+    </div>
+    <div style="margin-top:10px;line-height:1.7;">${invEsc(c.statement||'')}</div>
+    <div class="inv-kv-grid" style="margin-top:10px;">
+      <div class="kvi"><div class="l">Gap</div><div class="v">${cardNum(c.absolute_gap_contacts)} contacts</div></div>
+      <div class="kvi"><div class="l">Typical week</div><div class="v">${cardNum(c.typical_week_actual)}</div></div>
+      <div class="kvi"><div class="l">Gap vs typical week</div><div class="v">${(typeof c.relative_gap==='number')?Math.round(c.relative_gap*100)+'%':'—'}</div></div>
+      <div class="kvi"><div class="l">Same-direction run</div><div class="v">${c.streak_weeks!=null?invEsc(c.streak_weeks)+' week(s)':'—'}</div></div>
+    </div>
+    ${lifts?`<div style="margin-top:8px;font-size:11.5px;color:#8a5a00;">Lift reason(s):<ul style="margin:2px 0 0 16px;line-height:1.55;">${lifts}</ul></div>`:''}
+    <div style="margin-top:8px;font-size:11.5px;color:#6b7280;line-height:1.55;">${invEsc(c.how_to_read||'')}</div>
+  </div>`;
+}
+
+/* Forecast Response -- what signal existed, and whether the plan captured it. */
+function cardForecastResponsePanel(s){
+  const r=s['13_forecast_response']||{};
+  if(!r.available) return r.reason?`<div class="inv-card">${cardTitle('Forecast Response')}
+      <div style="margin-top:8px;background:#f3f4f6;border-left:3px solid #6b7280;border-radius:0 4px 4px 0;padding:8px 12px;line-height:1.6;">${invEsc(r.reason)}</div></div>`:'';
+  const sig=(r.signals||[]).map(x=>`<tr style="border-top:1px solid #eef0f3;">
+      <td style="padding:5px 8px;font-weight:600;">${invEsc(String(x.signal||'').replace(/_/g,' '))}</td>
+      <td style="padding:5px 8px;color:${x.detected?'#0b7a3b':'#6b7280'};font-weight:700;white-space:nowrap;">${x.detected?'present':'not present'}</td>
+      <td style="padding:5px 8px;">${invEsc(x.direction||'—')}</td>
+      <td style="padding:5px 8px;white-space:nowrap;">${x.visible_from_fiscal_week!=null?'FW'+invEsc(x.visible_from_fiscal_week):'—'}</td>
+      <td style="padding:5px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(x.reading||'')}</td>
+    </tr>`).join('');
+  const gate=(r.gate_conditions||[]).map(x=>`<li style="margin-bottom:4px;line-height:1.55;">
+      <span style="color:${x.met?'#0b7a3b':'#a01b2b'};font-weight:800;">${x.met?'✓':'✗'}</span>
+      ${invEsc(x.condition)}
+      <div style="font-size:11.5px;color:#6b7280;margin-left:16px;">${invEsc(x.measured||'')}</div>
+    </li>`).join('');
+  const gcol=r.supports_forecast_failure?'#a01b2b':'#0b7a3b';
+  const gbg=r.supports_forecast_failure?'#fdecee':'#e8f6ee';
+  return `<div class="inv-card">
+    ${cardTitle('Forecast Response — what signal existed, and did the plan use it')}
+    ${cardSecDesc(r.how_to_read||'')}
+    <div class="inv-kv-grid" style="margin-top:10px;">
+      <div class="kvi"><div class="l">Expected demand</div><div class="v">${cardNum(r.expected_demand)}</div></div>
+      <div class="kvi"><div class="l">From plan level</div><div class="v">${cardNum(r.forecast_side_contribution)} contacts${(typeof r.forecast_side_share==='number')?' ('+Math.round(r.forecast_side_share*100)+'%)':''}</div></div>
+      <div class="kvi"><div class="l">From demand moving</div><div class="v">${cardNum(r.demand_side_contribution)} contacts${(typeof r.demand_side_share==='number')?' ('+Math.round(r.demand_side_share*100)+'%)':''}</div></div>
+      <div class="kvi"><div class="l">Predictability</div><div class="v">${invEsc(String(r.forecastability||'—').replace(/_/g,' '))}</div></div>
+    </div>
+    <div style="margin-top:4px;font-size:11.5px;color:#6b7280;">Expected level basis: ${invEsc(r.expected_basis||'—')}${r.decomposition_reconciles?' · the two sides sum exactly to the whole gap':''}</div>
+    ${r.decomposition_reading?`<div style="margin-top:8px;line-height:1.7;">${invEsc(r.decomposition_reading)}</div>`:''}
+    ${sig?`<div style="margin-top:12px;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">Signals available before the week</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:4px;">
+        <tr style="background:#f6f7f9;font-weight:700;text-align:left;"><td style="padding:5px 8px;">Signal</td><td style="padding:5px 8px;">State</td><td style="padding:5px 8px;">Direction</td><td style="padding:5px 8px;">Visible from</td><td style="padding:5px 8px;">Reading</td></tr>
+        ${sig}</table>`:''}
+    ${r.response_reason?`<div style="margin-top:12px;"><b>The plan's reaction:</b> ${invEsc(String(r.response_classification||'').replace(/_/g,' '))} — ${invEsc(r.response_reason)}</div>`:''}
+    ${(r.timing_note)?`<div style="margin-top:4px;font-size:11.5px;color:#6b7280;">${invEsc(r.timing_note)}</div>`:''}
+    ${gate?`<div style="margin-top:12px;background:${gbg};border:1px solid ${gcol}33;border-left:3px solid ${gcol};border-radius:0 4px 4px 0;padding:10px 12px;">
+      <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:${gcol};">Was this a forecast failure? All four must hold</div>
+      <ul style="margin:8px 0 0 18px;">${gate}</ul>
+      <div style="margin-top:8px;line-height:1.65;font-weight:600;">${invEsc(r.gate_verdict||'')}</div>
+    </div>`:''}
+  </div>`;
+}
+
+/* Calendar context -- pre / holiday / post, and the weekend grain limit. */
+function cardCalendarPanel(s){
+  const c=s['14_calendar_context']||{};
+  const w=c.weekend||{};
+  if(!c.available && !w.statement) return '';
+  const ph=Object.entries(c.phases||{}).map(([k,v])=>`<tr style="border-top:1px solid #eef0f3;">
+      <td style="padding:5px 8px;font-weight:600;">${invEsc(k.replace(/_/g,'-'))}</td>
+      <td style="padding:5px 8px;text-align:right;">${v.instances!=null?invEsc(v.instances):'—'}</td>
+      <td style="padding:5px 8px;text-align:right;">${cardPct(v.actual_effect_pct,2)}</td>
+      <td style="padding:5px 8px;text-align:right;color:${v.consistent?'#0b7a3b':'#b26a00'};font-weight:700;">${(typeof v.consistency==='number')?Math.round(v.consistency*100)+'%':'—'}</td>
+      <td style="padding:5px 8px;color:${v.historically_planned_for?'#0b7a3b':'#a01b2b'};font-weight:700;white-space:nowrap;">${v.historically_planned_for?'yes':'no'}</td>
+      <td style="padding:5px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(v.reading||'')}</td>
+    </tr>`).join('');
+  const names=(c.calendar_names||[]);
+  const review=(c.names_needing_review||[]);
+  return `<div class="inv-card">
+    ${cardTitle('Calendar Context — pre-holiday, holiday, post-holiday')}
+    ${cardSecDesc(c.how_to_read||'')}
+    ${c.available?`<div class="inv-kv-grid" style="margin-top:10px;">
+      <div class="kvi"><div class="l">Phase for this week</div><div class="v">${invEsc(String(c.phase||'none').replace(/_/g,'-'))}</div></div>
+      <div class="kvi"><div class="l">Holidays on this row</div><div class="v">${c.row_holiday_count!=null?invEsc(c.row_holiday_count):'—'}</div></div>
+      <div class="kvi"><div class="l">Window checked</div><div class="v">${c.span_weeks!=null?'±'+invEsc(c.span_weeks)+' weeks':'—'}</div></div>
+      <div class="kvi"><div class="l">Events</div><div class="v">${invEsc(((c.event_summary||{}).event_count)!=null?(c.event_summary||{}).event_count:'—')}</div></div>
+    </div>`:''}
+    ${c.zero_count_but_adjacent?`<div style="margin-top:10px;background:#fff4e5;border-left:3px solid #b26a00;border-radius:0 4px 4px 0;padding:8px 12px;font-size:12px;line-height:1.6;">This week's own row records no holiday, but a holiday sits close enough that its run-up or wind-down reaches into it. "No holiday on the row" is not the same as "no holiday effect".</div>`:''}
+    ${names.length?`<div style="margin-top:10px;"><b>Holidays reaching this week:</b> ${invEsc(names.join(', '))}</div>`:''}
+    ${(c.raw_source_names&&c.raw_source_names.length&&c.raw_source_names.join(', ')!==names.join(', '))?`<div style="margin-top:3px;font-size:11.5px;color:#6b7280;">Raw source names: ${invEsc(c.raw_source_names.join(', '))}</div>`:''}
+    ${c.statement?`<div style="margin-top:8px;line-height:1.7;">${invEsc(c.statement)}</div>`:''}
+    ${!c.available&&c.reason?`<div style="margin-top:10px;background:#f3f4f6;border-left:3px solid #6b7280;border-radius:0 4px 4px 0;padding:8px 12px;line-height:1.6;">${invEsc(c.reason)}</div>`:''}
+    ${ph?`<div style="margin-top:12px;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">What each phase does to THIS queue, measured on its own history</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:4px;">
+        <tr style="background:#f6f7f9;font-weight:700;text-align:left;"><td style="padding:5px 8px;">Phase</td><td style="padding:5px 8px;text-align:right;">Instances</td><td style="padding:5px 8px;text-align:right;">Effect</td><td style="padding:5px 8px;text-align:right;">Consistency</td><td style="padding:5px 8px;">Planned for?</td><td style="padding:5px 8px;">Reading</td></tr>
+        ${ph}</table>`:''}
+    ${(c.forecast_capture&&c.forecast_capture.reason)?`<div style="margin-top:10px;"><b>Did the plan capture it?</b> ${invEsc(String(c.forecast_capture.classification||'').replace(/_/g,' '))} — ${invEsc(c.forecast_capture.reason)}</div>`:''}
+    ${review.length?`<div style="margin-top:10px;background:#fff4e5;border-left:3px solid #b26a00;border-radius:0 4px 4px 0;padding:8px 12px;font-size:11.5px;line-height:1.6;">Flagged for review in the holiday master: ${invEsc(review.join(', '))}. No mapping was invented to resolve this.</div>`:''}
+    ${c.row_flag_disagreement?`<div style="margin-top:8px;background:#fff4e5;border-left:3px solid #b26a00;border-radius:0 4px 4px 0;padding:8px 12px;font-size:11.5px;line-height:1.6;">${invEsc(c.row_flag_disagreement)}</div>`:''}
+    ${w.statement?`<div style="margin-top:12px;padding-top:10px;border-top:1px solid #e5e7eb;">
+      <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">Weekend</div>
+      <div style="margin-top:4px;color:${w.supported?'#111':'#6b7280'};line-height:1.65;">${invEsc(w.statement)}</div>
+      ${w.grain?`<div style="margin-top:3px;font-size:11.5px;color:#6b7280;">Data grain found in the source: ${invEsc(w.grain)}.</div>`:''}
+    </div>`:''}
+  </div>`;
+}
+
+/* Driver evidence -- ASU, Shipment, UPP, with coverage never collapsed. */
+function cardDriverPanel(s){
+  const d=s['15_driver_evidence']||{};
+  if(!d.available) return d.reason?`<div class="inv-card">${cardTitle('Driver Evidence')}
+      <div style="margin-top:8px;background:#f3f4f6;border-left:3px solid #6b7280;border-radius:0 4px 4px 0;padding:8px 12px;line-height:1.6;">${invEsc(d.reason)}</div></div>`:'';
+  const rows=(d.drivers||[]).map(x=>{
+    const col=CARD_COV_COLOUR[x.coverage]||'#6b7280';
+    return `<tr style="border-top:1px solid #eef0f3;">
+      <td style="padding:5px 8px;">
+        <div style="font-weight:600;">${invEsc(x.subject||x.driver)}</div>
+        <div style="font-size:11px;color:#6b7280;">${invEsc(x.driver)}${(x.requested_by&&x.requested_by.length)?' · asked for by '+invEsc(x.requested_by.join(', ')):''}</div>
+      </td>
+      <td style="padding:5px 8px;color:${col};font-weight:700;white-space:nowrap;">${invEsc(x.coverage||'—')}</td>
+      <td style="padding:5px 8px;text-align:right;white-space:nowrap;">${x.best_lag_weeks!=null?invEsc(x.best_lag_weeks)+' wk':'—'}</td>
+      <td style="padding:5px 8px;text-align:right;">${x.relationship_strength!=null?invEsc(x.relationship_strength):'—'}</td>
+      <td style="padding:5px 8px;white-space:nowrap;">${invEsc(x.stability||'—')}</td>
+      <td style="padding:5px 8px;color:${x.usable_as_evidence?'#0b7a3b':'#6b7280'};font-weight:700;white-space:nowrap;">${x.usable_as_evidence?'used':'not used'}</td>
+      <td style="padding:5px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(x.reading||'')}</td>
+    </tr>`;}).join('');
+  const a=d.asu_decomposition||{};
+  return `<div class="inv-card">
+    ${cardTitle('Driver Evidence')}
+    ${cardSecDesc(d.how_to_read||'')}
+    ${rows?`<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px;">
+      <tr style="background:#f6f7f9;font-weight:700;text-align:left;"><td style="padding:5px 8px;">Driver</td><td style="padding:5px 8px;">Coverage</td><td style="padding:5px 8px;text-align:right;">Best lag</td><td style="padding:5px 8px;text-align:right;">Strength</td><td style="padding:5px 8px;">Stability</td><td style="padding:5px 8px;">Verdict</td><td style="padding:5px 8px;">Reading</td></tr>
+      ${rows}</table>`:''}
+    <div style="margin-top:8px;font-size:11.5px;color:#6b7280;line-height:1.55;">${invEsc(d.shipment_vs_upp||'')}</div>
+    ${a.available?`<div style="margin-top:12px;padding-top:10px;border-top:1px solid #e5e7eb;">
+      <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">Units under warranty — population vs contacts per unit</div>
+      <div class="inv-kv-grid" style="margin-top:8px;">
+        <div class="kvi"><div class="l">Population effect</div><div class="v">${cardNum(a.volume_effect)} contacts</div></div>
+        <div class="kvi"><div class="l">Contact-rate effect</div><div class="v">${cardNum(a.rate_effect)} contacts</div></div>
+        <div class="kvi"><div class="l">Sums to the gap</div><div class="v" style="color:${a.reconciles?'#0b7a3b':'#a01b2b'};font-weight:700;">${a.reconciles?'exactly':'DOES NOT RECONCILE'}</div></div>
+        <div class="kvi"><div class="l">Reading</div><div class="v">${invEsc(a.interpretation||'—')}</div></div>
+      </div>
+      <div style="margin-top:8px;line-height:1.7;">${invEsc(a.reading||'')}</div>
+    </div>`:(a.reason?`<div style="margin-top:12px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:12px;color:#6b7280;line-height:1.6;">Units under warranty: ${invEsc(a.reason)}</div>`:'')}
+  </div>`;
+}
+
+/* Evidence index + catalogue gaps -- traceability, and what the catalogue could not carry. */
+function cardEvidenceIndexPanel(s){
+  const ix=s['16_evidence_index']||{}, gaps=s['18_catalogue_gaps']||{};
+  const items=ix.items||{};
+  const keys=Object.keys(items).sort((a,b)=>parseInt(a.slice(1),10)-parseInt(b.slice(1),10));
+  if(!keys.length && !(gaps.items||[]).length) return '';
+  const rows=keys.map(k=>{
+    const e=items[k]||{};
+    return `<tr style="border-top:1px solid #eef0f3;">
+      <td style="padding:4px 8px;font-weight:700;color:#1f4e79;white-space:nowrap;">${invEsc(k)}</td>
+      <td style="padding:4px 8px;font-weight:600;">${invEsc(e.label||'')}</td>
+      <td style="padding:4px 8px;color:${e.available?'#0b7a3b':'#6b7280'};font-weight:700;white-space:nowrap;">${e.available?'available':'not established'}</td>
+      <td style="padding:4px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(e.note||'')}</td>
+    </tr>`;}).join('');
+  const gapRows=(gaps.items||[]).map(g=>`<li style="line-height:1.6;"><b>${invEsc(g.observation)}</b> — ${invEsc(g.why_recorded||'')}</li>`).join('');
+  return `<div class="inv-card">
+    ${cardTitle('Evidence Index — where each finding comes from')}
+    ${cardSecDesc('Every executive point above traces to a numbered item here. An item that could not be established is listed with its reason rather than left out, so you can see what was checked as well as what was found.')}
+    <div style="margin-top:8px;font-size:11.5px;color:#6b7280;">${invEsc(ix.available_count!=null?ix.available_count:'—')} of ${invEsc(ix.total!=null?ix.total:'—')} established.</div>
+    ${rows?`<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;">${rows}</table>`:''}
+    ${gapRows?`<div style="margin-top:12px;padding-top:10px;border-top:1px solid #e5e7eb;">
+      <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#b26a00;">Catalogue gaps — observed, but no sanctioned hypothesis to carry it</div>
+      <ul style="margin:6px 0 0 18px;">${gapRows}</ul>
+      <div style="margin-top:6px;font-size:11.5px;color:#6b7280;font-style:italic;">${invEsc(gaps.note||'')}</div>
+    </div>`:''}
+  </div>`;
+}
+
 function renderDecisionCard(resp, ctx){
   const c=resp.decision_card||{}, h=c.header||{}, s=c.sections||{};
   const adh=h.forecast_adherence_pct;
@@ -2092,6 +2310,8 @@ function renderDecisionCard(resp, ctx){
       <div class="kvi"><div class="l">Direction</div><div class="v">${invEsc(h.direction||'—')}</div></div>
       <div class="kvi"><div class="l">Absolute Variance</div><div class="v">${cardNum(h.absolute_variance_contacts)} contacts</div></div>
       <div class="kvi"><div class="l">Forecast / Actual</div><div class="v">${cardNum(h.forecast)} / ${cardNum(h.actual)}</div></div>
+      ${h.criticality_band?`<div class="kvi"><div class="l">Criticality</div><div class="v" style="color:${CARD_CRIT_COLOUR[h.criticality_band]||'#6b7280'};font-weight:800;">${invEsc(h.criticality_band)}</div></div>`:''}
+      ${h.miss_mechanism?`<div class="kvi"><div class="l">Why Forecast missed</div><div class="v">${invEsc(String(h.miss_mechanism).replace(/_/g,' ').toLowerCase().replace(/^./,m=>m.toUpperCase()))}</div></div>`:''}
     </div>
   </div>`;
 
@@ -2389,7 +2609,17 @@ function renderDecisionCard(resp, ctx){
     })()}
   </div>`;
 
-  return head+cause+interro+conf+evidence+ctxHtml+hyp+tail;
+  /* Order follows the information hierarchy in section 39 of the brief:
+       Executive Finding -> Root Cause -> Why This Happened -> Confidence -> Criticality
+       -> Evidence -> Forecast Response -> Calendar Context -> Driver Evidence
+       -> Rejected/Suppressed -> Missing Information -> Recommendations
+     Criticality sits immediately AFTER confidence and never inside it -- the two answer different
+     questions, and a reader who reads one as the other triages wrongly in both directions.
+     Interrogation stays where it was, after the cause, since it is explanatory commentary on the
+     finding rather than part of the evidence chain. */
+  return head + cause + cardWhyPanel(s) + interro + conf + cardCriticalityPanel(s)
+       + evidence + cardForecastResponsePanel(s) + cardCalendarPanel(s) + cardDriverPanel(s)
+       + ctxHtml + hyp + cardEvidenceIndexPanel(s) + tail;
 }
 
 function renderInvestigationReport(f, ctx){

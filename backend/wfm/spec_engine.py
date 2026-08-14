@@ -1339,6 +1339,13 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
             fc_resolution),
     }
 
+    # The ranked WHY bullets are built HERE, before the model is called, and travel with the
+    # finding. Two reasons, and the second is the important one:
+    #   * the prompt asks the model to reword them, so it has to see them;
+    #   * computing them once means the prose and the card cannot show a different set of bullets in
+    #     a different order. Building them twice would make that divergence possible.
+    finding["decision_card_why"] = decision_card.why_bullets(finding)
+
     # --- Step 14 -- the ONLY LLM call ------------------------------------------
     _narr_t0 = _time.time()
     narrative, narrative_error, narrative_model = _narrate(finding, llm_cfg, model_choice)

@@ -47,6 +47,27 @@ from .common import rnd
 
 INCONCLUSIVE = "Inconclusive"
 
+# ==============================================================================
+# Section 40 -- executive language
+# ==============================================================================
+# Terms banned from EXECUTIVE prose. Not from the statistical section, which is where a analyst
+# should be able to see the coefficient -- the rule is that the business story is readable without
+# them, not that they are hidden.
+#
+# This exists as a checkable list rather than a style note because a style note cannot be tested.
+# `jargon_found` is published on the card so the test suite can assert the executive fields are
+# clean, and so a reviewer can see the check ran rather than trusting that it did.
+EXEC_JARGON = ("z-score", "z score", "zscore", "p-value", "p value", "r-squared", "r squared",
+               "r²", "spearman", "pearson", "coefficient of variation", "standard deviation",
+               "std dev", "stdev", "regression", "sigma", "wape", "mape", "rho", "correlation "
+               "coefficient", "quartile", "kurtosis", "heteroscedastic")
+
+
+def jargon_in(text):
+    """Which banned terms appear in a piece of executive prose. Empty list is the pass condition."""
+    low = str(text or "").lower()
+    return sorted({t for t in EXEC_JARGON if t in low})
+
 
 def _fmt(n, nd=0):
     if not isinstance(n, (int, float)):
@@ -399,6 +420,362 @@ def hypothesis_comparison(hypotheses, cross_examination):
 
 
 # ==============================================================================
+# Section 30 -- Criticality, shown SEPARATELY from confidence
+# ==============================================================================
+def criticality_panel(criticality):
+    """Section 30. Visible in its own right, never folded into the confidence number.
+
+    The two answer different questions and a reader who conflates them acts wrongly in both
+    directions: they ignore a large miss that happens to be thinly evidenced, and they escalate a
+    trivial one that happens to be well evidenced. The panel therefore states the independence
+    explicitly rather than relying on the reader to infer it from the layout.
+    """
+    c = criticality or {}
+    if not c:
+        return {"available": False,
+                "reason": "criticality could not be computed for this period."}
+    return {
+        "available": True,
+        "band": c.get("band"),
+        "band_before_lifts": c.get("band_before_lifts"),
+        "lifted": c.get("band") != c.get("band_before_lifts"),
+        "lifts_applied": c.get("lifts_applied") or [],
+        "absolute_gap_contacts": c.get("absolute_gap_contacts"),
+        "relative_gap": c.get("relative_gap"),
+        "typical_week_actual": c.get("typical_week_actual"),
+        "streak_weeks": c.get("streak_weeks"),
+        "statement": c.get("reading"),
+        "basis": c.get("basis"),
+        "how_to_read": ("Criticality is how much this miss MATTERS operationally. It is calculated "
+                        "from the size of the gap in contacts, that gap against a typical week for "
+                        "this queue, and whether the miss is standing or isolated. It is NOT "
+                        "derived from confidence, and a high confidence score can sit beside a low "
+                        "criticality band without contradiction."),
+        "not_confidence": ("Confidence says how strong the evidence is. Criticality says how much "
+                           "the miss matters. They are independent by design."),
+        "thresholds": c.get("thresholds"),
+    }
+
+
+# ==============================================================================
+# Sections 39 + 41 -- Why This Happened, as DETERMINISTICALLY RANKED bullets
+# ==============================================================================
+# Rank order is the section 41 list, applied as a sort key. The first bullet is therefore the
+# strongest explanation as the EVIDENCE measures it -- never as the model prefers it, and never
+# simply the order the blocks happened to be computed in.
+_RANK_CAUSAL_COHERENCE = 0     # does the mechanism explain the direction of the miss at all
+_RANK_FORECASTABILITY = 1      # could the plan have reacted
+_RANK_HISTORICAL = 2           # does this queue's own history support it
+_RANK_STATISTICAL = 3          # how strong is the measurement
+_RANK_SUFFICIENCY = 4          # was there enough data
+_RANK_CONTRADICTION = 5        # what argues against
+
+
+def why_bullets(result):
+    """Section 39 and 41. Each bullet says WHAT happened, WHY it mattered, and the forecast
+    mechanism -- the three parts the brief asks for -- and carries its evidence ID.
+
+    Built from the deterministic blocks only. The narrative model may later REWORD these, but the
+    set of bullets, their order and their figures are settled here.
+    """
+    mech = result.get("miss_mechanism") or {}
+    resp = result.get("forecast_response_diagnostic") or {}
+    lag = result.get("lagged_driver_evidence") or {}
+    hol = result.get("holiday_response") or {}
+    plan = result.get("plan_revision") or {}
+    asu = result.get("asu_decomposition") or {}
+    res = result.get("evidence_resolution") or {}
+    fs = result.get("forecast_summary") or {}
+
+    out = []
+
+    def bullet(rank, what, why_it_mattered, mechanism, evidence_id=None, strength=None):
+        """One bullet. Keys whose value is absent are OMITTED rather than set to null.
+
+        A renderer that prints every key it finds will print the string "None" for a null, and that
+        is exactly how the WFM report once shipped a literal "undefined" to a user. Leaving the key
+        out means a naive template renders nothing, which is the correct thing to render.
+        """
+        if not what:
+            return
+        b = {"rank_basis": rank, "what_happened": what,
+             "text": " ".join(p for p in (what, why_it_mattered, mechanism) if p)}
+        for k, v in (("why_it_mattered", why_it_mattered), ("forecast_mechanism", mechanism),
+                     ("evidence_id", evidence_id), ("strength", strength)):
+            if v:
+                b[k] = v
+        out.append(b)
+
+    # 1. The mechanism itself -- the direct answer to "why did Forecast miss?"
+    for c in (mech.get("candidates") or []):
+        m = c.get("mechanism")
+        coh = (c.get("direction_coherence") or {})
+        bullet(_RANK_CAUSAL_COHERENCE,
+               c.get("evidence"),
+               (f"This is {'the' if not mech.get('compound') else 'one of the'} mechanism"
+                f"{'s' if mech.get('compound') else ''} the evidence supports: "
+                f"{(result.get('root_cause') or {}).get('miss_mechanism_meaning') or ''}").strip(),
+               (f"Direction checks out: the miss pushed demand {coh.get('miss_direction')} and this "
+                f"mechanism implies {coh.get('implied_direction')}." if coh.get("coherent")
+                else "Direction was not testable for this mechanism."),
+               evidence_id="E5", strength="Strong")
+
+    # 2. Which SIDE of the gap was already there before the week began (section 13).
+    dec = resp.get("miss_decomposition") or {}
+    if dec.get("available") and dec.get("reconciles"):
+        lead = dec.get("leading_side")
+        bullet(_RANK_CAUSAL_COHERENCE, dec.get("reading"),
+               (f"Most of the gap -- {abs((dec.get(lead + '_side_share') or 0)) * 100:.0f}% of it -- "
+                f"sits on the {lead} side." if lead else None),
+               ("The plan was already away from the expected level before the week started."
+                if lead == "forecast" else
+                "Demand moved away from what the available signals pointed to."),
+               evidence_id="E2", strength="Strong")
+
+    # 3. Could the plan have reacted (section 15)?
+    gate = resp.get("forecastability_gate") or {}
+    if gate.get("conditions"):
+        bullet(_RANK_FORECASTABILITY, gate.get("verdict"),
+               None,
+               ("All four conditions for calling this a forecast-response failure hold."
+                if gate.get("supports_forecast_response_failure") else
+                f"{gate.get('conditions_met')} of 4 conditions hold, so it is not classed as a "
+                f"forecast failure."),
+               evidence_id="E5", strength="Strong")
+
+    # 4. Calendar (sections 22-24).
+    cap = hol.get("forecast_capture") or {}
+    if hol.get("applies"):
+        bullet(_RANK_HISTORICAL,
+               hol.get("reading"),
+               (f"The week sits in the {str(hol.get('phase') or '').replace('_', '-')} phase"
+                + (f", and a holiday falls close enough to reach it even though the source row "
+                   f"records none." if hol.get("zero_count_but_adjacent") else ".")),
+               cap.get("reason"),
+               evidence_id="E10", strength="Moderate")
+
+    # 5. Drivers (sections 16-18, 20-21).
+    for d in (lag.get("drivers") or []):
+        if d.get("usable_as_evidence"):
+            bullet(_RANK_STATISTICAL, d.get("reading"),
+                   (f"It is usable prospectively: the value is known "
+                    f"{d.get('best_lag_weeks')} week(s) before the demand it precedes."
+                    if (d.get("best_lag_weeks") or 0) > 0 else
+                    "It moves with demand in the same week."),
+                   None, evidence_id="E7", strength="Moderate")
+        elif d.get("coverage") == "sparse":
+            bullet(_RANK_SUFFICIENCY, d.get("reading"),
+                   "So it was not used to support any conclusion.", None,
+                   evidence_id="E8", strength="Weak")
+
+    # 6. ASU split (section 19).
+    if asu.get("available"):
+        # "The gap is a mixed." -- the article does not survive every interpretation value, and
+        # three of the four are not noun phrases. Worded per value instead.
+        _asu_says = {"population/base effect": ("The gap is driven by the supported population "
+                                                "differing from plan."),
+                     "contact-rate effect": ("The gap is driven by contacts per unit differing "
+                                             "from plan, not by the population."),
+                     "mixed": "Both the population and the contact rate contributed.",
+                     }.get(asu.get("interpretation"),
+                           "Neither the population nor the contact rate could be sized.")
+        bullet(_RANK_STATISTICAL, asu.get("reading"), None, _asu_says,
+               evidence_id="E6", strength="Strong")
+
+    # 7. Plan vintage (section 8) -- the FC-specific question nobody else asks.
+    if plan.get("available") and plan.get("reading"):
+        bullet(_RANK_HISTORICAL, plan.get("reading"), None,
+               {"plan_not_revisited": "The plan was never reissued during the run.",
+                "plan_revised_but_remained_wrong": ("The process ran and produced the same error, "
+                                                    "so the method needs review, not the cadence."),
+                "plan_revised_appropriately": "The revision did move the plan towards demand."}
+               .get(plan.get("state")),
+               evidence_id="E15", strength="Strong")
+
+    # 8. What argues against (section 31).
+    for conflict in (res.get("conflicts") or []):
+        bullet(_RANK_CONTRADICTION, conflict.get("conflict"),
+               f"Governed by {conflict.get('governed_by')}.",
+               conflict.get("resolution"), evidence_id="E14", strength="Moderate")
+
+    out.sort(key=lambda b: b["rank_basis"])
+    for i, b in enumerate(out, start=1):
+        b["rank"] = i
+        b["jargon_found"] = jargon_in(b["text"])
+    return {
+        "bullets": out,
+        "count": len(out),
+        "ranking_basis": ["causal coherence", "forecastability", "historical consistency",
+                          "statistical strength", "data sufficiency", "contradiction resolution"],
+        "ranked_deterministically": True,
+        "note": ("Order is set by the evidence, not by the narrative model. The model may reword a "
+                 "bullet; it cannot reorder, add or remove one."),
+        "jargon_found": sorted({j for b in out for j in b["jargon_found"]}),
+    }
+
+
+def _with_narrative(why, narrative):
+    """Overlay the model's rewording onto the deterministic bullets, matched BY RANK.
+
+    Matched by rank rather than by position, so a model that returns the entries in a different
+    order cannot silently reassign one bullet's prose to another bullet's evidence. `narrative_prompt`
+    already discards a reordered list outright; this is the second line of defence, and it is here
+    because the failure mode -- correct-looking prose attached to the wrong evidence ID -- is
+    invisible on the rendered card.
+
+    `text` keeps the deterministic wording when there is no rewrite, so the card is never blank and
+    never depends on the model having succeeded.
+    """
+    w = dict(why or {})
+    bullets = [dict(b) for b in (w.get("bullets") or [])]
+    reworded = {b.get("rank"): b.get("text") for b in ((narrative or {}).get("whyThisHappened") or [])
+                if isinstance(b, dict) and b.get("text")}
+    used = 0
+    for b in bullets:
+        alt = reworded.get(b.get("rank"))
+        b["text_deterministic"] = b.get("text")
+        if alt:
+            b["text"] = alt
+            b["reworded_by_model"] = True
+            used += 1
+    w["bullets"] = bullets
+    w["reworded_count"] = used
+    w["wording_source"] = ("model rewording over deterministic bullets" if used
+                           else "deterministic wording only")
+    return w
+
+
+# ==============================================================================
+# Sections 14-15 -- Forecast Response panel
+# ==============================================================================
+def forecast_response_panel(resp):
+    """What signal existed, and whether the plan captured it (section 39's Forecast Response)."""
+    r = resp or {}
+    if not r.get("available"):
+        return {"available": False, "reason": r.get("reason")
+                or "the forecast-response diagnostic could not run on this queue's history."}
+    response = r.get("response") or {}
+    gate = r.get("forecastability_gate") or {}
+    fcb = r.get("forecastability") or {}
+    dec = r.get("miss_decomposition") or {}
+    return {
+        "available": True,
+        "expected_demand": dec.get("expected_demand"),
+        "expected_basis": dec.get("expected_basis"),
+        "forecast_side_contribution": dec.get("forecast_side_contribution"),
+        "demand_side_contribution": dec.get("demand_side_contribution"),
+        "forecast_side_share": dec.get("forecast_side_share"),
+        "demand_side_share": dec.get("demand_side_share"),
+        "decomposition_reconciles": dec.get("reconciles"),
+        "decomposition_reading": dec.get("reading"),
+        "signals": [{"signal": s.get("signal"), "detected": s.get("detected"),
+                     "direction": s.get("direction"),
+                     "visible_from_fiscal_week": s.get("visible_from_fiscal_week"),
+                     "reading": s.get("reading")}
+                    for s in (r.get("signals") or [])],
+        "response_classification": response.get("classification"),
+        "response_reason": response.get("reason"),
+        "implied_change": response.get("implied_change"),
+        "forecast_change_made": response.get("forecast_change_made"),
+        "timing_note": response.get("timing_note"),
+        "forecastability": fcb.get("classification"),
+        "forecastability_reason": fcb.get("reason"),
+        "gate_conditions": gate.get("conditions"),
+        "gate_verdict": gate.get("verdict"),
+        "supports_forecast_failure": gate.get("supports_forecast_response_failure"),
+        "how_to_read": ("The plan is judged against what the expected demand level implied it "
+                        "needed to do, never against the outcome. Judging it against the outcome "
+                        "would make every miss a forecast failure by definition."),
+    }
+
+
+# ==============================================================================
+# Sections 22-25 -- Calendar and weekend context
+# ==============================================================================
+def calendar_panel(holiday, weekend):
+    """Pre / holiday / post, plus what the data grain will and will not support."""
+    h, w = holiday or {}, weekend or {}
+    phases = (h.get("historical_response") or {}).get("phases") or {}
+    return {
+        "available": bool(h.get("available")),
+        "availability": h.get("availability"),
+        "reason": h.get("reason"),
+        "phase": h.get("phase"),
+        "applies": h.get("applies"),
+        "span_weeks": h.get("span_weeks"),
+        "zero_count_but_adjacent": h.get("zero_count_but_adjacent"),
+        "row_holiday_count": h.get("row_holiday_count"),
+        "calendar_names": h.get("calendar_names") or [],
+        "raw_source_names": h.get("calendar_raw_names") or [],
+        "event_summary": h.get("event_summary"),
+        "event_summary_source": h.get("event_summary_source"),
+        "names_needing_review": h.get("names_needing_review") or [],
+        "row_flag_disagreement": h.get("row_flag_disagreement"),
+        "phases": {k: {"instances": v.get("instances"),
+                       "actual_effect_pct": v.get("actual_effect_pct"),
+                       "direction": v.get("direction"),
+                       "consistency": v.get("consistency"),
+                       "consistent": v.get("consistent"),
+                       "material": v.get("material"),
+                       "historically_planned_for": v.get("historically_planned_for"),
+                       "testable": v.get("testable"),
+                       "reading": v.get("reading") or v.get("reason")}
+                   for k, v in phases.items()},
+        "forecast_capture": h.get("forecast_capture"),
+        "historical_consistency": h.get("historical_consistency"),
+        "expected_direction": h.get("expected_direction"),
+        "statement": h.get("reading"),
+        "weekend": {
+            "supported": w.get("weekend_analysis_supported"),
+            "grain": w.get("grain"),
+            "statement": w.get("statement"),
+            "holiday_day_structure": w.get("holiday_day_structure"),
+        },
+        "how_to_read": ("A week with no holiday recorded on its own row can still be pre- or "
+                        "post-holiday. An observed phase effect is only held against the plan "
+                        "where this queue's own history responds to that phase consistently."),
+    }
+
+
+# ==============================================================================
+# Sections 16-21 -- Driver evidence
+# ==============================================================================
+def driver_panel(lag, asu):
+    """ASU, Shipment, UPP and any other applicable driver, with coverage never collapsed."""
+    l, a = lag or {}, asu or {}
+    return {
+        "available": bool(l.get("available")),
+        "availability": l.get("availability"),
+        "reason": l.get("reason"),
+        "requested_drivers": l.get("requested_drivers") or [],
+        "lags_tested": l.get("lags_tested"),
+        "coverage_summary": l.get("coverage_summary"),
+        "usable_drivers": l.get("usable_drivers") or [],
+        "leading_drivers": l.get("leading_drivers") or [],
+        "drivers": [{"driver": d.get("driver"), "subject": d.get("subject"),
+                     "coverage": d.get("coverage"), "availability": d.get("availability"),
+                     "requested_by": d.get("requested_by"),
+                     "best_lag_weeks": d.get("best_lag_weeks"),
+                     "relationship_type": d.get("relationship_type"),
+                     "relationship_strength": d.get("relationship_strength"),
+                     "direction": d.get("direction"), "stability": d.get("stability"),
+                     "paired_weeks": d.get("paired_weeks"),
+                     "usable_as_evidence": d.get("usable_as_evidence"),
+                     "reading": d.get("reading")}
+                    for d in (l.get("drivers") or [])],
+        "asu_decomposition": a,
+        "how_to_read": ("Drivers were selected by the hypotheses that fired, not swept. "
+                        "'Populated', 'sparse' and 'absent' are three different findings: only the "
+                        "first can support a conclusion, and 'absent' is a data gap rather than "
+                        "evidence that the driver does not matter."),
+        "shipment_vs_upp": ("Shipment (Final_Units) is planned units for delivery. UPP "
+                            "(Final_upp_units) is additional installed units under an upgrade or "
+                            "extended-protection plan. They are separate drivers and are never "
+                            "combined."),
+    }
+
+
+# ==============================================================================
 # The card
 # ==============================================================================
 def build(result, ladder=None):
@@ -426,6 +803,9 @@ def build(result, ladder=None):
 
     narrative = result.get("narrative") or {}
     inconclusive = rc.get("cause_type") == INCONCLUSIVE
+    crit = result.get("criticality") or {}
+    if crit.get("band") and crit["band"] in ("Critical", "High"):
+        markers.append(f"Criticality: {crit['band']}")
 
     return {
         # --- 3.1 mandatory header ---
@@ -439,6 +819,11 @@ def build(result, ladder=None):
             "queue": key.get("Forecast_name"),
             "volume_band": (result.get("volume_band") or None),
             "confidence_level": conf.get("level"),
+            # ADDITIVE. Criticality sits beside confidence in the header and never replaces it --
+            # a reader needs both numbers to triage, and only one of them says how much the miss
+            # matters.
+            "criticality_band": crit.get("band"),
+            "miss_mechanism": rc.get("miss_mechanism"),
             "markers": markers,
         },
         # --- 3.3 the ten mandatory body sections ---
@@ -486,11 +871,39 @@ def build(result, ladder=None):
                 "prompt_version": (result.get("audit") or {}).get("prompt_version"),
                 "steps": (result.get("audit") or {}).get("steps"),
             },
+            # --- ADDITIVE sections (section 39). The ten above are byte-identical in structure ---
+            # and every existing consumer keeps working. These are numbered from 11 so the original
+            # ordering is preserved and a renderer that does not know them simply ignores them.
+            "11_criticality": criticality_panel(crit),
+            # Reuse the bullets the engine already built and handed to the model, so the prose and
+            # the card cannot disagree about what the points are or what order they come in.
+            # Recomputing here would let them drift apart silently.
+            "12_why_this_happened": _with_narrative(result.get("decision_card_why")
+                                                    or why_bullets(result), narrative),
+            "13_forecast_response": forecast_response_panel(
+                result.get("forecast_response_diagnostic")),
+            "14_calendar_context": calendar_panel(result.get("holiday_response"),
+                                                  result.get("weekend_diagnostic")),
+            "15_driver_evidence": driver_panel(result.get("lagged_driver_evidence"),
+                                               result.get("asu_decomposition")),
+            "16_evidence_index": result.get("fc_evidence_index"),
+            "17_contradiction_resolution": result.get("evidence_resolution"),
+            "18_catalogue_gaps": {
+                # Section 9: an observation the catalogue cannot carry is shown as a GAP, so a
+                # reader can see the engine noticed something it had no sanctioned hypothesis for.
+                # Silence here would be indistinguishable from having nothing to report.
+                "items": result.get("unexplained_observations") or [],
+                "count": len(result.get("unexplained_observations") or []),
+                "note": ("Observations the evidence supports but the fixed catalogue has no entry "
+                         "for. Recorded for catalogue extension, never converted into a cause."),
+            },
         },
         "status": result.get("status"),
         "incomplete_reason": result.get("incomplete_reason"),
         "engine": result.get("engine"),
-        "card_version": "2.0.0",
+        # 2.1.0: eight additive sections, a criticality band and the miss mechanism on the header.
+        # Nothing removed or restructured -- see the section list above.
+        "card_version": "2.1.0",
     }
 
 
