@@ -1923,6 +1923,12 @@ function formatInvestigation(resp, ctx){
 
 /* ---- UI Renderer — investigation-report layout, collapsible sections, evidence highlighting. ---- */
 function invEsc(s){ return String(s==null?'':s).replace(/</g,'&lt;'); }
+
+/* The one-line caption under a panel heading. Defined at top level because the decision-layer
+   panels (rcaRootCausePanel and friends) are top-level functions and cannot see a const declared
+   inside renderInvestigationReport -- doing exactly that threw "secDesc is not defined" and took
+   the whole report down to the error card. */
+function secDesc(t){ return `<div style="font-size:11px;color:var(--muted);margin:0 0 8px;">${t}</div>`; }
 function invAttr(s){ return String(s==null?'':s).replace(/"/g,'&quot;'); }
 function invSleep(ms){ return new Promise(res=>setTimeout(res,ms)); }
 function invTimelineHtml(stages){ return `<div class="pipe">${stages.map(s=>pstage(s.state,s.icon,s.label,s.val||'')).join('')}</div>`; }
@@ -2425,7 +2431,8 @@ function renderInvestigationReport(f, ctx){
     </div>
   </div>`;
 
-  const secDesc=(t)=>`<div style="font-size:11px;color:var(--muted);margin:0 0 8px;">${t}</div>`;
+  /* secDesc is now a top-level function (see near invEsc) so the decision-layer panels can use it
+     too. Kept out of this scope deliberately rather than duplicated. */
 
   const fmtVal=(v)=> v==null? '—' : (typeof v==='number'? v.toLocaleString(undefined,{maximumFractionDigits:2}) : invEsc(v));
   const proofRows=(f.proof||[]).filter(p=>p && p.this_week!=null).map(p => {
