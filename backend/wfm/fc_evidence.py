@@ -49,7 +49,13 @@ from . import forecast_response as fr
 from . import holiday_events
 from . import holiday_response as hr
 from . import lag_analysis
-from .common import num, rnd
+from .common import adherence_pct, num, rnd
+
+# The deviation size at or below which a week is NOT a miss. Deliberately the same figure as
+# spec_engine.GENERATION_THRESHOLD_PCT: if a week would not have triggered an RCA, it cannot be
+# counted as part of a miss run. Declared here rather than imported to avoid a circular import, and
+# asserted equal to the engine's value by results/test_fc_spec_semantics.py so the two cannot drift.
+MISS_THRESHOLD_PCT = 5.0
 
 # --- FC availability vocabulary (mirrors confidence.py exactly) -----------------
 AVAILABLE = "Available"
@@ -336,9 +342,18 @@ def plan_revision(history, plan_timeline, target_week):
                 "reason": ("no plan vintage (Projection_plan_name) is recorded in this queue's "
                            "history, so whether the plan was reissued cannot be established.")}
 
-    # The run of same-direction misses ending at the target week.
+    # The run of same-direction MISSES ending at the target week.
+    #
+    # A week is only part of the run if it actually missed. `a > f else "over"` classifies a week
+    # where actual EQUALS forecast as an over-forecast, so a perfectly forecast queue reported a
+    # 120-week over-forecast streak -- and on that basis the engine said the plan was reissued
+    # during a miss run that never happened. A week inside the +/-5% generation threshold is by the
+    # engine's own definition not a miss, so it ENDS the run rather than extending it.
     direction, streak, first_week = None, 0, None
     for w, a, f in reversed(rows):
+        adh = adherence_pct(a, f)
+        if adh is None or abs(adh) <= MISS_THRESHOLD_PCT:
+            break                       # not a miss -- the run stops here
         d = "under" if a > f else "over"
         if direction is None:
             direction = d
@@ -347,8 +362,12 @@ def plan_revision(history, plan_timeline, target_week):
         streak += 1
         first_week = w
 
+    # The FIRST vintage record is the initial plan, not a revision -- `_plan_vintage_timeline`
+    # emits it with `previous_plan: None` because there is nothing before it. Counting it as a
+    # reissue meant every queue looked as though its plan had been revisited.
     changes_during = [t for t in plan_timeline
                       if t.get("changed_at_week") and first_week
+                      and t.get("previous_plan") is not None
                       and int(t["changed_at_week"]) >= int(first_week)]
 
     if streak < 2:
@@ -379,8 +398,14 @@ def plan_revision(history, plan_timeline, target_week):
     # the run -- including the target week, which is the week under investigation.
     last_change = max(int(t["changed_at_week"]) for t in changes_during)
     after = [(w, a, f) for w, a, f in rows if int(w) >= last_change]
-    same_direction_after = [(w, a, f) for w, a, f in after
-                            if ("under" if a > f else "over") == direction]
+    # Same tie problem as the streak: a week that came in ON plan is a SUCCESS of the revision, not
+    # a continuing miss. Only weeks that actually breach the threshold in the original direction
+    # count as "still missing the same way".
+    same_direction_after = [
+        (w, a, f) for w, a, f in after
+        if (adherence_pct(a, f) is not None
+            and abs(adherence_pct(a, f)) > MISS_THRESHOLD_PCT
+            and ("under" if a > f else "over") == direction)]
     corrected = len(same_direction_after) < len(after)
 
     moves = ", ".join(f"FW{t['changed_at_week']} (plan set to "
