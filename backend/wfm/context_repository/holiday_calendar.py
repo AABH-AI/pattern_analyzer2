@@ -105,6 +105,90 @@ def _resolve_country(data, country):
     return [c]
 
 
+DEFAULT_IMPACT_DAYS = 3
+PHASE_HOLIDAY = "holiday"
+PHASE_PRE = "pre_holiday"
+PHASE_POST = "post_holiday"
+PHASE_NONE = "none"
+
+
+def holiday_span(country, fiscal_week, span=2):
+    """Holidays from H-`span` to H+`span` around `fiscal_week`, labelled by phase.
+
+    ADDITIVE to `holiday_context`, which is unchanged and still what the spec engine calls.
+    That function answers one question -- "does a holiday affect this week?" -- with a +/-1 week
+    reach. This one returns the STRUCTURE the phase analysis needs: which holidays sit at each
+    offset, and whether each one's own impact window is wide enough to reach the target week.
+
+    Phase is from the TARGET WEEK's point of view:
+        a holiday at offset  0  -> the target week IS the holiday week
+        a holiday at offset +1/+2 (still ahead) -> the target week is PRE-holiday run-up
+        a holiday at offset -1/-2 (already gone) -> the target week is POST-holiday wind-down
+
+    `reaches` is per holiday, from its own `before`/`after` day counts, so a holiday with a narrow
+    window two weeks away is reported but does not claim to affect the target week. Never raises.
+    """
+    data = _load()
+    if "_error" in data:
+        return {"available": False, "reason": data["_error"], "offsets": {}, "phase": PHASE_NONE,
+                "applies": False, "reaching": []}
+    try:
+        fw = int(fiscal_week)
+        span = max(0, int(span))
+    except (TypeError, ValueError):
+        return {"available": False, "reason": "no usable fiscal week", "offsets": {},
+                "phase": PHASE_NONE, "applies": False, "reaching": []}
+
+    countries = _resolve_country(data, country)
+    offsets, reaching = {}, []
+    for delta in range(-span, span + 1):
+        found = []
+        for c in countries:
+            for h in _lookup(data, c, fw + delta):
+                # Distance in weeks the window must cover to touch the target week. A holiday in
+                # the target week always touches it; one `n` weeks away needs roughly 3n days of
+                # run-up or wind-down at Saturday-to-Friday weekly grain.
+                if delta == 0:
+                    reaches, days = True, None
+                else:
+                    # delta > 0 -> the holiday is AHEAD of the target week, so it is that
+                    # holiday's BEFORE window (run-up) that reaches back into the target.
+                    days = h.get("before" if delta > 0 else "after") or 0
+                    reaches = days >= DEFAULT_IMPACT_DAYS * abs(delta)
+                entry = {**h, "country": c, "offset_weeks": delta, "fiscal_week": fw + delta,
+                         "window_days": days, "reaches_target_week": bool(reaches)}
+                found.append(entry)
+                if reaches:
+                    reaching.append(entry)
+        if found:
+            offsets[delta] = found
+
+    # Phase: the holiday week itself wins, then the nearest reaching holiday decides whether the
+    # target sits in the run-up or the wind-down.
+    in_week = [h for h in reaching if h["offset_weeks"] == 0]
+    if in_week:
+        phase = PHASE_HOLIDAY
+    elif reaching:
+        nearest = min(reaching, key=lambda h: (abs(h["offset_weeks"]), -(h.get("window_days") or 0)))
+        phase = PHASE_PRE if nearest["offset_weeks"] > 0 else PHASE_POST
+    else:
+        phase = PHASE_NONE
+
+    return {
+        "available": True,
+        "span_weeks": span,
+        "fiscal_week": fw,
+        "countries_resolved": countries,
+        "offsets": {str(k): v for k, v in sorted(offsets.items())},
+        "reaching": reaching,
+        "phase": phase,
+        "applies": bool(reaching),
+        "names": sorted({h["name"] for h in reaching}),
+        "families": sorted({h.get("group") or h.get("type") or h["name"] for h in reaching}),
+        "holiday_days_in_week": sorted({h.get("date") for h in in_week if h.get("date")}),
+    }
+
+
 def holiday_context(country, fiscal_week, row_holiday_count=None):
     """What the holiday calendar knows about this queue-week.
 

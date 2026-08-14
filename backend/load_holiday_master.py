@@ -71,15 +71,25 @@ def build(xlsx_path):
             "date": str(col(row, "Date_ISO") or col(row, "Date") or ""),
             "before": int(col(row, "Impact_Days_Before") or 0),
             "after": int(col(row, "Impact_Days_After") or 0),
+            # NOTE: Aggregate_Group groups COUNTRIES, not holidays -- AMER_GROUP spans 64 distinct
+            # holiday names across two country labels. It is carried for country resolution only
+            # and must never be used as an event family. See wfm/holiday_events.py.
             "group": str(col(row, "Aggregate_Group") or "").strip(),
+            # The master's own statement of event identity, when it has one. Only ~99 of 12,197
+            # rows carry it (Lunar New Year, Diwali), so it is a bonus, not the mechanism.
+            "semantic_family": str(col(row, "Semantic_Family") or "").strip(),
             # A name inferred from an adjacent week is not the same as a confirmed one.
             "needs_review": bool(col(row, "Requires_Review")),
         }
         # The master holds one row per (holiday, country, type); several sources can list
-        # the same holiday. Deduplicate on name so a week does not report "Christmas Day,
-        # Christmas Day, Christmas Day".
+        # the same holiday. Deduplicate on name AND date, so "Christmas Day, Christmas Day,
+        # Christmas Day" collapses while a genuinely multi-day holiday keeps one row per day --
+        # wfm/holiday_events.normalise() then reports those days as ONE event. Deduplicating on
+        # name alone (the previous behaviour) silently discarded the extra days, so a four-day
+        # Eid looked identical to a one-day holiday.
         bucket = by_country_week[f"{country}|{fw}"]
-        if not any(e["name"].lower() == entry["name"].lower() for e in bucket):
+        if not any(e["name"].lower() == entry["name"].lower() and e["date"] == entry["date"]
+                   for e in bucket):
             bucket.append(entry)
         kept += 1
 

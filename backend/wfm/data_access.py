@@ -18,8 +18,28 @@ from .common import CHANNEL_SIBLING_DIMS, WFM_HISTORY_WEEKS, adherence_pct, prio
 CQN_MAP_TABLE = "dbo.CQN_Mapping"
 
 # Columns the correlation engine and the temporal reasoner need from history.
+#
+# WIDENED for the lag / holiday-phase analysis. Each addition is here because a module cannot
+# answer its question without it, and the cost is a few more columns on one already-indexed
+# SELECT -- not another round trip:
+#
+#   Final_upp_units   lag_analysis tests it as a driver, and -- more importantly -- can only
+#                     report its true COVERAGE from the full history. Judging it from the 13
+#                     weeks in the posted bundle is what produced a z-score of 23.33 from two
+#                     data points; over the real window the same field is visibly too sparse to
+#                     use, which is the honest finding (spec section 14).
+#   Monday..Sunday    per-day HOLIDAY FLAGS (not volumes). They identify which day a holiday fell
+#                     on, which is the only genuinely testable part of the holiday x weekend
+#                     question at weekly grain (spec section 19).
+#   Week_Ending       the one real calendar date per row. Carried so data_granularity can state
+#                     what grain the source actually is rather than assuming.
+#
+# Additive only: every consumer reads by key, so modules that do not know these columns are
+# unaffected.
 _HISTORY_COLS = ("Fiscal_Week", "Actual_Offered", "fcst_offered", "Holiday_Count",
-                 "Projection_plan_name", "Planned_ASU", "Actual_ASU", "Final_Units")
+                 "Projection_plan_name", "Planned_ASU", "Actual_ASU", "Final_Units",
+                 "Final_upp_units", "Week_Ending",
+                 "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 
 # Levels for the investigation ladder, highest first. Each entry is the grouping that
 # defines that level; a level is skipped if any of its dimensions is missing.
