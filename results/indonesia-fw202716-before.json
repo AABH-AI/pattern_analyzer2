@@ -1,0 +1,119 @@
+{
+ "label": "BEFORE-74f46c5",
+ "exception": null,
+ "history_weeks_fetched": 157,
+ "history_columns": [
+  "Actual_ASU",
+  "Actual_Offered",
+  "Final_Units",
+  "Fiscal_Week",
+  "Holiday_Count",
+  "Planned_ASU",
+  "Projection_plan_name",
+  "fcst_offered"
+ ],
+ "status": "Complete",
+ "engine": "spec-v2",
+ "adherence_pct": -138.3,
+ "gap_contacts": 88.2,
+ "root_cause_id": "DEM-01",
+ "root_cause_name": "Demand Spike",
+ "root_cause_statement": "Under-forecast of -138.3% \u2014 88 contacts against plan, with no standing pattern behind it.",
+ "cause_type": "DEM-01",
+ "miss_mechanism": null,
+ "miss_mechanism_meaning": null,
+ "direction_coherent": null,
+ "evidence_resolution": null,
+ "confidence_level": "Low",
+ "confidence_pct": 61.9,
+ "confidence_before_caps": "Medium",
+ "confidence_capped_gate": 5,
+ "confidence_dimensions": {
+  "DataSufficiency": {
+   "availability": "Available",
+   "score": 1.0
+  },
+  "StatisticalAgreement": {
+   "availability": "Available",
+   "score": 0.2308
+  },
+  "ModelAgreement": {
+   "availability": "NotApplicable",
+   "score": null
+  },
+  "ContextCompleteness": {
+   "availability": "Available",
+   "score": 1.0
+  },
+  "EvidenceStrength": {
+   "availability": "Available",
+   "score": 0.8
+  },
+  "ContradictoryEvidence": {
+   "availability": "Available",
+   "score": 0.3226
+  },
+  "BusinessRuleValidation": {
+   "availability": "Available",
+   "score": 0.6
+  },
+  "HistoricalConsistency": {
+   "availability": "NotApplicable",
+   "score": null
+  }
+ },
+ "criticality": null,
+ "criticality_reading": null,
+ "card_version": "2.0.0",
+ "card_sections": [
+  "10_audit_reference",
+  "1_executive_summary",
+  "2_root_cause",
+  "3_confidence",
+  "4_business_impact",
+  "5_evidence",
+  "6_hypothesis_comparison",
+  "7_recommendations",
+  "8_limitations",
+  "9_data_availability"
+ ],
+ "supporting_evidence_count": 1,
+ "contradictory_evidence_count": 6,
+ "limitations_count": 6,
+ "recommendations": [
+  {
+   "id": "R4",
+   "text": "Review this period manually \u2014 the deviation exceeds the major threshold.",
+   "follows_mechanism": null
+  }
+ ],
+ "cross_exam_questions": 75,
+ "challenge_catalogue_version": "2.0.0",
+ "prompt_version": "2.0.0",
+ "narrative_model": "nvidia/nvidia/nemotron-3-super-120b-a12b",
+ "narrative_error": null,
+ "has_forecast_response": false,
+ "has_forecastability_gate": false,
+ "has_lagged_driver": false,
+ "has_holiday_response": false,
+ "has_weekend": false,
+ "has_asu_decomposition": false,
+ "has_plan_revision": false,
+ "has_criticality": false,
+ "has_evidence_index": false,
+ "holiday_phase": null,
+ "holiday_applies": true,
+ "holiday_names": [
+  "Ascension Day of Jesus Christ",
+  "Ascension of Jesus Christ",
+  "Idul Fitri Holiday",
+  "Joint Holiday for Waisak Day"
+ ],
+ "holiday_zero_but_adjacent": null,
+ "holiday_capture": null,
+ "holiday_consistency": null,
+ "why_bullets": [],
+ "why_jargon": null,
+ "evidence_index_available": null,
+ "evidence_index_total": null
+}

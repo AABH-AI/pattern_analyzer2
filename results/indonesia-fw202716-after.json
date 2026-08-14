@@ -1,0 +1,171 @@
+{
+ "label": "AFTER-HEAD",
+ "exception": null,
+ "history_weeks_fetched": 157,
+ "history_columns": [
+  "Actual_ASU",
+  "Actual_Offered",
+  "Final_Units",
+  "Final_upp_units",
+  "Fiscal_Week",
+  "Friday",
+  "Holiday_Count",
+  "Monday",
+  "Planned_ASU",
+  "Projection_plan_name",
+  "Saturday",
+  "Sunday",
+  "Thursday",
+  "Tuesday",
+  "Wednesday",
+  "Week_Ending",
+  "fcst_offered"
+ ],
+ "status": "Complete",
+ "engine": "spec-v2",
+ "adherence_pct": -138.3,
+ "gap_contacts": 88.2,
+ "root_cause_id": "DEM-01",
+ "root_cause_name": "Demand Spike",
+ "root_cause_statement": "Under-forecast of -138.3% \u2014 88 contacts against plan, with no standing pattern behind it.",
+ "cause_type": "DEM-01",
+ "miss_mechanism": "COMPOUND_MISS",
+ "miss_mechanism_meaning": "More than one supported mechanism contributed materially.",
+ "direction_coherent": true,
+ "evidence_resolution": "mixed",
+ "confidence_level": "Medium",
+ "confidence_pct": 60.5,
+ "confidence_before_caps": "Medium",
+ "confidence_capped_gate": null,
+ "confidence_dimensions": {
+  "DataSufficiency": {
+   "availability": "Available",
+   "score": 1.0
+  },
+  "StatisticalAgreement": {
+   "availability": "Available",
+   "score": 0.2308
+  },
+  "ModelAgreement": {
+   "availability": "Available",
+   "score": 0.5
+  },
+  "ContextCompleteness": {
+   "availability": "Available",
+   "score": 1.0
+  },
+  "EvidenceStrength": {
+   "availability": "Available",
+   "score": 0.7231
+  },
+  "ContradictoryEvidence": {
+   "availability": "Available",
+   "score": 0.4178
+  },
+  "BusinessRuleValidation": {
+   "availability": "Available",
+   "score": 0.6
+  },
+  "HistoricalConsistency": {
+   "availability": "Available",
+   "score": 0.4029
+  }
+ },
+ "criticality": "Moderate",
+ "criticality_reading": "Moderate: 88 contacts against plan, about 92% of a typical week for this queue. Lifted one step from Low because the gap is 92% of a typical week for this queue (96 contacts), at or above the 50% lift threshold.",
+ "card_version": "2.1.0",
+ "card_sections": [
+  "10_audit_reference",
+  "11_criticality",
+  "12_why_this_happened",
+  "13_forecast_response",
+  "14_calendar_context",
+  "15_driver_evidence",
+  "16_evidence_index",
+  "17_contradiction_resolution",
+  "18_catalogue_gaps",
+  "1_executive_summary",
+  "2_root_cause",
+  "3_confidence",
+  "4_business_impact",
+  "5_evidence",
+  "6_hypothesis_comparison",
+  "7_recommendations",
+  "8_limitations",
+  "9_data_availability"
+ ],
+ "supporting_evidence_count": 4,
+ "contradictory_evidence_count": 9,
+ "limitations_count": 11,
+ "recommendations": [
+  {
+   "id": "M1",
+   "text": "Review the seasonal baseline and re-levelling logic for this queue: the plan entered the period away from the level this week of the year reliably brings.",
+   "follows_mechanism": "FORECAST_BASELINE_FAILURE"
+  },
+  {
+   "id": "M2",
+   "text": "Incorporate the identified leading signal and its observed lag into the forecast process (signal: demand_momentum, holiday_transition): the signal was available before the week and the plan did not respond adequately to it.",
+   "follows_mechanism": "FORECAST_RESPONSE_FAILURE"
+  },
+  {
+   "id": "R4",
+   "text": "Review this period manually \u2014 the deviation exceeds the major threshold.",
+   "follows_mechanism": null
+  }
+ ],
+ "cross_exam_questions": 94,
+ "challenge_catalogue_version": "2.1.0",
+ "prompt_version": "2.1.0",
+ "narrative_model": "nvidia/nvidia/nemotron-3-super-120b-a12b",
+ "narrative_error": null,
+ "has_forecast_response": true,
+ "has_forecastability_gate": true,
+ "has_lagged_driver": true,
+ "has_holiday_response": true,
+ "has_weekend": true,
+ "has_asu_decomposition": true,
+ "has_plan_revision": true,
+ "has_criticality": true,
+ "has_evidence_index": true,
+ "holiday_phase": "post_holiday",
+ "holiday_applies": true,
+ "holiday_names": [
+  "Ascension Day of Jesus Christ",
+  "Ascension of Jesus Christ",
+  "Idul Fitri Holiday",
+  "Joint Holiday for Waisak Day"
+ ],
+ "holiday_zero_but_adjacent": true,
+ "holiday_capture": "inconsistent_history",
+ "holiday_consistency": 0.519,
+ "why_bullets": [
+  [
+   1,
+   "The plan's reaction was judged wrong direction. The expected level implied moving the forecast 7.51 contacts, but it moved -34.7 -- the opposite way."
+  ],
+  [
+   2,
+   "Against an expected 106.0 contacts (median demand in fiscal week 16 across 3 prior year(s)), the plan sat 42.21 contacts below expectation and demand landed 46.0 contacts"
+  ],
+  [
+   3,
+   "A forecast-response failure IS supported: a repeatable signal was available before the week and the plan did not respond adequately to it."
+  ],
+  [
+   4,
+   "Ascension Day of Jesus Christ, Ascension of Jesus Christ, Idul Fitri Holiday, Joint Holiday for Waisak Day fell shortly before this week, so this week is the wind-down. T"
+  ],
+  [
+   5,
+   "This under-forecast does not continue a run -- the previous week missed the other way -- so the plan-revision question does not arise for this week."
+  ],
+  [
+   6,
+   "4 item(s) support the conclusion and 9 argue against it."
+  ]
+ ],
+ "why_jargon": [],
+ "evidence_index_available": 11,
+ "evidence_index_total": 15
+}
