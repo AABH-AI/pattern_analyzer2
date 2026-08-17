@@ -2099,8 +2099,12 @@ function cardWhyPanel(s){
       <div style="font-weight:600;">${invEsc(b.what_happened||'')}</div>
       ${b.why_it_mattered?`<div style="font-size:12px;color:#444;margin-top:2px;">${invEsc(b.why_it_mattered)}</div>`:''}
       ${b.forecast_mechanism?`<div style="font-size:12px;color:#1f4e79;margin-top:2px;">${invEsc(b.forecast_mechanism)}</div>`:''}
-      ${b.evidence_id?`<span style="display:inline-block;margin-top:3px;background:#eef2f7;color:#1f4e79;border-radius:3px;padding:1px 6px;font-size:10.5px;font-weight:700;">${invEsc(b.evidence_id)}</span>`:''}
-      ${b.strength?`<span style="display:inline-block;margin-top:3px;margin-left:4px;color:#6b7280;font-size:10.5px;font-weight:700;">${invEsc(b.strength)}</span>`:''}
+      ${/* The "E5 Strong" chip is deliberately NOT rendered here. It was internal vocabulary on the
+            most-read block of the card: "E5" means nothing without the Evidence Index open, and a
+            bare strength label invites the reader to weigh bullets against each other when the
+            ORDER already does that. Both facts are still published on the response
+            (`bullets[].evidence_id`, `bullets[].strength`) and E1-E15 are still listed in full in
+            the Evidence Index panel, so nothing became untraceable -- it just stopped shouting. */''}
     </li>`).join('');
   return `<div class="inv-card">
     ${cardTitle('Why This Happened')}
@@ -2365,11 +2369,15 @@ function renderDecisionCard(resp, ctx){
       <td style="padding:4px 8px;font-size:11px;color:${br?'#a01b2b':'#0b7a3b'};white-space:nowrap;">${br?'exceeds threshold':'within threshold'}</td>
     </tr>`;}).join('');
 
-  const cause=`<div class="inv-card">
+  /* Executive Summary and Root Cause are SEPARATE consts, not one template literal, so
+     "Why This Happened" can sit between them -- the reader gets the headline, then the ranked
+     reasons, then the formal cause with its scope table. `cause` is kept as the two joined together
+     so nothing that referenced it has to change. */
+  const summaryCard=`<div class="inv-card">
     <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Executive Summary</div>
     <ul style="margin:8px 0 0 18px;line-height:1.65;">${summary}</ul>
-  </div>
-  <div class="inv-card">
+  </div>`;
+  const rootCauseCard=`<div class="inv-card">
     <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Root Cause</div>
     ${rc.inconclusive?'<div style="margin:6px 0;background:#fff4e5;border:1px solid #ffd9a0;border-radius:4px;padding:8px 10px;font-weight:700;color:#b26a00;">INCONCLUSIVE — no defensible root cause. This is a valid outcome, not a failure.</div>':''}
     <div style="margin:8px 0 4px;line-height:1.7;">${invEsc(rc.statement||'—')}</div>
@@ -2399,6 +2407,7 @@ function renderDecisionCard(resp, ctx){
         <div style="margin-top:8px;font-size:11.5px;color:#6b7280;font-style:italic;">${invEsc(scope.caution||'')}</div>
       </div>`:''}
   </div>`;
+  const cause=summaryCard+rootCauseCard;
 
   /* --- 3: Confidence Panel. ALWAYS VISIBLE. --- */
   const cp=s['3_confidence']||{};
@@ -2649,9 +2658,12 @@ function renderDecisionCard(resp, ctx){
      questions, and a reader who reads one as the other triages wrongly in both directions.
      Interrogation stays where it was, after the cause, since it is explanatory commentary on the
      finding rather than part of the evidence chain. */
-  return head + cause + cardWhyPanel(s) + interro + conf + cardCriticalityPanel(s)
-       + evidence + cardForecastResponsePanel(s) + cardCalendarPanel(s) + cardDriverPanel(s)
-       + ctxHtml + hyp + cardEvidenceIndexPanel(s) + tail;
+  /* "Why This Happened" sits immediately after the Executive Summary and BEFORE Root Cause: the
+     reader gets the headline, then the ranked reasons, then the formal cause with its scope table.
+     It used to follow Root Cause, which put the two most-read blocks either side of a long panel. */
+  return head + summaryCard + cardWhyPanel(s) + rootCauseCard + interro + conf
+       + cardCriticalityPanel(s) + evidence + cardForecastResponsePanel(s) + cardCalendarPanel(s)
+       + cardDriverPanel(s) + ctxHtml + hyp + cardEvidenceIndexPanel(s) + tail;
 }
 
 function renderInvestigationReport(f, ctx){

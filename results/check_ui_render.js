@@ -220,6 +220,42 @@ for (const file of specFiles) {
       if (out.includes('>undefined<')) bad.push('a literal "undefined" reached the markup');
       if (out.includes('>null<')) bad.push('a literal "null" reached the markup');
       if (/>None</.test(out)) bad.push('a Python "None" reached the markup');
+
+      /* Panel ORDER, not just presence. The reading order is a deliberate decision -- headline,
+       * then the ranked reasons, then the formal cause -- and it is set by one concatenation
+       * expression that is easy to reorder by accident while every "is the panel there" check
+       * still passes. */
+      const titles = [...out.matchAll(/class="rtitle"[^>]*>([^<]+)</g)].map(m => m[1].trim());
+      const at = (re) => titles.findIndex(t => re.test(t));
+      const iSummary = at(/Executive Summary/i);
+      const iWhy = at(/Why This Happened/i);
+      const iRoot = at(/^Root Cause$/i);
+      if (iSummary >= 0 && iWhy >= 0 && iWhy !== iSummary + 1) {
+        bad.push(`"Why This Happened" must come immediately after "Executive Summary" `
+          + `(found at ${iWhy + 1}, summary at ${iSummary + 1})`);
+      }
+      if (iWhy >= 0 && iRoot >= 0 && iWhy > iRoot) {
+        bad.push('"Why This Happened" must come BEFORE "Root Cause"');
+      }
+
+      /* The E-number and strength chips were removed from the Why bullets on purpose: "E5" is
+       * meaningless without the Evidence Index open, and a strength label invites the reader to
+       * weigh bullets when the ORDER already does that. Both remain on the response and in the
+       * Evidence Index, so this asserts the chips are gone AND that traceability survived. */
+      const whyStart = out.indexOf('Why This Happened');
+      if (whyStart >= 0) {
+        const nextTitle = out.indexOf('class="rtitle"', whyStart + 10);
+        const whyBlock = out.slice(whyStart, nextTitle > 0 ? nextTitle : undefined);
+        if (/background:#eef2f7;color:#1f4e79[^>]*>E\d+</.test(whyBlock)) {
+          bad.push('an E-number chip is back on the Why bullets');
+        }
+        if (/>(Very Strong|Strong|Moderate|Very Weak|Weak)</.test(whyBlock)) {
+          bad.push('a strength chip is back on the Why bullets');
+        }
+      }
+      if (!/>E1</.test(out)) {
+        bad.push('the Evidence Index no longer lists E1 -- removing the chips must not cost traceability');
+      }
       if (bad.length) {
         failures++;
         console.log(`  FAIL  ${path.basename(file)} :: ${key} -> ${bad.join(', ')}`);
