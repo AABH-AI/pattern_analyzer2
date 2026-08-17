@@ -779,7 +779,6 @@
       <tr><td><code>Forecast_name</code></td><td>Name of the queue which supports a particular business.</td></tr>
       <tr><td><code>Forecaster</code></td><td>Person / team that owns the forecast for the queue.</td></tr>
       <tr><td><code>Offering</code></td><td>Product or service offering the demand belongs to (Basic, Premium, Pro kind of support).</td></tr>
-      <tr><td><code>Projection_plan_name</code></td><td>Forecast plan which is being considered for that particular period, which could be a week or a month.</td></tr>
       <tr><td><code>channel</code></td><td>Contact / demand channel (e.g. Voice, Chat, Email, Case, Social Media).</td></tr>
       <tr><td><code>business_org</code></td><td>Business organisation the queue rolls up to.</td></tr>
       <tr><td><code>Actual_Offered</code></td><td>Actual offered volume.</td></tr>
@@ -904,7 +903,6 @@ const FILTER_FIELDS=[
   ['Forecast_name','Forecast Name'],
   ['Forecaster','Forecaster'],
   ['Offering','Offering'],
-  ['Projection_plan_name','Projection Plan'],
   ['channel','Channel'],
   ['business_org','Business Org']
 ];
@@ -1011,7 +1009,7 @@ function ingStep(active,pct,note){
 function hideIngest(){ const ov=document.getElementById('ingestOverlay'); if(ov) ov.style.display='none'; }
 
 /* ---------------- Dashboard dropdown filters (drive the same scan engine) ---------------- */
-const DASH_FILTER_FIELDS=[['Region','Region'],['SubRegion','Sub-Region'],['Country','Country'],['channel','Channel'],['Offering','Offering'],['Forecaster','Forecaster'],['Projection_plan_name','Projection plan']];
+const DASH_FILTER_FIELDS=[['Region','Region'],['SubRegion','Sub-Region'],['Country','Country'],['channel','Channel'],['Offering','Offering'],['Forecaster','Forecaster']];
 function buildDashFilters(){
   const host=document.getElementById('dashFilters'); if(!host) return;
   const fws=distinctValues('Fiscal_Week');
@@ -1625,14 +1623,14 @@ function selectFlag(i){
   document.querySelectorAll('.qitem').forEach(e=>e.classList.remove('active'));
   const qi=document.getElementById('q'+i); if(qi)qi.classList.add('active');
   const r=FLAGS[i]; const d=buildFindings(r); CUR_MATH=d.map(x=>x.m);
-  window.CUR_CTX=`${r.Forecast_name||'—'} · FW ${r._wk} · ${r.Region||''}/${r.Country||''} · ${r.channel||''} · Plan ${r.Projection_plan_name||'—'} · Forecaster ${r.Forecaster||'—'}`;
+  window.CUR_CTX=`${r.Forecast_name||'—'} · FW ${r._wk} · ${r.Region||''}/${r.Country||''} · ${r.channel||''} · Forecaster ${r.Forecaster||'—'}`;
   const accCol=(r._acc==null)?'var(--muted)':((r._padh!=null&&Math.abs(r._padh)>25)?'var(--danger)':(r._padh!=null&&Math.abs(r._padh)>10)?'var(--warn)':'var(--accent-2)');
   const bullets=d.map((x,idx)=>`<li><span class="bdot ${x.s}"></span><div class="btext">${x.b}</div><button class="ibtn" title="Show the formula & numbers" onclick="showMath(${idx})">i</button></li>`).join('');
   document.getElementById('report').innerHTML=`
     <div class="rhead">
       <div>
         <div class="rtitle">${r.Forecast_name} ${r._mapped?'<span class="badge ok">mapped</span>':'<span class="badge unm">unmapped</span>'}</div>
-        <div class="rmeta">${r.Region||''} · ${r.SubRegion||''} · ${r.Country||''} · ${r.channel||''}<br>Fiscal Week ${r._wk} · Plan: ${r.Projection_plan_name||'—'} · Forecaster: ${r.Forecaster||'—'}</div>
+        <div class="rmeta">${r.Region||''} · ${r.SubRegion||''} · ${r.Country||''} · ${r.channel||''}<br>Fiscal Week ${r._wk} · Forecaster: ${r.Forecaster||'—'}</div>
       </div>
       <div class="acc"><div class="big" style="color:${accCol}">${r._padh!=null?r._padh.toFixed(1)+'%':'N/A'}</div><div class="lbl">Forecast Adherence${r._padh!=null?'<div class="adhdir">'+(r._padh<0?'Under-forecast — actual came in above plan':(r._padh>0?'Over-forecast — actual came in below plan':'On plan'))+'</div>':''}</div></div>
     </div>
@@ -2905,7 +2903,6 @@ async function triggerRCA(i, force){
 const PROBES=[
   'Which columns are the source of truth for adherence — Offered or Handled?',
   'Is the adherence band ±10% or ±15%? Does it tier by Volume_Category?',
-  'When Projection_plan_name changes mid-cycle, is the miss forgiven?',
   'Does each Offering (Basic/…) have a different acceptable band?',
   'Are some channels (e.g. Voice vs Chat) expected to be less predictable?',
   'Should a Forecaster be assessed on plan-adherence, or on forecast accuracy?',
@@ -2920,13 +2917,9 @@ let CTX_PROBES=[];
 function renderContextProbes(rows,groups){
   if(!document.getElementById('probePills')) return;   // probing UI hidden (Phase 2) — no-op safely
   CTX_PROBES=[];
-  // 1) Plan restatements: a Forecast_name carrying >1 Projection_plan_name.
-  let restated=0, restatedEx='';
-  Object.entries(groups).forEach(([name,g])=>{
-    const plans=new Set(g.map(r=>String(r.Projection_plan_name||'').trim()).filter(Boolean));
-    if(plans.size>1){ restated++; if(!restatedEx) restatedEx=`${name} (${[...plans].slice(0,2).join(' → ')}…)`; }
-  });
-  if(restated) CTX_PROBES.push(`${restated} forecast name(s) were restated across plan versions — e.g. ${restatedEx}. Is the miss forgiven on restatement?`);
+  // 1) Plan restatements -- REMOVED. It grouped by Projection_plan_name, which the console no
+  //    longer surfaces anywhere: the column is treated as non-existent, so a probe question that
+  //    quotes plan versions back at the user cannot be asked.
   // 2) Unmapped queues (only when a CQN map is loaded).
   if(MAP){
     const unmapped=new Set(rows.filter(r=>MAP[r.Forecast_name]==null).map(r=>r.Forecast_name));

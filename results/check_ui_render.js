@@ -65,6 +65,33 @@ sandbox.self = sandbox;
 vm.createContext(sandbox);
 
 let failures = 0;
+
+/* ---- PAGE-WIDE: the column must not be referenced by any live code -------------------------
+ * The per-card checks further down render `renderDecisionCard` and catch leaks THERE. They cannot
+ * catch a leak anywhere else on the page -- and that is exactly what happened: the Decision Card was
+ * clean while the worklist queue card, the filter panel, the dashboard filter and the field glossary
+ * all still showed `Projection_plan_name`. A user searching the page for "plan" found them and
+ * reasonably concluded the change had not landed.
+ *
+ * So this scans the WHOLE file, with comments stripped, because a comment cannot reach the screen but
+ * a template literal can.
+ */
+{
+  const noComments = html
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '');
+  const refs = [...noComments.matchAll(/.{0,60}Projection[_ ]?plan.{0,60}/gi)]
+    .map(m => m[0].trim().replace(/\s+/g, ' '));
+  if (refs.length) {
+    failures++;
+    console.log(`  FAIL  ${refs.length} live reference(s) to Projection_plan_name remain in the page:`);
+    refs.forEach(r => console.log(`          ${r}`));
+  } else {
+    console.log('  PASS  no live reference to Projection_plan_name anywhere in the page');
+  }
+}
+
 let loaded = 0;
 for (const [i, src] of scripts.entries()) {
   try { vm.runInContext(src, sandbox, { filename: `rca_console.block${i}.js` }); loaded++; }
