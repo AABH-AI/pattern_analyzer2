@@ -36,8 +36,18 @@ CQN_MAP_TABLE = "dbo.CQN_Mapping"
 #
 # Additive only: every consumer reads by key, so modules that do not know these columns are
 # unaffected.
+# `Projection_plan_name` IS DELETED FROM THIS SELECT, and it had to be.
+#
+# The column has been dropped from the source table. Leaving it in this tuple would not have failed
+# loudly -- it would have failed SILENTLY and disastrously. The SELECT would raise "Invalid column
+# name", `sql_backend` catches that into `wfm_context = {"fetch_error": ...}`, and the engine then
+# runs on the posted bundle alone. Every investigation for EVERY queue would quietly lose its entire
+# 157-week history and report insufficient data, while still producing a confident-looking card.
+#
+# So this line is load-bearing for both engines, and it is the reason the code change had to land
+# before the column was dropped rather than after.
 _HISTORY_COLS = ("Fiscal_Week", "Actual_Offered", "fcst_offered", "Holiday_Count",
-                 "Projection_plan_name", "Planned_ASU", "Actual_ASU", "Final_Units",
+                 "Planned_ASU", "Actual_ASU", "Final_Units",
                  "Final_upp_units", "Week_Ending",
                  "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 

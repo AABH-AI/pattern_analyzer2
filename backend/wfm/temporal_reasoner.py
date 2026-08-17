@@ -21,9 +21,15 @@ def analyse(history_104, target_week, target_actual, target_forecast, prior_year
     t_adh = adherence_pct(target_actual, target_forecast)
 
     # Plan changes anywhere in the window -- the prompt asks about forecast plan changes.
+    #
+    # `Projection_plan_name` has been dropped from the source table, so this now finds nothing on
+    # every queue. The distinction that matters: "the plan did not change" and "we cannot tell whether
+    # the plan changed" are different statements, and only one of them is true here. Reporting False
+    # would assert the first while meaning the second, so an empty result reports UNKNOWN instead.
     plans = [h.get("Projection_plan_name") for h in (history_104 or [])
              if h.get("Projection_plan_name") not in (None, "")]
     distinct_plans = list(dict.fromkeys(str(p) for p in plans))
+    plan_change_known = bool(distinct_plans)
 
     return {
         "this_week": {"fiscal_week": target_week, "actual": target_actual,
@@ -41,5 +47,10 @@ def analyse(history_104, target_week, target_actual, target_forecast, prior_year
         "same_week_last_year_note": (None if last_year else
                                      f"No row found for fiscal week {prior_year_wk}."),
         "distinct_forecast_plans_in_window": distinct_plans,
-        "forecast_plan_changed_within_window": len(distinct_plans) > 1,
+        # None, not False, when the plan vintage is unavailable -- see the note above.
+        "forecast_plan_changed_within_window": (len(distinct_plans) > 1 if plan_change_known
+                                                else None),
+        "forecast_plan_note": (None if plan_change_known else
+                               "The forecast plan vintage is not available in the source, so whether "
+                               "the plan changed during this window cannot be determined either way."),
     }
