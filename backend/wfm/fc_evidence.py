@@ -23,13 +23,14 @@ replaced. Nothing here selects a root cause; that remains step 13's job.
 WHAT IS NEW HERE, NOT PORTED FROM ANYWHERE
 -------------------------------------------
     asu_decomposition        the exact volume/rate identity of section 19
-    plan_revision            the three plan-vintage states of section 8
     criticality              section 30 -- FC has no criticality mechanism at all
     miss_mechanism           the seven mechanisms of section 5 (A-G)
     direction_coherence      section 32, as a deterministic gate over ALL mechanisms
     evidence_resolution      section 31 -- supported / mixed / rejected, with a governing reason
     unexplained_observations section 9 -- a catalogue gap is recorded, never made into a cause
-    evidence_index           section 43 -- E1..E15 in the brief's OWN numbering
+    evidence_index           section 43 -- E1..E14 in the brief's OWN numbering.
+                             E15 (plan vintage) is DELETED: this engine treats
+                             `Projection_plan_name` as non-existent.
 
 WHY THE EVIDENCE IDS ARE FC's OWN NUMBERING
 --------------------------------------------
@@ -327,45 +328,53 @@ def asu_decomposition(planned_asu, actual_asu, forecast, actual):
 
 
 # ==============================================================================
-# Section 8 -- did WFM revisit the plan, and did the revision work?
+# Miss streak -- WITHOUT the plan-vintage column
 # ==============================================================================
-PLAN_NOT_REVISITED = "plan_not_revisited"
-PLAN_REVISED_STILL_WRONG = "plan_revised_but_remained_wrong"
-PLAN_REVISED_APPROPRIATELY = "plan_revised_appropriately"
-PLAN_NOT_TESTABLE = "not_testable"
+# WHAT WAS HERE, AND WHY IT IS GONE
+# ---------------------------------
+# `plan_revision()` implemented section 8 of the upgrade brief: whether the plan was reissued during
+# a miss run, and whether the reissue worked (plan_not_revisited / plan_revised_but_remained_wrong /
+# plan_revised_appropriately). It rested entirely on `Projection_plan_name`.
+#
+# The column is now treated by this engine AS IF IT DOES NOT EXIST, at the user's instruction, and the
+# section 8 finding is deleted with it -- keys and all. That is a deliberate departure from the brief,
+# recorded here rather than left for someone to discover from an absence.
+#
+# It is also a defensible one on the data: the column holds MONTHLY projection vintages ("FY27 May
+# Projection"), which change on a calendar cycle rather than in response to a miss. `prompts.py`
+# already forbids the WFM model from citing those updates as a cause for a WEEKLY miss, and
+# `lag_analysis.NOT_DRIVERS` already excludes the column from driver testing. So a reissue mid-run is
+# usually the monthly cycle arriving, not somebody reacting -- which is precisely what made
+# "the plan was revisited and stayed wrong" read as an accusation on every queue.
+#
+# WHAT SURVIVES: the MISS STREAK. Criticality lifts a band when a miss is standing rather than
+# isolated, and that lift is worth keeping. The streak was computed inside `plan_revision` only
+# because that is where it was first needed -- it is derived from adherence alone and never touched
+# the plan name, so it moves here intact rather than being lost along with the finding.
 
 
-def plan_revision(history, plan_timeline, target_week):
-    """Section 8. Which of the three plan states the vintage evidence actually supports.
+def miss_streak(history, threshold_pct=None):
+    """How many consecutive weeks, ending at the target, missed in the SAME direction.
 
-    The brief is explicit that these states must NOT be inferred without plan-vintage evidence,
-    so every path here is either grounded in a recorded vintage change or returns
-    `not_testable`. "The plan was never revisited" and "we cannot tell whether it was revisited"
-    are different findings and only one of them is an accusation.
+    Derived from adherence only. No plan-vintage column is read, and none is needed.
+
+    A week inside the generation threshold is not a miss and ENDS the run -- see MISS_THRESHOLD_PCT.
+    Without that, a queue whose actual exactly equals its forecast reported a run stretching back to
+    the start of its history.
     """
+    limit = MISS_THRESHOLD_PCT if threshold_pct is None else threshold_pct
     rows = [(h.get("Fiscal_Week"), num(h.get("Actual_Offered")), num(h.get("fcst_offered")))
             for h in (history or [])]
     rows = [(w, a, f) for w, a, f in rows if a is not None and f is not None]
     if not rows:
-        return {"available": False, "state": PLAN_NOT_TESTABLE, "availability": MISSING,
+        return {"available": False, "weeks": 0, "direction": None, "began_at_week": None,
                 "reason": "no paired actual/forecast history is available for this queue."}
-    if not plan_timeline:
-        return {"available": False, "state": PLAN_NOT_TESTABLE, "availability": MISSING,
-                "reason": ("no plan vintage (Projection_plan_name) is recorded in this queue's "
-                           "history, so whether the plan was reissued cannot be established.")}
 
-    # The run of same-direction MISSES ending at the target week.
-    #
-    # A week is only part of the run if it actually missed. `a > f else "over"` classifies a week
-    # where actual EQUALS forecast as an over-forecast, so a perfectly forecast queue reported a
-    # 120-week over-forecast streak -- and on that basis the engine said the plan was reissued
-    # during a miss run that never happened. A week inside the +/-5% generation threshold is by the
-    # engine's own definition not a miss, so it ENDS the run rather than extending it.
     direction, streak, first_week = None, 0, None
     for w, a, f in reversed(rows):
         adh = adherence_pct(a, f)
-        if adh is None or abs(adh) <= MISS_THRESHOLD_PCT:
-            break                       # not a miss -- the run stops here
+        if adh is None or abs(adh) <= limit:
+            break
         d = "under" if a > f else "over"
         if direction is None:
             direction = d
@@ -374,88 +383,19 @@ def plan_revision(history, plan_timeline, target_week):
         streak += 1
         first_week = w
 
-    # The FIRST vintage record is the initial plan, not a revision -- `_plan_vintage_timeline`
-    # emits it with `previous_plan: None` because there is nothing before it. Counting it as a
-    # reissue meant every queue looked as though its plan had been revisited.
-    changes_during = [t for t in plan_timeline
-                      if t.get("changed_at_week") and first_week
-                      and t.get("previous_plan") is not None
-                      and int(t["changed_at_week"]) >= int(first_week)]
-
-    if streak < 2:
-        return {"available": True, "state": PLAN_NOT_TESTABLE, "availability": NOT_APPLICABLE,
-                "streak_weeks": streak, "streak_direction": direction,
-                "reason": ("this week's miss does not continue a run, so there is no miss streak "
-                           "against which to judge whether the plan was revisited."),
-                "reading": (f"This {direction}-forecast does not continue a run -- the previous "
-                            f"week missed the other way -- so the plan-revision question does "
-                            f"not arise for this week.")}
-
-    if not changes_during:
-        last = plan_timeline[-1].get("changed_at_week")
-        return {
-            "available": True, "state": PLAN_NOT_REVISITED, "availability": AVAILABLE,
-            "streak_weeks": streak, "streak_direction": direction,
-            "streak_began_at_week": first_week,
-            "revisions_during_streak": 0,
-            "last_revision_week": last,
-            "reading": (f"The plan was NOT reissued at any point during the {streak}-week "
-                        f"{direction}-forecast run that began at fiscal week {first_week}. The "
-                        f"last vintage change was at fiscal week {last}, before the run started. "
-                        f"So the plan stood unchanged while the miss continued."),
-            "attaches_to": ["FC-01"],
-        }
-
-    # It WAS reissued. Did the misses stop? Judged on the weeks AFTER the last revision inside
-    # the run -- including the target week, which is the week under investigation.
-    last_change = max(int(t["changed_at_week"]) for t in changes_during)
-    after = [(w, a, f) for w, a, f in rows if int(w) >= last_change]
-    # Same tie problem as the streak: a week that came in ON plan is a SUCCESS of the revision, not
-    # a continuing miss. Only weeks that actually breach the threshold in the original direction
-    # count as "still missing the same way".
-    same_direction_after = [
-        (w, a, f) for w, a, f in after
-        if (adherence_pct(a, f) is not None
-            and abs(adherence_pct(a, f)) > MISS_THRESHOLD_PCT
-            and ("under" if a > f else "over") == direction)]
-    corrected = len(same_direction_after) < len(after)
-
-    moves = ", ".join(f"FW{t['changed_at_week']} (plan set to "
-                      f"{t['forecast_set_to']:,.0f})" if t.get("forecast_set_to") is not None
-                      else f"FW{t['changed_at_week']}"
-                      for t in changes_during)
-
-    if same_direction_after and len(same_direction_after) == len(after):
-        return {
-            "available": True, "state": PLAN_REVISED_STILL_WRONG, "availability": AVAILABLE,
-            "streak_weeks": streak, "streak_direction": direction,
-            "streak_began_at_week": first_week,
-            "revisions_during_streak": len(changes_during),
-            "last_revision_week": last_change,
-            "weeks_after_last_revision": len(after),
-            "weeks_still_missing_same_way": len(same_direction_after),
-            "reading": (f"The plan WAS reissued {len(changes_during)} time(s) during the "
-                        f"{streak}-week {direction}-forecast run -- at {moves} -- and every one "
-                        f"of the {len(after)} week(s) since the last reissue has still missed in "
-                        f"the same direction. This is not a plan nobody revisited; it is a plan "
-                        f"that was revisited and stayed wrong."),
-            "attaches_to": ["FC-01", "FC-02"],
-        }
-
     return {
         "available": True,
-        "state": PLAN_REVISED_APPROPRIATELY if corrected else PLAN_NOT_TESTABLE,
-        "availability": AVAILABLE,
-        "streak_weeks": streak, "streak_direction": direction,
-        "streak_began_at_week": first_week,
-        "revisions_during_streak": len(changes_during),
-        "last_revision_week": last_change,
-        "weeks_after_last_revision": len(after),
-        "weeks_still_missing_same_way": len(same_direction_after),
-        "reading": (f"The plan was reissued at {moves}, and {len(after) - len(same_direction_after)} "
-                    f"of the {len(after)} week(s) since have come back inside the same direction "
-                    f"-- so the revision did move the plan towards demand."),
-        "attaches_to": ["FC-01"],
+        "weeks": streak,
+        "direction": direction,
+        "began_at_week": first_week,
+        "standing": streak >= 2,
+        "reading": (f"This queue has missed in the same direction ({direction}-forecast) for "
+                    f"{streak} consecutive week(s), beginning at fiscal week {first_week}."
+                    if streak >= 2 else
+                    "This week's miss does not continue a run -- the previous week was either "
+                    "within threshold or missed the other way."),
+        "note": ("Counted from adherence only. A week inside the generation threshold is not a miss "
+                 "and ends the run."),
     }
 
 
@@ -1097,7 +1037,6 @@ FC_EVIDENCE_LABELS = {
     "E12": "Weekend effect",
     "E13": "Hierarchy / scope",
     "E14": "Contradiction",
-    "E15": "Plan-vintage evidence",
 }
 
 
@@ -1106,11 +1045,17 @@ def _ev(available, value, note=None):
 
 
 def evidence_index(forecast_summary, response_block, lag_block, holiday_block, weekend_block,
-                   asu_block, plan_block, scope_block, resolution_block):
+                   asu_block, scope_block, resolution_block):
     """Section 43. Every executive finding traceable to a numbered evidence item.
 
     An entry is `available: False` WITH A REASON rather than omitted. A missing row that simply
     is not rendered tells a reader nothing about whether it was checked.
+
+    FOURTEEN items, not fifteen. The brief's E15 was plan-vintage evidence, and this engine treats
+    `Projection_plan_name` as non-existent -- so E15 is DELETED rather than shipped permanently
+    unavailable. A row that can never be established is not information; it is a promise the engine
+    cannot keep. The remaining IDs keep their original numbers so nothing that already cites E1..E14
+    has to be re-read.
     """
     dec = (response_block or {}).get("miss_decomposition") or {}
     dside = ((response_block or {}).get("demand_side") or {})
@@ -1182,8 +1127,6 @@ def evidence_index(forecast_summary, response_block, lag_block, holiday_block, w
                    (scope_block or {}).get("narrative")),
         "E14": _ev(bool((resolution_block or {}).get("conflicts")), resolution_block,
                    (resolution_block or {}).get("basis")),
-        "E15": _ev(bool((plan_block or {}).get("available")), plan_block,
-                   (plan_block or {}).get("reading") or (plan_block or {}).get("reason")),
     }
     for eid, entry in idx.items():
         entry["id"] = eid

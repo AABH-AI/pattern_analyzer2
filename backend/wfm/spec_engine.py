@@ -150,22 +150,10 @@ def _derived_facts(history, target_week, ctx, gates, m):
         facts.append(f"This week's {tgt_dir}-forecast does not continue a run -- the "
                      f"previous week missed the other way.")
 
-    # Was the plan reissued during that run, and did it move? This is the answerable form
-    # of "why was the plan not adjusted", which cannot be answered as asked.
-    tl = _plan_vintage_timeline(history)
-    during = [t for t in tl if first_of_streak and t.get("changed_at_week")
-              and int(t["changed_at_week"]) >= int(first_of_streak)]
-    if during:
-        moves = ", ".join(f"{t['changed_at_week']} (set to {t['forecast_set_to']:,.0f})"
-                          for t in during if t.get("forecast_set_to") is not None)
-        facts.append(
-            f"The plan WAS reissued {len(during)} time(s) during that run -- at {moves} -- "
-            f"and the queue kept missing the same way afterwards. So this is not a plan "
-            f"nobody revisited; it is a plan that was revisited and stayed wrong.")
-    elif tl:
-        facts.append(
-            f"The plan was NOT reissued at any point during that run. The last change was "
-            f"at fiscal week {tl[-1].get('changed_at_week')}, before the run began.")
+    # The plan-reissue facts that used to sit here are DELETED. They were derived from
+    # `Projection_plan_name`, which this engine treats as non-existent -- see the note above
+    # `miss_streak` in fc_evidence.py. Nothing replaces them: no substitute for a reissue was
+    # invented, and the model is not told the plan was or was not revisited.
 
     # Same week last year -- the comparison a manager reaches for first.
     ly = next((r for r in rows if target_week and int(r[0]) == int(target_week) - 100), None)
@@ -218,29 +206,6 @@ def _period_aggregates(history):
     return {"available": True, "last_13_weeks": block(13), "last_26_weeks": block(26)}
 
 
-def _plan_vintage_timeline(history):
-    """Where Projection_plan_name changes, with the miss either side of the change.
-
-    A plan reissued after a bad week looks different from one left in place, and that
-    distinction is the difference between "the process worked and was wrong" and "nobody
-    looked". Neither was answerable before.
-    """
-    rows = [h for h in (history or []) if h.get("Projection_plan_name")]
-    out, prev = [], None
-    for h in rows:
-        name = h.get("Projection_plan_name")
-        if name != prev:
-            a, f = num(h.get("Actual_Offered")), num(h.get("fcst_offered"))
-            out.append({
-                "changed_at_week": h.get("Fiscal_Week"),
-                "new_plan": name,
-                "previous_plan": prev,
-                "forecast_set_to": rnd(f),
-                "actual_that_week": rnd(a),
-                "adherence_that_week": (rnd(adherence_pct(a, f)) if a is not None and f else None),
-            })
-            prev = name
-    return out[-8:]
 
 
 def _validate(target_fields, history):
@@ -443,7 +408,7 @@ def _fc_evidence_items(fc):
 
     resp, lag = fc.get("response") or {}, fc.get("lag") or {}
     hol, asu = fc.get("holiday") or {}, fc.get("asu") or {}
-    plan, mech = fc.get("plan") or {}, fc.get("mechanism") or {}
+    mech = fc.get("mechanism") or {}
 
     # --- the miss decomposition: which side of the gap was already there (section 13) ---
     dec = resp.get("miss_decomposition") or {}
@@ -507,14 +472,6 @@ def _fc_evidence_items(fc):
     elif asu.get("availability") == MISSING_AVAILABILITY:
         add(contradictory, f"ASU decomposition could not be performed: {asu.get('reason')}",
             "Weak", "deterministic_statistic", "asu_decomposition", "E6")
-
-    # --- plan vintage (section 8) ---
-    if plan.get("available") and plan.get("state") in (fc_evidence.PLAN_NOT_REVISITED,
-                                                       fc_evidence.PLAN_REVISED_STILL_WRONG):
-        add(supporting, plan.get("reading"), "Strong", "business_rule", "plan_vintage", "E15")
-    elif plan.get("state") == fc_evidence.PLAN_REVISED_APPROPRIATELY:
-        add(contradictory, plan.get("reading"), "Moderate", "business_rule", "plan_vintage",
-            "E15")
 
     # --- mechanisms rejected on direction (section 32) ---
     for c in mech.get("rejected_for_direction") or []:
@@ -757,7 +714,7 @@ def _select_root_cause(survivors, reports, stats, why=None):
 # ==============================================================================
 # Step 14 -- Recommendations (rule-derived, max 3)
 # ==============================================================================
-def _mechanism_recommendations(fc_mechanism, fc_lag, fc_plan, fc_signals=None, fc_holiday=None):
+def _mechanism_recommendations(fc_mechanism, fc_lag, fc_signals=None, fc_holiday=None):
     """Section 44. The action follows the VERIFIED mechanism, not the hypothesis label.
 
     Section 44 forbids a generic "monitor the situation" where a specific action is supported, and
@@ -853,36 +810,23 @@ def _mechanism_recommendations(fc_mechanism, fc_lag, fc_plan, fc_signals=None, f
                     "owner": "Demand / Forecast Team",
                     "follows_mechanism": "holiday_plan_bias_widening"})
 
-    if (fc_plan or {}).get("state") == fc_evidence.PLAN_REVISED_STILL_WRONG:
-        out.append({"id": "M6", "priority": "High",
-                    "text": ("Review the re-forecast method itself, not the cadence: the plan WAS "
-                             "reissued during this miss run and the revised plan kept missing the "
-                             "same way."),
-                    "impact": ("Distinguishes a process that was not run from a process that was "
-                               "run and produced the same error -- they need different fixes."),
-                    "owner": "Demand / Forecast Team",
-                    "follows_mechanism": "plan_revised_but_remained_wrong"})
-    elif (fc_plan or {}).get("state") == fc_evidence.PLAN_NOT_REVISITED:
-        out.append({"id": "M7", "priority": "High",
-                    "text": (f"Reissue this queue's plan: it has stood unchanged through a "
-                             f"{fc_plan.get('streak_weeks')}-week run of "
-                             f"{fc_plan.get('streak_direction')}-forecasting."),
-                    "impact": "Stops a known gap continuing purely because the plan was not revisited.",
-                    "owner": "Demand / Forecast Team",
-                    "follows_mechanism": "plan_not_revisited"})
+    # M6 and M7 -- "the plan was reissued and stayed wrong" and "reissue this queue's plan" -- are
+    # DELETED along with the plan-vintage finding they rested on. No replacement advice is invented:
+    # without the column there is no evidence about whether anybody revisited the plan, and section 44
+    # forbids advice the mechanism does not support.
 
     return out
 
 
 def _recommendations(root_cause, features, deviation, fc_mechanism=None, fc_lag=None,
-                     fc_plan=None, fc_signals=None, fc_holiday=None):
+                     fc_signals=None, fc_holiday=None):
     """BR-701/702/704. Rule-derived, never model-generated. Maximum three, and fewer
     where fewer are warranted -- padding a list to a target is noise, not advice.
 
     Mechanism-derived advice leads, because it is the specific action section 44 asks for. The
     original rules follow and still fire; the three-item cap is unchanged.
     """
-    recs = list(_mechanism_recommendations(fc_mechanism, fc_lag, fc_plan, fc_signals, fc_holiday))
+    recs = list(_mechanism_recommendations(fc_mechanism, fc_lag, fc_signals, fc_holiday))
     cid = (root_cause or {}).get("hypothesis_id") or ""
 
     if cid.startswith("FC-") or cid.startswith("STA-02"):
@@ -1078,8 +1022,9 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
                                                 fc_lag, fc_holiday)
     fc_asu = fc_evidence.asu_decomposition(fields.get("Planned_ASU"), fields.get("Actual_ASU"),
                                            forecast, actual)
-    fc_plan_timeline = _plan_vintage_timeline(history)
-    fc_plan = fc_evidence.plan_revision(history, fc_plan_timeline, target_week)
+    # The miss STREAK survives the removal of the plan-vintage finding: criticality lifts a band
+    # when a miss is standing rather than isolated, and that is computed from adherence alone.
+    fc_streak = fc_evidence.miss_streak(history)
     fc_weekend = fc_evidence.weekend_evidence(history, fields)
     fc_mechanism = fc_evidence.miss_mechanism(adherence, fc_response, fc_holiday, fc_lag,
                                               fc_asu, dq["clean"])
@@ -1090,13 +1035,13 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
     _typical = ((fc_response.get("baselines") or {}).get("recent_13_week_median_actual")
                 if fc_response.get("available") else None)
     fc_criticality = fc_evidence.criticality(abs_variance, adherence, _typical,
-                                             fc_plan.get("streak_weeks"),
+                                             fc_streak.get("weeks"),
                                              fields.get("Volume_Category"))
 
     # Anything the evidence supports but the catalogue could not carry is SUPPRESSED as a
     # catalogue gap, never promoted into an ad-hoc cause (section 9).
     fc_blocks = {"lag": fc_lag, "holiday": fc_holiday, "response": fc_response, "asu": fc_asu,
-                 "plan": fc_plan, "weekend": fc_weekend, "mechanism": fc_mechanism,
+                 "streak": fc_streak, "weekend": fc_weekend, "mechanism": fc_mechanism,
                  "criticality": fc_criticality, "unexplained": fc_unexplained}
 
     # --- Steps 7-8 -------------------------------------------------------------
@@ -1182,7 +1127,7 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
     feat["lag"] = fc_lag
     feat["holiday_phase"] = fc_holiday
     feat["mechanism"] = fc_mechanism
-    feat["plan_revision"] = fc_plan
+    feat["miss_streak"] = fc_streak
     feat["weekend"] = fc_weekend
     feat["asu_decomposition"] = fc_asu
     survivors, reports = cx.examine_all(generated, feat)
@@ -1265,7 +1210,7 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
              if confidence.get("binding_cap") else ""))
 
     # --- Step 13 ---------------------------------------------------------------
-    recs = _recommendations(root_cause, feat, feat["deviation"], fc_mechanism, fc_lag, fc_plan,
+    recs = _recommendations(root_cause, feat, feat["deviation"], fc_mechanism, fc_lag,
                             fc_response.get("signals"), fc_holiday)
 
     # The mechanism, the direction verdict and the contradiction resolution are attached to the
@@ -1349,8 +1294,11 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
         "holiday_response": fc_holiday,
         "weekend_diagnostic": fc_weekend,
         "asu_decomposition": fc_asu,
-        "plan_revision": fc_plan,
-        "plan_vintage_timeline": fc_plan_timeline,
+        # `plan_revision` and `plan_vintage_timeline` are DELETED, not emptied: this engine
+        # treats Projection_plan_name as non-existent, and a key that can never carry a value
+        # is a promise it cannot keep. `miss_streak` replaces the only part that did not
+        # depend on the column.
+        "miss_streak": fc_streak,
         "miss_mechanism": fc_mechanism,
         "criticality": fc_criticality,
         "evidence_resolution": fc_resolution,
@@ -1359,7 +1307,7 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
             {"forecast": rnd(forecast), "actual": rnd(actual), "adherence_pct": rnd(adherence),
              "absolute_variance_contacts": rnd(abs_variance),
              "direction": ("Over-forecast" if adherence > 0 else "Under-forecast")},
-            fc_response, fc_lag, fc_holiday, fc_weekend, fc_asu, fc_plan, _scope_for_why,
+            fc_response, fc_lag, fc_holiday, fc_weekend, fc_asu, _scope_for_why,
             fc_resolution),
     }
 
@@ -1416,7 +1364,6 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
                  "gap": (rnd(num(h.get("Actual_Offered")) - num(h.get("fcst_offered")))
                          if num(h.get("Actual_Offered")) is not None
                          and num(h.get("fcst_offered")) is not None else None),
-                 "plan_vintage": h.get("Projection_plan_name"),
                  "holidays": num(h.get("Holiday_Count")),
                  # The driver columns. Omitting them made questions like "what was the
                  # week-over-week change in Final_Units?" unanswerable from a series that
@@ -1433,10 +1380,10 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
             # Flat pre-answered statements. Read the docstring -- these exist because
             # nested-JSON retrieval demonstrably failed on questions the data could answer.
             "key_facts_already_established": _derived_facts(history, target_week, ctx, gates, m),
-            # When the plan vintage CHANGED, and what it was set to at each change. This is
-            # what answers "was the plan reissued after it started missing?" -- a question
-            # the engine could raise but not settle.
-            "plan_vintage_changes": _plan_vintage_timeline(history),
+            # `plan_vintage_changes` is DELETED. The interrogator can no longer ask whether the
+            # plan was reissued, because the engine no longer reads the column that would answer it
+            # -- and giving the model the vintage while forbidding the finding would let the plan
+            # name reach the prose by the back door. The interrogation answers ARE output.
         }
         interro = _interrogate(finding, evidence_bundle, llm_cfg, model_choice)
         _step(14, "Interrogate Findings",

@@ -36,7 +36,7 @@ drifts.
   renormalisation rule and all eight caps (nine rows — gate 3 has two thresholds).
 - **Missing vs NotApplicable** wording, which carries opposite meanings and opposite actions.
 - The **input fingerprint** and the full audit trail with four version stamps.
-- **13/26-week aggregates** and the **plan-vintage timeline**.
+- **13/26-week aggregates**. The plan-vintage timeline is REMOVED — see the exclusion note below.
 - The **LLM as narrator only**: four-part prompt, context fencing, numeric grounding, and an RCA that
   survives any model failure.
 - Every **pre-existing response key**, and the **ten mandatory card sections**.
@@ -234,21 +234,39 @@ operationally**. They are independent, and never blended or traded off.
 
 Bands: `Negligible` / `Low` / `Moderate` / `High` / `Critical`.
 
-### Plan revision — `plan_revision`
+### `Projection_plan_name` is treated as non-existent
 
-The FC-specific question nobody else asks. Three states, and none is ever inferred without
-plan-vintage evidence:
+**The column is excluded from this engine entirely.** Not hidden, not left blank — the engine reads
+as though the field does not exist.
 
-| state | meaning |
-|---|---|
-| `plan_not_revisited` | the plan stood unchanged while the miss continued |
-| `plan_revised_but_remained_wrong` | it was reissued and later weeks kept missing the same way |
-| `plan_revised_appropriately` | the revision moved the plan towards demand |
-| `not_testable` | no vintage recorded — a **different** finding from "nobody looked" |
+That deletes the brief's **§8** plan-revision finding (*plan not revisited / revised but still wrong /
+revised appropriately*), because it rested wholly on that column. A deliberate departure from the
+brief, recorded here rather than left to be discovered from an absence.
 
-A miss run only counts weeks that actually breached ±5%: a week that came in on plan is not part of a
-miss streak, and after a revision it is a *success* of that revision. The initial plan record is not
-a revision.
+It is also defensible on the data. The column holds **monthly projection vintages**
+("FY27 May Projection") which change on a calendar cycle, not in response to a miss —
+40 distinct names over 208 weeks for one queue, roughly one every five. So a reissue mid-run is
+usually the monthly cycle arriving rather than somebody reacting, which is exactly what made
+*"the plan was revisited and stayed wrong"* read as an accusation on every queue. Two existing
+decisions already pointed the same way: [prompts.py](../backend/wfm/prompts.py) forbids the WFM model
+from citing routine plan updates as a cause, and `lag_analysis.NOT_DRIVERS` excludes the column from
+driver testing.
+
+Removed with it: `plan_revision`, `plan_vintage_timeline`, evidence item **E15**, recommendations
+**M6/M7**, the plan bullet in *Why This Happened*, the plan-vintage row in the interrogation prompt,
+`plan_vintage` in the LLM weekly series, `plan_vintage_changes` in the evidence bundle, and the
+*"Plan measured against"* block on the card. The evidence index is now **14 items (E1–E14)**; the
+remaining IDs keep their numbers so existing citations stay valid.
+
+**What survived:** the **miss streak** — `miss_streak` — which criticality uses for its persistence
+lift. It was only ever computed inside `plan_revision` because that is where it was first needed; it
+derives from adherence alone and never touched the plan name. The card's *Forecast owner* block also
+survives, since `Forecaster` is a different column answering a different question.
+
+Enforced, not merely intended: `results/test_fc_spec_semantics.py` runs the engine over a fixture
+whose rows **do** carry a plan vintage and asserts neither the column name nor the value
+(`FY.. ... Projection`) appears anywhere in the response, and `results/check_ui_render.js` feeds a
+plan vintage into the renderer and asserts it never reaches the markup.
 
 ### Contradiction resolution — `evidence_resolution`
 
@@ -258,7 +276,7 @@ direction-coherence gate, or cross-examination.
 
 ### Evidence IDs — `fc_evidence_index`
 
-E1–E15, in the FC brief's own numbering (E9 pre-holiday, E10 holiday, E11 post-holiday, E15
+E1–E14, in the FC brief's own numbering (E9 pre-holiday, E10 holiday, E11 post-holiday, E15
 plan-vintage). Published as `fc_evidence_index` and **never compared to the WFM engine's index by
 ID** — the same labels mean different things there. An item that could not be established is present
 and marked unavailable **with its reason**, never omitted.

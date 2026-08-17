@@ -2597,14 +2597,16 @@ function renderDecisionCard(resp, ctx){
         </div>`;
       })()}
       ${(()=>{
-        // THE PLAN IN FORCE. A forecaster's first question about a miss is which plan vintage it
-        // was measured against -- it is on the queue card but was nowhere in the report.
+        // WHO OWNS THE FORECAST. This block used to lead with the plan vintage
+        // (`Projection_plan_name`); that is gone, because this engine treats the column as
+        // non-existent. The FORECASTER is a different column and a different question -- "who do I
+        // talk to about this" -- so it stays and now stands on its own.
         const f = (ctx && ctx.target && ctx.target.fields) || {};
-        const plan = f.Projection_plan_name, who = f.Forecaster;
-        if (!plan && !who) return '';
+        const who = f.Forecaster;
+        if (!who) return '';
         return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
-          <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Plan measured against</div>
-          <div style="font-size:12.5px;margin-top:4px;">${plan?invEsc(plan):'—'}${who?` · forecaster ${invEsc(who)}`:''}</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Forecast owner</div>
+          <div style="font-size:12.5px;margin-top:4px;">${invEsc(who)}</div>
         </div>`;
       })()}
     </div>`;

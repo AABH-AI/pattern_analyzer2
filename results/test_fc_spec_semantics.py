@@ -26,6 +26,7 @@ that happened is commented in full, so nobody later "fixes" working logic to sat
 """
 import json
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -603,65 +604,81 @@ check("S23-2", "Waisak and Vesak are NOT silently mapped together without author
       _waisak[0] != _waisak[1], f"{_waisak}")
 
 # ==============================================================================
-# Scenarios 17, 18, 19 -- plan vintage
+# Scenarios 17, 18, 19 -- REMOVED, and the column is now proven absent
 # ==============================================================================
-print("\n-- Scenarios 17/18/19: plan revision during a miss streak --")
+# The brief's section 8 asked for three plan-vintage states (plan not revisited / revised but still
+# wrong / revised appropriately) and scenarios 17-19 tested them. All of it rested on
+# `Projection_plan_name`, and this engine now treats that column AS IF IT DOES NOT EXIST at the
+# user's instruction. The finding is deleted -- keys and all -- so the scenarios that tested it are
+# deleted too, rather than left asserting behaviour that no longer exists.
+#
+# What replaces them is stronger than a scenario: a HARD GUARD that neither the column name nor a
+# plan-vintage value can reach the response by any path. The checks below run the real engine over a
+# fixture whose rows DO carry a plan name, so the guard proves removal rather than proving that an
+# already-blank column stays blank.
+print("\n-- Sections 8/38: the plan-vintage column is treated as non-existent --")
 
+check("PLAN-1", "plan_revision() no longer exists on fc_evidence",
+      not hasattr(fce, "plan_revision"),
+      "deleted with the section 8 finding, not left as dead code")
+check("PLAN-2", "miss_streak() replaces the only part that did not need the column",
+      callable(getattr(fce, "miss_streak", None)))
 
-def streak_history(revisions, corrected):
-    """Six same-direction over-forecast weeks, optionally with a plan reissue partway."""
-    weeks = week_seq(202401, 120)
-    h = [row(w, 1000.0, 1000.0, plan="PLAN_A") for w in weeks[:-6]]
-    tail = weeks[-6:]
-    for i, w in enumerate(tail):
-        plan = "PLAN_A"
-        if revisions and i >= 3:
-            plan = "PLAN_B"
-        actual = 1000.0
-        forecast = 1400.0                                  # over-forecast throughout
-        if corrected and i >= 4:
-            forecast = 1010.0                              # the revision worked
-        h.append(row(w, actual, forecast, plan=plan))
-    return h
+_streak_hist = flat_history(n=40, actual=1000.0, forecast=1000.0)
+for _i in range(1, 6):                                   # last 5 weeks: under-forecast by 40%
+    _streak_hist[-_i] = row(_streak_hist[-_i]["Fiscal_Week"], 1400.0, 1000.0)
+_ms = fce.miss_streak(_streak_hist)
+check("PLAN-3", "the miss streak is computed from adherence alone",
+      _ms.get("weeks") == 5 and _ms.get("direction") == "under",
+      json.dumps(_ms, default=str)[:200])
+check("PLAN-4", "and a week inside the threshold ENDS the run",
+      fce.miss_streak(flat_history(n=40, actual=1000.0, forecast=1000.0)).get("weeks") == 0,
+      "actual == forecast is a perfect forecast, not an over-forecast run")
+check("PLAN-5", "the streak still drives the criticality persistence lift",
+      fce.criticality(300.0, -8.0, 40000.0, _ms["weeks"], None)["lifts_applied"] != [],
+      "the lift survived the removal of the finding it used to live inside")
 
-
-_h_not = streak_history(revisions=False, corrected=False)
-_p_not = fce.plan_revision(_h_not, spec_engine._plan_vintage_timeline(_h_not),
-                           _h_not[-1]["Fiscal_Week"])
-check("S19-1", "a plan left unchanged through a persistent miss is plan_not_revisited",
-      _p_not.get("state") == fce.PLAN_NOT_REVISITED,
-      json.dumps(_p_not, default=str)[:260])
-check("S19-2", "and the streak length and start week are stated",
-      (_p_not.get("streak_weeks") or 0) >= 6 and _p_not.get("streak_began_at_week"))
-
-_h_wrong = streak_history(revisions=True, corrected=False)
-_p_wrong = fce.plan_revision(_h_wrong, spec_engine._plan_vintage_timeline(_h_wrong),
-                             _h_wrong[-1]["Fiscal_Week"])
-check("S18-1", "a plan reissued mid-run that kept missing is plan_revised_but_remained_wrong",
-      _p_wrong.get("state") == fce.PLAN_REVISED_STILL_WRONG,
-      json.dumps(_p_wrong, default=str)[:300])
-check("S18-2", "the distinction from 'nobody looked' is stated in words",
-      "revisited and stayed wrong" in (_p_wrong.get("reading") or ""),
-      _p_wrong.get("reading"))
-check("S18-3", "and the recommendation targets the METHOD, not the cadence",
-      any("not the cadence" in x.get("text", "")
-          for x in fce and spec_engine._mechanism_recommendations({}, {}, _p_wrong, None)),
-      json.dumps(spec_engine._mechanism_recommendations({}, {}, _p_wrong, None),
-                 default=str)[:220])
-
-_h_ok = streak_history(revisions=True, corrected=True)
-_p_ok = fce.plan_revision(_h_ok, spec_engine._plan_vintage_timeline(_h_ok),
-                          _h_ok[-1]["Fiscal_Week"])
-check("S17-1", "a revision that moved the plan towards demand is NOT reported as a failure",
-      _p_ok.get("state") != fce.PLAN_REVISED_STILL_WRONG,
-      json.dumps(_p_ok, default=str)[:300])
-# No vintage recorded at all is a DIFFERENT finding from "never revisited".
-_h_no_plan = [dict(r, Projection_plan_name=None) for r in _h_not]
-_p_none = fce.plan_revision(_h_no_plan, spec_engine._plan_vintage_timeline(_h_no_plan),
-                            _h_no_plan[-1]["Fiscal_Week"])
-check("S17-2", "no recorded vintage is 'not testable', NOT an accusation that nobody looked",
-      _p_none.get("state") == fce.PLAN_NOT_TESTABLE and _p_none.get("availability") == fce.MISSING,
-      json.dumps(_p_none, default=str)[:240])
+# The engine, over a fixture that DOES carry a plan vintage on every row.
+_pv_hist = flat_history(n=150, actual=1000.0, forecast=1000.0, plan="FY27 May Projection")
+_pv_hist[-1] = row(_pv_hist[-1]["Fiscal_Week"], 1600.0, 1000.0, plan="FY27 Jun Projection")
+_pv_res = run_engine(_pv_hist, fields())
+_pv_blob = json.dumps(_pv_res, default=str)
+check("PLAN-6", "the column NAME appears nowhere in the response",
+      "Projection_plan_name" not in _pv_blob)
+check("PLAN-7", "a plan-vintage VALUE appears nowhere in the response",
+      not re.search(r"FY\d\d\s+\w+\s+Projection", _pv_blob),
+      "the value is what a reader would actually see; checking only the key would miss it")
+check("PLAN-8", "the deleted keys are gone, not emptied",
+      "plan_revision" not in _pv_res and "plan_vintage_timeline" not in _pv_res,
+      f"still present: {[k for k in ('plan_revision', 'plan_vintage_timeline') if k in _pv_res]}")
+check("PLAN-9", "miss_streak IS published in their place",
+      "miss_streak" in _pv_res)
+check("PLAN-10", "no prose claims the plan was or was not reissued",
+      "reissued" not in _pv_blob and "revisited" not in _pv_blob,
+      "with no vintage evidence, neither statement can be made")
+check("PLAN-11", "the M6/M7 plan recommendations can no longer fire",
+      all(r.get("id") not in ("M6", "M7") for r in (_pv_res.get("recommendations") or [])),
+      json.dumps([r.get("id") for r in (_pv_res.get("recommendations") or [])]))
+check("PLAN-12", "the LLM never receives the vintage either",
+      "plan_vintage" not in _pv_blob,
+      "the interrogation answers are output, so its context is output too")
+check("PLAN-13", "the evidence index is 14 items -- E15 deleted, not permanently unavailable",
+      len((_pv_res.get("fc_evidence_index") or {}).get("items") or {}) == 14
+      and "E15" not in ((_pv_res.get("fc_evidence_index") or {}).get("items") or {}),
+      "a row that can never be established is a promise the engine cannot keep")
+check("PLAN-14", "E1..E14 keep their original numbers",
+      list((_pv_res.get("fc_evidence_index") or {}).get("items") or {})
+      == [f"E{i}" for i in range(1, 15)],
+      "renumbering would invalidate every citation already written down")
+_MUST_KEEP = ("forecast_response_diagnostic", "forecastability", "lagged_driver_evidence",
+              "holiday_response", "weekend_diagnostic", "asu_decomposition", "miss_mechanism",
+              "criticality", "evidence_resolution", "fc_evidence_index")
+check("PLAN-15", "every OTHER finding still renders -- nothing else was lost",
+      all(k in _pv_res for k in _MUST_KEEP),
+      f"missing {[k for k in _MUST_KEEP if k not in _pv_res]}")
+check("PLAN-16", "and the card still carries all 18 sections",
+      len([k for k in ((_pv_res.get("decision_card") or {}).get("sections") or {})
+           if k[0].isdigit()]) == 18)
 
 # ==============================================================================
 # Scenario 20 -- confidence caps, and Missing vs NotApplicable
@@ -1142,7 +1159,7 @@ check("CON-1", "every pre-existing response key is still present",
       all(k in _r for k in _LEGACY_KEYS),
       f"missing {[k for k in _LEGACY_KEYS if k not in _r]}")
 _NEW_KEYS = ("forecast_response_diagnostic", "forecastability", "lagged_driver_evidence",
-             "holiday_response", "weekend_diagnostic", "asu_decomposition", "plan_revision",
+             "holiday_response", "weekend_diagnostic", "asu_decomposition", "miss_streak",
              "miss_mechanism", "criticality", "evidence_resolution", "fc_evidence_index",
              "unexplained_observations")
 check("CON-2", "the additive keys are all present",
@@ -1166,8 +1183,8 @@ check("CON-5", "the card version records that it changed",
 check("CON-6", "the whole response is JSON-serialisable",
       bool(json.dumps(_r, default=str)))
 _ix = _r.get("fc_evidence_index") or {}
-check("EVI-1", "the evidence index carries all 15 items",
-      len(_ix.get("items") or {}) == 15, f"got {len(_ix.get('items') or {})}")
+check("EVI-1", "the evidence index carries all 14 items (E15 plan-vintage is deleted)",
+      len(_ix.get("items") or {}) == 14, f"got {len(_ix.get('items') or {})}")
 check("EVI-2", "an unestablished evidence item is present with a reason, not omitted",
       all(("note" in e and e.get("id") and e.get("label"))
           for e in (_ix.get("items") or {}).values()))

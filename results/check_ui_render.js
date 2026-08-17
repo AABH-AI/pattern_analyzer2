@@ -215,7 +215,21 @@ for (const file of specFiles) {
     }
     cardCases++;
     try {
-      const out = sandbox.renderDecisionCard(resp, { target: { fields: {} } });
+      /* ctx carries a PLAN VINTAGE and a forecaster on purpose.
+       *
+       * The first version of this guard passed `{target:{fields:{}}}` and then asserted that no plan
+       * name appeared in the output -- which it never could, because nothing supplied one. The check
+       * passed while being incapable of failing. Verified by re-injecting the removed
+       * "Plan measured against" block: the guard stayed green.
+       *
+       * Feeding a plan name in means any renderer that reads `Projection_plan_name` leaks it into the
+       * markup and the assertions below catch it. The forecaster is supplied too, so the block that
+       * legitimately survives still renders and is exercised. */
+      const probeCtx = { target: { fields: {
+        Projection_plan_name: 'FY27 May Projection',
+        Forecaster: 'Test Owner',
+      } } };
+      const out = sandbox.renderDecisionCard(resp, probeCtx);
       const bad = Object.entries(CARD_PANELS).filter(([, t]) => !t(out)).map(([n]) => n);
       if (out.includes('>undefined<')) bad.push('a literal "undefined" reached the markup');
       if (out.includes('>null<')) bad.push('a literal "null" reached the markup');
@@ -255,6 +269,20 @@ for (const file of specFiles) {
       }
       if (!/>E1</.test(out)) {
         bad.push('the Evidence Index no longer lists E1 -- removing the chips must not cost traceability');
+      }
+
+      /* `Projection_plan_name` is treated by this engine as NON-EXISTENT, so neither the column name
+       * nor a plan-vintage VALUE may reach the rendered card. Checking the column name alone would
+       * miss the case that actually matters -- a value like "FY27 May Projection" printed in prose. */
+      if (/Projection_plan_name/.test(out)) {
+        bad.push('the column name "Projection_plan_name" reached the rendered card');
+      }
+      const vintage = out.match(/FY\d\d\s+\w+\s+Projection/);
+      if (vintage) {
+        bad.push(`a plan-vintage value reached the rendered card: "${vintage[0]}"`);
+      }
+      if (/Plan measured against/.test(out)) {
+        bad.push('the "Plan measured against" block is back');
       }
       if (bad.length) {
         failures++;

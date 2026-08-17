@@ -482,7 +482,6 @@ def why_bullets(result):
     resp = result.get("forecast_response_diagnostic") or {}
     lag = result.get("lagged_driver_evidence") or {}
     hol = result.get("holiday_response") or {}
-    plan = result.get("plan_revision") or {}
     asu = result.get("asu_decomposition") or {}
     res = result.get("evidence_resolution") or {}
     fs = result.get("forecast_summary") or {}
@@ -582,15 +581,9 @@ def why_bullets(result):
         bullet(_RANK_STATISTICAL, asu.get("reading"), None, _asu_says,
                evidence_id="E6", strength="Strong")
 
-    # 7. Plan vintage (section 8) -- the FC-specific question nobody else asks.
-    if plan.get("available") and plan.get("reading"):
-        bullet(_RANK_HISTORICAL, plan.get("reading"), None,
-               {"plan_not_revisited": "The plan was never reissued during the run.",
-                "plan_revised_but_remained_wrong": ("The process ran and produced the same error, "
-                                                    "so the method needs review, not the cadence."),
-                "plan_revised_appropriately": "The revision did move the plan towards demand."}
-               .get(plan.get("state")),
-               evidence_id="E15", strength="Strong")
+    # 7. The plan-vintage bullet is DELETED. It read `Projection_plan_name`, which this engine
+    #    treats as non-existent. Nothing is substituted for it -- there is no evidence left about
+    #    whether the plan was revisited, so no bullet should imply there is.
 
     # 8. What argues against (section 31).
     for conflict in (res.get("conflicts") or []):

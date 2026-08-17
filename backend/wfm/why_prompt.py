@@ -97,7 +97,6 @@ AVAILABLE_DATA = """
 | Shipments | `Final_Units` and nested tiers `Final_Y1`..`Y5` — planned units for delivery |
 | Holidays | `Holiday_Count`, plus a named holiday calendar with per-holiday impact windows |
 | Fiscal calendar | 4-4-5 weeks, months and quarters; 53-week years absorbed into Q4 |
-| Plan vintage | `Projection_plan_name` — which monthly projection produced this forecast |
 | Hierarchy | Business Org, Region, SubRegion, Country, Offering, Channel, Forecast Name |
 | Queue metadata | `Volume_Category`, `Forecaster`, `business_org` |
 | Derived measures | bias, drift, trend, momentum, volatility, outliers, seasonality, driver correlations |

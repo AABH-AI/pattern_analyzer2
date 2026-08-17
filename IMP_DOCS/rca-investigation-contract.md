@@ -122,8 +122,13 @@ investigation stopped early with a reason).
 
 `forecast_response_diagnostic`, `forecastability`, `forecastability_gate`,
 `lagged_driver_evidence`, `holiday_response`, `weekend_diagnostic`, `asu_decomposition`,
-`plan_revision`, `plan_vintage_timeline`, `miss_mechanism`, `criticality`, `evidence_resolution`,
+`miss_streak`, `miss_mechanism`, `criticality`, `evidence_resolution`,
 `unexplained_observations`, `fc_evidence_index`, `decision_card_why`.
+
+**`Projection_plan_name` is excluded from this engine.** `plan_revision`,
+`plan_vintage_timeline` and evidence item E15 were published briefly and are now DELETED —
+the column is treated as non-existent, so a key that could never carry a value was removed
+rather than shipped permanently empty. The evidence index is 14 items (E1–E14).
 
 On `root_cause`, alongside the existing `cause_type` / `hypothesis_id` / `hypothesis` / `category` /
 `statement` / `cross_examination` / `caveats` / `selected_because`:
