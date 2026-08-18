@@ -258,7 +258,7 @@ Removed with it: `plan_revision`, `plan_vintage_timeline`, evidence item **E15**
 *"Plan measured against"* block on the card. The evidence index is now **14 items (E1–E14)**; the
 remaining IDs keep their numbers so existing citations stay valid.
 
-**What survived:** the **miss streak** — `miss_streak` — which criticality uses for its persistence
+**What survived:** the **miss streak** — `miss_streak`, a published response key — which criticality uses for its persistence
 lift. It was only ever computed inside `plan_revision` because that is where it was first needed; it
 derives from adherence alone and never touched the plan name. The card's *Forecast owner* block also
 survives, since `Forecaster` is a different column answering a different question.
@@ -315,6 +315,8 @@ exists to protect.
 `card_version` **2.1.0**. Ten mandatory sections unchanged; eight added, numbered from 11 so a
 renderer that does not know them shows the original card.
 
+Section **keys** (the response contract — these numbers never change):
+
 ```
  1 executive summary        11 criticality
  2 root cause (+ scope)     12 why this happened      <- ranked bullets
@@ -327,6 +329,26 @@ renderer that does not know them shows the original card.
  9 data availability
 10 audit reference
 ```
+
+**Rendered order is deliberately NOT the key order** (commit `d009b63`). *Why This Happened* sits
+immediately after the Executive Summary and **before** Root Cause, so the reader gets the headline,
+then the ranked reasons, then the formal cause with its scope table:
+
+```
+Executive Summary → Why This Happened → Root Cause → Interrogation → Confidence
+  → Criticality → Evidence → Forecast Response → Calendar Context → Driver Evidence
+  → Business Context → Hypotheses Considered → Evidence Index → Recommendations → Limitations
+```
+
+It previously followed Root Cause, which put the two most-read blocks either side of a long panel.
+`results/check_ui_render.js` asserts this order, not merely that the panels exist — the order comes
+from one concatenation expression and is easy to reverse by accident.
+
+**The `E5  Strong` chips are not rendered on the bullets.** "E5" means nothing without the Evidence
+Index open, and a bare strength label invites weighing bullets against each other when the *order*
+already does that. `bullets[].evidence_id` and `bullets[].strength` remain on the response and the
+Evidence Index still lists every item, so nothing became untraceable — the guard asserts both the
+chips' absence and E1's continued presence.
 
 **Ranked bullets (§41).** Order is set by the evidence — causal coherence, forecastability,
 historical consistency, statistical strength, data sufficiency, contradiction resolution — and is
@@ -344,13 +366,34 @@ from Country" is never a root cause.
 
 ---
 
+## The data source, and one sequencing rule
+
+The live table is **`Playground.dbo.Input_To_ML_Full_138_Trimmed`** on `10.10.9.75` — 114,436 rows,
+427 queues, fiscal weeks 202401–202908, **32 columns**. `Projection_plan_name` was dropped from it in
+commit `5b1cdf7`. The predecessors `dbo.Input_To_ML_Full_138` (138,775 rows), `dbo.Input_To_ML_Full`
+(88,816) and `dbo.Input_To_ML` (66,612) are intentionally left in place and still carry the column, so
+the dropped data is recoverable with an `UPDATE` join on `Forecast_name + Fiscal_Week`.
+
+**`data_access._HISTORY_COLS` must never name a column the table does not have**, and the reason is
+worth stating because the failure is invisible. The tuple builds the history `SELECT`. If it names a
+missing column the query raises *"Invalid column name"*, `sql_backend` catches that into
+`wfm_context = {"fetch_error": …}`, and **both** engines then run on the posted bundle alone — every
+investigation on every queue silently loses its entire 157-week history and reports insufficient data,
+while still rendering a confident-looking card. So a column is removed from this tuple **before** it is
+dropped from the table, never after. It currently has **16** columns.
+
+Per investigation the engine reads roughly **183 rows** — `TOP 157` for the queue, a 4-week forward
+window, channel siblings, and six ladder aggregates — about 0.2% of the table.
+
+---
+
 ## Running it
 
 ```bash
 # offline, no SQL, no model — exercises all 15 steps
 cd backend && python ../results/run_offline_investigation.py
 
-# the semantic suite — 149 checks, all 24 brief scenarios
+# the semantic suite — 189 checks, all 24 brief scenarios
 python results/test_fc_spec_semantics.py
 
 # the renderer, against real captured responses
@@ -383,7 +426,7 @@ guard now aborts the run if a completed response arrives without `criticality`.
 | `wfm/holiday_response.py` | phases H−2…H+2, forecast capture *(shared)* |
 | `wfm/holiday_events.py` | event identity and de-duplication *(shared)* |
 | `wfm/data_granularity.py` | what the data grain supports *(shared)* |
-| `wfm/data_access.py` | `_HISTORY_COLS` widened additively — read by **both** engines |
+| `wfm/data_access.py` | `_HISTORY_COLS` — **16 columns**, read by **both** engines. `Projection_plan_name` was removed from it *before* the column was dropped from the table; leaving it would have silently emptied every history fetch |
 | `wfm/common.py` | `week_ordinals()` for fiscal-year rollover |
 
 ---

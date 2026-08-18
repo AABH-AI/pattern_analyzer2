@@ -14,7 +14,7 @@ Then open **http://localhost:8000/rca_console.html**.
 
 Key facts:
 - Front end is one self-contained file (`rca_console.html`) — **no libraries, no CDN, no build**.
-- Live SQL needs the `backend/` (FastAPI + pyODBC), `backend/config.json` (gitignored), the ODBC Driver 17/18, and network access to SQL Server. Data table: `Playground.dbo.Input_To_ML` on `10.10.9.75`.
+- Live SQL needs the `backend/` (FastAPI + pyODBC), `backend/config.json` (gitignored), the ODBC Driver 17/18, and network access to SQL Server. Data table: **`Playground.dbo.Input_To_ML_Full_138_Trimmed`** on `10.10.9.75` — 114,436 rows, 427 queues, fiscal weeks 202401–202908, **32 columns**. `Projection_plan_name` was dropped from it (commit `5b1cdf7`); earlier tables `dbo.Input_To_ML_Full_138`, `dbo.Input_To_ML_Full` and `dbo.Input_To_ML` remain in place and still carry that column.
 - Two metrics only — **Forecast Accuracy** and **Forecast Adherence** (signed); flag when `|adherence| > band`. **Never change the formula math**, and **never fabricate data/schema/credentials.**
 - **Three RCA engines** behind `POST /api/rca-investigate`:
   - the original (`?mode=legacy`, or no parameter on older builds),
@@ -36,7 +36,7 @@ Key facts:
 
 Test suites (all runnable without SQL except the last):
 ```
-python results/test_fc_spec_semantics.py          # FC Decision Card — 149 checks, 24 brief scenarios
+python results/test_fc_spec_semantics.py          # FC Decision Card — 189 checks, 24 brief scenarios
 python results/test_wfm_diagnostics.py            # the shared diagnostic modules — 148 checks
 python results/smoke_test_modules.py              # 12 modules load and wire up
 node   results/check_ui_render.js                 # the REAL renderers over REAL captured responses

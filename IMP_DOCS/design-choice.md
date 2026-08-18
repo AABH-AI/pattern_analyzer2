@@ -27,7 +27,7 @@ The old tile averaged `Actual÷Fcst` across rows. Because over- and under-foreca
 - `Actual_Offered` stays integer; accuracy/adherence stay at 1 dp.
 
 ## Filters
-10 business dimensions, in this fixed order: Fiscal_Week, Region, SubRegion, Country, Forecast_name, Forecaster, Offering, Projection_plan_name, channel, business_org. Excel-style multi-select with search; "(All)" = no constraint. The same set drives the volumetrics/dashboard (`VOL_DIMS = FILTER_FIELDS`).
+**9** business dimensions, in this fixed order: Fiscal_Week, Region, SubRegion, Country, Forecast_name, Forecaster, Offering, channel, business_org. (Was 10 — `Projection_plan_name` was removed in commit `a4dc137` when that column stopped being surfaced anywhere in the UI.) Excel-style multi-select with search; "(All)" = no constraint. The same set drives the volumetrics/dashboard (`VOL_DIMS = FILTER_FIELDS`).
 
 ## Dashboard & charts — applied the `dataviz` method
 - **Form first, colour last.** Trends → area+line; magnitude comparisons → ranked horizontal bars; distribution → labelled status bars.
@@ -120,10 +120,14 @@ Merged clean (merge commit `babf5a1`); both feature sets kept. Shivam's addition
 - **Run tooling**: `run.ps1` / `run.sh` one-command setup+run; `AGENTS.md` + `CLAUDE.md` so any AI/human can install and run (SQL included).
 - **Data scope**: truncated to **FY2025–2027 (66,612 rows)**; the loader keeps it truncated on reload.
 
-## SQL table & data types (`Playground.dbo.Input_To_ML`)
+## SQL table & data types (currently `Playground.dbo.Input_To_ML_Full_138_Trimmed`)
+
+> The column list below describes the shape the loader creates. The live table is now
+> `dbo.Input_To_ML_Full_138_Trimmed` (114,436 rows, 32 columns) and **no longer has
+> `Projection_plan_name`** — dropped in commit `5b1cdf7`.
 Loaded from the weekly Excel by `backend/upload_excel_to_sql.py`. **33 columns · 66,612 rows** (Fiscal_Week **202501–202752 = FY2025–2027**; 2022–2024 and 2028–2029 were truncated). The loader persists this cut via a Fiscal_Week range filter — config `min_fiscal_week`/`max_fiscal_week` (202500–202799) or `--min-week`/`--max-week`; remove them to load all years.
 - `Fiscal_Week` — **BIGINT** · `Week_Ending` — **DATE**
-- **Dimensions (NVARCHAR):** Region, SubRegion, Country, Forecast_name, Forecaster, Offering, Projection_plan_name, channel, business_org, Volume_Category
+- **Dimensions (NVARCHAR):** Region, SubRegion, Country, Forecast_name, Forecaster, Offering, channel, business_org, Volume_Category — `Projection_plan_name` was **dropped from the table** in commit `5b1cdf7`
 - **Measures (FLOAT):** Actual_Offered, Actual_Handled, fcst_offered, fcst_handled, Planned_ASU, Actual_ASU, Final_Units, Final_Y5…Final_Y1, Final_upp_units, Holiday_Count, Monday…Sunday
 
 Blank cells load as **NULL**. The two metrics only need `Actual_Offered` and `fcst_offered`; the rest are dimensions/context for filtering and volumetrics. Column typing lives in `upload_excel_to_sql.py` (`NUMERIC` / `INT_COLS` / `DATE_COLS` sets); unknown columns default to `NVARCHAR(255)`.
@@ -220,6 +224,51 @@ Full detail: **`fc-decision-card-engine.md`**. Only the design decisions worth r
   a 2-tuple where its caller unpacks three — transposed halves of one mistake, both on the
   no-provider path, i.e. exactly the fallback the spec requires to work. Found by running the engine
   offline against an empty config, not by reading it.
+
+- **A misclassification is worse than bad wording, and this one inverted the advice.** The
+  near-zero-implied branch returned `wrong_direction` unconditionally. On a real card the implied
+  change was −2.3 and the plan moved −82.61 — the same sign, so §14's own definition says it is not
+  wrong direction at all. It is now decided by sign. That mattered beyond correctness: fiscal week 17
+  is a holiday week every year for that queue, so a cut *was* right and only its size was wrong,
+  while "wrong direction" told the reader not to cut at all.
+
+- **A wide tolerance band must publish where inside it you landed.** `captured` spans 0.5×–1.75× the
+  historical phase effect, so a bare "captured" hid a 51% over-cut. The ratio and overshoot are now
+  stated and the threshold deliberately left alone — it is versioned configuration no client has
+  confirmed, and moving it would flip verdicts on every queue.
+
+- **The measurement refused a finding I had asserted, and that is the system working.** I claimed a
+  queue's holiday cut was "systematically too deep" from raw counts; the test found 59% one-sided
+  against a 70% threshold and declined it. What the data *did* support was that the misses are
+  widening, so widening is reported independently of direction — requiring a direction first would
+  have hidden a real, actionable finding.
+
+- **Reading order is a design decision, so it is asserted.** *Why This Happened* moved to sit
+  immediately after the Executive Summary and before Root Cause; the render guard now checks the
+  order rather than only that the panels exist, because the order comes from a single concatenation
+  expression that is trivial to reverse by accident.
+
+- **Internal vocabulary does not belong on the most-read block.** The `E5  Strong` chips were removed
+  from the bullets: an E-number is meaningless without the Evidence Index open, and a strength label
+  invites weighing bullets when the deterministic order already does that. Both facts stay on the
+  response and in the Evidence Index.
+
+- **"Treat the column as non-existent" meant the whole surface, not the card.** `Projection_plan_name`
+  was first removed from the Decision Card, and that was not enough — the worklist queue card, the
+  filter panel, the dashboard filter and the field glossary all still showed it, so the change looked
+  like it had not landed. The filter set dropped from 10 dimensions to 9, which affects the WFM and
+  legacy engines' UI too. The guard that had been checking only the card now scans the whole page.
+
+- **A schema change and the code that reads it must land in the right order.** `_HISTORY_COLS` named
+  the column in the history `SELECT`. Dropping the column first would not have failed loudly — the
+  error is swallowed into `fetch_error` and both engines fall back to the posted bundle, so every
+  investigation would have silently lost its entire history behind a normal-looking card. Code first,
+  `ALTER TABLE` second.
+
+- **Removing data can make an existing answer false.** `temporal_reasoner` would have reported
+  `forecast_plan_changed_within_window: False` forever once the column was gone. "It did not change"
+  and "we cannot tell" are different claims; it now returns `None` with a note. That is a WFM file and
+  outside the Decision Card scope — changed because leaving a false answer is not the smaller change.
 
 - **The first live validation run was contaminated and was discarded.** A uvicorn started hours
   earlier by `run.py` was bound to `0.0.0.0:8000` running pre-upgrade code; on Windows two sockets

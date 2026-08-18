@@ -44,9 +44,15 @@ Connection lives in `backend/config.json` (gitignored) or `SQL_*` env vars. Fiel
 `server, database, table, auth ("sql"|"windows"), username, password, driver, encrypt, trust_server_certificate`.
 
 **Data source used in this project:** SQL Server `10.10.9.75` → database **`Playground`** → table
-**`dbo.Input_To_ML`** (**66,612 rows, 33 columns** — truncated to FY2025–2027). The loader keeps only
-Fiscal_Week 202500–202799 via config `min_fiscal_week`/`max_fiscal_week` (or `--min-week`/`--max-week`);
-remove them to load all years. Load it from the Excel with:
+**`dbo.Input_To_ML_Full_138_Trimmed`** (**114,436 rows, 32 columns**, 427 queues, fiscal weeks
+202401–202908). `Projection_plan_name` was **dropped from this table** in commit `5b1cdf7`, so it has
+32 columns rather than 33 — see `IMP_DOCS/fc-decision-card-engine.md`. The predecessors
+`dbo.Input_To_ML_Full_138` (138,775 rows), `dbo.Input_To_ML_Full` (88,816) and `dbo.Input_To_ML`
+(66,612) are intentionally left in place and still carry that column, so the dropped data is
+recoverable with an `UPDATE` join on `Forecast_name + Fiscal_Week`.
+
+The loader can restrict the fiscal-week range via config `min_fiscal_week`/`max_fiscal_week` (or
+`--min-week`/`--max-week`); leave them unset to load all years. Load it from the Excel with:
 ```
 python backend/upload_excel_to_sql.py --dry-run    # verify parsing, no DB
 python backend/upload_excel_to_sql.py              # create table + load all rows
