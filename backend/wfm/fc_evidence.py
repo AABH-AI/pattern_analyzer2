@@ -1057,6 +1057,48 @@ def _weekend_three_states(history, target_fields, gran, supported):
     """
     inter = holiday_weekend_interaction(history, target_fields, gran)
     wd = weekday_outcomes(history, gran, target_fields)
+    meas = wd.get("measurable_weekdays") or []
+    ct = inter.get("long_weekend_contrast") or {}
+    pats = {k: v for k, v in (inter.get("patterns") or {}).items() if v.get("measurable")}
+
+    # BUG 2. `testable` says only that the ATTEMPT was possible. On China FW202435 it was True while
+    # 0 of 7 weekdays cleared the instance floor, and the row still claimed AVAILABLE -- the same
+    # class of error as asserting a driver is absent from a weak coefficient.
+    if not wd.get("testable") or not meas:
+        struct_state = P2_NOT_TESTABLE
+    elif len(meas) >= 5:
+        struct_state = P2_AVAILABLE
+    else:
+        struct_state = P2_PARTIAL
+
+    # BUG 1. Say what was FOUND, not only what could not be. A blank cell against "AVAILABLE" told
+    # the reader nothing and made the table look broken.
+    if struct_state == P2_NOT_TESTABLE:
+        struct_why = (wd.get("reason")
+                      or ("the weekday groups each hold fewer than the %d weeks needed, so no "
+                          "weekday can be compared" % hr.MIN_PHASE_INSTANCES))
+    else:
+        struct_why = ("%d of 7 weekdays have enough history to compare" % len(meas))
+        if wd.get("spread_across_weekdays_pts") is not None:
+            struct_why += (", and weekly outcomes differ by %s points between the strongest and "
+                           "weakest of them" % wd.get("spread_across_weekdays_pts"))
+        if len(meas) < 7:
+            struct_why += (" (%s not measurable)"
+                           % ", ".join(d for d in WEEKDAYS if d not in meas))
+        struct_why += "."
+
+    if not inter.get("testable"):
+        inter_why = inter.get("reason") or "the holiday day pattern could not be established"
+    elif ct.get("testable"):
+        inter_why = ("%d day-pattern group(s) measurable; adjoining-weekend %s versus midweek %s, a "
+                     "%s-point difference, which %s material against the %s-point bar."
+                     % (len(pats), ct.get("adjoining_effect_pct"), ct.get("midweek_effect_pct"),
+                        ct.get("difference_pts"), "IS" if ct.get("material") else "is not",
+                        ct.get("material_threshold_pts")))
+    else:
+        inter_why = ("%d day-pattern group(s) measurable, but %s"
+                     % (len(pats), (ct.get("reason") or "the two groups cannot yet be compared")))
+
     return {
         "daily_weekend_demand_effect": {
             "state": P2_NOT_TESTABLE if not supported else P2_AVAILABLE,
@@ -1066,15 +1108,16 @@ def _weekend_three_states(history, target_fields, gran, supported):
                      "no Saturday or Sunday demand figure exists to test."),
         },
         "weekly_calendar_structure": {
-            "state": wd.get("p2_state") or P2_INCONCLUSIVE,
-            "measurable_weekdays": wd.get("measurable_weekdays") or [],
+            "state": struct_state,
+            "measurable_weekdays": meas,
             "spread_across_weekdays_pts": wd.get("spread_across_weekdays_pts"),
-            "reason": wd.get("reason"),
+            "reason": struct_why,
         },
         "holiday_weekend_interaction": {
-            "state": (P2_AVAILABLE if inter.get("testable") else P2_NOT_TESTABLE),
-            "material": (inter.get("long_weekend_contrast") or {}).get("material"),
-            "reason": inter.get("reason") or (inter.get("long_weekend_contrast") or {}).get("reason"),
+            "state": (P2_AVAILABLE if (inter.get("testable") and ct.get("testable"))
+                      else (P2_PARTIAL if inter.get("testable") else P2_NOT_TESTABLE)),
+            "material": ct.get("material"),
+            "reason": inter_why,
         },
         "note": ("Clause C: the weekend is not one question. A daily demand effect is not testable "
                  "on this source; weekly calendar structure and the holiday-weekend interaction "

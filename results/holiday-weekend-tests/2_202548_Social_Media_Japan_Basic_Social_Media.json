@@ -489,21 +489,20 @@
     "level": 1,
     "question": "Why was this week out by 648 contacts when nothing in this queue's history predicted it?",
     "semantic_key": "# # apj book csg figure jpn mostly moved not out showing",
-    "answer": "The SubRegion (CSG/APJ/JPN) variance is 397 contacts, and this queue represents 163% of that variance, indicating the wider book movement is largely due to this queue.",
+    "answer": "Not because the wider book moved \u2014 SubRegion (CSG / APJ / JPN) is out by 397 contacts, but this single queue is 163% of that, so the wider figure is mostly this queue showing up in the total.",
     "evidence": [
      "investigation ladder"
     ],
     "strength": 0.8,
     "confidence": 0.8,
     "decision": "continue",
-    "claim_kind": "queue_dominates_wider",
-    "answer_deterministic": "Not because the wider book moved \u2014 SubRegion (CSG / APJ / JPN) is out by 397 contacts, but this single queue is 163% of that, so the wider figure is mostly this queue showing up in the total."
+    "claim_kind": "queue_dominates_wider"
    },
    {
     "level": 2,
     "question": "What is it about this queue specifically that produces 240 contacts a week of error?",
     "semantic_key": "# # # # # # # # absence adjust adjustment against",
-    "answer": "Holiday weeks typically run 7% below normal for this queue, yet actual contacts were 1,222 against a plan of 1,312; the plan adjusted but overshot, moving -13% versus the -7% history suggests, indicating the correction needed is the size of the existing adjustment.",
+    "answer": "Because December 31 Bank Holiday, January 2 Bank Holiday, January 3 Bank Holiday, Year-End Holiday, new year's day falls in this week, and holiday weeks run 7% below normal for this queue (1,222 contacts against 1,312). The plan DID adjust, and overshot: it moved -13% against the -7% the history implies. The correction needed here is the SIZE of an adjustment that already exists, not the absence of one.",
     "evidence": [
      "holiday calendar",
      "holiday effect"
@@ -511,14 +510,13 @@
     "strength": 0.8,
     "confidence": 0.8,
     "decision": "continue",
-    "claim_kind": "plan_over_adjusted_for_calendar",
-    "answer_deterministic": "Because December 31 Bank Holiday, January 2 Bank Holiday, January 3 Bank Holiday, Year-End Holiday, new year's day falls in this week, and holiday weeks run 7% below normal for this queue (1,222 contacts against 1,312). The plan DID adjust, and overshot: it moved -13% against the -7% the history implies. The correction needed here is the SIZE of an adjustment that already exists, not the absence of one."
+    "claim_kind": "plan_over_adjusted_for_calendar"
    },
    {
     "level": 3,
     "question": "Why the plan's holiday adjustment is too deep?",
     "semantic_key": "# # # adjustment against already bank bank bank be can correctable",
-    "answer": "The plan's adjustment for the holiday period is incorrectly sized rather than absent; since the plan already reacts to this published date, the fix lies in tuning the depth of that reaction to match the queue's own history.",
+    "answer": "Because the plan's adjustment for December 31 Bank Holiday, January 2 Bank Holiday, January 3 Bank Holiday, Year-End Holiday, new year's day is sized wrong, not missing. A published date the plan already reacts to is the most correctable kind of miss -- the depth of the reaction is a number that can be tuned against this queue's own history.",
     "evidence": [
      "holiday calendar"
     ],
@@ -526,20 +524,14 @@
     "confidence": 0.78,
     "decision": "terminate",
     "claim_kind": null,
-    "termination_reason": "the chain reached a cause that cannot be broken down further",
-    "answer_deterministic": "Because the plan's adjustment for December 31 Bank Holiday, January 2 Bank Holiday, January 3 Bank Holiday, Year-End Holiday, new year's day is sized wrong, not missing. A published date the plan already reacts to is the most correctable kind of miss -- the depth of the reaction is a number that can be tuned against this queue's own history."
+    "termination_reason": "the chain reached a cause that cannot be broken down further"
    }
   ],
   "depth_reached": 3,
   "max_depth": 6,
   "terminating_cause": "Because the plan's adjustment for December 31 Bank Holiday, January 2 Bank Holiday, January 3 Bank Holiday, Year-End Holiday, new year's day is sized wrong, not missing. A published date the plan already reacts to is the most correctable kind of miss -- the depth of the reaction is a number that can be tuned against this queue's own history.",
   "confidence_at_root": 0.78,
-  "termination_reason": "the chain reached a cause that cannot be broken down further",
-  "wording": {
-   "rewritten": 3,
-   "rejected_ungrounded": 0,
-   "prompt_version": "1.0.0"
-  }
+  "termination_reason": "the chain reached a cause that cannot be broken down further"
  },
  "forecast_response_diagnostic": {
   "available": true,
@@ -2153,12 +2145,12 @@
      "Wednesday"
     ],
     "spread_across_weekdays_pts": 24.1,
-    "reason": null
+    "reason": "6 of 7 weekdays have enough history to compare, and weekly outcomes differ by 24.1 points between the strongest and weakest of them (Tuesday not measurable)."
    },
    "holiday_weekend_interaction": {
     "state": "AVAILABLE",
     "material": true,
-    "reason": null
+    "reason": "3 day-pattern group(s) measurable; adjoining-weekend -18.8 versus midweek 3.7, a -22.5-point difference, which IS material against the 10.0-point bar."
    },
    "note": "Clause C: the weekend is not one question. A daily demand effect is not testable on this source; weekly calendar structure and the holiday-weekend interaction are. Reporting only the first would understate what the data supports."
   },
@@ -2679,12 +2671,12 @@
         "Wednesday"
        ],
        "spread_across_weekdays_pts": 24.1,
-       "reason": null
+       "reason": "6 of 7 weekdays have enough history to compare, and weekly outcomes differ by 24.1 points between the strongest and weakest of them (Tuesday not measurable)."
       },
       "holiday_weekend_interaction": {
        "state": "AVAILABLE",
        "material": true,
-       "reason": null
+       "reason": "3 day-pattern group(s) measurable; adjoining-weekend -18.8 versus midweek 3.7, a -22.5-point difference, which IS material against the 10.0-point bar."
       },
       "note": "Clause C: the weekend is not one question. A daily demand effect is not testable on this source; weekly calendar structure and the holiday-weekend interaction are. Reporting only the first would understate what the data supports."
      },
@@ -2972,71 +2964,10 @@
    "could not be isolated"
   ]
  },
- "narrative": {
-  "executiveSummary": [
-   "The forecast for Social Media Japan Basic in FY25 week 48 was far below actual demand, missing by 648 contacts (\u2011154.5% adherence), a significant under\u2011forecast.",
-   "The miss stems from a drifting baseline that left the plan too low and from the plan\u2019s failure to react to available leading signals, including holiday timing and demand momentum.",
-   "Confidence in this assessment is medium (about 65\u202f%); it was limited because the expected primary driver could not be identified from the available data."
-  ],
-  "rootCauseStatement": "The forecast error is due to a drifting baseline and a failure to respond to leading signals, producing a compound miss.",
-  "confidenceExplanation": "Confidence is medium (about 65\u202f%). It was capped at medium because the expected primary driver was missing (measured: primary driver missing, threshold: missing).",
-  "limitations": [
-   "Only 100 weeks of history are held for this queue; seasonal and long-term trend findings need 104 and are therefore less dependable.",
-   "No business driver (units under warranty, shipments) tracks this queue's demand closely enough to be used, so driver attribution was not possible.",
-   "Business Event Repository is not deployed, so this is NotApplicable and carries no confidence penalty (BR-202).",
-   "Confidence was capped at Medium because the expected primary driver is Missing (measured: primary driver missing).",
-   "Only 100 weeks of actuals; below the 104 the framework expects, so seasonal and trend findings are less dependable.",
-   "The measures do not agree, so no single statistical story is settled.",
-   "The same fiscal period in prior years does not show this movement, so a seasonal reading is not supported.",
-   "Weekend impact cannot be isolated from fiscal-week totals because day-level actual and forecast data is unavailable in the source.",
-   "5 other hypothesis(es) survived and explain the same movement, so this one is not uniquely supported.",
-   "This queue's response to holiday weeks has not been consistent (57.7% moved the same way), so the forecast cannot be held to it."
-  ],
-  "recommendationNarratives": [
-   {
-    "recommendationId": "M1",
-    "text": "Review the seasonal baseline and re-levelling logic for this queue: the plan entered the period away from the level this week of the year reliably brings."
-   },
-   {
-    "recommendationId": "M2",
-    "text": "Incorporate the identified leading signal and its observed lag into the forecast process (signal: demand_momentum, same_week_seasonal_pattern, holiday_transition): the signal was available before the week and the plan did not respond adequately to it."
-   },
-   {
-    "recommendationId": "M9",
-    "text": "Revisit how the holiday adjustment is sized for this queue. It is not consistently too deep or too shallow, so the direction is not the problem -- the magnitude is drifting further from what the weeks actually deliver."
-   }
-  ],
-  "whyThisHappened": [
-   {
-    "rank": 1,
-    "text": "The plan moved in the opposite direction of what was needed: instead of increasing the forecast by about 164 contacts, it cut it by 779 contacts. This contributed to the miss and is one of the mechanisms the evidence supports."
-   },
-   {
-    "rank": 2,
-    "text": "Against an expected level of 1,363 contacts, the plan sat 943 contacts low while demand was only 295 low, showing the plan entered the week too far below expectations. This reflects a baseline failure and is one of the mechanisms the evidence supports."
-   },
-   {
-    "rank": 3,
-    "text": "A repeatable signal existed before the week but the plan did not respond adequately to it, constituting a forecast\u2011response failure that the evidence supports."
-   },
-   {
-    "rank": 4,
-    "text": "Holidays in the week typically reduce contacts, but the plan's adjustment was based on an inconsistent historical pattern and thus was not reliable. Because the week is a holiday period and the forecast cannot rely on past holiday response, this contributed to the miss."
-   },
-   {
-    "rank": 5,
-    "text": "The installed base matched plan, but each unit generated about twice as many contacts as expected, driving the entire miss. This shows the error is in contact rate, not volume, and the plan did not adjust for the higher contact rate."
-   },
-   {
-    "rank": 6,
-    "text": "The evidence is mixed, with more challenges supporting the conclusion than raising doubts, which affects confidence in the root cause."
-   }
-  ],
-  "criticalityExplanation": "The miss is operationally high: the plan was off by 648 contacts, which is about 48\u202f% of a typical week\u2019s volume for this queue. Because the error has persisted for six weeks in the same direction, the gap is considered standing rather than isolated, raising the criticality from moderate to high."
- },
- "status": "Complete",
- "narrative_error": null,
- "incomplete_reason": null,
+ "narrative": null,
+ "status": "Incomplete",
+ "narrative_error": "no LLM provider configured",
+ "incomplete_reason": "Every figure, cause, confidence score and recommendation below is complete. Only the written summary is missing, because the language model call did not succeed: no LLM provider configured",
  "hypotheses": {
   "generated": [
    {
@@ -4819,10 +4750,10 @@
  "material": true,
  "audit": {
   "input_fingerprint": "3c411bea03919d8f",
-  "narrative_model": "nvidia/nvidia/nemotron-3-super-120b-a12b",
-  "narrative_seconds": 26.45,
-  "started_at": "2026-08-19T12:48:03.987376+00:00",
-  "completed_at": "2026-08-19T12:48:43.103917+00:00",
+  "narrative_model": null,
+  "narrative_seconds": 0.0,
+  "started_at": "2026-08-19T13:41:36.374590+00:00",
+  "completed_at": "2026-08-19T13:41:36.428966+00:00",
   "catalogue_version": "2.0.0",
   "challenge_catalogue_version": "2.1.0",
   "confidence_weights_version": "2.0.0",
@@ -4882,7 +4813,7 @@
    {
     "step": 10,
     "name": "Root Cause Wording",
-    "detail": "3 of 3 finding(s) rewritten in business language"
+    "detail": "kept deterministic wording: no LLM provider configured"
    },
    {
     "step": 11,
@@ -4902,7 +4833,7 @@
    {
     "step": 14,
     "name": "Generate Executive Summary",
-    "detail": "narrative generated"
+    "detail": "narrative unavailable: no LLM provider configured"
    },
    {
     "step": 15,
@@ -4932,17 +4863,19 @@
    "miss_mechanism": "COMPOUND_MISS",
    "markers": [
     "Major Deviation",
+    "Investigation Incomplete",
     "Criticality: High"
    ]
   },
   "sections": {
    "1_executive_summary": [
-    "The forecast for Social Media Japan Basic in FY25 week 48 was far below actual demand, missing by 648 contacts (\u2011154.5% adherence), a significant under\u2011forecast.",
-    "The miss stems from a drifting baseline that left the plan too low and from the plan\u2019s failure to react to available leading signals, including holiday timing and demand momentum.",
-    "Confidence in this assessment is medium (about 65\u202f%); it was limited because the expected primary driver could not be identified from the available data."
+    "Under-forecast of -154.5% \u2014 648 contacts against plan.",
+    "The forecast error is drifting, not just noisy: adherence has moved about -4.40 points per week, roughly -57 points across 13 weeks, steadily further into under-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt.",
+    "Confidence: Medium (65.4%).",
+    "Narrative generation was unavailable; these figures are the engine's own and are complete."
    ],
    "2_root_cause": {
-    "statement": "The forecast error is due to a drifting baseline and a failure to respond to leading signals, producing a compound miss.",
+    "statement": "The forecast error is drifting, not just noisy: adherence has moved about -4.40 points per week, roughly -57 points across 13 weeks, steadily further into under-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt.",
     "hypothesis": "Drift",
     "category": "Statistical",
     "inconclusive": false,
@@ -5038,21 +4971,20 @@
        "level": 1,
        "question": "Why was this week out by 648 contacts when nothing in this queue's history predicted it?",
        "semantic_key": "# # apj book csg figure jpn mostly moved not out showing",
-       "answer": "The SubRegion (CSG/APJ/JPN) variance is 397 contacts, and this queue represents 163% of that variance, indicating the wider book movement is largely due to this queue.",
+       "answer": "Not because the wider book moved \u2014 SubRegion (CSG / APJ / JPN) is out by 397 contacts, but this single queue is 163% of that, so the wider figure is mostly this queue showing up in the total.",
        "evidence": [
         "investigation ladder"
        ],
        "strength": 0.8,
        "confidence": 0.8,
        "decision": "continue",
-       "claim_kind": "queue_dominates_wider",
-       "answer_deterministic": "Not because the wider book moved \u2014 SubRegion (CSG / APJ / JPN) is out by 397 contacts, but this single queue is 163% of that, so the wider figure is mostly this queue showing up in the total."
+       "claim_kind": "queue_dominates_wider"
       },
       {
        "level": 2,
        "question": "What is it about this queue specifically that produces 240 contacts a week of error?",
        "semantic_key": "# # # # # # # # absence adjust adjustment against",
-       "answer": "Holiday weeks typically run 7% below normal for this queue, yet actual contacts were 1,222 against a plan of 1,312; the plan adjusted but overshot, moving -13% versus the -7% history suggests, indicating the correction needed is the size of the existing adjustment.",
+       "answer": "Because December 31 Bank Holiday, January 2 Bank Holiday, January 3 Bank Holiday, Year-End Holiday, new year's day falls in this week, and holiday weeks run 7% below normal for this queue (1,222 contacts against 1,312). The plan DID adjust, and overshot: it moved -13% against the -7% the history implies. The correction needed here is the SIZE of an adjustment that already exists, not the absence of one.",
        "evidence": [
         "holiday calendar",
         "holiday effect"
@@ -5060,14 +4992,13 @@
        "strength": 0.8,
        "confidence": 0.8,
        "decision": "continue",
-       "claim_kind": "plan_over_adjusted_for_calendar",
-       "answer_deterministic": "Because December 31 Bank Holiday, January 2 Bank Holiday, January 3 Bank Holiday, Year-End Holiday, new year's day falls in this week, and holiday weeks run 7% below normal for this queue (1,222 contacts against 1,312). The plan DID adjust, and overshot: it moved -13% against the -7% the history implies. The correction needed here is the SIZE of an adjustment that already exists, not the absence of one."
+       "claim_kind": "plan_over_adjusted_for_calendar"
       },
       {
        "level": 3,
        "question": "Why the plan's holiday adjustment is too deep?",
        "semantic_key": "# # # adjustment against already bank bank bank be can correctable",
-       "answer": "The plan's adjustment for the holiday period is incorrectly sized rather than absent; since the plan already reacts to this published date, the fix lies in tuning the depth of that reaction to match the queue's own history.",
+       "answer": "Because the plan's adjustment for December 31 Bank Holiday, January 2 Bank Holiday, January 3 Bank Holiday, Year-End Holiday, new year's day is sized wrong, not missing. A published date the plan already reacts to is the most correctable kind of miss -- the depth of the reaction is a number that can be tuned against this queue's own history.",
        "evidence": [
         "holiday calendar"
        ],
@@ -5075,20 +5006,14 @@
        "confidence": 0.78,
        "decision": "terminate",
        "claim_kind": null,
-       "termination_reason": "the chain reached a cause that cannot be broken down further",
-       "answer_deterministic": "Because the plan's adjustment for December 31 Bank Holiday, January 2 Bank Holiday, January 3 Bank Holiday, Year-End Holiday, new year's day is sized wrong, not missing. A published date the plan already reacts to is the most correctable kind of miss -- the depth of the reaction is a number that can be tuned against this queue's own history."
+       "termination_reason": "the chain reached a cause that cannot be broken down further"
       }
      ],
      "depth_reached": 3,
      "max_depth": 6,
      "terminating_cause": "Because the plan's adjustment for December 31 Bank Holiday, January 2 Bank Holiday, January 3 Bank Holiday, Year-End Holiday, new year's day is sized wrong, not missing. A published date the plan already reacts to is the most correctable kind of miss -- the depth of the reaction is a number that can be tuned against this queue's own history.",
      "confidence_at_root": 0.78,
-     "termination_reason": "the chain reached a cause that cannot be broken down further",
-     "wording": {
-      "rewritten": 3,
-      "rejected_ungrounded": 0,
-      "prompt_version": "1.0.0"
-     }
+     "termination_reason": "the chain reached a cause that cannot be broken down further"
     },
     "interrogation": {
      "available": false,
@@ -5681,7 +5606,7 @@
    ],
    "10_audit_reference": {
     "fingerprint": "3c411bea03919d8f",
-    "completed_at": "2026-08-19T12:48:43.103917+00:00",
+    "completed_at": "2026-08-19T13:41:36.428966+00:00",
     "catalogue_version": "2.0.0",
     "confidence_weights_version": "2.0.0",
     "prompt_version": "2.1.0",
@@ -5739,7 +5664,7 @@
      {
       "step": 10,
       "name": "Root Cause Wording",
-      "detail": "3 of 3 finding(s) rewritten in business language"
+      "detail": "kept deterministic wording: no LLM provider configured"
      },
      {
       "step": 11,
@@ -5759,7 +5684,7 @@
      {
       "step": 14,
       "name": "Generate Executive Summary",
-      "detail": "narrative generated"
+      "detail": "narrative unavailable: no LLM provider configured"
      },
      {
       "step": 15,
@@ -5801,7 +5726,7 @@
      {
       "rank_basis": 0,
       "what_happened": "The plan moved the wrong way. The expected level implied moving the forecast 163.98 contacts, but it moved -779.36 -- the opposite way.",
-      "text": "The plan moved in the opposite direction of what was needed: instead of increasing the forecast by about 164 contacts, it cut it by 779 contacts. This contributed to the miss and is one of the mechanisms the evidence supports.",
+      "text": "The plan moved the wrong way. The expected level implied moving the forecast 163.98 contacts, but it moved -779.36 -- the opposite way. This is one of the mechanisms the evidence supports: More than one supported mechanism contributed materially. Direction checks out: the miss pushed demand up and this mechanism implies up.",
       "why_it_mattered": "This is one of the mechanisms the evidence supports: More than one supported mechanism contributed materially.",
       "forecast_mechanism": "Direction checks out: the miss pushed demand up and this mechanism implies up.",
       "evidence_id": "E5",
@@ -5809,13 +5734,12 @@
       "rank": 1,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "The plan moved the wrong way. The expected level implied moving the forecast 163.98 contacts, but it moved -779.36 -- the opposite way. This is one of the mechanisms the evidence supports: More than one supported mechanism contributed materially. Direction checks out: the miss pushed demand up and this mechanism implies up.",
-      "reworded_by_model": true
+      "text_deterministic": "The plan moved the wrong way. The expected level implied moving the forecast 163.98 contacts, but it moved -779.36 -- the opposite way. This is one of the mechanisms the evidence supports: More than one supported mechanism contributed materially. Direction checks out: the miss pushed demand up and this mechanism implies up."
      },
      {
       "rank_basis": 0,
       "what_happened": "Against an expected 1363.0 contacts (median demand over the last 13 weeks (fewer than 2 prior years available for fiscal week 48)), the plan sat 943.34 contacts below expectation and demand landed 295.0 contacts below it.",
-      "text": "Against an expected level of 1,363 contacts, the plan sat 943 contacts low while demand was only 295 low, showing the plan entered the week too far below expectations. This reflects a baseline failure and is one of the mechanisms the evidence supports.",
+      "text": "Against an expected 1363.0 contacts (median demand over the last 13 weeks (fewer than 2 prior years available for fiscal week 48)), the plan sat 943.34 contacts below expectation and demand landed 295.0 contacts below it. This is one of the mechanisms the evidence supports: More than one supported mechanism contributed materially. Direction checks out: the miss pushed demand up and this mechanism implies up.",
       "why_it_mattered": "This is one of the mechanisms the evidence supports: More than one supported mechanism contributed materially.",
       "forecast_mechanism": "Direction checks out: the miss pushed demand up and this mechanism implies up.",
       "evidence_id": "E5",
@@ -5823,26 +5747,24 @@
       "rank": 2,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "Against an expected 1363.0 contacts (median demand over the last 13 weeks (fewer than 2 prior years available for fiscal week 48)), the plan sat 943.34 contacts below expectation and demand landed 295.0 contacts below it. This is one of the mechanisms the evidence supports: More than one supported mechanism contributed materially. Direction checks out: the miss pushed demand up and this mechanism implies up.",
-      "reworded_by_model": true
+      "text_deterministic": "Against an expected 1363.0 contacts (median demand over the last 13 weeks (fewer than 2 prior years available for fiscal week 48)), the plan sat 943.34 contacts below expectation and demand landed 295.0 contacts below it. This is one of the mechanisms the evidence supports: More than one supported mechanism contributed materially. Direction checks out: the miss pushed demand up and this mechanism implies up."
      },
      {
       "rank_basis": 1,
       "what_happened": "A forecast-response failure IS supported: a repeatable signal was available before the week and the plan did not respond adequately to it.",
-      "text": "A repeatable signal existed before the week but the plan did not respond adequately to it, constituting a forecast\u2011response failure that the evidence supports.",
+      "text": "A forecast-response failure IS supported: a repeatable signal was available before the week and the plan did not respond adequately to it. All four conditions for calling this a forecast-response failure hold.",
       "forecast_mechanism": "All four conditions for calling this a forecast-response failure hold.",
       "evidence_id": "E5",
       "strength": "Strong",
       "rank": 3,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "A forecast-response failure IS supported: a repeatable signal was available before the week and the plan did not respond adequately to it. All four conditions for calling this a forecast-response failure hold.",
-      "reworded_by_model": true
+      "text_deterministic": "A forecast-response failure IS supported: a repeatable signal was available before the week and the plan did not respond adequately to it. All four conditions for calling this a forecast-response failure hold."
      },
      {
       "rank_basis": 2,
       "what_happened": "New Year's Day, Year-End / New Year bank holidays (Japan) falls in this week. Weeks containing a holiday have historically run 11.85% below this queue's non-holiday level, across 26 week(s), moving that way in 57.7% of them -- not consistent enough to rely on. The plan for those weeks moved -11.88%, so the pattern was reflected in the forecast historically. Forecast capture: inconsistent history -- This queue's response to holiday weeks has not been consistent (57.7% moved the same way), so the forecast cannot be held to it.",
-      "text": "Holidays in the week typically reduce contacts, but the plan's adjustment was based on an inconsistent historical pattern and thus was not reliable. Because the week is a holiday period and the forecast cannot rely on past holiday response, this contributed to the miss.",
+      "text": "New Year's Day, Year-End / New Year bank holidays (Japan) falls in this week. Weeks containing a holiday have historically run 11.85% below this queue's non-holiday level, across 26 week(s), moving that way in 57.7% of them -- not consistent enough to rely on. The plan for those weeks moved -11.88%, so the pattern was reflected in the forecast historically. Forecast capture: inconsistent history -- This queue's response to holiday weeks has not been consistent (57.7% moved the same way), so the forecast cannot be held to it. The week sits in the holiday phase. This queue's response to holiday weeks has not been consistent (57.7% moved the same way), so the forecast cannot be held to it.",
       "why_it_mattered": "The week sits in the holiday phase.",
       "forecast_mechanism": "This queue's response to holiday weeks has not been consistent (57.7% moved the same way), so the forecast cannot be held to it.",
       "evidence_id": "E10",
@@ -5850,26 +5772,24 @@
       "rank": 4,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "New Year's Day, Year-End / New Year bank holidays (Japan) falls in this week. Weeks containing a holiday have historically run 11.85% below this queue's non-holiday level, across 26 week(s), moving that way in 57.7% of them -- not consistent enough to rely on. The plan for those weeks moved -11.88%, so the pattern was reflected in the forecast historically. Forecast capture: inconsistent history -- This queue's response to holiday weeks has not been consistent (57.7% moved the same way), so the forecast cannot be held to it. The week sits in the holiday phase. This queue's response to holiday weeks has not been consistent (57.7% moved the same way), so the forecast cannot be held to it.",
-      "reworded_by_model": true
+      "text_deterministic": "New Year's Day, Year-End / New Year bank holidays (Japan) falls in this week. Weeks containing a holiday have historically run 11.85% below this queue's non-holiday level, across 26 week(s), moving that way in 57.7% of them -- not consistent enough to rely on. The plan for those weeks moved -11.88%, so the pattern was reflected in the forecast historically. Forecast capture: inconsistent history -- This queue's response to holiday weeks has not been consistent (57.7% moved the same way), so the forecast cannot be held to it. The week sits in the holiday phase. This queue's response to holiday weeks has not been consistent (57.7% moved the same way), so the forecast cannot be held to it."
      },
      {
       "rank_basis": 3,
       "what_happened": "The population was close to plan, but contacts per unit differed: 0.0012 actual against 0.0006 planned. The two effects sum to the whole +648-contact gap (+87 from population, +561 from contact rate), so nothing is left unexplained by the split.",
-      "text": "The installed base matched plan, but each unit generated about twice as many contacts as expected, driving the entire miss. This shows the error is in contact rate, not volume, and the plan did not adjust for the higher contact rate.",
+      "text": "The population was close to plan, but contacts per unit differed: 0.0012 actual against 0.0006 planned. The two effects sum to the whole +648-contact gap (+87 from population, +561 from contact rate), so nothing is left unexplained by the split. The gap is driven by contacts per unit differing from plan, not by the population.",
       "forecast_mechanism": "The gap is driven by contacts per unit differing from plan, not by the population.",
       "evidence_id": "E6",
       "strength": "Strong",
       "rank": 5,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "The population was close to plan, but contacts per unit differed: 0.0012 actual against 0.0006 planned. The two effects sum to the whole +648-contact gap (+87 from population, +561 from contact rate), so nothing is left unexplained by the split. The gap is driven by contacts per unit differing from plan, not by the population.",
-      "reworded_by_model": true
+      "text_deterministic": "The population was close to plan, but contacts per unit differed: 0.0012 actual against 0.0006 planned. The two effects sum to the whole +648-contact gap (+87 from population, +561 from contact rate), so nothing is left unexplained by the split. The gap is driven by contacts per unit differing from plan, not by the population."
      },
      {
       "rank_basis": 5,
       "what_happened": "5 item(s) support the conclusion and 7 argue against it.",
-      "text": "The evidence is mixed, with more challenges supporting the conclusion than raising doubts, which affects confidence in the root cause.",
+      "text": "5 item(s) support the conclusion and 7 argue against it. Governed by cross-examination, which ran before confidence precisely so its result could feed in. 12 challenge(s) found nothing wrong, 5 raised a doubt and 0 contradicted it outright.",
       "why_it_mattered": "Governed by cross-examination, which ran before confidence precisely so its result could feed in.",
       "forecast_mechanism": "12 challenge(s) found nothing wrong, 5 raised a doubt and 0 contradicted it outright.",
       "evidence_id": "E14",
@@ -5877,8 +5797,7 @@
       "rank": 6,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "5 item(s) support the conclusion and 7 argue against it. Governed by cross-examination, which ran before confidence precisely so its result could feed in. 12 challenge(s) found nothing wrong, 5 raised a doubt and 0 contradicted it outright.",
-      "reworded_by_model": true
+      "text_deterministic": "5 item(s) support the conclusion and 7 argue against it. Governed by cross-examination, which ran before confidence precisely so its result could feed in. 12 challenge(s) found nothing wrong, 5 raised a doubt and 0 contradicted it outright."
      }
     ],
     "count": 6,
@@ -5903,8 +5822,8 @@
      "not confirmed",
      "could not be isolated"
     ],
-    "reworded_count": 6,
-    "wording_source": "model rewording over deterministic bullets"
+    "reworded_count": 0,
+    "wording_source": "deterministic wording only"
    },
    "13_forecast_response": {
     "available": true,
@@ -6617,12 +6536,12 @@
         "Wednesday"
        ],
        "spread_across_weekdays_pts": 24.1,
-       "reason": null
+       "reason": "6 of 7 weekdays have enough history to compare, and weekly outcomes differ by 24.1 points between the strongest and weakest of them (Tuesday not measurable)."
       },
       "holiday_weekend_interaction": {
        "state": "AVAILABLE",
        "material": true,
-       "reason": null
+       "reason": "3 day-pattern group(s) measurable; adjoining-weekend -18.8 versus midweek 3.7, a -22.5-point difference, which IS material against the 10.0-point bar."
       },
       "note": "Clause C: the weekend is not one question. A daily demand effect is not testable on this source; weekly calendar structure and the holiday-weekend interaction are. Reporting only the first would understate what the data supports."
      },
@@ -7103,12 +7022,12 @@
           "Wednesday"
          ],
          "spread_across_weekdays_pts": 24.1,
-         "reason": null
+         "reason": "6 of 7 weekdays have enough history to compare, and weekly outcomes differ by 24.1 points between the strongest and weakest of them (Tuesday not measurable)."
         },
         "holiday_weekend_interaction": {
          "state": "AVAILABLE",
          "material": true,
-         "reason": null
+         "reason": "3 day-pattern group(s) measurable; adjoining-weekend -18.8 versus midweek 3.7, a -22.5-point difference, which IS material against the 10.0-point bar."
         },
         "note": "Clause C: the weekend is not one question. A daily demand effect is not testable on this source; weekly calendar structure and the holiday-weekend interaction are. Reporting only the first would understate what the data supports."
        },
@@ -7323,8 +7242,8 @@
     "note": "Observations the evidence supports but the fixed catalogue has no entry for. Recorded for catalogue extension, never converted into a cause."
    }
   },
-  "status": "Complete",
-  "incomplete_reason": null,
+  "status": "Incomplete",
+  "incomplete_reason": "Every figure, cause, confidence score and recommendation below is complete. Only the written summary is missing, because the language model call did not succeed: no LLM provider configured",
   "engine": "spec-v2",
   "view_a_to_f": {
    "A_executive_rca": {
@@ -7346,11 +7265,7 @@
     "miss_contacts": 648.3,
     "adherence_pct": -154.5,
     "direction": "Under-forecast",
-    "executive_narrative": [
-     "The forecast for Social Media Japan Basic in FY25 week 48 was far below actual demand, missing by 648 contacts (\u2011154.5% adherence), a significant under\u2011forecast.",
-     "The miss stems from a drifting baseline that left the plan too low and from the plan\u2019s failure to react to available leading signals, including holiday timing and demand momentum.",
-     "Confidence in this assessment is medium (about 65\u202f%); it was limited because the expected primary driver could not be identified from the available data."
-    ]
+    "executive_narrative": null
    },
    "B_why_did_forecast_miss": {
     "from": [

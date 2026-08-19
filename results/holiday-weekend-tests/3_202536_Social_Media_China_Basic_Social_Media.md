@@ -13,7 +13,7 @@
 | History available | 87 weeks |
 | Confidence · Criticality | Medium 62.9% · High |
 | Mechanism | DEMAND_EVENT_LOW_PREDICTABILITY |
-| Engine status | Complete |
+| Engine status | Incomplete |
 
 ## 1. The holidays, raw and grouped
 
@@ -47,8 +47,8 @@ Clause C — three separate questions, not one refusal:
 | Question | State | Why |
 |---|---|---|
 | Daily weekend demand effect | `NOT_TESTABLE` | Weekend impact cannot be isolated from fiscal-week totals because day-level actual and forecast data is unavailable in the source. |
-| Weekly calendar structure | `AVAILABLE` |  |
-| Holiday × weekend interaction | `AVAILABLE` | both an adjoining-weekend group and a midweek group need 4 or more weeks before the two can be compared |
+| Weekly calendar structure | `AVAILABLE` | 7 of 7 weekdays have enough history to compare, and weekly outcomes differ by 7.0 points between the strongest and weakest of them |
+| Holiday × weekend interaction | `PARTIALLY_AVAILABLE` | 2 day-pattern group(s) measurable, but both an adjoining-weekend group and a midweek group need 4 or more weeks before the two can |
 
 Clause K — weekly outcome by the weekday a holiday fell on. Reference: **71** weeks with no holiday day flagged, median **30,404** contacts.
 
@@ -92,13 +92,13 @@ The forecast error is drifting, not just noisy: adherence has moved about -1.35 
 
 Ranked reasons:
 
-1. A leading signal existed before the week and has behaved repeatably for this queue, making the movement foreseeable. The evidence points to a material demand shift that lacked a reliable predictive signal, and the direction of the miss (down) matches what that mechanism implies.
-2. Compared to the expected demand of 21,105 contacts (based on the last 13 weeks), the plan was 2,180 contacts low and actual demand was 6,303 contacts low. About three‑quarters of the total gap came from demand falling short of what the available signals suggested.
-3. The conditions for a forecast‑response failure are not met because the forecast’s reaction was adequate. Since only three of the four required conditions hold, the miss is classified as a demand event or contextual factor rather than a forecast failure.
-4. The National Day Golden Week holiday occurred this week. Historically, holiday weeks for this queue run about 35% below non‑holiday levels, and the plan reflected that pattern (though with a slightly larger adjustment). The holiday was therefore accounted for in the forecast.
-5. The number of units under warranty in the market moves together with demand in the same week, and there is sufficient history to use this relationship.
-6. The installed base was near its planned level, but each unit generated fewer contacts than expected. The resulting shortfall in contact rate drove the entire gap, while the population contribution was small and offsetting.
-7. Five pieces of evidence support the conclusion while ten challenge it. The cross‑examination process found no fatal flaws in eight of the challenges, with the remaining two only raising doubts.
+1. At least one leading signal was present before the week AND has behaved repeatably for this queue, so the movement was foreseeable. This is the mechanism the evidence supports: Demand moved materially, but no sufficiently repeatable leading signal existed beforehand. Direction checks out: the miss pushed demand down and this mechanism implies down.
+2. Against an expected 21105.0 contacts (median demand over the last 13 weeks (fewer than 2 prior years available for fiscal week 36)), the plan sat 2180.06 contacts below expectation and demand landed 6303.0 contacts below it. Most of the gap -- 74% of it -- sits on the demand side. Demand moved away from what the available signals pointed to.
+3. A forecast-response failure is NOT supported here, because the forecast response was inadequate does not hold. The movement is therefore treated as a demand event, a contextual factor, or unconfirmed -- not as a forecast failure. 3 of 4 conditions hold, so it is not classed as a forecast failure.
+4. National Day (China) falls in this week. Weeks containing a holiday have historically run 34.85% below this queue's non-holiday level, across 16 week(s), moving that way in 93.8% of them. The plan for those weeks moved -25.83%, so the pattern was reflected in the forecast historically. Forecast capture: captured -- The plan moved -40.85% against the -34.85% the phase historically implies (1.17x). That is 17.21% more adjustment than the pattern calls for -- inside the tolerance for 'captured', but worth noting. The week sits in the holiday phase. The plan moved -40.85% against the -34.85% the phase historically implies (1.17x). That is 17.21% more adjustment than the pattern calls for -- inside the tolerance for 'captured', but worth noting.
+5. Units actually in the market under warranty moves with demand in the same week, with enough history behind it to use. It moves with demand in the same week.
+6. The population was close to plan, but contacts per unit differed: 0.0025 actual against 0.0034 planned. The two effects sum to the whole -4,123-contact gap (+1,768 from population, -5,891 from contact rate), so nothing is left unexplained by the split. The gap is driven by contacts per unit differing from plan, not by the population.
+7. 5 item(s) support the conclusion and 10 argue against it. Governed by cross-examination, which ran before confidence precisely so its result could feed in. 10 challenge(s) found nothing wrong, 8 raised a doubt and 0 contradicted it outright.
 
 Jargon found: `[]` · causal verbs found: `[]`
 
@@ -110,4 +110,4 @@ Recommendations:
 
 ---
 
-*Generated by `results/run_holiday_weekend_tests.py` on branch `test3`. Semantic groups from `dbo.Holiday_Name_Alias`. Narrative written by a model.*
+*Generated by `results/run_holiday_weekend_tests.py` on branch `test3`. Semantic groups from `dbo.Holiday_Name_Alias`. Deterministic evidence only — no model was called.*

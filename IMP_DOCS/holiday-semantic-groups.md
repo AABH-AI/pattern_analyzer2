@@ -394,3 +394,72 @@ Two cosmetic items were left, deliberately, as they change no conclusion:
 2. **The header says "Why Forecast missed: Compound miss" while Root Cause says "Outlier"** — two
    answers to one question. Both are correct in their own terms (the mechanism is compound, the
    promoted catalogue hypothesis is Outlier), but a reader has to work that out unaided.
+
+---
+
+# FIX 5 — the weekend table looked empty, and one row was lying
+
+`backend/wfm/fc_evidence.py`
+
+Reported from the UI: the clause-C weekend table showed one row with text and the rest blank.
+Reproduced on all four test queues, so not a one-off. Two separate bugs, both mine.
+
+## Bug 1 — the Why column was blank for anything that WORKED
+
+`reason` was only ever populated on **failure**. A row that succeeded had nothing to say, so the only
+row carrying text was the one that could not be measured:
+
+```
+Daily weekend demand effect     NOT TESTABLE   Weekend impact cannot be isolated from ...
+Weekly calendar structure       AVAILABLE      (blank)
+Holiday x weekend interaction   AVAILABLE      (blank)
+```
+
+That is the exact impression clause C exists to remove — *"do not stop the calendar investigation
+with 'weekend impact cannot be isolated'"*. Adding the two extra states and then leaving them blank
+reproduced the original failure in a new shape: the reader still learns only what the engine cannot do.
+
+Every row now states what was **found**:
+
+> Weekly calendar structure · `AVAILABLE` · "7 of 7 weekdays have enough history to compare, and
+> weekly outcomes differ by 46.8 points between the strongest and weakest of them."
+>
+> Holiday × weekend interaction · `AVAILABLE` · "4 day-pattern group(s) measurable; adjoining-weekend
+> −15.3 versus midweek −24.8, a 9.5-point difference, which is not material against the 10-point bar."
+
+## Bug 2 — AVAILABLE was claimed with nothing measurable
+
+On China FW202435, `weekly_calendar_structure` reported **`AVAILABLE`** while **0 of 7** weekdays
+cleared the 4-instance floor. `p2_state` was taken straight from `testable`, which says only that the
+*attempt* was possible — not that anything survived it.
+
+This is the same class of error as the driver gate asserting absence from a weak coefficient, and it is
+worse than a blank cell: a blank cell tells you nothing, a false `AVAILABLE` tells you something
+untrue. The state is now derived from what actually cleared:
+
+| Measurable weekdays | State |
+|---|---|
+| 0 | `NOT_TESTABLE` |
+| 1–4 | `PARTIALLY_AVAILABLE` |
+| 5–7 | `AVAILABLE` |
+
+The interaction row is graded the same way — `AVAILABLE` only when the long-weekend contrast is
+actually computable, `PARTIALLY_AVAILABLE` when the day patterns exist but the two groups cannot yet
+be compared.
+
+## The states now discriminate, which is the point
+
+| Queue | Weekly calendar structure | Holiday × weekend |
+|---|---|---|
+| SA Indonesia FW202716 | `AVAILABLE` — 7/7, 46.8 pts | `AVAILABLE` — 4 groups, 9.5 pts, not material |
+| China Basic FW202435 | **`NOT_TESTABLE`** — was falsely AVAILABLE | `PARTIALLY_AVAILABLE` — 1 group only |
+| China Basic FW202536 | `AVAILABLE` — 7/7, 7.0 pts | `PARTIALLY_AVAILABLE` — 2 groups |
+| Canada Core French FW202722 | `PARTIALLY_AVAILABLE` — 3/7, 35.6 pts | `AVAILABLE` — 2 groups, contrast computed |
+
+Four queues, four different combinations. Before this, three of the four reported `AVAILABLE /
+AVAILABLE` with two blank cells regardless of what the data supported.
+
+Verified through the renderer, not just the response — the same mistake as the earlier round would
+otherwise repeat. Suites after the fix: smoke 12/12, FC semantics 189/189, WFM diagnostics 148/148,
+narrative grounding 21/21, UI render 18 Decision Cards, prompt2 render 28/28, prompt2 conformance
+16/16.

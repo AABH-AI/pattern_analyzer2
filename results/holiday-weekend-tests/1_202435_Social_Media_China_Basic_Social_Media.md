@@ -13,7 +13,7 @@
 | History available | 34 weeks |
 | Confidence · Criticality | Medium 65.0% · High |
 | Mechanism | COMPOUND_MISS |
-| Engine status | Complete |
+| Engine status | Incomplete |
 
 ## 1. The holidays, raw and grouped
 
@@ -50,8 +50,8 @@ Clause C — three separate questions, not one refusal:
 | Question | State | Why |
 |---|---|---|
 | Daily weekend demand effect | `NOT_TESTABLE` | Weekend impact cannot be isolated from fiscal-week totals because day-level actual and forecast data is unavailable in the source. |
-| Weekly calendar structure | `AVAILABLE` |  |
-| Holiday × weekend interaction | `AVAILABLE` | both an adjoining-weekend group and a midweek group need 4 or more weeks before the two can be compared |
+| Weekly calendar structure | `NOT_TESTABLE` | the weekday groups each hold fewer than the 4 weeks needed, so no weekday can be compared |
+| Holiday × weekend interaction | `PARTIALLY_AVAILABLE` | 1 day-pattern group(s) measurable, but both an adjoining-weekend group and a midweek group need 4 or more weeks before the two can |
 
 Clause K — weekly outcome by the weekday a holiday fell on. Reference: **30** weeks with no holiday day flagged, median **33,666** contacts.
 
@@ -94,15 +94,15 @@ This week is itself a statistical outlier for this queue: 10,919 contacts agains
 
 Ranked reasons:
 
-1. The plan moved –59.79 %, well beyond the –11.93 % that the holiday phase historically implies. This is one of the mechanisms the evidence supports: more than one supported mechanism contributed materially. Direction checks out: the miss pushed demand down and this mechanism implies down.
-2. Planned units for delivery / production (shipment) eight weeks earlier has a stronger and more stable historical relationship with demand than the same‑week comparison. This is one of the mechanisms the evidence supports: more than one supported mechanism contributed materially. Direction checks out: the miss pushed demand down and this mechanism implies down.
-3. Against an expected 33,790 contacts (median demand over the last 13 weeks), the plan sat 18,942 contacts below expectation and demand landed 22,871 contacts below it. Most of the gap – about 55 % – sits on the demand side, meaning demand moved away from what the available signals pointed to.
-4. A forecast‑response failure is supported: a repeatable signal was available before the week and the plan did not respond adequately to it. All four conditions for calling this a forecast‑response failure hold – the plan could have reacted. However, the direction‑coherence gate rejected it as the cause because the mechanism implies demand moving the opposite way to this miss. Being able to react and being the explanation are two different tests; this evidence passes the first and fails the second.
-5. Mid‑Autumn Festival and National Day (China) fall in this week. Weeks containing a holiday have historically run 11.93 % below this queue's non‑holiday level, across four weeks, moving that way in 100 % of them. The plan for those weeks moved –24.88 %, so the pattern was reflected in the forecast historically. Forecast capture: over‑reacted – the plan moved –59.79 %, well beyond the –11.93 % the phase historically implies. The week sits in the holiday phase, and the plan moved –59.79 %, well beyond the –11.93 % the phase historically implies.
-6. The population was close to plan, but contacts per unit differed: 0.0012 actual against 0.0018 planned. The two effects sum to the whole –3,929‑contact gap (+1,366 from population, –5,294 from contact rate), so nothing is left unexplained by the split. The gap is driven by contacts per unit differing from plan, not by the population.
-7. FORECAST_BASELINE_FAILURE was raised by the evidence but points the opposite way to the miss. Governed by the direction‑coherence gate (section 32). The miss pushed demand down and this mechanism implies up, from the plan sitting below the expected level for this week (–56.1 %) – the directions disagree, so the mechanism cannot be the cause.
-8. FORECAST_RESPONSE_FAILURE was raised by the evidence but points the opposite way to the miss. Governed by the direction‑coherence gate (section 32). The miss pushed demand down and this mechanism implies up, from the plan sitting below the expected level for this week (–56.1 %) – the directions disagree, so the mechanism cannot be the cause.
-9. Eight items support the conclusion and eight argue against it. Governed by cross‑examination, which ran before confidence precisely so its result could feed in. Thirteen challenge(s) found nothing wrong, five raised a doubt and none contradicted it outright.
+1. The plan moved -59.79%, well beyond the -11.93% the phase historically implies. This is one of the mechanisms the evidence supports: More than one supported mechanism contributed materially. Direction checks out: the miss pushed demand down and this mechanism implies down.
+2. Planned units for delivery / production (shipment) 8 week(s) earlier has a stronger and more stable historical relationship with demand than the same-week comparison. This is one of the mechanisms the evidence supports: More than one supported mechanism contributed materially. Direction checks out: the miss pushed demand down and this mechanism implies down.
+3. Against an expected 33790.0 contacts (median demand over the last 13 weeks (fewer than 2 prior years available for fiscal week 35)), the plan sat 18942.23 contacts below expectation and demand landed 22871.0 contacts below it. Most of the gap -- 55% of it -- sits on the demand side. Demand moved away from what the available signals pointed to.
+4. A forecast-response failure IS supported: a repeatable signal was available before the week and the plan did not respond adequately to it. All four conditions for calling this a forecast-response failure hold -- the plan COULD have reacted. It is still not the cause here: the direction-coherence gate, which runs afterwards, rejected it because the mechanism implies demand moving the opposite way to this miss. Being able to react and being the explanation are two different tests, and this evidence passes the first and fails the second.
+5. Mid-Autumn Festival, National Day (China) falls in this week. Weeks containing a holiday have historically run 11.93% below this queue's non-holiday level, across 4 week(s), moving that way in 100.0% of them. The plan for those weeks moved -24.88%, so the pattern was reflected in the forecast historically. Forecast capture: over reacted -- The plan moved -59.79%, well beyond the -11.93% the phase historically implies. The week sits in the holiday phase. The plan moved -59.79%, well beyond the -11.93% the phase historically implies.
+6. The population was close to plan, but contacts per unit differed: 0.0012 actual against 0.0018 planned. The two effects sum to the whole -3,929-contact gap (+1,366 from population, -5,294 from contact rate), so nothing is left unexplained by the split. The gap is driven by contacts per unit differing from plan, not by the population.
+7. FORECAST_BASELINE_FAILURE was raised by the evidence but points the opposite way to the miss. Governed by the direction-coherence gate (section 32). The miss pushed demand down and this mechanism implies up, from the plan sat below the expected level for this week (-56.1%) -- the directions DISAGREE, so the mechanism cannot be the cause.
+8. FORECAST_RESPONSE_FAILURE was raised by the evidence but points the opposite way to the miss. Governed by the direction-coherence gate (section 32). The miss pushed demand down and this mechanism implies up, from the plan sat below the expected level for this week (-56.1%) -- the directions DISAGREE, so the mechanism cannot be the cause.
+9. 8 item(s) support the conclusion and 8 argue against it. Governed by cross-examination, which ran before confidence precisely so its result could feed in. 13 challenge(s) found nothing wrong, 5 raised a doubt and 0 contradicted it outright.
 
 Jargon found: `[]` · causal verbs found: `[]`
 
@@ -114,4 +114,4 @@ Recommendations:
 
 ---
 
-*Generated by `results/run_holiday_weekend_tests.py` on branch `test3`. Semantic groups from `dbo.Holiday_Name_Alias`. Narrative written by a model.*
+*Generated by `results/run_holiday_weekend_tests.py` on branch `test3`. Semantic groups from `dbo.Holiday_Name_Alias`. Deterministic evidence only — no model was called.*
