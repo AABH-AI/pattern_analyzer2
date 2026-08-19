@@ -1,5 +1,10 @@
 # FC Decision Card upgrade — phase log (branch `test2`)
 
+> **As of 2026-08-14. This document is a log, not a current-state reference.**
+> A PHASE LOG of the FC upgrade, written as each phase completed. Historical by design; the card was version 2.0.0 during the phases it describes and is 2.1.0 now.
+>
+> For what is true NOW: the live table and port are in `backend/config.json` and `IMP_DOCS/installation-and-connection.md`; current engine behaviour is in `IMP_DOCS/new-prompt-conformance.md`, `prompt2-conformance.md` and `holiday-semantic-groups.md`.
+
 Base: `74f46c5` (an exact copy of `spec-v2-refactor`). **`main`, `spec-v2-refactor` and `test` are
 untouched.** `test2` deliberately carries **no** WFM engine changes — those live on `test`.
 

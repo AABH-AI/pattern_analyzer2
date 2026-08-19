@@ -234,7 +234,7 @@ not the Combined Queue.
 | Check | Result |
 |---|---|
 | M1 every queue name resolves | **427/427** |
-| M2 every data row is behind a mapped name | **66,612/66,612** |
+| M2 every data row is behind a mapped name | **66,612/66,612** *(as verified on `dbo.Input_To_ML`; the live table is now `dbo.Input_To_ML_Full_138_Trimmed` at 114,436 rows -- re-run `results/cqn_mapping_integrity.py` to re-verify)* |
 | M3 every unit of demand is behind a mapped name | **38,923,978/38,923,978** |
 | M4 mapping dimensions agree with the data | **all 4 agree on every name** (Region, SubRegion, Channel, Offering) |
 | M9 engine resolves the authoritative CQN | `is_cqn_proxy=False`, `cqn_source=mapping` |

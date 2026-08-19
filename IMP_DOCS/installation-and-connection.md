@@ -10,7 +10,7 @@ How to run the RCA Console and connect it to SQL Server. Two ways to run it:
 ```
 Browser (rca_console.html)
    └── fetch /api/data ──► FastAPI backend (backend/sql_backend.py)
-                                └── pyODBC ──► SQL Server 10.10.9.75 / Playground / dbo.Input_To_ML
+                                └── pyODBC ──► SQL Server 10.10.9.75 / Playground / dbo.Input_To_ML_Full_138_Trimmed
 ```
 The browser **cannot** reach SQL Server directly — the backend does the query and returns JSON.
 
@@ -64,7 +64,7 @@ Open **http://localhost:9000/rca_console.html** → **🗄 Connect to SQL Server
   "sql": {
     "server": "10.10.9.75",
     "database": "Playground",
-    "table": "dbo.Input_To_ML",
+    "table": "dbo.Input_To_ML_Full_138_Trimmed",
     "auth": "sql",
     "username": "YOUR_LOGIN",
     "password": "YOUR_PASSWORD",
@@ -79,7 +79,10 @@ Open **http://localhost:9000/rca_console.html** → **🗄 Connect to SQL Server
 ```bash
 python upload_excel_to_sql.py --dry-run     # verify parsing, touches no DB
 python upload_excel_to_sql.py --schema-only # create the table only
-python upload_excel_to_sql.py               # create + load all 138,775 rows
+python upload_excel_to_sql.py               # create + load the full extract
+#   The LIVE table on this branch is dbo.Input_To_ML_Full_138_Trimmed: 114,436 rows, 32 columns.
+#   dbo.Input_To_ML (66,612) and dbo.Input_To_ML_Full (88,816) are earlier loads and
+#   are NOT what the engine reads -- check backend/config.json before assuming.
 ```
 
 ---

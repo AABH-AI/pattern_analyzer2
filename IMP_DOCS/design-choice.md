@@ -1,5 +1,10 @@
 # Design Choices — Demand Pattern RCA Console
 
+> **As of 2026-08-14. This document is a record, not a current-state reference.**
+> A record of DECISIONS and why they were taken, in the order they were taken. The data facts quoted alongside each decision -- 33 columns, 138,775 and 66,612 rows, dbo.Input_To_ML -- were true at that time and are deliberately not rewritten, since the reasoning only makes sense against the data the decision was made on.
+>
+> For what is true NOW: the live table and port are in `backend/config.json` and `IMP_DOCS/installation-and-connection.md`; current engine behaviour is in `IMP_DOCS/new-prompt-conformance.md`, `prompt2-conformance.md` and `holiday-semantic-groups.md`.
+
 Why the tool is built the way it is. Read this before changing metrics, charts, or the parser.
 
 ## Guiding constraints (from the client scope)

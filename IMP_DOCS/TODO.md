@@ -1,5 +1,13 @@
 # TODO — Demand Pattern RCA Console
 
+> **Open `[ ]` items are current as of 2026-08-19. Completed `[x]` items are a RECORD of work
+> as it was done, and the figures inside them were true at that time** -- 138,775 and 66,612
+> rows, `dbo.Input_To_ML`, 33 columns. They are deliberately not rewritten, because a
+> completed decision only makes sense against the data it was taken on.
+>
+> The live table is `dbo.Input_To_ML_Full_138_Trimmed`: 114,436 rows, weeks 202401..202908. Check `backend/config.json` rather than any
+> figure quoted in a closed item.
+
 Deploy **30 Jul 2026** · last dev day **29 Jul**. Ordered by priority.
 
 ## P0 — critical path to the mockup
@@ -11,7 +19,7 @@ Deploy **30 Jul 2026** · last dev day **29 Jul**. Ordered by priority.
 
 ## P1 — correctness / data questions to close (probing layer)
 - [ ] Source of truth for adherence — **Offered vs Handled**?
-- [ ] On **Projection_plan restatement** mid-cycle, is the miss forgiven? (auto-probe already flags restated queues)
+- [x] ~~On **Projection_plan restatement** mid-cycle, is the miss forgiven? (auto-probe already flags restated queues)~~ **MOOT 2026-08-19** — Projection_plan_name was dropped from the table and the engine, and the auto-probe that flagged restated queues was removed with it. The question can only be reopened by restoring the column from dbo.Input_To_ML_Full_138.
 - [ ] Exact meaning of **ASU** (Planned/Actual).
 - [ ] Treatment of **holiday weeks** (`Holiday_Count > 0`).
 - [ ] Per-**Offering** / per-**Channel** acceptable bands, if any.
@@ -360,15 +368,34 @@ screen. Six instances, five now fixed.
 
 ## P3 — data quality at source
 
-- [ ] **`SA Indonesia Client Basic` is the only queue of 427** whose extract has blank Region,
+- [x] ~~**`SA Indonesia Client Basic` is the only queue of 427** whose extract has blank Region,
       SubRegion, Country, Offering, channel, Forecaster and plan name — all 174 rows. SQL has them,
-      so the export is at fault.
-- [ ] **12% of rows file-wide (16,598 of 138,529) carry no `Projection_plan_name`**, which is why
-      plan-vintage questions come back unanswerable.
-- [ ] **The config week filter disagrees with the loaded data**: `config.json` says
-      `202500..202699`, the table holds `202401..202752`. A reload would truncate differently.
+      so the export is at fault.~~ **RESOLVED 2026-08-19.** Re-checked against
+      `dbo.Input_To_ML_Full_138_Trimmed`: the queue now has 268 rows and Region, SubRegion, Country,
+      Offering, channel and Forecaster are populated on **0 blank of 268** for every one of them. The
+      plan name is gone for a separate reason — the column was dropped from the table entirely.
+- [x] ~~**12% of rows file-wide (16,598 of 138,529) carry no `Projection_plan_name`**, which is why
+      plan-vintage questions come back unanswerable.~~ **OBSOLETE 2026-08-19.** The column was dropped
+      from `dbo.Input_To_ML_Full_138_Trimmed` and treated as non-existent by the engine (commits
+      4a37e1a, a4dc137, 5b1cdf7), so there is no longer a sparse field to fix. Plan-vintage questions
+      are not answerable for a different reason now, and that reason is recorded rather than left as a
+      gap: the data to answer them is gone. `dbo.Input_To_ML_Full_138` still carries the column and its
+      data if the decision is ever reversed.
+- [ ] **The loader has no week filter any more, so a reload is unbounded.** The original item
+      said `config.json` (`202500..202699`) disagreed with the table (`202401..202752`) and that a
+      reload would truncate differently. Re-checked 2026-08-19: the config now carries **no
+      `min_fiscal_week` / `max_fiscal_week` at all**, and the live table holds `202401..202908`. The
+      disagreement is gone — but so is the guard. A reload would now load whatever the source
+      spreadsheet contains, with nothing pinning the scope. Decide whether the range should be
+      restored or the absence made deliberate and documented.
 - [ ] Holiday source mixes `Public Holiday` rows with rows typed `Derived from INPUT_TO_ML`, and the
       derived ones duplicate the public ones. Provenance should decide precedence.
+      *(Re-checked 2026-08-19: still open, and wider than first written — the master holds **36
+      distinct `holiday_type` strings**, from `Public Holiday` (5,540) down to `Federal Employees
+      Holiday` (1), and **197 country-dates carry more than one type**. A precedence rule has to
+      cover the whole vocabulary, not just the derived/public pair. The semantic-group tables added
+      in `holiday-semantic-groups.md` group by NAME and do not touch type at all, so this is
+      untouched by that work.)*
 
 ## P2 — dashboard / UX polish (post-deadline OK)
 - [x] High-cardinality dimension cards showed 0% shares — now show row counts; Fiscal_Week dropped from the grid; panel made bolder/cleaner. (2026-07-22)

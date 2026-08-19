@@ -1,5 +1,10 @@
 # Prompt Trail — Demand Pattern RCA Console
 
+> **As of 2026-07-31. This document is a trail, not a current-state reference.**
+> A TRAIL of what was asked and built, session by session. Historical by design. The figures in it -- 33 columns, 138,775 and 66,612 rows, dbo.Input_To_ML -- were accurate when each entry was written.
+>
+> For what is true NOW: the live table and port are in `backend/config.json` and `IMP_DOCS/installation-and-connection.md`; current engine behaviour is in `IMP_DOCS/new-prompt-conformance.md`, `prompt2-conformance.md` and `holiday-semantic-groups.md`.
+
 Chronological record of what was requested and what was delivered. Newest at the bottom.
 
 ---

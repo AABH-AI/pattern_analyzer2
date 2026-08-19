@@ -1,5 +1,10 @@
 # Canary UI test log
 
+> **As of 2026-07-29. This document is a log, not a current-state reference.**
+> A LOG of specific recorded browser sessions (V0.1-V0.6). Append-only by design: each entry describes what a run did on the day it ran, so the table names, row counts and the port 8000 URLs in it are correct FOR THOSE RUNS and are not current setup instructions.
+>
+> For what is true NOW: the live table and port are in `backend/config.json` and `IMP_DOCS/installation-and-connection.md`; current engine behaviour is in `IMP_DOCS/new-prompt-conformance.md`, `prompt2-conformance.md` and `holiday-semantic-groups.md`.
+
 Browser-driven QA sessions recorded with the Canary plugin (real Chromium, Playwright trace +
 video + HAR + console capture per step, then a self-contained `report.html`).
 
