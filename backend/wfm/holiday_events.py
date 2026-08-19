@@ -97,6 +97,36 @@ def _clean(text):
     return re.sub(r"\s+", " ", text).strip()
 
 
+def _norm_group_key(v):
+    """Normalise a group id the same way `event_key` does, so the two can be compared.
+
+    event_key turns semantic_family "JP_YEAREND" into "family:jp yearend" -- a prefix, lower case,
+    and underscores as spaces. Comparing the raw strings therefore never matches, which is exactly
+    how the first version of this lookup changed nothing at all.
+    """
+    t = str(v or "").strip().lower()
+    if t.startswith("family:"):
+        t = t[len("family:"):]
+    return " ".join(t.replace("_", " ").split())
+
+
+def _group_names():
+    """{normalised group key: display name}, resolved lazily so an unstamped master cannot break
+    an import. Keys are normalised on the way in, so callers can pass an event_key straight in."""
+    global _GROUP_NAMES
+    if _GROUP_NAMES is None:
+        try:
+            from .context_repository import holiday_calendar as _cal
+            raw = _cal.semantic_group_names() or {}
+        except Exception:
+            raw = {}
+        _GROUP_NAMES = {_norm_group_key(k): v for k, v in raw.items() if v}
+    return _GROUP_NAMES
+
+
+_GROUP_NAMES = None
+
+
 def event_key(name, semantic_family=None):
     """A stable identity for a holiday EVENT, independent of spelling.
 
@@ -244,7 +274,11 @@ def normalise(holidays):
                 "event_key": key,
                 "country": country,
                 "modifier": run.get("modifier"),
-                "canonical_name": names[0],
+                # A stamped semantic group carries a display name written for a reader; use it.
+                # names[0] is the alphabetically first RAW spelling, which is right for a family of
+                # spelling variants and wrong for one whose members are different words -- Japan's
+                # year-end closure was labelled "December 31 Bank Holiday" for a 29 Dec - 3 Jan span.
+                "canonical_name": _group_names().get(_norm_group_key(key)) or names[0],
                 "raw_names": names,
                 "name_variants": len(names),
                 "dates": dates,

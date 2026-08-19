@@ -1,6 +1,6 @@
 {
- "queue": "Canada Core French",
- "week": 202722,
+ "queue": "SA Indonesia Client Basic",
+ "week": 202716,
  "rows": [
   {
    "clause": "A",
@@ -12,19 +12,19 @@
    "clause": "B/K",
    "requirement": "holiday_weekday derived (which day it fell on)",
    "state": "OK",
-   "detail": "days=['Wednesday'] pattern=midweek_holiday"
+   "detail": "days=[] pattern=none"
   },
   {
    "clause": "B",
    "requirement": "holiday_before_weekend vs holiday_after_weekend separated",
    "state": "OK",
-   "detail": "per event: before=0 after=0 on_wknd=0 long=0"
+   "detail": "per event: before=2 after=1 on_wknd=2 long=5"
   },
   {
    "clause": "K",
    "requirement": "per-weekday historical outcome comparison",
-   "state": "PARTIAL",
-   "detail": "3 of 7 weekdays measurable, spread 35.6 pts"
+   "state": "OK",
+   "detail": "7 of 7 weekdays measurable, spread 46.8 pts"
   },
   {
    "clause": "C",
@@ -42,37 +42,37 @@
    "clause": "D",
    "requirement": "weekday published on the joined holiday",
    "state": "OK",
-   "detail": "weekdays=['Wednesday']"
+   "detail": "weekdays=['Thursday']"
   },
   {
    "clause": "D",
    "requirement": "semantic_group_id published",
    "state": "OK",
-   "detail": "1 event(s) carry semantic_group_id in the clause-F views"
+   "detail": "4 event(s) carry semantic_group_id in the clause-F views"
   },
   {
    "clause": "E",
    "requirement": "executive list uses canonical semantic names only",
    "state": "OK",
-   "detail": "raw=1 -> displayed=1 ['canada day']"
+   "detail": "raw=4 -> displayed=3 ['Ascension of Jesus Christ', 'Idul Fitri Holiday', 'Joint Holiday for Waisak Day']"
   },
   {
    "clause": "F",
    "requirement": "HOLIDAYS_IN_TARGET_WEEK is its own field",
    "state": "OK",
-   "detail": "Holidays in this week: canada day."
+   "detail": "Holidays in this week: None."
   },
   {
    "clause": "F",
    "requirement": "RECENT_HOLIDAYS_AFFECTING_TARGET_WEEK is its own field",
    "state": "OK",
-   "detail": "in_week=1 adjacent=0, no leak=True"
+   "detail": "in_week=0 adjacent=4, no leak=True"
   },
   {
    "clause": "G",
    "requirement": "7 driver tests incl. miss-week + forecast response",
    "state": "OK",
-   "detail": "main=True enrichment=None"
+   "detail": "main=False enrichment=True"
   },
   {
    "clause": "H",
@@ -90,7 +90,7 @@
    "clause": "L",
    "requirement": "queue share of the wider gap stated, not blamed",
    "state": "OK",
-   "detail": "The pattern starts at Region level (CSG / Americas): 80,766 contacts a"
+   "detail": "The pattern starts at Offering level (CSG / APJ / SA / Indonesia / Bas"
   },
   {
    "clause": "M",

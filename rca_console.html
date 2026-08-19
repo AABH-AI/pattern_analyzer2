@@ -1640,7 +1640,13 @@ function selectFlag(i){
     <div class="kv"><span class="k">Actual_Offered</span><span class="val">${r.Actual_Offered===''?'(blank)':(r._ao!=null?r._ao.toLocaleString():r.Actual_Offered)}</span></div>
     <div class="kv"><span class="k">Forecast Offered</span><span class="val">${r._fo!=null?fmt2(r._fo):(r.fcst_offered||'(blank)')}</span></div>
     <div class="subhead">Root-Cause Investigation</div>
-    <div class="rca-cap">Every field available for this queue — the target week, its recent history, and the other queues in its Combined Queue — is consolidated into a single evidence base. Each candidate explanation is then tested against that evidence: competing hypotheses are weighed, those the data does not support are rejected and recorded with the reason, and the remainder are ranked by the strength of the evidence behind them. Conclusions are stated in business language with the underlying figures attached, and where the data cannot settle a question, that limit is reported rather than filled in.</div>
+    <!-- The four-sentence method caption that used to sit here was removed: it never changed, it
+     stayed on screen ABOVE the results once they rendered, and each of its claims now appears
+     in the card with real figures (section 6 lists all 23 hypotheses with their states and
+     reasons; every panel carries its own how_to_read). One line is kept because the run takes
+     30-60 seconds and the reader should know that. To restore, put this back:
+     <div class="rca-cap">Every field available for this queue — the target week, its recent history, and the other queues in its Combined Queue — is consolidated into a single evidence base. Each candidate explanation is then tested against that evidence: competing hypotheses are weighed, those the data does not support are rejected and recorded with the reason, and the remainder are ranked by the strength of the evidence behind them. Conclusions are stated in business language with the underlying figures attached, and where the data cannot settle a question, that limit is reported rather than filled in.</div> -->
+        <div class="rca-cap">Tests each candidate explanation against this queue's own evidence, ranks what survives, and reports what the data cannot settle.</div>
     <div id="investigationPanel"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><button class="filebtn" onclick="triggerRCA(${i})">🔎 Investigate Root Cause</button>${rcaModelPickerHtml()}</div></div>
   `;
 }

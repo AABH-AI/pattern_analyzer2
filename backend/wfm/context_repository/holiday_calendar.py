@@ -63,6 +63,16 @@ def _load():
     return _CACHE
 
 
+def semantic_group_names():
+    """{group_id: display name} from the master, empty when none were stamped.
+
+    Populated by backend/build_holiday_semantic_groups.py from dbo.Holiday_Semantic_Group. Absence
+    is not an error -- an unstamped master simply has no group names, and every event then keeps its
+    derived identity.
+    """
+    return (_load() or {}).get("semantic_groups") or {}
+
+
 def loaded():
     d = _load()
     return {"available": "_error" not in d,
