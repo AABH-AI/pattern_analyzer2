@@ -29,7 +29,7 @@ if (-not (Test-Path "backend\config.json")) {
 
 # 5) Start backend (serves the UI too) and open the app
 Write-Host ""
-Write-Host "Starting backend on http://localhost:8000  (Ctrl+C to stop)" -ForegroundColor Green
-Start-Process "http://localhost:8000/rca_console.html"
+Write-Host "Starting backend on http://localhost:9000  (Ctrl+C to stop)" -ForegroundColor Green
+Start-Process "http://localhost:9000/rca_console.html"
 Set-Location "$root\backend"
-python -m uvicorn sql_backend:app --host 0.0.0.0 --port 8000
+python -m uvicorn sql_backend:app --host 0.0.0.0 --port 9000

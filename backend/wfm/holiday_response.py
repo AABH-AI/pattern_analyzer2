@@ -58,6 +58,21 @@ CONSISTENT_SHARE = 0.70
 
 # --- forecast capture tolerance, as a share of the effect the history implied. ---
 CAPTURE_TOLERANCE = 0.50    # captured at least half of the historical effect == captured
+
+# Section 10 repeatability bands.
+#
+# The middle bar is deliberately CONSISTENT_SHARE (0.70) -- the bar this module already uses to
+# call a phase effect "consistent". Introducing a second, disagreeing figure for the same idea is
+# the mistake the criticality work avoided by reusing the 50-contact materiality floor.
+HIGHLY_REPEATABLE_SHARE = 0.85      # clearly above the existing "consistent" bar
+LEANS_SHARE = 0.50                  # at or below this the direction is no better than a coin flip
+# A rebound is "large" at twice the materiality share. Derived from MATERIAL_SHARE so there is one
+# scale in this module, not two.
+LARGE_CHANGE_SHARE = MATERIAL_SHARE * 2
+# How dispersed the magnitudes may be before quoting a single uplift figure misleads: the range may
+# be at most twice the typical size. VERSIONED CONFIGURATION -- a judgement, not a measurement, and
+# it would benefit from client confirmation the way CAPTURE_TOLERANCE would.
+MAGNITUDE_SPREAD_LIMIT = 2.0
 OVER_CAPTURE = 1.75         # more than this much of it == over-reacted
 
 CAPTURE_CLASSES = ("captured", "under_reacted", "over_reacted", "wrong_direction", "delayed",
@@ -178,6 +193,340 @@ def _historical_phase_effect(rows, country, cache):
     return {"available": True, "baseline_actual": _rnd(base_actual),
             "baseline_forecast": _rnd(base_forecast),
             "baseline_weeks": len(base_actuals), "phases": phases}
+
+
+def _phase_name(country, week, cache):
+    """Just the phase. `_phase_of` returns (phase, span_dict); comparing that tuple to a phase
+    constant is silently always False, which is how the first version of phase_transitions found
+    zero transitions on a queue that plainly has one."""
+    got = _phase_of(country, week, cache)
+    return got[0] if isinstance(got, tuple) else got
+
+
+def phase_transitions(rows, country, cache, target_week=None, target_actual=None):
+    """Section 9 measurement A: the WEEK-ON-WEEK change across a holiday boundary.
+
+    This is a DIFFERENT QUANTITY from `phase_effect`, and the spec is emphatic about not conflating
+    them:
+
+        A  holiday week -> post-holiday week change      FW15 96 -> FW16 152  = +58.3%
+        B  post-holiday level vs the non-holiday baseline  (what `phase_effect` measures)
+
+    A is a transition between two specific weeks. B is a standing level. The banned sentence is
+    "+58.3% holiday effect", because a holiday that SUPPRESSES demand can still be followed by a
+    week that jumps 58% -- the jump is the recovery from the trough, not the holiday's effect. The
+    required phrasing is "58.3% post-holiday rebound from FW15 to FW16", so the wording is built
+    here rather than left to a caller.
+
+    Returns the target week's transition (when it has one) and every comparable transition in
+    history, which is what makes a rebound judgeable as repeatable or not.
+    """
+    by_week = {int(w): (f, a) for w, f, a in rows if a is not None}
+    weeks = sorted(by_week)
+    if len(weeks) < 2:
+        return {"available": False, "reason": "fewer than two scoreable weeks in history"}
+
+    ordered = {w: i for i, w in enumerate(weeks)}
+    hist = []
+    for w in weeks:
+        i = ordered[w]
+        if i == 0:
+            continue
+        prev = weeks[i - 1]
+        # Only a HOLIDAY week followed by a POST-HOLIDAY week is a rebound transition. Any other
+        # pair is an ordinary week-on-week change and must not be labelled a rebound.
+        if _phase_name(country, prev, cache) != _cal.PHASE_HOLIDAY:
+            continue
+        if _phase_name(country, w, cache) != _cal.PHASE_POST:
+            continue
+        a_prev, a_now = by_week[prev][1], by_week[w][1]
+        if not a_prev:
+            continue
+        hist.append({"from_week": prev, "to_week": w,
+                     "from_actual": _rnd(a_prev), "to_actual": _rnd(a_now),
+                     "change_pct": _rnd((a_now / a_prev - 1.0) * 100.0)})
+
+    target = None
+    if target_week is not None and target_actual is not None:
+        tw = int(target_week)
+        # `rows` stop BEFORE the target week (that is what _rows does, so history can never leak
+        # the answer), so the preceding week is simply the last row -- and the target's own actual
+        # has to be supplied rather than looked up.
+        prior = [w for w in weeks if w < tw]
+        if prior:
+            prev = prior[-1]
+            if (_phase_name(country, prev, cache) == _cal.PHASE_HOLIDAY
+                    and _phase_name(country, tw, cache) == _cal.PHASE_POST):
+                a_prev, a_now = by_week[prev][1], _num(target_actual)
+                if a_prev and a_now is not None:
+                    pct = (a_now / a_prev - 1.0) * 100.0
+                    target = {
+                        "from_week": prev, "to_week": tw,
+                        "from_actual": _rnd(a_prev), "to_actual": _rnd(a_now),
+                        "change_pct": _rnd(pct),
+                        "direction": "rebound" if pct > 0 else ("further_decline" if pct < 0 else "flat"),
+                        # The one sentence the spec dictates the shape of.
+                        "reading": (f"{_rnd(abs(pct))}% post-holiday "
+                                    f"{'rebound' if pct > 0 else 'further decline'} from FW{prev} "
+                                    f"({_rnd(a_prev)} contacts) to FW{tw} ({_rnd(a_now)})."),
+                    }
+
+    changes = [h["change_pct"] for h in hist if h.get("change_pct") is not None]
+    summary = {}
+    if changes:
+        ups = sum(1 for c in changes if c > 0)
+        summary = {
+            "instances": len(changes),
+            "median_change_pct": _rnd(_st.median(changes)),
+            "mean_change_pct": _rnd(sum(changes) / len(changes)),
+            "min_change_pct": _rnd(min(changes)), "max_change_pct": _rnd(max(changes)),
+            "positive_share": _rnd(ups / len(changes), 3),
+            "spread_pct": _rnd(max(changes) - min(changes)),
+        }
+    return {
+        "available": True,
+        "target_transition": target,
+        "history": hist,
+        "summary": summary,
+        # Section 10. Classified from the transitions this function has just collected, so the band
+        # and the figures behind it can never disagree.
+        "repeatability": repeatability(changes, "post-holiday rebound"),
+        "measures": ("week-on-week change across a holiday boundary (section 9 measurement A). "
+                     "NOT the same quantity as phase_effect, which is the standing level against "
+                     "this queue's non-holiday baseline (measurement B)."),
+        "wording_rule": ("Describe this as a post-holiday rebound between two named weeks. It must "
+                         "never be called a 'holiday effect': a holiday that suppresses demand is "
+                         "routinely followed by a large positive change, and that change is the "
+                         "recovery, not the holiday's effect."),
+    }
+
+
+def repeatability(changes, label="post-holiday rebound"):
+    """Section 10. Classify a set of historical responses into the five named bands.
+
+    `changes` is a list of percentage changes -- the spec's own example is [+29, -47, +89, +58].
+
+    TWO PROPERTIES, NOT ONE. Section 10 lists variability alongside consistency, and they answer
+    different questions:
+
+        direction consistency  does it reliably move the SAME WAY?
+        magnitude spread       is the SIZE predictable enough to quote a figure?
+
+    A set can be reliable in direction and useless in magnitude, which is exactly the spec's
+    example: 3 of 4 positive, but ranging -47% to +89%. The required reading there is "a directional
+    forecasting signal, not a deterministic fixed uplift" -- so the band is decided by direction and
+    the magnitude verdict rides beside it, rather than being averaged into a single score that hides
+    which of the two failed.
+
+    Returns the band, every figure section 10 asks for, and a reading that never says a holiday
+    "causes" anything.
+    """
+    vals = [c for c in (changes or []) if isinstance(c, (int, float))]
+    n = len(vals)
+    if n < MIN_PHASE_INSTANCES:
+        return {"band": "NOT ENOUGH DATA", "instances": n,
+                "reason": (f"only {n} comparable instance(s) in this queue's history; "
+                           f"{MIN_PHASE_INSTANCES} are needed before a pattern can be called "
+                           f"repeatable or not"),
+                "reading": (f"There are too few past instances to say whether this queue's "
+                            f"{label} repeats. That is a limit of the history, not evidence "
+                            f"that no pattern exists.")}
+
+    med = _st.median(vals)
+    mean = sum(vals) / n
+    lo, hi = min(vals), max(vals)
+    spread = hi - lo
+    ups = sum(1 for v in vals if v > 0)
+    positive_share = ups / n
+    # Consistency is measured against the MEDIAN's direction, not against zero, so a queue whose
+    # rebounds are reliably negative scores as consistent rather than as inconsistent.
+    same_way = sum(1 for v in vals if (v > 0) == (med > 0)) if med != 0 else 0
+    consistency = same_way / n
+    large = sum(1 for v in vals if abs(v) >= LARGE_CHANGE_SHARE * 100.0) / n
+    spread_ratio = (spread / abs(med)) if med else None
+    magnitude_predictable = bool(spread_ratio is not None
+                                 and spread_ratio <= MAGNITUDE_SPREAD_LIMIT)
+
+    if consistency >= HIGHLY_REPEATABLE_SHARE and magnitude_predictable:
+        band = "HIGHLY REPEATABLE"
+    elif consistency >= CONSISTENT_SHARE:
+        band = "MODERATELY REPEATABLE"
+    elif consistency > LEANS_SHARE:
+        band = "EMERGING / INCONSISTENT"
+    else:
+        band = "NOT SUPPORTED"
+
+    # A median of exactly zero is a different finding from an unreliable direction, and the
+    # consistency count is 0 there by construction -- nothing moves "the same way as" no movement.
+    # Narrating that as a coin flip is a contradiction: flat is not undecided.
+    if med == 0:
+        if spread == 0:
+            reading = (f"Across {n} past instances this queue's {label} has not moved at all "
+                       f"(every instance 0%). There is no rebound pattern to plan against -- a flat "
+                       f"history, not an unreliable one.")
+        else:
+            reading = (f"Across {n} past instances this queue's {label} has moved substantially in "
+                       f"both directions ({_rnd(lo)}% to {_rnd(hi)}%) and the moves cancel, leaving "
+                       f"a median of zero. Large but directionless, so no direction can be relied "
+                       f"on.")
+        return {
+            "band": "NOT SUPPORTED",
+            "instances": n,
+            "median_change_pct": _rnd(med), "mean_change_pct": _rnd(mean),
+            "min_change_pct": _rnd(lo), "max_change_pct": _rnd(hi),
+            "spread_pct": _rnd(spread), "spread_ratio": None,
+            "positive_share": _rnd(positive_share, 3),
+            "direction_consistency": _rnd(consistency, 3),
+            "large_change_share": _rnd(large, 3),
+            "large_change_threshold_pct": _rnd(LARGE_CHANGE_SHARE * 100.0),
+            "magnitude_predictable": False,
+            "flat_history": bool(spread == 0),
+            "reading": reading,
+            "bands": ["HIGHLY REPEATABLE", "MODERATELY REPEATABLE", "EMERGING / INCONSISTENT",
+                      "NOT SUPPORTED", "NOT ENOUGH DATA"],
+        }
+
+    direction = "upward" if med > 0 else "downward"
+    head = (f"Across {n} past instances this queue's {label} has run {direction} "
+            f"{_rnd(abs(med))}% at the median ({_rnd(lo)}% to {_rnd(hi)}%), "
+            f"moving the same way {_rnd(consistency * 100)}% of the time")
+    if band == "HIGHLY REPEATABLE":
+        tail = (". Both the direction and the size are consistent enough to plan against.")
+    elif band == "MODERATELY REPEATABLE":
+        tail = ((". The direction is a usable forecasting signal; the size is not -- the range is "
+                 f"{_rnd(spread)} points wide, so this should be treated as a directional signal "
+                 f"rather than a fixed uplift.") if not magnitude_predictable else
+                ". The direction is a usable forecasting signal.")
+    elif band == "EMERGING / INCONSISTENT":
+        tail = (". The pattern recurs but is not reliable: it should inform a forecaster's judgement "
+                "and should not be applied as a fixed adjustment.")
+    else:
+        tail = (". The direction is close to a coin flip on this queue's own history, so there is no "
+                "dependable pattern to plan against.")
+    return {
+        "band": band,
+        "instances": n,
+        "median_change_pct": _rnd(med), "mean_change_pct": _rnd(mean),
+        "min_change_pct": _rnd(lo), "max_change_pct": _rnd(hi),
+        "spread_pct": _rnd(spread),
+        "spread_ratio": _rnd(spread_ratio, 2) if spread_ratio is not None else None,
+        "positive_share": _rnd(positive_share, 3),
+        "direction_consistency": _rnd(consistency, 3),
+        "large_change_share": _rnd(large, 3),
+        "large_change_threshold_pct": _rnd(LARGE_CHANGE_SHARE * 100.0),
+        "magnitude_predictable": magnitude_predictable,
+        "reading": head + tail,
+        "bands": ["HIGHLY REPEATABLE", "MODERATELY REPEATABLE", "EMERGING / INCONSISTENT",
+                  "NOT SUPPORTED", "NOT ENOUGH DATA"],
+    }
+
+
+def _canonical_display(events):
+    """prompt2.md clause E: the executive list uses CANONICAL SEMANTIC names, raws kept for audit.
+
+    Grouped by `semantic_group_id`, NOT by canonical_name. De-duplicating on the name still printed
+    both "Ascension of Jesus Christ" and "Ascension Day of Jesus Christ" -- two spellings of one
+    family, which is the repetition clause E exists to remove.
+
+    Two dated occurrences of one family therefore collapse to one line naming the family. What this
+    must never do is merge DIFFERENT holidays that share a date: grouping is by semantic group, so
+    clause E's Christmas / Quaid-e-Azam prohibition holds by construction -- those have different
+    groups and stay apart.
+    """
+    order, by_group = [], {}
+    for e in events or []:
+        gid = e.get("event_key") or e.get("canonical_name")
+        nm = e.get("canonical_name") or (e.get("raw_names") or [None])[0]
+        if not nm:
+            continue
+        if gid not in by_group:
+            by_group[gid] = nm
+            order.append(gid)
+    return [by_group[g] for g in order]
+
+
+def _canonical_detail(events):
+    """The same grouping, with the evidence a reader needs to check it: every raw spelling and every
+    date that sits under the family name shown above."""
+    out, by_group = [], {}
+    for e in events or []:
+        gid = e.get("event_key") or e.get("canonical_name")
+        if not gid:
+            continue
+        row = by_group.get(gid)
+        if row is None:
+            row = {"semantic_group_id": gid,
+                   "display_name": e.get("canonical_name") or (e.get("raw_names") or [None])[0],
+                   "occurrences": 0, "dates": [], "weekdays": [], "raw_names": [],
+                   "fiscal_weeks": [], "needs_review": False}
+            by_group[gid] = row
+            out.append(row)
+        row["occurrences"] += 1
+        for k_src, k_dst in (("dates", "dates"), ("weekdays", "weekdays"),
+                             ("raw_names", "raw_names"), ("fiscal_weeks", "fiscal_weeks")):
+            for v in (e.get(k_src) or []):
+                if v not in row[k_dst]:
+                    row[k_dst].append(v)
+        row["needs_review"] = row["needs_review"] or bool(e.get("needs_review"))
+    return out
+
+
+def _event_view(e):
+    """One holiday event, shaped for a reader. Clause D's required fields, weekday included."""
+    return {
+        "canonical_name": e.get("canonical_name"),
+        "raw_names": e.get("raw_names") or [],
+        "semantic_group_id": e.get("event_key"),
+        "dates": e.get("dates") or [],
+        "weekdays": e.get("weekdays") or [],
+        "fiscal_weeks": e.get("fiscal_weeks") or [],
+        "offset_weeks": e.get("offset_weeks") or [],
+        "types": e.get("types") or [],
+        "modifier": e.get("modifier"),
+        "needs_review": bool(e.get("needs_review")),
+    }
+
+
+def _in_week_view(events):
+    """Clause F: holidays whose DATE falls inside the target fiscal week. Offset 0, nothing else."""
+    inside = [e for e in (events or []) if 0 in (e.get("offset_weeks") or [])]
+    return {
+        "count": len(inside),
+        "canonical_names": _canonical_display(inside),
+        "events": [_event_view(e) for e in inside],
+        "by_semantic_group": _canonical_detail(inside),
+        # Clause N's required wording, built here so a renderer cannot get it wrong.
+        "statement": ("Holidays in this week: None."
+                      if not inside else
+                      "Holidays in this week: " + ", ".join(_canonical_display(inside)) + "."),
+    }
+
+
+def _adjacent_view(events):
+    """Clause F: holidays OUTSIDE the target week whose impact window still reaches it.
+
+    Kept strictly apart from the in-week list. These may inform a pre- or post-holiday reading; they
+    are never holidays "in" this week.
+    """
+    near = [e for e in (events or [])
+            if e.get("reaches_target_week") and 0 not in (e.get("offset_weeks") or [])]
+    names = _canonical_display(near)
+    if not near:
+        statement = "Recent holidays potentially affecting this week: none."
+    else:
+        statement = ("Recent holidays potentially affecting this week: " + ", ".join(names) + ". "
+                     "No holiday occurs directly in this fiscal week; the analysis therefore "
+                     "evaluates whether this week resembles a historical post-holiday or "
+                     "pre-holiday pattern.")
+    return {
+        "count": len(near),
+        "canonical_names": names,
+        "events": [_event_view(e) for e in near],
+        "by_semantic_group": _canonical_detail(near),
+        "statement": statement,
+        "note": ("Clause F: these are NOT holidays in the target week. Their dates fall outside it "
+                 "and only their impact window reaches it."),
+    }
 
 
 def _phase_reading(phase, block):
@@ -516,6 +865,8 @@ def analyse(history, target_week, country, target_actual=None, target_forecast=N
     # Standing bias across ALL holiday-phase weeks in history. Shares the phase cache, so it costs a
     # pass over rows already in memory rather than another calendar lookup per week.
     plan_bias = plan_bias_by_phase(rows, country, cache)
+    # Shares the same phase cache, so this is a pass over rows already in memory.
+    transitions = phase_transitions(rows, country, cache, target_week, target_actual)
     phase = span.get("phase")
     phase_block = ((historical.get("phases") or {}).get(phase)
                    if historical.get("available") else None)
@@ -555,7 +906,13 @@ def analyse(history, target_week, country, target_actual=None, target_forecast=N
         "phase": phase,
         "applies": span.get("applies"),
         "span_weeks": SPAN_WEEKS,
+        # prompt2.md clause F -- MANDATORY separation. `names` is retained unchanged so nothing
+        # that already reads it breaks, but it must never again be rendered as "holidays in this
+        # week": on this queue it holds four holidays while row_holiday_count is 0 and not one of
+        # them falls inside the target week.
         "names": span.get("names"),
+        "holidays_in_target_week": _in_week_view(events),
+        "recent_holidays_affecting_target_week": _adjacent_view(events),
         "families": span.get("families"),
         # Event-normalised view. `event_count` is the number a narrative should quote;
         # `raw_name_count` sits beside it so the collapsed inflation stays auditable.
@@ -573,6 +930,12 @@ def analyse(history, target_week, country, target_actual=None, target_forecast=N
         # years". Only the second one justifies changing the adjustment rule.
         "plan_bias": plan_bias,
         "phase_effect": phase_block,
+        # Section 9 measurement A, deliberately adjacent to measurement B above so the two are
+        # read together and the difference between them is visible on the card.
+        "phase_transition": transitions,
+        # Section 10's band, surfaced at the top level so a renderer does not have to reach two
+        # levels down for the headline classification. Same object, not a second calculation.
+        "rebound_repeatability": (transitions or {}).get("repeatability"),
         "expected_direction": expected_direction,
         "historical_consistency": consistency,
         "forecast_capture": capture,

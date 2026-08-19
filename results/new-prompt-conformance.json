@@ -1,0 +1,212 @@
+{
+ "queue": "SA Indonesia Client Basic",
+ "week": 202716,
+ "engine": "spec-v2",
+ "card_version": "2.1.0",
+ "rows": [
+  {
+   "clause": "1",
+   "requirement": "existing 18 card sections intact",
+   "state": "PRESENT",
+   "detail": "18 sections"
+  },
+  {
+   "clause": "2",
+   "requirement": "RCA still produced with NO llm (fail-safe)",
+   "state": "PRESENT",
+   "detail": "status=Incomplete"
+  },
+  {
+   "clause": "3",
+   "requirement": "actual>forecast is NOT auto Demand Spike",
+   "state": "PRESENT",
+   "detail": "COMPOUND_MISS"
+  },
+  {
+   "clause": "4",
+   "requirement": "holiday name canonicalisation",
+   "state": "PRESENT",
+   "detail": "keys: ['canonical', 'semantic_family']"
+  },
+  {
+   "clause": "5",
+   "requirement": "one holiday event counted once",
+   "state": "PRESENT",
+   "detail": "bridge days separate; Aggregate_Group rejected as identity"
+  },
+  {
+   "clause": "6",
+   "requirement": "H-2..H+2 phase window",
+   "state": "PRESENT",
+   "detail": "phase=post_holiday offsets=[-1, 1, 2] span=2"
+  },
+  {
+   "clause": "6",
+   "requirement": "Holiday_Count=0 can still be pre/post",
+   "state": "PRESENT",
+   "detail": "row_holiday_count=0 phase=post_holiday"
+  },
+  {
+   "clause": "7/8/9",
+   "requirement": "pre / holiday / post phases resolved",
+   "state": "PRESENT",
+   "detail": "resolved phase=post_holiday; vocabulary=['pre_holiday', 'post_holiday']"
+  },
+  {
+   "clause": "9",
+   "requirement": "phase effect measured vs own baseline",
+   "state": "PRESENT",
+   "detail": "{\"testable\": true, \"instances\": 27, \"median_actual\": 109"
+  },
+  {
+   "clause": "9",
+   "requirement": "hol->post CHANGE vs level-vs-baseline separated",
+   "state": "PRESENT",
+   "detail": "spec bans calling a week-on-week move a 'holiday effect'"
+  },
+  {
+   "clause": "10",
+   "requirement": "historical response + consistency measured",
+   "state": "PRESENT",
+   "detail": "consistency=0.519"
+  },
+  {
+   "clause": "10",
+   "requirement": "five repeatability BANDS",
+   "state": "PRESENT",
+   "detail": "numeric consistency exists; named bands found=['highly repeatable', 'moderately repeatable', 'emerging', 'not supported', 'not enough data']"
+  },
+  {
+   "clause": "11",
+   "requirement": "weekend needs daily data, else states the limit",
+   "state": "PRESENT",
+   "detail": "Weekend impact cannot be isolated from fiscal-week totals "
+  },
+  {
+   "clause": "12",
+   "requirement": "long-weekend / holiday x weekend INTERACTION",
+   "state": "PRESENT",
+   "detail": "contrast testable=True material=False; patterns=4"
+  },
+  {
+   "clause": "13",
+   "requirement": "did the forecast capture the calendar change",
+   "state": "PRESENT",
+   "detail": ""
+  },
+  {
+   "clause": "14",
+   "requirement": "forecast-response classification",
+   "state": "PRESENT",
+   "detail": ""
+  },
+  {
+   "clause": "14",
+   "requirement": "exact split fc_side+dem_side == actual-forecast",
+   "state": "PRESENT",
+   "detail": ""
+  },
+  {
+   "clause": "15",
+   "requirement": "3 failure types the spec adds",
+   "state": "PRESENT",
+   "detail": "defined=3/3; fired here=['SEASONALITY_MIS_SPECIFICATION']"
+  },
+  {
+   "clause": "15",
+   "requirement": "7 -> 8 vocabulary mapping published",
+   "state": "PRESENT",
+   "detail": "{'FORECAST_RESPONSE_FAILURE': None, 'FORECAST_BASELINE_F"
+  },
+  {
+   "clause": "16",
+   "requirement": "lags 0/1/2/4/8 on level AND change",
+   "state": "PRESENT",
+   "detail": ""
+  },
+  {
+   "clause": "16",
+   "requirement": "Pearson alongside Spearman",
+   "state": "PRESENT",
+   "detail": "lag_analysis._pearson present=True; rank stays the decision measure"
+  },
+  {
+   "clause": "16",
+   "requirement": "relationship during forecast-MISS weeks",
+   "state": "PRESENT",
+   "detail": "lag_analysis._miss_week_relationship present=True (threshold 5.0%)"
+  },
+  {
+   "clause": "17",
+   "requirement": "weak != absent (3 coverage states)",
+   "state": "PRESENT",
+   "detail": "availability=NotApplicable"
+  },
+  {
+   "clause": "18/19",
+   "requirement": "Final_Units vs Final_upp_units separate",
+   "state": "PRESENT",
+   "detail": ""
+  },
+  {
+   "clause": "18",
+   "requirement": "Final_Y1..Y5 never summed",
+   "state": "PRESENT",
+   "detail": "excluded from driver testing"
+  },
+  {
+   "clause": "20",
+   "requirement": "ASU population vs contact-rate split",
+   "state": "PRESENT",
+   "detail": "available=False"
+  },
+  {
+   "clause": "21",
+   "requirement": "seasonality vs expected level",
+   "state": "PRESENT",
+   "detail": ""
+  },
+  {
+   "clause": "22",
+   "requirement": "forecast moved OPPOSITE to demand is named",
+   "state": "PRESENT",
+   "detail": ""
+  },
+  {
+   "clause": "23",
+   "requirement": "compound miss",
+   "state": "PRESENT",
+   "detail": ""
+  },
+  {
+   "clause": "25",
+   "requirement": "confidence produced and unchanged by enrichment",
+   "state": "PRESENT",
+   "detail": "Medium 60.5%"
+  },
+  {
+   "clause": "26",
+   "requirement": "criticality independent of confidence",
+   "state": "PRESENT",
+   "detail": "band=Moderate"
+  },
+  {
+   "clause": "27",
+   "requirement": "statistical jargon banned",
+   "state": "PRESENT",
+   "detail": "23 terms in EXEC_JARGON"
+  },
+  {
+   "clause": "27",
+   "requirement": "unsupported CAUSAL VERBS banned",
+   "state": "PRESENT",
+   "detail": "11 verbs, word-boundary safe=True, panel reports=True"
+  },
+  {
+   "clause": "28",
+   "requirement": "A-F card view",
+   "state": "PRESENT",
+   "detail": "6/6 sections; the 18 numbered sections remain (18)"
+  }
+ ]
+}

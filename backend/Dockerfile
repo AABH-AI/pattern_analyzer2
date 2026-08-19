@@ -17,6 +17,6 @@ RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 COPY . /app
 
 WORKDIR /app/backend
-EXPOSE 8000
+EXPOSE 9000
 # 0.0.0.0 so other machines on the AA network can reach it
-CMD ["uvicorn", "sql_backend:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "sql_backend:app", "--host", "0.0.0.0", "--port", "9000"]

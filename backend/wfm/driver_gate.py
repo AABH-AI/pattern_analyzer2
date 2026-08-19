@@ -70,6 +70,29 @@ exactly; the extra figure is advisory and flagged when the two disagree.
 from .common import num
 
 MIN_ABS_R = 0.30
+
+
+def _strength_band(r):
+    """A words-not-numbers reading of |r|, for section 17 of new_prompt.md.
+
+    Coarse on purpose. A finer scale would imply precision a correlation coefficient over ~150
+    weekly observations does not carry, and the point of the band is to stop a sub-threshold
+    number being narrated as absence.
+    """
+    if r is None:
+        return "unmeasured"
+    a = abs(r)
+    if a < 0.10:
+        return "negligible"
+    if a < 0.20:
+        return "very weak"
+    if a < MIN_ABS_R:
+        return "weak"
+    if a < 0.50:
+        return "moderate"
+    if a < 0.70:
+        return "strong"
+    return "very strong"
 MIN_N = 30
 MAX_LAG = 13
 
@@ -235,13 +258,33 @@ def evaluate(history, driver_field, tier_c_weeks=None):
         "threshold_n": MIN_N,
         "trend_warning": trend_warning,
         "label": label_for(driver_field),
+        # NOT CONFIRMED is not the same claim as ABSENT, and the old wording made the stronger
+        # one: "does not track this queue's demand" asserted absence from a sub-threshold
+        # coefficient. On a real card that read "planned units for delivery (shipment) does not
+        # track this queue's demand (r=-0.22 over 155 weeks)" -- discarding both the direction
+        # (an inverse relationship is not an absent one) and the sample it rests on.
+        #
+        # The GATE DECISION is deliberately unchanged: `relevant`, `verdict` and the availability
+        # this feeds are what confidence reads, and confidence must not move. Only the sentence
+        # changes, plus the enrichment fields below it.
+        "relationship_state": ("confirmed" if relevant else "not_confirmed"),
+        "direction": (None if r is None else ("inverse" if r < 0 else "positive")),
+        "strength_band": _strength_band(r),
         "reason": (
             f"{label_for(driver_field)} tracks this queue's demand (r={r:+.2f} over {n} weeks"
             + (f", at a {lag}-week lag" if lag else "") + ")."
             if relevant else
-            f"{label_for(driver_field)} does not track this queue's demand (r={r:+.2f} over "
-            f"{n} weeks, below the {MIN_ABS_R} threshold), so it is Not Applicable for this "
-            f"queue and carries no confidence penalty."),
+            f"{label_for(driver_field)} shows a {_strength_band(r)} "
+            f"{'inverse' if r < 0 else 'positive'} relationship with this queue's demand "
+            f"(r={r:+.2f} over {n} weeks; {MIN_ABS_R} is the minimum this gate counts as "
+            f"tracking), "
+            + (f"tested contemporaneously as a stock measure. "
+               if nature == "stock" else
+               f"best of lags {min(scanned)}-{max(scanned)} was {lag} week(s). ")
+            + f"On this evidence the relationship is NOT CONFIRMED, which is a weaker claim than "
+              f"absent: a coefficient below the threshold is not proof the driver has no "
+              f"influence. It is therefore not used to generate a business hypothesis, and it "
+              f"carries no confidence penalty."),
     }
 
 
@@ -272,9 +315,13 @@ def evaluate_all(history, offering=None, tier_c_weeks=None):
         "results": results,
         "primary_driver": (relevant[0]["driver"] if relevant else None),
         "any_driver_relevant": bool(relevant),
-        "note": ("No driver passes the relevance gate for this queue, so driver attribution is "
-                 "Not Applicable here and the investigation routes to calendar, volume and "
-                 "data-quality hypotheses instead."
+        # Same correction as the per-driver reason: say what was measured, and do not let
+        # "no driver passed" be read as "no driver matters".
+        "note": ("No driver passes the relevance gate for this queue, so no business hypothesis "
+                 "is generated and the investigation routes to calendar, volume and data-quality "
+                 "hypotheses instead. That is a statement about what could be CONFIRMED here, "
+                 "not a finding that these drivers have no influence -- each one's measured "
+                 "strength, direction and sample are published beside it."
                  if not relevant else
                  f"{len(relevant)} driver(s) passed the gate; "
                  f"{relevant[0]['driver']} is primary by the {offering or 'default'} cascade."),

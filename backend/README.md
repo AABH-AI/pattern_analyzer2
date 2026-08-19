@@ -4,7 +4,8 @@ Gives the prototype a **live "Connect to SQL Server"** path (the browser can't r
 SQL Server directly, so this small FastAPI service does the query and hands rows to the UI).
 The existing **file-upload** path in `rca_console.html` still works with no backend.
 
-> Quickest path on Windows: run **`..un.bat`** from the repo root instead of steps 1-4 — it
+> Quickest path on Windows: run **`..
+un.bat`** from the repo root instead of steps 1-4 — it
 > installs deps, ensures `config.json`, brings up the VPN, checks the SQL host, starts this
 > backend and opens the console. `run.bat --all` also runs the test suites in `../results/`.
 
@@ -35,10 +36,10 @@ python upload_excel_to_sql.py               # create table + bulk insert (~139k 
 
 ## 4. Run the connector
 ```bash
-uvicorn sql_backend:app --port 8000
+uvicorn sql_backend:app --port 9000
 ```
-Open **http://localhost:8000/rca_console.html** → click **🗄 Connect to SQL Server**.
-(You can also open the .html file directly; CORS is open so it still reaches localhost:8000.)
+Open **http://localhost:9000/rca_console.html** → click **🗄 Connect to SQL Server**.
+(You can also open the .html file directly; CORS is open so it still reaches localhost:9000.)
 
 ## Endpoints
 - `GET /api/health` → `{status, configured, table}`

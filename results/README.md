@@ -110,7 +110,7 @@ after which every call 429s and the engine (correctly) degrades.
 ## Run it
 
 ```bash
-# VPN connected (10.10.9.75:1433 reachable), backend running on :8000
+# VPN connected (10.10.9.75:1433 reachable), backend running on :9000
 cd backend && python ../results/run_validation.py
 ```
 

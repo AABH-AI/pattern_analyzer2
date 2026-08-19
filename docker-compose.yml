@@ -1,13 +1,13 @@
 # Internal-server deployment. Put SQL_USERNAME / SQL_PASSWORD in a .env file
 # next to this file (see backend/.env.example), then:  docker compose up -d --build
-# Access on the AA network:  http://<server-ip>:8000/rca_console.html
+# Access on the AA network:  http://<server-ip>:9000/rca_console.html
 services:
   rca:
     build:
       context: .
       dockerfile: backend/Dockerfile
     ports:
-      - "8000:8000"
+      - "9000:9000"
     environment:
       SQL_SERVER: "10.10.9.75"
       SQL_DATABASE: "Playground"

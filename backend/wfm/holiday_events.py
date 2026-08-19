@@ -129,6 +129,49 @@ def event_key(name, semantic_family=None):
     return key, modifier, tokens
 
 
+# prompt2.md clause B: a holiday next to the weekend extends the closure across consecutive days,
+# and WHICH side it sits on is a different operational fact. Friday runs the closure forward into
+# the weekend; Monday extends it backwards out of one. Lumping both into "adjoining" loses that.
+WEEKDAY_NAMES = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+WEEKEND_WEEKDAYS = ("Saturday", "Sunday")
+BEFORE_WEEKEND = "Friday"
+AFTER_WEEKEND = "Monday"
+
+
+def weekday_of(iso):
+    """Weekday name for an ISO date string, or None when it cannot be parsed.
+
+    Deliberately tolerant: a malformed date in the master must not take an investigation down.
+    """
+    try:
+        y, m, d = str(iso)[:10].split("-")
+        import datetime as _dt
+        return WEEKDAY_NAMES[_dt.date(int(y), int(m), int(d)).weekday()]
+    except Exception:
+        return None
+
+
+def weekday_structure(dates):
+    """Clause B/K: how this event's day(s) sit against the weekend.
+
+    Returns the weekday names plus four independent flags. They are NOT mutually exclusive -- a
+    two-day event can straddle Friday and Saturday -- so each is reported on its own rather than
+    collapsed into a single pattern label.
+    """
+    days = [w for w in (weekday_of(d) for d in (dates or [])) if w]
+    on_weekend = [w for w in days if w in WEEKEND_WEEKDAYS]
+    return {
+        "weekdays": days,
+        "holiday_on_weekend": bool(on_weekend) and len(on_weekend) == len(days),
+        "holiday_touches_weekend": bool(on_weekend),
+        # Friday: the closure runs FORWARD into the weekend.
+        "holiday_before_weekend": BEFORE_WEEKEND in days,
+        # Monday: the closure extends BACKWARD out of the weekend.
+        "holiday_after_weekend": AFTER_WEEKEND in days,
+        "long_weekend_candidate": bool(on_weekend) or BEFORE_WEEKEND in days or AFTER_WEEKEND in days,
+    }
+
+
 def _date_ordinal(iso):
     """Days since epoch for an ISO date string, or None. Avoids importing datetime for arithmetic
     on a handful of strings, and tolerates the master's mixed formats by only accepting ISO."""
@@ -205,6 +248,9 @@ def normalise(holidays):
                 "raw_names": names,
                 "name_variants": len(names),
                 "dates": dates,
+                # prompt2.md clause D (weekday) and clause B (which side of the weekend). Derived
+                # from the DATE, so the weekday belongs to THIS event rather than to the week.
+                **weekday_structure(dates),
                 "days_in_event": len(dates) or 1,
                 "fiscal_weeks": weeks,
                 "offset_weeks": offsets,

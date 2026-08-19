@@ -24,7 +24,7 @@ The image bundles the Microsoft ODBC Driver 18, so nothing else to install but D
    ```
    docker compose up -d --build
    ```
-4. Open on the AA network: **`http://<server-ip>:8000/rca_console.html`** → **Connect to SQL Server (AA)**.
+4. Open on the AA network: **`http://<server-ip>:9000/rca_console.html`** → **Connect to SQL Server (AA)**.
 
 `restart: unless-stopped` keeps it up across reboots. Update later with `git pull && docker compose up -d --build`.
 
@@ -38,11 +38,11 @@ The image bundles the Microsoft ODBC Driver 18, so nothing else to install but D
    `auth: sql`, your username/password, matching `driver`).
 4. Install as an always-on service with [NSSM](https://nssm.cc):
    ```
-   nssm install RCAConsole "C:\Path\to\python.exe" "-m uvicorn sql_backend:app --host 0.0.0.0 --port 8000"
+   nssm install RCAConsole "C:\Path\to\python.exe" "-m uvicorn sql_backend:app --host 0.0.0.0 --port 9000"
    nssm set RCAConsole AppDirectory "C:\Path\to\repo\backend"
    nssm start RCAConsole
    ```
-5. Allow TCP 8000 through the server firewall (internal only). Access `http://<server-ip>:8000/rca_console.html`.
+5. Allow TCP 9000 through the server firewall (internal only). Access `http://<server-ip>:9000/rca_console.html`.
 
 ---
 
@@ -57,12 +57,12 @@ The image bundles the Microsoft ODBC Driver 18, so nothing else to install but D
    After=network.target
    [Service]
    WorkingDirectory=/opt/rca/backend
-   ExecStart=/usr/bin/uvicorn sql_backend:app --host 0.0.0.0 --port 8000
+   ExecStart=/usr/bin/uvicorn sql_backend:app --host 0.0.0.0 --port 9000
    Restart=always
    [Install]
    WantedBy=multi-user.target
    ```
-4. `sudo systemctl enable --now rca` · open TCP 8000 internally · access `http://<server-ip>:8000/rca_console.html`.
+4. `sudo systemctl enable --now rca` · open TCP 9000 internally · access `http://<server-ip>:9000/rca_console.html`.
 
 ---
 
@@ -81,7 +81,7 @@ The image bundles the Microsoft ODBC Driver 18, so nothing else to install but D
 
 For a developer machine rather than a shared server, `run.bat` does the whole thing in one
 command — dependencies, `config.json`, VPN (Cisco Secure Client detect/connect/poll), SQL
-reachability, port 8000, backend + health wait, optional test suites, browser:
+reachability, port 9000, backend + health wait, optional test suites, browser:
 
 ```bat
 run.bat            :: setup and run

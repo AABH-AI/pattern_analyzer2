@@ -69,6 +69,33 @@ def jargon_in(text):
     return sorted({t for t in EXEC_JARGON if t in low})
 
 
+# Section 27 of new_prompt.md, and a DIFFERENT list on purpose. EXEC_JARGON is unconditional --
+# "Spearman rho" never belongs in executive prose. A causal verb is conditional: the spec bans it
+# "unless causal evidence is sufficiently strong". Folding these into EXEC_JARGON would assert the
+# unconditional rule and would also retroactively fail prose that is legitimately causal, so they
+# are tracked separately and reported beside it.
+CAUSAL_VERBS = ("caused", "causing", "drove", "driving", "generated", "generating",
+                "resulted in", "resulting in", "led to", "produced", "triggered")
+
+# What the spec asks for instead. Published so a writer -- human or model -- is given the
+# replacement rather than only the prohibition.
+HEDGED_ALTERNATIVES = ("supported", "consistent with", "contributed", "may have influenced",
+                       "not confirmed", "could not be isolated")
+
+
+def causal_verbs_in(text):
+    """Unsupported causal verbs in a piece of executive prose (section 27).
+
+    Whole-word matched by PADDING rather than a regex word boundary: the phrases are multi-word
+    ("resulted in", "led to"), and a plain substring test produced false hits -- "produced" fired
+    inside "reproduced" and "led to" fired inside "controlled to". Normalising every non-alphanumeric
+    run to a single space and then looking for " verb " handles both, with nothing to escape.
+    """
+    import re as _re
+    low = " " + _re.sub("[^a-z0-9]+", " ", str(text or "").lower()) + " "
+    return sorted({v for v in CAUSAL_VERBS if (" " + v + " ") in low})
+
+
 def _fmt(n, nd=0):
     if not isinstance(n, (int, float)):
         return "n/a"
@@ -613,6 +640,9 @@ def why_bullets(result):
     for i, b in enumerate(out, start=1):
         b["rank"] = i
         b["jargon_found"] = jargon_in(b["text"])
+        # Section 27. Reported, not stripped: a bullet whose evidence genuinely supports causation
+        # is allowed to say so, and the reviewer needs to see WHICH verb was used to judge that.
+        b["causal_verbs_found"] = causal_verbs_in(b["text"])
     return {
         "bullets": out,
         "count": len(out),
@@ -623,6 +653,8 @@ def why_bullets(result):
         "note": ("Order is set by the evidence, not by the narrative model. The model may reword a "
                  "bullet; it cannot reorder, add or remove one."),
         "jargon_found": sorted({j for b in out for j in b["jargon_found"]}),
+        "causal_verbs_found": sorted({v for b in out for v in b["causal_verbs_found"]}),
+        "preferred_phrasing": list(HEDGED_ALTERNATIVES),
     }
 
 
@@ -718,6 +750,11 @@ def calendar_panel(holiday, weekend):
         "zero_count_but_adjacent": h.get("zero_count_but_adjacent"),
         "row_holiday_count": h.get("row_holiday_count"),
         "calendar_names": h.get("calendar_names") or [],
+        # prompt2.md clause F -- MANDATORY. These two must never be shown as one list: on a queue
+        # with Holiday_Count = 0 the old single list read as four holidays "in this week" when none
+        # of them fell inside it.
+        "holidays_in_target_week": h.get("holidays_in_target_week"),
+        "recent_holidays_affecting_target_week": h.get("recent_holidays_affecting_target_week"),
         "raw_source_names": h.get("calendar_raw_names") or [],
         "event_summary": h.get("event_summary"),
         "event_summary_source": h.get("event_summary_source"),
@@ -742,11 +779,24 @@ def calendar_panel(holiday, weekend):
         "historical_consistency": h.get("historical_consistency"),
         "expected_direction": h.get("expected_direction"),
         "statement": h.get("reading"),
+        # Section 9 measurement A, beside measurement B (`phases`) so a reader sees both and the
+        # difference between them. Without this the card could only show the standing level.
+        "phase_transition": h.get("phase_transition"),
+        # Section 10's band over that rebound's history.
+        "rebound_repeatability": h.get("rebound_repeatability"),
         "weekend": {
             "supported": w.get("weekend_analysis_supported"),
             "grain": w.get("grain"),
             "statement": w.get("statement"),
             "holiday_day_structure": w.get("holiday_day_structure"),
+            # Section 12. The weekend VOLUME effect is still not isolable and the statement above
+            # still says so -- but whether a holiday adjoining the weekend behaves differently IS
+            # measurable from weekly totals, and the card was showing only the limitation.
+            "holiday_weekend_interaction": w.get("holiday_weekend_interaction"),
+            # Clause C: three states, not one refusal. Clause K: per-weekday weekly outcomes.
+            "clause_c_states": w.get("clause_c_states"),
+            "weekday_outcomes": w.get("weekday_outcomes"),
+            "p2_state": w.get("p2_state"),
         },
         "how_to_read": ("A week with no holiday recorded on its own row can still be pre- or "
                         "post-holiday. An observed phase effect is only held against the plan "
@@ -778,8 +828,16 @@ def driver_panel(lag, asu):
                      "direction": d.get("direction"), "stability": d.get("stability"),
                      "paired_weeks": d.get("paired_weeks"),
                      "usable_as_evidence": d.get("usable_as_evidence"),
+                     # Section 16 item 10: the relationship in the weeks that actually MISSED, which
+                     # are the only weeks an RCA is about. A driver can track ordinary weeks and say
+                     # nothing about the misses.
+                     "during_miss_weeks": d.get("during_miss_weeks"),
                      "reading": d.get("reading")}
                     for d in (l.get("drivers") or [])],
+        # Sections 16-17. Present when the relevance gate rejected a driver on a measurable but
+        # sub-threshold coefficient: it is re-examined at other lags and on week-to-week change so
+        # "not confirmed at the gate" is not the last word. It never promotes a driver to evidence.
+        "enrichment": l.get("enrichment"),
         "asu_decomposition": a,
         "how_to_read": ("Drivers were selected by the hypotheses that fired, not swept. "
                         "'Populated', 'sparse' and 'absent' are three different findings: only the "
@@ -918,9 +976,147 @@ def build(result, ladder=None):
         "status": result.get("status"),
         "incomplete_reason": result.get("incomplete_reason"),
         "engine": result.get("engine"),
+        # Section 28's A-F reading order, published BESIDE the eighteen sections rather than
+        # replacing them. See a_to_f_view's docstring for why section 1 wins the conflict.
+        "view_a_to_f": a_to_f_view(result),
         # 2.1.0: eight additive sections, a criticality band and the miss mechanism on the header.
         # Nothing removed or restructured -- see the section list above.
         "card_version": "2.1.0",
+    }
+
+
+def a_to_f_view(result):
+    """Section 28's A-F reading order, assembled from what the eighteen sections already hold.
+
+    A VIEW, not a calculation. Nothing here computes a number; every value is drawn from a block the
+    engine already produced, and every entry names its source in `from` so this can never drift into
+    being a second source of truth.
+    """
+    rc = result.get("root_cause") or {}
+    conf = result.get("confidence") or {}
+    crit = result.get("criticality") or {}
+    mech = result.get("miss_mechanism") or {}
+    resp = result.get("forecast_response_diagnostic") or {}
+    hol = result.get("holiday_response") or {}
+    wk = result.get("weekend_diagnostic") or {}
+    lag = result.get("lagged_driver_evidence") or {}
+    asu = result.get("asu_decomposition") or {}
+    stats = result.get("statistical_evidence") or {}
+    narrative = result.get("narrative") or {}
+    # The header is assembled inline in build(); reading forecast_summary directly keeps this view
+    # independent of build()'s locals and draws on exactly the same source the header uses.
+    fs = result.get("forecast_summary") or {}
+
+    def phase(name):
+        block = ((hol.get("historical_response") or {}).get("phases") or {}).get(name) or {}
+        if not hol.get("available"):
+            return {"state": "NOT_AVAILABLE", "detail": hol.get("reason") or hol.get("note")}
+        if not block:
+            return {"state": "NOT_AVAILABLE",
+                    "detail": "no measured history for this phase on this queue"}
+        if not block.get("testable"):
+            return {"state": "INCONCLUSIVE", "detail": block.get("reason")}
+        return {"state": "MEASURED", "effect_pct": block.get("actual_effect_pct"),
+                "instances": block.get("instances"), "detail": block.get("reading")}
+
+    def driver(name):
+        for row in (lag.get("drivers") or []):
+            if row.get("driver") == name:
+                return {"state": ("AVAILABLE" if row.get("usable_as_evidence") else "NOT_CONFIRMED"),
+                        "coverage": row.get("coverage"),
+                        "best_lag_weeks": row.get("best_lag_weeks"),
+                        "during_miss_weeks": row.get("during_miss_weeks"),
+                        "detail": row.get("reading") or row.get("interpretation")}
+        # Not requested is a different finding from not related -- section 17.
+        enr = (lag.get("enrichment") or {})
+        for row in (enr.get("drivers") or []):
+            if row.get("driver") == name:
+                return {"state": "NOT_CONFIRMED", "coverage": row.get("coverage"),
+                        "best_lag_weeks": row.get("strongest_lag_weeks"),
+                        "detail": row.get("reading")}
+        return {"state": "NOT_TESTED",
+                "detail": (lag.get("reason")
+                           or "no hypothesis required this driver, so it was not tested. An "
+                              "untested driver is not a driver that was ruled out.")}
+
+    not_confirmed = []
+    for item in (result.get("limitations") or []):
+        not_confirmed.append({"item": item, "from": "8_limitations"})
+    for g in ((result.get("driver_gate") or {}).get("results") or []):
+        if g.get("relationship_state") == "not_confirmed":
+            not_confirmed.append({"item": g.get("reason"), "from": "driver_gate"})
+    if not wk.get("weekend_analysis_supported"):
+        not_confirmed.append({"item": wk.get("statement"), "from": "14_calendar_context"})
+    res_block = result.get("evidence_resolution") or {}
+    if res_block.get("state") in ("mixed", "rejected"):
+        not_confirmed.append({"item": res_block.get("reason") or res_block.get("reading"),
+                              "from": "17_contradiction_resolution"})
+
+    return {
+        "A_executive_rca": {
+            "from": ["1_executive_summary", "2_root_cause", "3_confidence", "11_criticality"],
+            "primary_rca": rc.get("hypothesis"),
+            "confidence": {"level": conf.get("level"), "score_pct": conf.get("score_pct"),
+                           "capped": conf.get("capped")},
+            "criticality": crit.get("band"),
+            "actual": fs.get("actual"), "forecast": fs.get("forecast"),
+            "miss_contacts": fs.get("absolute_variance_contacts"),
+            "adherence_pct": fs.get("adherence_pct"),
+            "direction": fs.get("direction"),
+            "executive_narrative": narrative.get("executiveSummary"),
+        },
+        "B_why_did_forecast_miss": {
+            "from": ["12_why_this_happened", "13_forecast_response"],
+            "demand_movement": (resp.get("miss_decomposition") or {}).get("reading"),
+            "forecast_response": (resp.get("response") or {}).get("classification"),
+            "forecast_response_detail": (resp.get("response") or {}).get("reason"),
+            "forecast_failure_mechanism": mech.get("primary"),
+            "mechanism_meaning": mech.get("meaning"),
+            # Section 15's finer vocabulary, where the evidence supported it.
+            "refinements": mech.get("refinements") or [],
+            "spec_taxonomy": mech.get("spec_taxonomy") or {},
+        },
+        "C_calendar_impact": {
+            "from": ["14_calendar_context"],
+            "pre_holiday": phase("pre_holiday"),
+            "holiday": phase("holiday"),
+            "post_holiday": phase("post_holiday"),
+            "weekend": {"state": ("MEASURED" if wk.get("weekend_analysis_supported")
+                                  else "NOT_AVAILABLE"),
+                        "detail": wk.get("statement")},
+            "long_weekend": (wk.get("holiday_weekend_interaction") or {}).get(
+                "long_weekend_contrast"),
+            "post_holiday_rebound": hol.get("phase_transition"),
+            "historical_consistency": hol.get("rebound_repeatability"),
+            "forecast_captured_the_calendar_change": (hol.get("forecast_capture") or {}).get(
+                "classification"),
+        },
+        "D_demand_drivers": {
+            "from": ["15_driver_evidence", "statistical_evidence"],
+            "asu": driver("Actual_ASU"),
+            "asu_decomposition": {"state": ("MEASURED" if asu.get("available") else "NOT_AVAILABLE"),
+                                  "detail": asu.get("reading") or asu.get("reason")},
+            "shipment_final_units": driver("Final_Units"),
+            "final_upp_units": driver("Final_upp_units"),
+            "seasonality": (stats.get("metrics") or {}).get("seasonality"),
+            "momentum_shift": (stats.get("metrics") or {}).get("momentum"),
+        },
+        "E_what_is_not_confirmed": {
+            "from": ["8_limitations", "9_data_availability", "17_contradiction_resolution",
+                     "18_catalogue_gaps", "driver_gate"],
+            "items": [x for x in not_confirmed if x.get("item")],
+            "catalogue_gaps": result.get("unexplained_observations") or [],
+        },
+        "F_wfm_action": {
+            "from": ["7_recommendations"],
+            "recommendations": result.get("recommendations") or [],
+            "note": ("Only actions the evidence already supports. An empty list means the evidence "
+                     "did not support a recommendation, not that none was sought."),
+        },
+        "note": ("Section 28's reading order, as a VIEW over the eighteen numbered sections -- "
+                 "which are unchanged. Section 28 asks for A-F and section 1 forbids reordering "
+                 "existing output, so both are honoured: nothing moved, and A-F points at the same "
+                 "data. Every entry names its source section in `from`."),
     }
 
 

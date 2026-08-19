@@ -10,7 +10,7 @@ Quick start:
 - **Docker:** `docker compose up -d --build` (see `DEPLOY.md`)
 - **No install / no SQL:** open `rca_console.html` and use **Upload weekly file**.
 
-Then open **http://localhost:8000/rca_console.html**.
+Then open **http://localhost:9000/rca_console.html**.
 
 Key facts:
 - Front end is one self-contained file (`rca_console.html`) — **no libraries, no CDN, no build**.
@@ -43,7 +43,7 @@ node   results/check_ui_render.js                 # the REAL renderers over REAL
 cd backend && python ../results/run_offline_investigation.py     # offline, no SQL, no model
 cd backend && python ../results/run_live_spec_validation.py  # live SQL + live model
 ```
-`run_live_spec_validation.py` uses port **8011**, not 8000, and refuses to start if anything is
+`run_live_spec_validation.py` uses port **8011**, not the app's port, and refuses to start if anything is
 already listening — a stale server on 8000 silently answered part of a run with pre-upgrade code.
 
 Details: `AGENTS.md`, `IMP_DOCS/fc-decision-card-engine.md`, `IMP_DOCS/wfm-rca-engine.md`,

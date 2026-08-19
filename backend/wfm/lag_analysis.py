@@ -62,7 +62,7 @@ DEPENDENCIES: standard library only, consistent with the rest of `backend/wfm/`.
 """
 import math
 
-from .common import week_ordinals
+from .common import week_ordinals, num
 
 # --- lags tested, in weeks. 0 is kept so this module's answer is directly comparable with the
 #     existing same-week correlation rather than being a separate universe of numbers. ---
@@ -72,6 +72,15 @@ LAGS = (0, 1, 2, 4, 8)
 #     disagree about whether the same driver is usable. ---
 MIN_PAIRS = 12          # fewer paired observations than this and no coefficient is reported
 MIN_STRENGTH = 0.5      # |rho| below this is not strong enough to use as evidence
+# How far Spearman and Pearson may differ before the relationship is called non-proportional.
+# Same value as STABILITY_TOLERANCE below, and for the same reason: it is the gap at which two
+# estimates of one relationship stop telling the same story. One tolerance, used twice.
+RANK_LINEAR_TOLERANCE = 0.25
+# A week is a MISS at the engine's fixed +/-5% RCA generation threshold. Held here as a module
+# constant because lag_analysis is engine-agnostic by design and must not import spec_engine; if
+# that threshold ever changes, this has to change with it.
+MISS_THRESHOLD_PCT = 5.0
+MIN_MISS_PAIRS = 8      # below this the miss-week estimate is reported as too thin, never as zero
 STABILITY_MIN_PAIRS = 8  # per half; below this the split test is not attempted
 STABILITY_SIGN_FLIP = "unstable"      # halves disagree on direction
 STABILITY_TOLERANCE = 0.25            # |rho_first - rho_second| above this is only "moderate"
@@ -136,6 +145,29 @@ def _ranks(values):
             out[order[k]] = average_rank
         i = j + 1
     return out
+
+
+def _pearson(xs, ys):
+    """Linear correlation, reported BESIDE Spearman -- never instead of it (section 16).
+
+    Spearman stays the decision measure because it is rank-based and so is not dragged by a single
+    extreme week, which weekly contact volumes produce routinely. Pearson is published because
+    section 16 asks for both, and because the GAP between them is itself a reading: when the ranks
+    agree strongly and the linear fit does not, the relationship is real but not proportional --
+    driven by a few large weeks rather than moving smoothly with the driver.
+    """
+    n = len(xs)
+    if n < 2:
+        return None
+    mx = sum(xs) / n
+    my = sum(ys) / n
+    dx = [x - mx for x in xs]
+    dy = [y - my for y in ys]
+    num = sum(a * b for a, b in zip(dx, dy))
+    den = (sum(a * a for a in dx) ** 0.5) * (sum(b * b for b in dy) ** 0.5)
+    if not den:
+        return None
+    return num / den
 
 
 def _spearman(xs, ys):
@@ -263,6 +295,46 @@ def _stability(xs, ys):
     return "stable", _rnd(first), _rnd(second)
 
 
+def _miss_week_relationship(rows, driver, lag, change, ordinals=None):
+    """Section 16 item 10: does the relationship hold in the weeks that ACTUALLY MISSED?
+
+    A driver can track demand across ordinary weeks and say nothing about the weeks the forecast got
+    wrong -- and those are the only weeks an RCA is about. Reported separately from the all-weeks
+    figure so the two can disagree visibly rather than being averaged into one number.
+
+    Restricted to weeks where |adherence| exceeds the engine's generation threshold. Reported as too
+    thin below MIN_MISS_PAIRS rather than as an absence of relationship.
+    """
+    ordinals = ordinals or week_ordinals([wk for wk, _ in rows])
+    missed = []
+    for wk, row in rows:
+        f = num(row.get("fcst_offered"))
+        a = num(row.get("Actual_Offered"))
+        if not f or a is None:
+            continue
+        if abs((1.0 - a / f) * 100.0) > MISS_THRESHOLD_PCT:
+            missed.append((wk, row))
+    if len(missed) < MIN_MISS_PAIRS:
+        return {"testable": False, "miss_weeks": len(missed),
+                "reason": ("only %d week(s) in this queue's history missed by more than %.0f%%; "
+                           "%d are needed before the relationship can be measured on them alone"
+                           % (len(missed), MISS_THRESHOLD_PCT, MIN_MISS_PAIRS))}
+    xs, ys = _paired(missed, driver, lag, change, ordinals)
+    if len(xs) < MIN_MISS_PAIRS:
+        return {"testable": False, "miss_weeks": len(missed), "paired": len(xs),
+                "reason": ("only %d paired observation(s) survive inside the miss weeks at this "
+                           "lag" % len(xs))}
+    rho = _spearman(xs, ys)
+    if rho is None:
+        return {"testable": False, "miss_weeks": len(missed), "paired": len(xs),
+                "reason": "the driver does not vary across the miss weeks"}
+    return {"testable": True, "miss_weeks": len(missed), "paired": len(xs),
+            "relationship_strength": _rnd(rho),
+            "direction": "positive" if rho >= 0 else "negative",
+            "strong_enough": abs(rho) >= MIN_STRENGTH,
+            "lag_weeks": lag, "relationship_type": _kind(lag, change)}
+
+
 def _candidate(rows, driver, lag, change, ordinals=None):
     """One (driver, lag, family) estimate, or None when there is not enough paired data."""
     xs, ys = _paired(rows, driver, lag, change, ordinals)
@@ -278,11 +350,21 @@ def _candidate(rows, driver, lag, change, ordinals=None):
                 "reason": "the driver does not vary over this window, so no relationship "
                           "can be measured"}
     label, first, second = _stability(xs, ys)
+    # Section 16 asks for both measures. `relationship_strength` remains SPEARMAN, so nothing that
+    # reads it -- strong_enough, _best, usable_as_evidence -- can move. Pearson rides beside it.
+    r_lin = _pearson(xs, ys)
+    gap = (abs(rho - r_lin) if r_lin is not None else None)
     return {"lag_weeks": lag, "relationship_type": _kind(lag, change), "weeks": len(xs),
             "relationship_strength": _rnd(rho), "testable": True,
             "direction": "positive" if rho >= 0 else "negative",
             "stability": label, "first_half_strength": first, "second_half_strength": second,
-            "strong_enough": abs(rho) >= MIN_STRENGTH}
+            "strong_enough": abs(rho) >= MIN_STRENGTH,
+            "rank_strength": _rnd(rho),
+            "linear_strength": _rnd(r_lin) if r_lin is not None else None,
+            "rank_vs_linear_gap": _rnd(gap) if gap is not None else None,
+            # A large gap means the ranks and the linear fit disagree: the relationship is not
+            # proportional, so a coefficient should not be read as "x% more driver, y% more demand".
+            "proportional": (None if gap is None else bool(gap <= RANK_LINEAR_TOLERANCE))}
 
 
 def _kind(lag, change):
@@ -413,10 +495,22 @@ def analyse(history, target_week=None):
             for change in (False, True):
                 candidates.append(_candidate(rows, driver, lag, change, ordinals))
         best = _best(candidates)
+        # Section 16 item 10, measured at the SAME lag and family as the strongest all-weeks
+        # candidate, so the two figures are comparable rather than measuring different things.
+        _ref = best or max(
+            (c for c in candidates
+             if c.get("testable") and isinstance(c.get("relationship_strength"), (int, float))),
+            key=lambda c: abs(c["relationship_strength"]), default=None)
+        during_miss = (_miss_week_relationship(
+            rows, driver, _ref.get("lag_weeks") or 0,
+            str(_ref.get("relationship_type") or "").endswith("change"), ordinals)
+            if _ref else {"testable": False,
+                          "reason": "no measurable all-weeks relationship to compare against"})
         entry.update({
             "tested": True,
             "candidates": candidates,
             "best": best,
+            "during_miss_weeks": during_miss,
             "usable_as_evidence": bool(best and best.get("strong_enough")
                                        and best.get("stability") != STABILITY_SIGN_FLIP),
             "interpretation": _interpret(driver, best, coverage_class, present, total),

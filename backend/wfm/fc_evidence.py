@@ -45,6 +45,8 @@ PERFORMANCE (section 48)
 tests only those. It never sweeps every column against every lag -- that is the N x M explosion
 the brief forbids, and it finds something every time.
 """
+import statistics as _st
+
 from . import data_granularity
 from . import forecast_response as fr
 from . import holiday_events
@@ -97,6 +99,114 @@ MECHANISM_MEANING = {
     COMPOUND_MISS: "More than one supported mechanism contributed materially.",
     DATA_LIMITATION: "Critical evidence is missing, so no defensible mechanism can be stated.",
 }
+
+# ==============================================================================
+# Section 15 -- the spec's failure-type vocabulary, and the three distinctions it draws that
+# these seven mechanisms did not.
+# ==============================================================================
+# Published so a reader of either vocabulary can line them up. FORECAST_RESPONSE_FAILURE has no
+# single counterpart: in the spec it is the GENERIC form of the INSUFFICIENT_* family, narrowed by
+# which signal was missed. DATA_LIMITATION has no counterpart at all and is retained, because
+# "no defensible mechanism can be stated" is a real outcome the spec's list has no room for.
+SPEC_TAXONOMY_MAP = {
+    FORECAST_BASELINE_FAILURE: "FORECAST_BASELINE_UNDER_LEVELING",
+    CALENDAR_RESPONSE_FAILURE: "INSUFFICIENT_CALENDAR_ADJUSTMENT",
+    DRIVER_RESPONSE_FAILURE: "INSUFFICIENT_DRIVER_RESPONSE",
+    DEMAND_EVENT_LOW_PREDICTABILITY: "LOW-PREDICTABILITY_DEMAND_EVENT",
+    COMPOUND_MISS: "COMPOUND_FORECAST_MISS",
+    FORECAST_RESPONSE_FAILURE: None,
+    DATA_LIMITATION: None,
+}
+
+# The three the spec distinguishes and this engine did not. They are REFINEMENTS of an existing
+# mechanism, never replacements for it -- see this module's patch note.
+REFINE_RESPONSE_LAG = "FORECAST_RESPONSE_LAG"
+REFINE_SEASONALITY_MIS_SPEC = "SEASONALITY_MIS_SPECIFICATION"
+REFINE_DRIVER_SIGNAL_ABSENT = "DRIVER_SIGNAL_NOT_AVAILABLE"
+
+REFINEMENT_MEANING = {
+    REFINE_RESPONSE_LAG: ("The plan did react, but late. Distinct from reacting too little: the "
+                          "remedy is when the plan is refreshed, not the size of the adjustment."),
+    REFINE_SEASONALITY_MIS_SPEC: ("The plan did not represent the level this week of the year "
+                                  "reliably reaches, so the miss starts in the seasonal profile "
+                                  "rather than in a within-week reaction."),
+    REFINE_DRIVER_SIGNAL_ABSENT: ("No usable driver history existed to react to. Distinct from a "
+                                  "driver response failure, where the signal was there and was "
+                                  "not used -- one is a data gap, the other is a process gap."),
+}
+
+# How far the plan may sit from the same-week historical level before the seasonal profile is the
+# story. Reuses hr.MATERIAL_SHARE so the holiday work and this share one scale.
+SEASONAL_MIS_SPEC_SHARE = hr.MATERIAL_SHARE
+
+
+def refine_mechanisms(candidates, response_block, lag_block):
+    """Section 15's three extra distinctions, as refinements of the mechanisms already found.
+
+    Returns a list of {refines, refinement, meaning, evidence}. It CANNOT add a mechanism, change
+    the primary, or touch confidence -- see this module's patch note for why that matters.
+    """
+    resp = (response_block or {}).get("response") or {}
+    baselines = (response_block or {}).get("baselines") or {}
+    found = {c.get("mechanism") for c in (candidates or [])}
+    out = []
+
+    # 1. Reacted LATE, as against reacted too little. forecast_response already separates these;
+    #    the mechanism layer collapsed both into FORECAST_RESPONSE_FAILURE.
+    if resp.get("classification") == "delayed_response" and FORECAST_RESPONSE_FAILURE in found:
+        out.append({
+            "refines": FORECAST_RESPONSE_FAILURE,
+            "refinement": REFINE_RESPONSE_LAG,
+            "meaning": REFINEMENT_MEANING[REFINE_RESPONSE_LAG],
+            "evidence": resp.get("reason"),
+        })
+
+    # 2. Was the plan away from the level THIS WEEK OF THE YEAR reliably reaches?
+    #
+    #    Reuses `baseline_error`, which the response block already computes and reconciles exactly,
+    #    rather than recomputing the same gap from a plan figure the block does not carry. Fires
+    #    ONLY when the expectation came from the same week in prior years: a material baseline error
+    #    measured against a RECENT window is a level error, not a seasonal mis-specification, and
+    #    calling it seasonal would be a claim the basis does not support.
+    base_err = (response_block or {}).get("baseline_error") or {}
+    expected = base_err.get("expected_demand")
+    gap_contacts = base_err.get("forecast_side_contribution")
+    if (base_err.get("material")
+            and baselines.get("expected_basis_key") == "same_week_median"
+            and expected and gap_contacts is not None
+            and FORECAST_BASELINE_FAILURE in found):
+        gap_share = abs(gap_contacts) / expected
+        if gap_share >= SEASONAL_MIS_SPEC_SHARE:
+            out.append({
+                "refines": FORECAST_BASELINE_FAILURE,
+                "refinement": REFINE_SEASONALITY_MIS_SPEC,
+                "meaning": REFINEMENT_MEANING[REFINE_SEASONALITY_MIS_SPEC],
+                "evidence": ("The plan sat %s contacts from the %s expected for this week of the "
+                             "year (%s) -- %s%% of that level. The miss starts in the seasonal "
+                             "profile the plan was built on, not in a within-week reaction."
+                             % (rnd(abs(gap_contacts)), rnd(expected),
+                                base_err.get("expected_basis"), rnd(gap_share * 100.0))),
+                "gap_vs_same_week_median_pct": rnd(gap_share * 100.0),
+                "expected_basis": base_err.get("expected_basis"),
+            })
+
+    # 3. No driver history to react to, as against a driver ignored. One is a data gap, the other
+    #    a process gap, and they have different owners.
+    if lag_block is not None:
+        rows = (lag_block or {}).get("drivers") or []
+        absent = [r.get("driver") for r in rows if r.get("coverage") in ("absent", "sparse")]
+        if absent and DRIVER_RESPONSE_FAILURE not in found:
+            out.append({
+                "refines": None,
+                "refinement": REFINE_DRIVER_SIGNAL_ABSENT,
+                "meaning": REFINEMENT_MEANING[REFINE_DRIVER_SIGNAL_ABSENT],
+                "evidence": ("No usable driver history for %s, so there was no driver signal "
+                             "available to react to. This is insufficient evidence, not a driver "
+                             "that was ruled out." % ", ".join(sorted(absent))),
+                "drivers": sorted(absent),
+            })
+    return out
+
 
 # The catalogue hypotheses each mechanism bears on. Used to attach evidence, never to invent a
 # hypothesis: if a mechanism has no catalogue entry it becomes an UNEXPLAINED_OBSERVATION.
@@ -402,7 +512,123 @@ def miss_streak(history, threshold_pct=None):
 # ==============================================================================
 # Section 16-18 -- lagged driver evidence, hypothesis-selected
 # ==============================================================================
-def lagged_driver_evidence(history, target_week, generated_ids):
+# Bands the gate calls sub-threshold but non-trivial. "negligible" (|r| < 0.10) is left out on
+# purpose: re-examining a coefficient that small invites reading noise as a signal, which is the
+# opposite failure from the one section 17 is guarding against.
+_ENRICHABLE_BANDS = ("very weak", "weak", "moderate", "strong", "very strong")
+
+
+def _strongest_candidate(lag_row):
+    """The strongest TESTABLE lag/change candidate, whether or not it clears MIN_STRENGTH.
+
+    `lag_analysis` only sets `best` when a candidate reaches MIN_STRENGTH (0.5). For exactly the
+    drivers this enrichment exists for -- the weak ones -- that means `best` is always None, so
+    reading `best` alone would make this block a restatement of the gate. Section 16 asks what the
+    relationship looks like at lags 0/1/2/4/8 on level AND change; that answer exists in
+    `candidates` either way, and reporting it sub-threshold is the point.
+    """
+    cands = [c for c in (lag_row.get("candidates") or [])
+             if c.get("testable") and isinstance(c.get("relationship_strength"), (int, float))]
+    if not cands:
+        return None, len(lag_row.get("candidates") or [])
+    return max(cands, key=lambda c: abs(c["relationship_strength"])), len(cands)
+
+
+def _rejected_driver_enrichment(history, target_week, gate_results):
+    """Run the lag analysis for drivers the RELEVANCE GATE rejected on a measurable coefficient.
+
+    Strictly enrichment. Published under its own key, it never sets `available`, and it is never
+    read by confidence or by hypothesis generation -- so a driver cannot re-enter as evidence
+    through this path. Its only job is to stop "not confirmed at the gate" being the last word,
+    which is what section 17 asks for in as many words.
+    """
+    rejected = [g for g in (gate_results or [])
+                if not g.get("relevant")
+                and g.get("relationship_state") == "not_confirmed"
+                and g.get("strength_band") in _ENRICHABLE_BANDS]
+    if not rejected:
+        return {"available": False,
+                "reason": ("no driver was rejected on a measurable-but-sub-threshold "
+                           "coefficient, so there is nothing for a lag test to revisit.")}
+
+    full = lag_analysis.analyse(history, target_week)
+    if not full.get("available"):
+        return {"available": False,
+                "reason": full.get("reason") or "the lag analysis could not run on this history."}
+
+    by_name = {d.get("driver"): d for d in (full.get("drivers") or [])}
+    rows = []
+    for g in rejected:
+        name = g.get("driver")
+        d = by_name.get(name) or {}
+        top, n_tested = _strongest_candidate(d)
+        rows.append({
+            "driver": name,
+            "label": g.get("label") or name,
+            "gate_verdict": "not_confirmed",
+            "gate_r": g.get("correlation"),
+            "gate_direction": g.get("direction"),
+            "gate_strength": g.get("strength_band"),
+            "gate_lags_scanned": g.get("lags_scanned"),
+            "coverage": d.get("coverage"),
+            "candidates_tested": n_tested,
+            "strongest_lag_weeks": (top or {}).get("lag_weeks"),
+            "strongest_relationship": (top or {}).get("relationship_type"),
+            "strongest_strength": (top or {}).get("relationship_strength"),
+            "strongest_direction": (top or {}).get("direction"),
+            "stability": (top or {}).get("stability"),
+            "clears_evidence_threshold": bool((top or {}).get("strong_enough")),
+            "interpretation": d.get("interpretation"),
+            # Deliberately never "usable_as_evidence". This block cannot promote a driver.
+            "changes_the_gate_verdict": False,
+            "reading": _enrichment_reading(g, d, top),
+        })
+    return {"available": True, "drivers": rows,
+            "lags_tested": list(lag_analysis.LAGS),
+            "families_tested": ["level", "change"],
+            "note": ("Sections 16-17. These drivers did NOT pass the relevance gate and are not "
+                     "used as evidence, in any hypothesis, or in confidence. They are re-examined "
+                     "at lags 0/1/2/4/8 on both levels and week-to-week change so that a "
+                     "sub-threshold same-period coefficient is not the last word on them."),
+            "feeds_confidence": False, "feeds_hypotheses": False}
+
+
+def _enrichment_reading(gate, lag_row, top):
+    """One sentence in section 17's required shape: strength, direction, timing, sample, limits."""
+    label = gate.get("label") or gate.get("driver")
+    r = gate.get("correlation")
+    head = (f"{label} showed a {gate.get('strength_band')} {gate.get('direction')} relationship at "
+            f"the gate (r={r:+.2f})" if isinstance(r, (int, float))
+            else f"{label} was not measurable at the gate")
+
+    cov = lag_row.get("coverage")
+    if cov in ("absent", None):
+        return (head + ", and this queue's history has no usable paired observations for it, so no "
+                       "lag or change relationship could be established. Insufficient evidence -- "
+                       "not a finding that the driver has no influence.")
+    if not top:
+        return (head + f", and none of the {len(lag_row.get('candidates') or [])} lag/change "
+                       f"combinations tested was measurable (too few paired weeks, or the driver "
+                       f"does not vary). Insufficient evidence rather than absence.")
+
+    rho = top.get("relationship_strength")
+    kind = str(top.get("relationship_type") or "").replace("_", " ")
+    tail = (f". Re-tested at lags {min(lag_analysis.LAGS)}-{max(lag_analysis.LAGS)} on both levels "
+            f"and week-to-week change, the strongest is {kind} at a {top.get('lag_weeks')}-week "
+            f"lag (rho={rho:+.2f}, {top.get('stability') or 'stability not assessed'})")
+
+    if top.get("strong_enough"):
+        return (head + tail + " -- which DOES reach the strength this engine treats as evidence, "
+                              "so this driver is worth a second look before it is dismissed. It "
+                              "still does not change the gate verdict on its own.")
+    if cov == "sparse":
+        return (head + tail + ", but coverage is sparse, so it is reported as sparse rather than "
+                              "treated as established.")
+    return (head + tail + ", still short of the strength needed to call it evidence. This is why "
+                          "the driver should be described as not confirmed rather than absent.")
+
+
+def lagged_driver_evidence(history, target_week, generated_ids, gate_results=None):
     """Sections 16-18. Lags only for drivers the GENERATED hypotheses actually require.
 
     Section 48 forbids testing every column at every lag. `generated_ids` is the set of catalogue
@@ -432,7 +658,15 @@ def lagged_driver_evidence(history, target_week, generated_ids):
                            "relationship was requested. Nothing was tested and nothing is "
                            "claimed either way."),
                 "note": ("Driver statistics are selected BY hypothesis (section 48). An untested "
-                         "driver is not a driver that was ruled out.")}
+                         "driver is not a driver that was ruled out."),
+                # Sections 16-17 of new_prompt.md: "A lagged relationship should be evaluated
+                # BEFORE shipment influence is rejected." Without this the lag analysis was
+                # unreachable in practice -- the gate rejects a driver on its coefficient, no
+                # business hypothesis fires, nothing requests the lag test, and the richer
+                # analysis never ran on ANY queue measured. Audited on three: SA Indonesia
+                # FW202716, UKI FW202717 and Brazil CEM ProSupport FW202722 (Pro offering with
+                # Planned_ASU 2,307,202) -- all three reported "nothing was tested".
+                "enrichment": _rejected_driver_enrichment(history, target_week, gate_results)}
 
     full = lag_analysis.analyse(history, target_week)
     if not full.get("available"):
@@ -593,6 +827,261 @@ def holiday_evidence(history, target_week, target_fields, holiday_context_block)
 # ==============================================================================
 # Section 25 -- weekend, grain-aware
 # ==============================================================================
+# Section 12. Day patterns that place a holiday against the weekend, so the closure runs across
+# consecutive days rather than interrupting a single midweek day.
+LONG_WEEKEND_PATTERNS = ("holiday_adjoining_weekend", "holiday_on_weekend")
+
+
+# ==============================================================================
+# prompt2.md clause M -- the five data-availability states.
+# Published ALONGSIDE the engine's Available / Missing / NotApplicable, never instead of them: those
+# three feed confidence dimensions and moving them would breach new_prompt.md sections 1 and 25.
+# ==============================================================================
+P2_AVAILABLE = "AVAILABLE"
+P2_PARTIAL = "PARTIALLY_AVAILABLE"
+P2_NOT_AVAILABLE = "NOT_AVAILABLE"
+P2_NOT_TESTABLE = "NOT_TESTABLE"
+P2_INCONCLUSIVE = "INCONCLUSIVE"
+
+# Engine vocabulary -> prompt2 vocabulary. "Missing" maps to PARTIALLY_AVAILABLE rather than
+# NOT_AVAILABLE because in this engine Missing means "relevant and present but too thin to rely on",
+# which is a different finding from absent -- the distinction section 17 of new_prompt.md turns on.
+P2_STATE_MAP = {
+    AVAILABLE: P2_AVAILABLE,
+    MISSING: P2_PARTIAL,
+    NOT_APPLICABLE: P2_NOT_AVAILABLE,
+}
+
+WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+
+
+def p2_state(engine_availability, testable=None):
+    """Map an engine availability onto prompt2's five states.
+
+    `testable=False` overrides to NOT_TESTABLE: the data may exist while the QUESTION cannot be
+    answered from it, which is the whole point of clause C's first state.
+    """
+    if testable is False:
+        return P2_NOT_TESTABLE
+    return P2_STATE_MAP.get(engine_availability, P2_INCONCLUSIVE)
+
+
+def weekday_outcomes(history, granularity=None, target_fields=None):
+    """prompt2.md clause K: historical weekly outcomes grouped by the WEEKDAY a holiday fell on.
+
+    Grouping comes from the row's Monday..Sunday flags. That is legitimate for this question -- the
+    flags say which weekday a holiday touched, which is precisely what clause K asks -- while clause
+    A's prohibition is on reading them as daily VOLUME. Every figure below is therefore a weekly
+    total for weeks of that shape, and the wording says so.
+
+    Reference group is weeks with no holiday day flagged at all.
+    """
+    gran = granularity or data_granularity.analyse(history, (target_fields or {}))
+    if not (gran.get("capabilities") or {}).get("holiday_day_of_week"):
+        return {"testable": False, "p2_state": P2_NOT_TESTABLE,
+                "reason": "the per-day holiday flags are unavailable or not confirmed as flags"}
+
+    ref, by_day = [], {d: [] for d in WEEKDAYS}
+    for row in (history or []):
+        actual = num(row.get("Actual_Offered"))
+        if actual is None:
+            continue
+        flagged = [d for d in WEEKDAYS if (num(row.get(d)) or 0) > 0]
+        if not flagged:
+            ref.append(actual)
+            continue
+        # A week with two holiday days counts toward BOTH weekdays. It is one week of evidence for
+        # each shape, not half a week of each, and pretending otherwise would understate both.
+        for d in flagged:
+            by_day[d].append(actual)
+
+    if len(ref) < hr.MIN_PHASE_INSTANCES:
+        return {"testable": False, "p2_state": P2_NOT_TESTABLE,
+                "reason": ("only %d week(s) have no holiday day flagged, so there is no reference "
+                           "level to compare weekday shapes against" % len(ref))}
+    ref_median = _st.median(ref)
+
+    days = {}
+    for d in WEEKDAYS:
+        vals = by_day[d]
+        if len(vals) < hr.MIN_PHASE_INSTANCES:
+            days[d] = {"measurable": False, "weeks": len(vals),
+                       "p2_state": P2_PARTIAL if vals else P2_NOT_AVAILABLE,
+                       "reason": ("only %d week(s) with a holiday on %s; %d needed"
+                                  % (len(vals), d, hr.MIN_PHASE_INSTANCES))}
+            continue
+        med = _st.median(vals)
+        eff = ((med / ref_median - 1.0) * 100.0) if ref_median else None
+        days[d] = {"measurable": True, "weeks": len(vals), "p2_state": P2_AVAILABLE,
+                   "median_actual": rnd(med),
+                   "effect_vs_no_holiday_week_pct": rnd(eff) if eff is not None else None,
+                   "reading": ("Weeks with a holiday on %s have historically run %s%% against this "
+                               "queue's no-holiday level, across %d week(s). This is a WEEKLY "
+                               "outcome for weeks of that shape -- it is not a %s volume effect."
+                               % (d, rnd(eff) if eff is not None else "n/a", len(vals), d))}
+    measurable = {d: v for d, v in days.items() if v.get("measurable")}
+    spread = None
+    if len(measurable) > 1:
+        effs = [v["effect_vs_no_holiday_week_pct"] for v in measurable.values()
+                if v.get("effect_vs_no_holiday_week_pct") is not None]
+        if effs:
+            spread = rnd(max(effs) - min(effs))
+    return {
+        "testable": True, "p2_state": P2_AVAILABLE,
+        "reference": {"weeks_with_no_holiday_day": len(ref), "median_actual": rnd(ref_median)},
+        "weekdays": days,
+        "measurable_weekdays": sorted(measurable),
+        "spread_across_weekdays_pts": spread,
+        "measures": ("weekly totals for weeks in which a holiday fell on each weekday. Clause K: "
+                     "the correct reading is 'historical weekly outcomes differ when the holiday "
+                     "falls on X', never 'X caused a volume reduction'."),
+    }
+
+
+def holiday_weekend_interaction(history, target_fields, granularity=None):
+    """Section 12: does a holiday that ADJOINS the weekend behave differently from a midweek one?
+
+    WHAT THIS CAN AND CANNOT SAY. Weekly totals cannot isolate a weekend volume effect -- section 11
+    and `weekend_evidence` both say so, and that does not change here. What the per-day holiday flags
+    DO permit is grouping this queue's own holiday weeks by where the holiday fell and comparing the
+    WEEK-LEVEL total between those groups. A long weekend removes more consecutive contactable days
+    than a midweek holiday, so if that matters for this queue it shows up as a difference between the
+    groups. That is a real answer to section 12's question and it is NOT the claim that the weekend
+    moved volume.
+
+    Thresholds are reused rather than invented: `hr.MIN_PHASE_INSTANCES` (4) for a group to be
+    measurable, and `hr.MATERIAL_SHARE` (10 percentage points here) for a difference between two
+    groups to count. One scale across the holiday work, not three.
+    """
+    gran = granularity or data_granularity.analyse(history, (target_fields or {}))
+    if not (gran.get("capabilities") or {}).get("holiday_day_of_week"):
+        return {"testable": False,
+                "reason": ("the per-day holiday flags are unavailable or not confirmed as flags, so "
+                           "the day a holiday fell on cannot be established"),
+                "note": ("A limit of the source, not a finding that long weekends do not matter "
+                         "for this queue.")}
+
+    buckets = {}
+    for row in (history or []):
+        actual = num(row.get("Actual_Offered"))
+        if actual is None:
+            continue
+        st = data_granularity.holiday_day_structure(row, gran)
+        if not st.get("testable"):
+            continue
+        buckets.setdefault(st.get("pattern") or "none", []).append(actual)
+
+    # Reference = weeks with NO holiday day flagged. Named precisely, because it is NOT the same
+    # construct as holiday_response's non-holiday baseline, which also excludes pre- and
+    # post-holiday phase weeks. Two similar baselines under one name is exactly how section 9's
+    # measurement A and measurement B came to be conflated.
+    ref = buckets.get("none") or []
+    if len(ref) < hr.MIN_PHASE_INSTANCES:
+        return {"testable": False,
+                "reason": ("only %d week(s) in this queue's history have no holiday day flagged, "
+                           "so there is no reference level to compare against" % len(ref))}
+    ref_median = _st.median(ref)
+
+    groups = {}
+    for pattern, vals in sorted(buckets.items()):
+        if pattern in ("none", None):
+            continue
+        if len(vals) < hr.MIN_PHASE_INSTANCES:
+            groups[pattern] = {"measurable": False, "instances": len(vals),
+                               "reason": ("only %d week(s) of this pattern; %d are needed"
+                                          % (len(vals), hr.MIN_PHASE_INSTANCES))}
+            continue
+        med = _st.median(vals)
+        effect = ((med / ref_median - 1.0) * 100.0) if ref_median else None
+        groups[pattern] = {
+            "measurable": True, "instances": len(vals),
+            "median_actual": rnd(med),
+            "effect_vs_no_holiday_week_pct": rnd(effect) if effect is not None else None,
+            "direction": (None if effect is None else
+                          ("up" if effect > 0 else ("down" if effect < 0 else "flat"))),
+        }
+
+    # THE section 12 question, asked directly rather than inferred from a holiday count.
+    material_pts = hr.MATERIAL_SHARE * 100.0
+    adjoining = groups.get("holiday_adjoining_weekend") or {}
+    midweek = groups.get("midweek_holiday") or {}
+    contrast = {"testable": False,
+                "reason": ("both an adjoining-weekend group and a midweek group need %d or more "
+                           "weeks before the two can be compared" % hr.MIN_PHASE_INSTANCES)}
+    if adjoining.get("measurable") and midweek.get("measurable"):
+        a = adjoining.get("effect_vs_no_holiday_week_pct")
+        m = midweek.get("effect_vs_no_holiday_week_pct")
+        if a is not None and m is not None:
+            diff = a - m
+            is_material = bool(abs(diff) >= material_pts)
+            reading = ("Holiday weeks that adjoin the weekend run %s%% against this queue's "
+                       "no-holiday level, versus %s%% for a midweek holiday -- a difference of "
+                       "%s points. On this queue's own history the long-weekend structure %s make "
+                       "a material difference to the week's total."
+                       % (rnd(a), rnd(m), rnd(abs(diff)),
+                          "does" if is_material else "does not"))
+            if not is_material:
+                reading += (" The two behave closely enough that the day a holiday falls on is not "
+                            "worth a separate plan adjustment for this queue.")
+            contrast = {
+                "testable": True,
+                "adjoining_effect_pct": rnd(a), "midweek_effect_pct": rnd(m),
+                "difference_pts": rnd(diff),
+                "material": is_material,
+                "material_threshold_pts": rnd(material_pts),
+                "adjoining_is_deeper": bool(abs(a) > abs(m)),
+                "reading": reading,
+            }
+
+    target_st = data_granularity.holiday_day_structure(target_fields or {}, gran)
+    target_pattern = target_st.get("pattern") if target_st.get("testable") else None
+    return {
+        "testable": True,
+        "reference": {"weeks_with_no_holiday_day": len(ref), "median_actual": rnd(ref_median)},
+        "patterns": groups,
+        "long_weekend_contrast": contrast,
+        "target_pattern": target_pattern,
+        "long_weekend_flag": bool(target_pattern in LONG_WEEKEND_PATTERNS),
+        "interaction_material": (contrast.get("material") if contrast.get("testable") else None),
+        "measures": ("week-level totals grouped by the day a holiday fell on. NOT an isolated "
+                     "weekend volume effect -- weekly grain cannot provide one, and none is "
+                     "claimed."),
+    }
+
+
+def _weekend_three_states(history, target_fields, gran, supported):
+    """prompt2.md clause C. Three questions, answered separately.
+
+    Collapsing them is what produced a card that said "weekend impact cannot be isolated" and left
+    the reader with nothing -- when two of the three ARE answerable from weekly data.
+    """
+    inter = holiday_weekend_interaction(history, target_fields, gran)
+    wd = weekday_outcomes(history, gran, target_fields)
+    return {
+        "daily_weekend_demand_effect": {
+            "state": P2_NOT_TESTABLE if not supported else P2_AVAILABLE,
+            "reason": (gran.get("weekend_statement") if not supported else
+                       "day-level actual and forecast measures are present in this source"),
+            "note": ("Clause A: the Monday..Sunday columns are holiday FLAGS, not daily volumes, so "
+                     "no Saturday or Sunday demand figure exists to test."),
+        },
+        "weekly_calendar_structure": {
+            "state": wd.get("p2_state") or P2_INCONCLUSIVE,
+            "measurable_weekdays": wd.get("measurable_weekdays") or [],
+            "spread_across_weekdays_pts": wd.get("spread_across_weekdays_pts"),
+            "reason": wd.get("reason"),
+        },
+        "holiday_weekend_interaction": {
+            "state": (P2_AVAILABLE if inter.get("testable") else P2_NOT_TESTABLE),
+            "material": (inter.get("long_weekend_contrast") or {}).get("material"),
+            "reason": inter.get("reason") or (inter.get("long_weekend_contrast") or {}).get("reason"),
+        },
+        "note": ("Clause C: the weekend is not one question. A daily demand effect is not testable "
+                 "on this source; weekly calendar structure and the holiday-weekend interaction "
+                 "are. Reporting only the first would understate what the data supports."),
+    }
+
+
 def weekend_evidence(history, target_fields):
     """Section 25. Determine the grain FIRST, then say only what the grain supports.
 
@@ -614,6 +1103,18 @@ def weekend_evidence(history, target_fields):
         "capabilities": gran.get("capabilities"),
         "limitations": gran.get("limitations"),
         "holiday_day_structure": day_structure,
+        # Section 12, additive. A different question from the statement above: not "can a
+        # weekend effect be isolated" (it cannot) but "does this queue behave differently
+        # when a holiday adjoins the weekend", which weekly totals CAN answer.
+        "holiday_weekend_interaction": holiday_weekend_interaction(history, target_fields, gran),
+        # prompt2.md clause C -- the weekend is THREE questions with three different answers, and
+        # the document names stopping at "weekend impact cannot be isolated" as the error. The
+        # limitation above is still true and still stated; these say what IS answerable.
+        "clause_c_states": _weekend_three_states(history, target_fields, gran, supported),
+        # Clause K: per-weekday historical outcomes, a weekly reading and never a daily one.
+        "weekday_outcomes": weekday_outcomes(history, gran, target_fields),
+        # Clause M, mapped rather than replacing the engine's own availability.
+        "p2_state": p2_state(AVAILABLE if supported else NOT_APPLICABLE, testable=supported),
         "attaches_to": ["CAL-01"],
         "note": ("Grain is re-checked against the actual rows on every run, so this flips by "
                  "itself if a day-level source is added. Nothing about the weekend is asserted "
@@ -804,6 +1305,7 @@ def miss_mechanism(adherence, response_block, holiday_block, lag_block, asu_bloc
     if not (response_block or {}).get("available"):
         return {"mechanisms": [DATA_LIMITATION], "primary": DATA_LIMITATION,
                 "candidates": [], "rejected_for_direction": [],
+                "refinements": [], "spec_taxonomy": {DATA_LIMITATION: None},
                 "reason": ((response_block or {}).get("reason")
                            or "the forecast-response diagnostic could not run on this history.")}
 
@@ -884,6 +1386,7 @@ def miss_mechanism(adherence, response_block, holiday_block, lag_block, asu_bloc
         return {
             "mechanisms": [DATA_LIMITATION], "primary": DATA_LIMITATION,
             "candidates": candidates, "rejected_for_direction": rejected,
+            "refinements": [], "spec_taxonomy": {DATA_LIMITATION: None},
             "all_candidates_rejected_on_direction": True,
             "meaning": ("Every explanation the evidence raised would push demand the OPPOSITE way "
                         "to the miss, so none of them can be the cause. This is not missing data -- "
@@ -916,6 +1419,17 @@ def miss_mechanism(adherence, response_block, holiday_block, lag_block, asu_bloc
                                for h in MECHANISM_HYPOTHESES.get(c["mechanism"], ())}),
         "reason": ("More than one mechanism survived the direction gate and each contributed "
                    "materially." if compound else kept[0].get("evidence")),
+        # Section 15. REFINEMENTS of the mechanisms above, never additions to them: `mechanisms`,
+        # `primary`, `candidates` and `attaches_to` are untouched, so rejected_ids, ModelAgreement
+        # and confidence cannot move. That is section 24's instruction -- enrich, do not replace.
+        "refinements": refine_mechanisms(kept, response_block, lag_block),
+        "spec_taxonomy": {c["mechanism"]: SPEC_TAXONOMY_MAP.get(c["mechanism"]) for c in kept},
+        "spec_taxonomy_note": ("The spec names eight failure types, this engine seven. The mapping "
+                               "is published rather than the names changed, because renaming would "
+                               "alter published response values and the hypothesis attachments. "
+                               "FORECAST_RESPONSE_FAILURE is the generic form of the spec's "
+                               "INSUFFICIENT_* family; DATA_LIMITATION has no counterpart in the "
+                               "spec's list and is retained."),
     }
 
 

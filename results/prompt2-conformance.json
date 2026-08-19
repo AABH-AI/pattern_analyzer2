@@ -1,0 +1,102 @@
+{
+ "queue": "Canada Core French",
+ "week": 202722,
+ "rows": [
+  {
+   "clause": "A",
+   "requirement": "daily actual/forecast correctly reported absent",
+   "state": "OK",
+   "detail": "daily_actual=False daily_forecast=False"
+  },
+  {
+   "clause": "B/K",
+   "requirement": "holiday_weekday derived (which day it fell on)",
+   "state": "OK",
+   "detail": "days=['Wednesday'] pattern=midweek_holiday"
+  },
+  {
+   "clause": "B",
+   "requirement": "holiday_before_weekend vs holiday_after_weekend separated",
+   "state": "OK",
+   "detail": "per event: before=0 after=0 on_wknd=0 long=0"
+  },
+  {
+   "clause": "K",
+   "requirement": "per-weekday historical outcome comparison",
+   "state": "PARTIAL",
+   "detail": "3 of 7 weekdays measurable, spread 35.6 pts"
+  },
+  {
+   "clause": "C",
+   "requirement": "weekend answered as THREE separate states, not one refusal",
+   "state": "OK",
+   "detail": "daily=NOT_TESTABLE | weekly=AVAILABLE | holiday=AVAILABLE"
+  },
+  {
+   "clause": "D",
+   "requirement": "holiday join carries raw+canonical+group+date+type",
+   "state": "OK",
+   "detail": "have=['raw_names', 'canonical_name', 'event_key', 'dates', 'types', 'needs_review']"
+  },
+  {
+   "clause": "D",
+   "requirement": "weekday published on the joined holiday",
+   "state": "OK",
+   "detail": "weekdays=['Wednesday']"
+  },
+  {
+   "clause": "D",
+   "requirement": "semantic_group_id published",
+   "state": "OK",
+   "detail": "1 event(s) carry semantic_group_id in the clause-F views"
+  },
+  {
+   "clause": "E",
+   "requirement": "executive list uses canonical semantic names only",
+   "state": "OK",
+   "detail": "raw=1 -> displayed=1 ['canada day']"
+  },
+  {
+   "clause": "F",
+   "requirement": "HOLIDAYS_IN_TARGET_WEEK is its own field",
+   "state": "OK",
+   "detail": "Holidays in this week: canada day."
+  },
+  {
+   "clause": "F",
+   "requirement": "RECENT_HOLIDAYS_AFFECTING_TARGET_WEEK is its own field",
+   "state": "OK",
+   "detail": "in_week=1 adjacent=0, no leak=True"
+  },
+  {
+   "clause": "G",
+   "requirement": "7 driver tests incl. miss-week + forecast response",
+   "state": "OK",
+   "detail": "main=True enrichment=None"
+  },
+  {
+   "clause": "H",
+   "requirement": "level and change relationships both reported",
+   "state": "OK",
+   "detail": "candidate families are same_week/lagged x level/change"
+  },
+  {
+   "clause": "J",
+   "requirement": "ASU split published as composition, not cause",
+   "state": "OK",
+   "detail": "available=False"
+  },
+  {
+   "clause": "L",
+   "requirement": "queue share of the wider gap stated, not blamed",
+   "state": "OK",
+   "detail": "The pattern starts at Region level (CSG / Americas): 80,766 contacts a"
+  },
+  {
+   "clause": "M",
+   "requirement": "the five prompt2 availability states published",
+   "state": "OK",
+   "detail": "in use here: ['AVAILABLE', 'NOT_TESTABLE'] (engine keeps ['Available', 'Missing', 'NotApplicable'] for confidence)"
+  }
+ ]
+}

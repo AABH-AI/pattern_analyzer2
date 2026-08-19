@@ -37,7 +37,7 @@ SQL Server, and a SQL login.
   `docker compose up -d --build`. Full details in `DEPLOY.md`.
 
 The runner installs deps, creates `backend/config.json` from the example (you fill in the SQL details),
-then starts the server at **http://localhost:8000/rca_console.html**.
+then starts the server at **http://localhost:9000/rca_console.html**.
 
 ## SQL setup (what the backend connects to)
 Connection lives in `backend/config.json` (gitignored) or `SQL_*` env vars. Fields:

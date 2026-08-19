@@ -831,7 +831,7 @@
     <div class="sqlf"><label>Server</label><input id="sqlSrv" value="10.10.9.75"></div>
     <div class="sqlf"><label>Database</label><input id="sqlDb" value="Playground"></div>
     <div class="sqlf"><label>Table / view</label><input id="sqlTbl" value="dbo.Input_To_ML"></div>
-    <div class="sqlnote">🔌 <b>Live:</b> click <b>Fetch table</b> to query SQL Server through the local backend (<code>/api/data</code>) and run the pipeline — no upload. Connection is set in <code>backend/config.json</code>; start it with <code>uvicorn sql_backend:app --port 8000</code>.</div>
+    <div class="sqlnote">🔌 <b>Live:</b> click <b>Fetch table</b> to query SQL Server through the local backend (<code>/api/data</code>) and run the pipeline — no upload. Connection is set in <code>backend/config.json</code>; start it with <code>uvicorn sql_backend:app --port 9000</code>.</div>
     <button class="mclose" style="float:none" onclick="sqlFetch()">⇩ Fetch table &amp; run pipeline</button>
     <button class="filebtn ghost" style="margin-left:8px" onclick="closeSQL()">Cancel</button>
   </div>
@@ -938,7 +938,7 @@ async function loadCqnMappingFromSql(apiBase){
 // Live: pull the weekly table from the local FastAPI backend (/api/data), which queries SQL Server.
 async function sqlFetch(){
   closeSQL();
-  const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:8000':'';
+  const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:9000':'';
   window.SRC='sql';
   const fs=document.getElementById('fileStatus');
   if(fs) fs.textContent='Querying SQL Server (AA) …';
@@ -969,7 +969,7 @@ async function sqlFetch(){
   }catch(e){
     hideIngest();
     if(fs) fs.textContent='SQL error: '+e.message; renderPipe({source:'sql'});
-    alert('Connect to SQL Server failed: '+e.message+'\n\nStart the local backend first:\n  cd backend\n  uvicorn sql_backend:app --port 8000\n\n(connection is configured in backend/config.json)');
+    alert('Connect to SQL Server failed: '+e.message+'\n\nStart the local backend first:\n  cd backend\n  uvicorn sql_backend:app --port 9000\n\n(connection is configured in backend/config.json)');
   }
 }
 function pstage(cls,icon,title,val){ return `<div class="pstage ${cls}"><div class="pi">${icon}</div><div class="pt">${title}</div><div class="pv">${val}</div></div>`; }
@@ -1711,7 +1711,7 @@ function hydrateSqlRow(raw){
 async function aggregateData(r){
   if(window.SRC==='sql'){
     try{
-      const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:8000':'';
+      const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:9000':'';
       const qs=new URLSearchParams({forecast_name:r.Forecast_name||'', fiscal_week:r._wk||'',
         region:r.Region||'', subregion:r.SubRegion||'', country:r.Country||'', channel:r.channel||'',
         history_cap:RCA_HISTORY_CAP, peers_cap:RCA_PEERS_CAP});
@@ -1805,7 +1805,7 @@ async function buildContext(r){
    has to sit in this file. Until a provider is configured there, the backend returns an
    honest placeholder — this caller does not fabricate anything if the call fails either. ---- */
 async function callInvestigationEngine(contextBundle){
-  const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:8000':'';
+  const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:9000':'';
   // Engine selector. 'wfm' is the existing default and is unchanged; 'spec' runs the
   // FC_RCA v2.0.0 canonical 15-step engine, which returns a Decision Card. Both are live
   // so the same queue can be investigated each way and the outputs compared.
@@ -1827,7 +1827,7 @@ window.RCA_MODELS = window.RCA_MODELS || [];
 window.RCA_MODEL = window.RCA_MODEL || null;
 async function loadRcaModels(){
   try{
-    const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:8000':'';
+    const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:9000':'';
     const resp=await fetch(API_BASE+'/api/models'); if(!resp.ok) return;
     const data=await resp.json();
     window.RCA_MODELS=data.models||[];
@@ -2205,7 +2205,35 @@ function cardCalendarPanel(s){
       <div class="kvi"><div class="l">Events</div><div class="v">${invEsc(((c.event_summary||{}).event_count)!=null?(c.event_summary||{}).event_count:'—')}</div></div>
     </div>`:''}
     ${c.zero_count_but_adjacent?`<div style="margin-top:10px;background:#fff4e5;border-left:3px solid #b26a00;border-radius:0 4px 4px 0;padding:8px 12px;font-size:12px;line-height:1.6;">This week's own row records no holiday, but a holiday sits close enough that its run-up or wind-down reaches into it. "No holiday on the row" is not the same as "no holiday effect".</div>`:''}
-    ${names.length?`<div style="margin-top:10px;"><b>Holidays reaching this week:</b> ${invEsc(names.join(', '))}</div>`:''}
+    ${(()=>{
+      /* prompt2.md clause F, the only clause in that document that calls itself MANDATORY: a
+         holiday whose DATE falls outside the target fiscal week must never appear under
+         "Holidays in this week". It may appear under "Recent holidays potentially affecting this
+         week". The old single line mixed both, which is how a week with Holiday_Count = 0 read as
+         four holidays crowding it. Names shown are CANONICAL (clause E); the raw spellings and
+         dates stay in the audit rows below. */
+      const iw=c.holidays_in_target_week||{}, ad=c.recent_holidays_affecting_target_week||{};
+      if(!iw.statement && !ad.statement) return names.length?`<div style="margin-top:10px;"><b>Holidays reaching this week:</b> ${invEsc(names.join(', '))}</div>`:'';
+      const grp=(blk)=>(blk.by_semantic_group||[]).map(g=>`<tr style="border-top:1px solid #eef0f3;">
+          <td style="padding:4px 8px;font-weight:600;">${invEsc(g.display_name||'')}</td>
+          <td style="padding:4px 8px;">${invEsc((g.weekdays||[]).join(', '))}</td>
+          <td style="padding:4px 8px;">${invEsc((g.dates||[]).join(', '))}</td>
+          <td style="padding:4px 8px;">FW${invEsc((g.fiscal_weeks||[]).join(', FW'))}</td>
+          <td style="padding:4px 8px;color:#6b7280;font-size:11px;">${invEsc((g.raw_names||[]).join(' / '))}${g.needs_review?' <span style="color:#b26a00;font-weight:700;">review</span>':''}</td>
+        </tr>`).join('');
+      const tbl=(blk,title)=>{
+        const r=grp(blk); if(!r) return '';
+        return `<div style="margin-top:6px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#666;">${title}</div>
+          <table style="width:100%;border-collapse:collapse;font-size:11.5px;margin-top:3px;">
+          <tr style="background:#f6f7f9;font-weight:700;text-align:left;"><td style="padding:4px 8px;">Holiday</td><td style="padding:4px 8px;">Weekday</td><td style="padding:4px 8px;">Date</td><td style="padding:4px 8px;">Fiscal week</td><td style="padding:4px 8px;">Source name(s)</td></tr>
+          ${r}</table>`;};
+      return `<div style="margin-top:10px;">
+        <div style="padding:8px 12px;border-radius:4px;background:${(iw.count||0)>0?'#e8f6ee':'#f3f4f6'};border-left:3px solid ${(iw.count||0)>0?'#0b7a3b':'#6b7280'};line-height:1.6;font-weight:600;">${invEsc(iw.statement||'')}</div>
+        ${tbl(iw,'In this fiscal week')}
+        ${ad.statement?`<div style="margin-top:8px;padding:8px 12px;border-radius:4px;background:#fff9e8;border-left:3px solid #b26a00;line-height:1.6;">${invEsc(ad.statement)}</div>`:''}
+        ${tbl(ad,'Outside this week, impact window reaches it')}
+      </div>`;
+    })()}
     ${(c.raw_source_names&&c.raw_source_names.length&&c.raw_source_names.join(', ')!==names.join(', '))?`<div style="margin-top:3px;font-size:11.5px;color:#6b7280;">Raw source names: ${invEsc(c.raw_source_names.join(', '))}</div>`:''}
     ${c.statement?`<div style="margin-top:8px;line-height:1.7;">${invEsc(c.statement)}</div>`:''}
     ${!c.available&&c.reason?`<div style="margin-top:10px;background:#f3f4f6;border-left:3px solid #6b7280;border-radius:0 4px 4px 0;padding:8px 12px;line-height:1.6;">${invEsc(c.reason)}</div>`:''}
@@ -2246,12 +2274,94 @@ function cardCalendarPanel(s){
         ${(pb.action||pb.deteriorating_action)?`<div style="margin-top:8px;font-weight:600;line-height:1.65;">${invEsc(pb.action||pb.deteriorating_action)}</div>`:''}
       </div>`;
     })()}
+    ${(()=>{
+      /* Section 9's two DIFFERENT quantities, shown together on purpose. The transition is a
+         week-on-week change between two named weeks; the phase table above is a standing level
+         against the queue's non-holiday baseline. A holiday that suppresses demand is routinely
+         followed by a big positive change, and that change is the recovery, not the holiday's
+         effect -- which is why this is never labelled a holiday effect. */
+      const pt=c.phase_transition||{}, tt=pt.target_transition||{}, rp=c.rebound_repeatability||{};
+      if(!tt.reading && !rp.band) return '';
+      const bandCol={'HIGHLY REPEATABLE':'#0b7a3b','MODERATELY REPEATABLE':'#0b7a3b',
+                     'EMERGING / INCONSISTENT':'#b26a00','NOT SUPPORTED':'#a01b2b',
+                     'NOT ENOUGH DATA':'#6b7280'}[rp.band]||'#6b7280';
+      return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid #e5e7eb;">
+        <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">Post-holiday rebound — the week-on-week move</div>
+        ${tt.reading?`<div style="margin-top:6px;font-size:12.5px;line-height:1.65;">${invEsc(tt.reading)}</div>`:''}
+        ${rp.band?`<div style="margin-top:8px;">
+          <span style="display:inline-block;padding:2px 8px;border-radius:99px;background:${bandCol}1a;color:${bandCol};font-weight:800;font-size:11px;letter-spacing:.4px;">${invEsc(rp.band)}</span>
+          ${(rp.instances!=null)?`<span style="font-size:11.5px;color:#6b7280;margin-left:8px;">across ${invEsc(rp.instances)} past instance(s)</span>`:''}
+        </div>
+        <div style="margin-top:6px;font-size:12px;color:#555;line-height:1.6;">${invEsc(rp.reading||'')}</div>`:''}
+      </div>`;
+    })()}
     ${review.length?`<div style="margin-top:10px;background:#fff4e5;border-left:3px solid #b26a00;border-radius:0 4px 4px 0;padding:8px 12px;font-size:11.5px;line-height:1.6;">Flagged for review in the holiday master: ${invEsc(review.join(', '))}. No mapping was invented to resolve this.</div>`:''}
     ${c.row_flag_disagreement?`<div style="margin-top:8px;background:#fff4e5;border-left:3px solid #b26a00;border-radius:0 4px 4px 0;padding:8px 12px;font-size:11.5px;line-height:1.6;">${invEsc(c.row_flag_disagreement)}</div>`:''}
     ${w.statement?`<div style="margin-top:12px;padding-top:10px;border-top:1px solid #e5e7eb;">
       <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">Weekend</div>
       <div style="margin-top:4px;color:${w.supported?'#111':'#6b7280'};line-height:1.65;">${invEsc(w.statement)}</div>
       ${w.grain?`<div style="margin-top:3px;font-size:11.5px;color:#6b7280;">Data grain found in the source: ${invEsc(w.grain)}.</div>`:''}
+      ${(()=>{
+        /* prompt2.md clause C: the weekend is THREE questions with three different answers, and the
+           document names stopping at "weekend impact cannot be isolated" as the error. The
+           limitation above stays exactly as it was -- these say what IS answerable. */
+        const st=w.clause_c_states||{};
+        const rowsC=[['Daily weekend demand effect',st.daily_weekend_demand_effect],
+                     ['Weekly calendar structure',st.weekly_calendar_structure],
+                     ['Holiday x weekend interaction',st.holiday_weekend_interaction]]
+          .filter(([,v])=>v&&v.state)
+          .map(([lab,v])=>{
+            const bad=/NOT_TESTABLE|NOT_AVAILABLE/.test(v.state||'');
+            return `<tr style="border-top:1px solid #eef0f3;">
+              <td style="padding:4px 8px;font-weight:600;">${invEsc(lab)}</td>
+              <td style="padding:4px 8px;color:${bad?'#6b7280':'#0b7a3b'};font-weight:700;white-space:nowrap;">${invEsc(String(v.state||'').replace(/_/g,' '))}</td>
+              <td style="padding:4px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(v.reason||'')}</td>
+            </tr>`;}).join('');
+        const wd=w.weekday_outcomes||{};
+        const rowsK=Object.entries(wd.weekdays||{}).map(([d,v])=>`<tr style="border-top:1px solid #eef0f3;">
+            <td style="padding:4px 8px;font-weight:600;">${invEsc(d)}</td>
+            <td style="padding:4px 8px;text-align:right;">${v.weeks!=null?invEsc(v.weeks):'—'}</td>
+            <td style="padding:4px 8px;text-align:right;">${v.measurable?cardPct(v.effect_vs_no_holiday_week_pct,2):'—'}</td>
+            <td style="padding:4px 8px;color:#555;font-size:11.5px;">${v.measurable?'':invEsc(v.reason||'')}</td>
+          </tr>`).join('');
+        if(!rowsC && !rowsK) return '';
+        return `${rowsC?`<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;">
+            <tr style="background:#f6f7f9;font-weight:700;text-align:left;"><td style="padding:4px 8px;">Weekend question</td><td style="padding:4px 8px;">State</td><td style="padding:4px 8px;">Why</td></tr>
+            ${rowsC}</table>`:''}
+          ${rowsK?`<div style="margin-top:10px;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">Weekly outcome by the weekday the holiday fell on</div>
+            <div style="font-size:11.5px;color:#6b7280;font-style:italic;margin-top:3px;line-height:1.55;">${invEsc(wd.measures||'')}</div>
+            <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:4px;">
+            <tr style="background:#f6f7f9;font-weight:700;text-align:left;"><td style="padding:4px 8px;">Holiday fell on</td><td style="padding:4px 8px;text-align:right;">Weeks</td><td style="padding:4px 8px;text-align:right;">vs no-holiday week</td><td style="padding:4px 8px;"></td></tr>
+            ${rowsK}</table>
+            ${wd.spread_across_weekdays_pts!=null?`<div style="margin-top:4px;font-size:11.5px;color:#111;">Spread across weekdays: <b>${invEsc(wd.spread_across_weekdays_pts)} points</b> — the weekday a holiday falls on is associated with materially different weekly outcomes for this queue.</div>`:''}
+            <div style="margin-top:3px;font-size:11px;color:#6b7280;">Reference: ${invEsc(((wd.reference||{}).weeks_with_no_holiday_day)||0)} weeks with no holiday day flagged, median ${invEsc(((wd.reference||{}).median_actual)!=null?(wd.reference||{}).median_actual:'—')} contacts.</div>`:''}`;
+      })()}
+      ${(()=>{
+        /* The weekend VOLUME effect is not isolable at weekly grain and the sentence above says so.
+           A different question IS answerable from weekly totals: does this queue behave differently
+           when a holiday adjoins the weekend, removing consecutive contactable days rather than one
+           midweek day? Shown here so the reader gets the measurable half beside the limitation. */
+        const hw=w.holiday_weekend_interaction||{};
+        if(!hw.testable) return hw.reason?`<div style="margin-top:6px;font-size:11.5px;color:#6b7280;line-height:1.6;">Long-weekend structure: ${invEsc(hw.reason)}</div>`:'';
+        const pats=Object.entries(hw.patterns||{}).map(([k,v])=>`<tr style="border-top:1px solid #eef0f3;">
+            <td style="padding:5px 8px;font-weight:600;">${invEsc(k.replace(/_/g,' '))}</td>
+            <td style="padding:5px 8px;text-align:right;">${v.instances!=null?invEsc(v.instances):'—'}</td>
+            <td style="padding:5px 8px;text-align:right;">${v.measurable?cardPct(v.effect_vs_no_holiday_week_pct,2):'—'}</td>
+            <td style="padding:5px 8px;color:#555;font-size:11.5px;">${v.measurable?'':invEsc(v.reason||'')}</td>
+          </tr>`).join('');
+        const ct=hw.long_weekend_contrast||{};
+        const col=ct.material?'#b26a00':'#0b7a3b';
+        return `<div style="margin-top:10px;">
+          <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">Long weekend — does the day the holiday falls on matter?</div>
+          <div style="font-size:11.5px;color:#6b7280;font-style:italic;margin-top:4px;line-height:1.55;">${invEsc(hw.measures||'')}</div>
+          ${hw.target_pattern?`<div style="margin-top:6px;font-size:12px;">This week's pattern: <b>${invEsc(String(hw.target_pattern).replace(/_/g,' '))}</b>${hw.long_weekend_flag?' <span style="color:#b26a00;font-weight:700;">(long weekend)</span>':''}</div>`:''}
+          ${pats?`<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;">
+            <tr style="background:#f6f7f9;font-weight:700;text-align:left;"><td style="padding:5px 8px;">Holiday fell on</td><td style="padding:5px 8px;text-align:right;">Weeks</td><td style="padding:5px 8px;text-align:right;">vs no-holiday week</td><td style="padding:5px 8px;"></td></tr>
+            ${pats}</table>
+            <div style="margin-top:3px;font-size:11px;color:#6b7280;">Reference: ${invEsc(((hw.reference||{}).weeks_with_no_holiday_day)||0)} weeks with no holiday day flagged, median ${invEsc(((hw.reference||{}).median_actual)!=null?(hw.reference||{}).median_actual:'—')} contacts.</div>`:''}
+          ${ct.reading?`<div style="margin-top:8px;background:${ct.material?'#fff4e5':'#e8f6ee'};border-left:3px solid ${col};border-radius:0 4px 4px 0;padding:8px 12px;font-size:12px;line-height:1.6;">${invEsc(ct.reading)}</div>`:(ct.reason?`<div style="margin-top:6px;font-size:11.5px;color:#6b7280;">${invEsc(ct.reason)}</div>`:'')}
+        </div>`;
+      })()}
     </div>`:''}
   </div>`;
 }
@@ -2259,8 +2369,32 @@ function cardCalendarPanel(s){
 /* Driver evidence -- ASU, Shipment, UPP, with coverage never collapsed. */
 function cardDriverPanel(s){
   const d=s['15_driver_evidence']||{};
-  if(!d.available) return d.reason?`<div class="inv-card">${cardTitle('Driver Evidence')}
-      <div style="margin-top:8px;background:#f3f4f6;border-left:3px solid #6b7280;border-radius:0 4px 4px 0;padding:8px 12px;line-height:1.6;">${invEsc(d.reason)}</div></div>`:'';
+  /* Sections 16-17. A driver the relevance gate rejected on a measurable but sub-threshold
+     coefficient is re-examined at other lags and on week-to-week change. Before this the panel
+     early-returned on !d.available and printed the "nothing was tested" note alone, so the
+     re-examination existed in the response and never reached the page. */
+  const _enr=d.enrichment||{};
+  const _enrRows=(_enr.drivers||[]).map(x=>`<tr style="border-top:1px solid #eef0f3;">
+      <td style="padding:5px 8px;"><div style="font-weight:600;">${invEsc(x.label||x.driver)}</div>
+        <div style="font-size:11px;color:#6b7280;">${invEsc(x.driver)}</div></td>
+      <td style="padding:5px 8px;text-align:right;white-space:nowrap;">${x.gate_r!=null?invEsc(x.gate_r):'—'}</td>
+      <td style="padding:5px 8px;white-space:nowrap;">${invEsc(x.gate_strength||'—')} ${invEsc(x.gate_direction||'')}</td>
+      <td style="padding:5px 8px;text-align:right;white-space:nowrap;">${x.strongest_lag_weeks!=null?invEsc(x.strongest_lag_weeks)+' wk':'—'}</td>
+      <td style="padding:5px 8px;text-align:right;">${x.strongest_strength!=null?invEsc(x.strongest_strength):'—'}</td>
+      <td style="padding:5px 8px;color:${x.clears_evidence_threshold?'#b26a00':'#6b7280'};font-weight:700;white-space:nowrap;">${x.clears_evidence_threshold?'reaches bar':'below bar'}</td>
+      <td style="padding:5px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(x.reading||'')}</td>
+    </tr>`).join('');
+  const _enrBlock=_enr.available?`<div style="margin-top:12px;padding-top:10px;border-top:1px solid #e5e7eb;">
+      <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">Re-examined at other lags — drivers the gate did not confirm</div>
+      <div style="font-size:11.5px;color:#6b7280;font-style:italic;margin-top:4px;line-height:1.55;">${invEsc(_enr.note||'')}</div>
+      ${_enrRows?`<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;">
+        <tr style="background:#f6f7f9;font-weight:700;text-align:left;"><td style="padding:5px 8px;">Driver</td><td style="padding:5px 8px;text-align:right;">Gate r</td><td style="padding:5px 8px;">Gate reading</td><td style="padding:5px 8px;text-align:right;">Best lag</td><td style="padding:5px 8px;text-align:right;">Strength</td><td style="padding:5px 8px;">vs evidence bar</td><td style="padding:5px 8px;">Reading</td></tr>
+        ${_enrRows}</table>`:''}
+      <div style="margin-top:6px;font-size:11px;color:#6b7280;">Lags tested: ${invEsc((_enr.lags_tested||[]).join(', '))} · on levels and week-to-week change. This does not promote a driver to evidence and does not affect confidence.</div>
+    </div>`:'';
+  if(!d.available) return (d.reason||_enr.available)?`<div class="inv-card">${cardTitle('Driver Evidence')}
+      ${d.reason?`<div style="margin-top:8px;background:#f3f4f6;border-left:3px solid #6b7280;border-radius:0 4px 4px 0;padding:8px 12px;line-height:1.6;">${invEsc(d.reason)}</div>`:''}
+      ${_enrBlock}</div>`:'';
   const rows=(d.drivers||[]).map(x=>{
     const col=CARD_COV_COLOUR[x.coverage]||'#6b7280';
     return `<tr style="border-top:1px solid #eef0f3;">
@@ -2282,6 +2416,7 @@ function cardDriverPanel(s){
     ${rows?`<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px;">
       <tr style="background:#f6f7f9;font-weight:700;text-align:left;"><td style="padding:5px 8px;">Driver</td><td style="padding:5px 8px;">Coverage</td><td style="padding:5px 8px;text-align:right;">Best lag</td><td style="padding:5px 8px;text-align:right;">Strength</td><td style="padding:5px 8px;">Stability</td><td style="padding:5px 8px;">Verdict</td><td style="padding:5px 8px;">Reading</td></tr>
       ${rows}</table>`:''}
+    ${_enrBlock}
     <div style="margin-top:8px;font-size:11.5px;color:#6b7280;line-height:1.55;">${invEsc(d.shipment_vs_upp||'')}</div>
     ${a.available?`<div style="margin-top:12px;padding-top:10px;border-top:1px solid #e5e7eb;">
       <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">Units under warranty — population vs contacts per unit</div>
@@ -2866,7 +3001,7 @@ async function triggerRCA(i, force){
     state.investigate='done'; paint();
   }catch(e){
     state.investigate='error'; paint();
-    body.innerHTML=`<div class="inv-empty">Investigation call failed: ${invEsc(e.message)}<br>Start the local backend first:<br><code>cd backend &amp;&amp; uvicorn sql_backend:app --port 8000</code></div>`;
+    body.innerHTML=`<div class="inv-empty">Investigation call failed: ${invEsc(e.message)}<br>Start the local backend first:<br><code>cd backend &amp;&amp; uvicorn sql_backend:app --port 9000</code></div>`;
     return;
   }
 

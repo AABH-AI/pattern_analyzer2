@@ -1016,7 +1016,13 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
     # This mirrors how the engine already treats `stats`: computed above, evaluated and recorded
     # at step 9. Nothing is reordered and no step is skipped -- what each step DOES is unchanged.
     generated_ids = {h["id"] for h in generated}
-    fc_lag = fc_evidence.lagged_driver_evidence(history, target_week, generated_ids)
+    # The gate results travel with it so a driver the gate rejected on a measurable-but-weak
+    # coefficient can still be re-examined at other lags -- as ENRICHMENT only. Section 17 asks
+    # for a lagged relationship to be evaluated before a driver is written off, and before this
+    # the lag analysis was unreachable whenever the gate rejected everything, which is the common
+    # case: three audited queues all reported "nothing was tested".
+    fc_lag = fc_evidence.lagged_driver_evidence(history, target_week, generated_ids,
+                                                gate_results=(gates or {}).get("results"))
     fc_holiday = fc_evidence.holiday_evidence(history, target_week, fields, ctx.get("holiday"))
     fc_response = fc_evidence.response_evidence(history, target_week, actual, forecast,
                                                 fc_lag, fc_holiday)

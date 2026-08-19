@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""One command to run the Demand Pattern RCA Console (spec-v2-refactor).
+"""One command to run the Demand Pattern RCA Console.
 
     python run.py                 deps -> checks -> backend -> browser
     python run.py --test          also run the module smoke test first
@@ -10,10 +10,21 @@
 
 Adapted from the `UI` branch's run.py. Two differences, both deliberate:
 
-PORT 8000, NOT 8010. Every launcher and document on THIS branch says 8000 -- run.bat, run.sh,
-CLAUDE.md and AGENTS.md. The UI branch moved to 8010 and then needed a follow-up commit ("Fix stale
-port 8000 references to match run.py's actual port") to chase the references it had orphaned. Matching
-the branch avoids repeating that; --port is there when you want something else.
+PORT 9000, NOT 8000. test3 runs alongside test2, which serves on 8000, and the two are
+byte-identical at the fork -- so a browser tab gives no clue which one answered. A different port is
+the cheapest reliable way to tell them apart, and it removes a real hazard: the port-freeing step
+below KILLS whatever holds the port, so a run.py started here would silently take down the test2
+server (it did exactly that once, killing PID 7008).
+
+Every launcher and instructional document on this branch was moved with it -- run.bat, run.ps1,
+run.sh, docker-compose.yml, backend/Dockerfile, rca_console.html's file:// fallback, CLAUDE.md,
+AGENTS.md, DEPLOY.md and the two READMEs -- because the UI branch changed this port and then needed a
+follow-up commit ("Fix stale port 8000 references to match run.py's actual port") to chase the
+references it had orphaned. --port is still there when you want something else.
+
+Left on 8000 deliberately: recorded canary evidence, results/audit-log.md and the historical incident
+notes in IMP_DOCS. Those describe runs that really did happen on 8000; rewriting them would make the
+record false rather than current.
 
 A HOLIDAY-MASTER PRE-FLIGHT CHECK. This branch's engine reads
 `backend/wfm/context_repository/holiday_master.json`, built from FC_RCA_Holiday_Master_Production.xlsx
@@ -46,7 +57,7 @@ for _stream in (sys.stdout, sys.stderr):
 ROOT = Path(__file__).resolve().parent
 BACKEND = ROOT / "backend"
 HOLIDAY_JSON = BACKEND / "wfm" / "context_repository" / "holiday_master.json"
-DEFAULT_PORT = 8000
+DEFAULT_PORT = 9000
 
 OK, WARN, BAD = "  [ok]  ", "  [--]  ", "  [!!]  "
 
@@ -67,7 +78,7 @@ def free_port(port):
             return
         for line in out.splitlines():
             parts = line.split()
-            # LISTENING lines look like:  TCP  0.0.0.0:8000  0.0.0.0:0  LISTENING  1234
+            # LISTENING lines look like:  TCP  0.0.0.0:9000  0.0.0.0:0  LISTENING  1234
             if len(parts) >= 5 and parts[1].endswith(f":{port}") and parts[-1].isdigit():
                 pids.add(parts[-1])
         for pid in pids:
@@ -190,6 +201,24 @@ def wait_for_health(port, timeout=45):
     return False
 
 
+def branch_label():
+    """The branch actually checked out here, for the banner.
+
+    The banner used to hardcode the branch it was authored on, so every fork announced itself as
+    that branch -- exactly the confusion the 9000 port move is meant to end. Falls back to the
+    folder name when git is unavailable (zip download, Docker build context).
+    """
+    try:
+        out = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                             cwd=str(ROOT), capture_output=True, text=True, timeout=5)
+        name = (out.stdout or "").strip()
+        if out.returncode == 0 and name and name != "HEAD":
+            return name
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return ROOT.name
+
+
 def main():
     ap = argparse.ArgumentParser(description="Run the Demand Pattern RCA Console.")
     ap.add_argument("--port", type=int, default=DEFAULT_PORT,
@@ -200,7 +229,7 @@ def main():
     args = ap.parse_args()
 
     print("=" * 74)
-    print("  Demand Pattern RCA Console - spec-v2-refactor")
+    print(f"  Demand Pattern RCA Console - {branch_label()}   (port {args.port})")
     print("=" * 74)
 
     print("\n[1/5] pre-flight")
