@@ -533,8 +533,8 @@
    {
     "level": 3,
     "question": "Why is Channel (CSG / APJ / CCC / China / Basic / Social Media) worse than the levels above it?",
-    "semantic_key": "# # # adjustment against below carry day did falls golden holiday",
-    "answer": "Because National Day Golden Week holiday falls in this week, and holiday weeks run 30% below normal for this queue (20,239 contacts against 29,079). The plan did not carry that adjustment.",
+    "semantic_key": "# # # # # adjustment against against below broadly calendar carried",
+    "answer": "Because National Day Golden Week holiday falls in this week, and holiday weeks run 30% below normal for this queue (20,239 contacts against 29,079). The plan carried a broadly matching adjustment (-26% against the -30% implied), so the calendar was not overlooked.",
     "evidence": [
      "holiday calendar",
      "holiday effect"
@@ -542,13 +542,13 @@
     "strength": 0.8,
     "confidence": 0.72,
     "decision": "continue",
-    "claim_kind": "plan_ignored_known_calendar"
+    "claim_kind": "plan_adjusted_for_calendar"
    },
    {
     "level": 4,
-    "question": "Why did the plan not allow for National Day Golden Week holiday, which is a known date?",
-    "semantic_key": "adjustment advance afterwards as be built calendar can correctable date day explained",
-    "answer": "Because National Day Golden Week holiday is a fixed, known date that the plan treats as an ordinary week. This is the most correctable kind of miss: the calendar is published in advance, so the adjustment can be built into the plan rather than explained afterwards.",
+    "question": "Why the plan already reflects this holiday?",
+    "semantic_key": "already calendar day elsewhere explanation golden holiday lies national not reflects right",
+    "answer": "Because the plan already reflects National Day Golden Week holiday at roughly the right size, the calendar is not what went wrong this week and the explanation lies elsewhere.",
     "evidence": [
      "holiday calendar"
     ],
@@ -561,9 +561,14 @@
   ],
   "depth_reached": 4,
   "max_depth": 6,
-  "terminating_cause": "Because National Day Golden Week holiday is a fixed, known date that the plan treats as an ordinary week. This is the most correctable kind of miss: the calendar is published in advance, so the adjustment can be built into the plan rather than explained afterwards.",
+  "terminating_cause": "Because the plan already reflects National Day Golden Week holiday at roughly the right size, the calendar is not what went wrong this week and the explanation lies elsewhere.",
   "confidence_at_root": 0.72,
-  "termination_reason": "the chain reached a cause that cannot be broken down further"
+  "termination_reason": "the chain reached a cause that cannot be broken down further",
+  "wording": {
+   "rewritten": 0,
+   "rejected_ungrounded": 0,
+   "prompt_version": "1.0.0"
+  }
  },
  "forecast_response_diagnostic": {
   "available": true,
@@ -1848,7 +1853,10 @@
      "historically_planned_for": true,
      "reading": "Weeks following a holiday have historically run 15.36% below this queue's non-holiday level, across 10 week(s), moving that way in 70.0% of them. The plan for those weeks moved -7.98%, so the pattern was reflected in the forecast historically."
     }
-   }
+   },
+   "basis": "weeks the CALENDAR marks as each phase, against this queue's non-holiday weeks",
+   "measure": "median",
+   "differs_from": "spec_engine._holiday_effect_for, which uses the MEAN over every week with Holiday_Count > 0 -- a wider set, so its percentage is expected to differ from this one"
   },
   "plan_bias": {
    "available": true,
@@ -3246,10 +3254,76 @@
    "could not be isolated"
   ]
  },
- "narrative": null,
- "status": "Incomplete",
- "narrative_error": "no LLM provider configured",
- "incomplete_reason": "Every figure, cause, confidence score and recommendation below is complete. Only the written summary is missing, because the language model call did not succeed: no LLM provider configured",
+ "narrative": {
+  "executiveSummary": [
+   "The forecast exceeded actual demand by 4,123 contacts, an over\u2011forecast of 21.8% for FY25 week 36.",
+   "The miss stems from a drifting forecast baseline and a demand shift that the available leading signals could not predict reliably.",
+   "Confidence in this assessment is Medium (63%) because the evidence is mixed and some key data limits the certainty."
+  ],
+  "rootCauseStatement": "The forecast baseline has been decaying week over week, causing a steady increase in the error; without a reset, the miss will continue in the same direction.",
+  "confidenceExplanation": "Confidence is Medium (63%). The score reflects moderate support from the available data, statistical agreement, and contextual completeness, but is tempered by limited history, mixed statistical signals, and contradictory evidence.",
+  "limitations": [
+   "Only 88 weeks of history are held for this queue; seasonal and long-term trend findings need 104 and are therefore less dependable.",
+   "Business Event Repository is not deployed, so this is NotApplicable and carries no confidence penalty (BR-202).",
+   "Only 88 weeks of actuals; below the 104 the framework expects, so seasonal and trend findings are less dependable.",
+   "The measures do not agree, so no single statistical story is settled.",
+   "The same fiscal period in prior years does not show this movement, so a seasonal reading is not supported.",
+   "No established direction exists for this queue, so the movement cannot be attributed to a continuing trend.",
+   "A forecast-response failure is NOT supported here, because the forecast response was inadequate does not hold. The movement is therefore treated as a demand event, a contextual factor, or unconfirmed -- not as a forecast failure.",
+   "Weekend impact cannot be isolated from fiscal-week totals because day-level actual and forecast data is unavailable in the source.",
+   "5 other hypothesis(es) survived and explain the same movement, so this one is not uniquely supported.",
+   "The drivers that look related to demand only track it across the period as a whole, not week to week, so the direction of cause cannot be established from this data.",
+   "Final_upp_units was required by BUS-02 but has no usable history for this queue, so that relationship could not be tested either way."
+  ],
+  "recommendationNarratives": [
+   {
+    "recommendationId": "M5",
+    "text": "Do not treat this as a model defect. No sufficiently repeatable leading signal existed before the week, so keep monitoring the available drivers and revisit adding a predictive feature only if the pattern recurs."
+   },
+   {
+    "recommendationId": "R1",
+    "text": "Re-base this queue's forward plan to its current run rate."
+   },
+   {
+    "recommendationId": "R2",
+    "text": "Extend the history held for this queue to at least 104 weeks."
+   }
+  ],
+  "whyThisHappened": [
+   {
+    "rank": 1,
+    "text": "A leading signal existed before the week and has behaved repeatably for this queue, making the movement foreseeable. The evidence points to a material demand shift that lacked a reliable predictive signal, and the direction of the miss (down) matches what that mechanism implies."
+   },
+   {
+    "rank": 2,
+    "text": "Compared to the expected demand of 21,105 contacts (based on the last 13 weeks), the plan was 2,180 contacts low and actual demand was 6,303 contacts low. About three\u2011quarters of the total gap came from demand falling short of what the available signals suggested."
+   },
+   {
+    "rank": 3,
+    "text": "The conditions for a forecast\u2011response failure are not met because the forecast\u2019s reaction was adequate. Since only three of the four required conditions hold, the miss is classified as a demand event or contextual factor rather than a forecast failure."
+   },
+   {
+    "rank": 4,
+    "text": "The National Day Golden Week holiday occurred this week. Historically, holiday weeks for this queue run about 35% below non\u2011holiday levels, and the plan reflected that pattern (though with a slightly larger adjustment). The holiday was therefore accounted for in the forecast."
+   },
+   {
+    "rank": 5,
+    "text": "The number of units under warranty in the market moves together with demand in the same week, and there is sufficient history to use this relationship."
+   },
+   {
+    "rank": 6,
+    "text": "The installed base was near its planned level, but each unit generated fewer contacts than expected. The resulting shortfall in contact rate drove the entire gap, while the population contribution was small and offsetting."
+   },
+   {
+    "rank": 7,
+    "text": "Five pieces of evidence support the conclusion while ten challenge it. The cross\u2011examination process found no fatal flaws in eight of the challenges, with the remaining two only raising doubts."
+   }
+  ],
+  "criticalityExplanation": "The miss is rated High because the absolute gap of 4,123 contacts represents roughly 20% of a typical week\u2019s demand for this queue."
+ },
+ "status": "Complete",
+ "narrative_error": null,
+ "incomplete_reason": null,
  "hypotheses": {
   "generated": [
    {
@@ -5020,10 +5094,10 @@
  "material": true,
  "audit": {
   "input_fingerprint": "7439330757430717",
-  "narrative_model": null,
-  "narrative_seconds": 0.0,
-  "started_at": "2026-08-19T11:40:29.914619+00:00",
-  "completed_at": "2026-08-19T11:40:29.949603+00:00",
+  "narrative_model": "nvidia/nvidia/nemotron-3-super-120b-a12b",
+  "narrative_seconds": 27.47,
+  "started_at": "2026-08-19T12:48:44.108593+00:00",
+  "completed_at": "2026-08-19T12:49:22.675404+00:00",
   "catalogue_version": "2.0.0",
   "challenge_catalogue_version": "2.1.0",
   "confidence_weights_version": "2.0.0",
@@ -5083,7 +5157,7 @@
    {
     "step": 10,
     "name": "Root Cause Wording",
-    "detail": "kept deterministic wording: no LLM provider configured"
+    "detail": "0 of 4 finding(s) rewritten in business language"
    },
    {
     "step": 11,
@@ -5103,7 +5177,7 @@
    {
     "step": 14,
     "name": "Generate Executive Summary",
-    "detail": "narrative unavailable: no LLM provider configured"
+    "detail": "narrative generated"
    },
    {
     "step": 15,
@@ -5132,19 +5206,17 @@
    "criticality_band": "High",
    "miss_mechanism": "DEMAND_EVENT_LOW_PREDICTABILITY",
    "markers": [
-    "Investigation Incomplete",
     "Criticality: High"
    ]
   },
   "sections": {
    "1_executive_summary": [
-    "Over-forecast of 21.8% \u2014 4,123 contacts against plan.",
-    "The forecast error is drifting, not just noisy: adherence has moved about -1.35 points per week, roughly -18 points across 13 weeks, steadily further into under-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt.",
-    "Confidence: Medium (62.9%).",
-    "Narrative generation was unavailable; these figures are the engine's own and are complete."
+    "The forecast exceeded actual demand by 4,123 contacts, an over\u2011forecast of 21.8% for FY25 week 36.",
+    "The miss stems from a drifting forecast baseline and a demand shift that the available leading signals could not predict reliably.",
+    "Confidence in this assessment is Medium (63%) because the evidence is mixed and some key data limits the certainty."
    ],
    "2_root_cause": {
-    "statement": "The forecast error is drifting, not just noisy: adherence has moved about -1.35 points per week, roughly -18 points across 13 weeks, steadily further into under-forecast. The baseline is decaying and will keep missing in this direction until it is rebuilt.",
+    "statement": "The forecast baseline has been decaying week over week, causing a steady increase in the error; without a reset, the miss will continue in the same direction.",
     "hypothesis": "Drift",
     "category": "Statistical",
     "inconclusive": false,
@@ -5265,8 +5337,8 @@
       {
        "level": 3,
        "question": "Why is Channel (CSG / APJ / CCC / China / Basic / Social Media) worse than the levels above it?",
-       "semantic_key": "# # # adjustment against below carry day did falls golden holiday",
-       "answer": "Because National Day Golden Week holiday falls in this week, and holiday weeks run 30% below normal for this queue (20,239 contacts against 29,079). The plan did not carry that adjustment.",
+       "semantic_key": "# # # # # adjustment against against below broadly calendar carried",
+       "answer": "Because National Day Golden Week holiday falls in this week, and holiday weeks run 30% below normal for this queue (20,239 contacts against 29,079). The plan carried a broadly matching adjustment (-26% against the -30% implied), so the calendar was not overlooked.",
        "evidence": [
         "holiday calendar",
         "holiday effect"
@@ -5274,13 +5346,13 @@
        "strength": 0.8,
        "confidence": 0.72,
        "decision": "continue",
-       "claim_kind": "plan_ignored_known_calendar"
+       "claim_kind": "plan_adjusted_for_calendar"
       },
       {
        "level": 4,
-       "question": "Why did the plan not allow for National Day Golden Week holiday, which is a known date?",
-       "semantic_key": "adjustment advance afterwards as be built calendar can correctable date day explained",
-       "answer": "Because National Day Golden Week holiday is a fixed, known date that the plan treats as an ordinary week. This is the most correctable kind of miss: the calendar is published in advance, so the adjustment can be built into the plan rather than explained afterwards.",
+       "question": "Why the plan already reflects this holiday?",
+       "semantic_key": "already calendar day elsewhere explanation golden holiday lies national not reflects right",
+       "answer": "Because the plan already reflects National Day Golden Week holiday at roughly the right size, the calendar is not what went wrong this week and the explanation lies elsewhere.",
        "evidence": [
         "holiday calendar"
        ],
@@ -5293,9 +5365,14 @@
      ],
      "depth_reached": 4,
      "max_depth": 6,
-     "terminating_cause": "Because National Day Golden Week holiday is a fixed, known date that the plan treats as an ordinary week. This is the most correctable kind of miss: the calendar is published in advance, so the adjustment can be built into the plan rather than explained afterwards.",
+     "terminating_cause": "Because the plan already reflects National Day Golden Week holiday at roughly the right size, the calendar is not what went wrong this week and the explanation lies elsewhere.",
      "confidence_at_root": 0.72,
-     "termination_reason": "the chain reached a cause that cannot be broken down further"
+     "termination_reason": "the chain reached a cause that cannot be broken down further",
+     "wording": {
+      "rewritten": 0,
+      "rejected_ungrounded": 0,
+      "prompt_version": "1.0.0"
+     }
     },
     "interrogation": {
      "available": false,
@@ -5922,7 +5999,7 @@
    ],
    "10_audit_reference": {
     "fingerprint": "7439330757430717",
-    "completed_at": "2026-08-19T11:40:29.949603+00:00",
+    "completed_at": "2026-08-19T12:49:22.675404+00:00",
     "catalogue_version": "2.0.0",
     "confidence_weights_version": "2.0.0",
     "prompt_version": "2.1.0",
@@ -5980,7 +6057,7 @@
      {
       "step": 10,
       "name": "Root Cause Wording",
-      "detail": "kept deterministic wording: no LLM provider configured"
+      "detail": "0 of 4 finding(s) rewritten in business language"
      },
      {
       "step": 11,
@@ -6000,7 +6077,7 @@
      {
       "step": 14,
       "name": "Generate Executive Summary",
-      "detail": "narrative unavailable: no LLM provider configured"
+      "detail": "narrative generated"
      },
      {
       "step": 15,
@@ -6040,7 +6117,7 @@
      {
       "rank_basis": 0,
       "what_happened": "At least one leading signal was present before the week AND has behaved repeatably for this queue, so the movement was foreseeable.",
-      "text": "At least one leading signal was present before the week AND has behaved repeatably for this queue, so the movement was foreseeable. This is the mechanism the evidence supports: Demand moved materially, but no sufficiently repeatable leading signal existed beforehand. Direction checks out: the miss pushed demand down and this mechanism implies down.",
+      "text": "A leading signal existed before the week and has behaved repeatably for this queue, making the movement foreseeable. The evidence points to a material demand shift that lacked a reliable predictive signal, and the direction of the miss (down) matches what that mechanism implies.",
       "why_it_mattered": "This is the mechanism the evidence supports: Demand moved materially, but no sufficiently repeatable leading signal existed beforehand.",
       "forecast_mechanism": "Direction checks out: the miss pushed demand down and this mechanism implies down.",
       "evidence_id": "E5",
@@ -6048,12 +6125,13 @@
       "rank": 1,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "At least one leading signal was present before the week AND has behaved repeatably for this queue, so the movement was foreseeable. This is the mechanism the evidence supports: Demand moved materially, but no sufficiently repeatable leading signal existed beforehand. Direction checks out: the miss pushed demand down and this mechanism implies down."
+      "text_deterministic": "At least one leading signal was present before the week AND has behaved repeatably for this queue, so the movement was foreseeable. This is the mechanism the evidence supports: Demand moved materially, but no sufficiently repeatable leading signal existed beforehand. Direction checks out: the miss pushed demand down and this mechanism implies down.",
+      "reworded_by_model": true
      },
      {
       "rank_basis": 0,
       "what_happened": "Against an expected 21105.0 contacts (median demand over the last 13 weeks (fewer than 2 prior years available for fiscal week 36)), the plan sat 2180.06 contacts below expectation and demand landed 6303.0 contacts below it.",
-      "text": "Against an expected 21105.0 contacts (median demand over the last 13 weeks (fewer than 2 prior years available for fiscal week 36)), the plan sat 2180.06 contacts below expectation and demand landed 6303.0 contacts below it. Most of the gap -- 74% of it -- sits on the demand side. Demand moved away from what the available signals pointed to.",
+      "text": "Compared to the expected demand of 21,105 contacts (based on the last 13 weeks), the plan was 2,180 contacts low and actual demand was 6,303 contacts low. About three\u2011quarters of the total gap came from demand falling short of what the available signals suggested.",
       "why_it_mattered": "Most of the gap -- 74% of it -- sits on the demand side.",
       "forecast_mechanism": "Demand moved away from what the available signals pointed to.",
       "evidence_id": "E2",
@@ -6061,24 +6139,26 @@
       "rank": 2,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "Against an expected 21105.0 contacts (median demand over the last 13 weeks (fewer than 2 prior years available for fiscal week 36)), the plan sat 2180.06 contacts below expectation and demand landed 6303.0 contacts below it. Most of the gap -- 74% of it -- sits on the demand side. Demand moved away from what the available signals pointed to."
+      "text_deterministic": "Against an expected 21105.0 contacts (median demand over the last 13 weeks (fewer than 2 prior years available for fiscal week 36)), the plan sat 2180.06 contacts below expectation and demand landed 6303.0 contacts below it. Most of the gap -- 74% of it -- sits on the demand side. Demand moved away from what the available signals pointed to.",
+      "reworded_by_model": true
      },
      {
       "rank_basis": 1,
       "what_happened": "A forecast-response failure is NOT supported here, because the forecast response was inadequate does not hold. The movement is therefore treated as a demand event, a contextual factor, or unconfirmed -- not as a forecast failure.",
-      "text": "A forecast-response failure is NOT supported here, because the forecast response was inadequate does not hold. The movement is therefore treated as a demand event, a contextual factor, or unconfirmed -- not as a forecast failure. 3 of 4 conditions hold, so it is not classed as a forecast failure.",
+      "text": "The conditions for a forecast\u2011response failure are not met because the forecast\u2019s reaction was adequate. Since only three of the four required conditions hold, the miss is classified as a demand event or contextual factor rather than a forecast failure.",
       "forecast_mechanism": "3 of 4 conditions hold, so it is not classed as a forecast failure.",
       "evidence_id": "E5",
       "strength": "Strong",
       "rank": 3,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "A forecast-response failure is NOT supported here, because the forecast response was inadequate does not hold. The movement is therefore treated as a demand event, a contextual factor, or unconfirmed -- not as a forecast failure. 3 of 4 conditions hold, so it is not classed as a forecast failure."
+      "text_deterministic": "A forecast-response failure is NOT supported here, because the forecast response was inadequate does not hold. The movement is therefore treated as a demand event, a contextual factor, or unconfirmed -- not as a forecast failure. 3 of 4 conditions hold, so it is not classed as a forecast failure.",
+      "reworded_by_model": true
      },
      {
       "rank_basis": 2,
       "what_happened": "National Day (China) falls in this week. Weeks containing a holiday have historically run 34.85% below this queue's non-holiday level, across 16 week(s), moving that way in 93.8% of them. The plan for those weeks moved -25.83%, so the pattern was reflected in the forecast historically. Forecast capture: captured -- The plan moved -40.85% against the -34.85% the phase historically implies (1.17x). That is 17.21% more adjustment than the pattern calls for -- inside the tolerance for 'captured', but worth noting.",
-      "text": "National Day (China) falls in this week. Weeks containing a holiday have historically run 34.85% below this queue's non-holiday level, across 16 week(s), moving that way in 93.8% of them. The plan for those weeks moved -25.83%, so the pattern was reflected in the forecast historically. Forecast capture: captured -- The plan moved -40.85% against the -34.85% the phase historically implies (1.17x). That is 17.21% more adjustment than the pattern calls for -- inside the tolerance for 'captured', but worth noting. The week sits in the holiday phase. The plan moved -40.85% against the -34.85% the phase historically implies (1.17x). That is 17.21% more adjustment than the pattern calls for -- inside the tolerance for 'captured', but worth noting.",
+      "text": "The National Day Golden Week holiday occurred this week. Historically, holiday weeks for this queue run about 35% below non\u2011holiday levels, and the plan reflected that pattern (though with a slightly larger adjustment). The holiday was therefore accounted for in the forecast.",
       "why_it_mattered": "The week sits in the holiday phase.",
       "forecast_mechanism": "The plan moved -40.85% against the -34.85% the phase historically implies (1.17x). That is 17.21% more adjustment than the pattern calls for -- inside the tolerance for 'captured', but worth noting.",
       "evidence_id": "E10",
@@ -6086,36 +6166,39 @@
       "rank": 4,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "National Day (China) falls in this week. Weeks containing a holiday have historically run 34.85% below this queue's non-holiday level, across 16 week(s), moving that way in 93.8% of them. The plan for those weeks moved -25.83%, so the pattern was reflected in the forecast historically. Forecast capture: captured -- The plan moved -40.85% against the -34.85% the phase historically implies (1.17x). That is 17.21% more adjustment than the pattern calls for -- inside the tolerance for 'captured', but worth noting. The week sits in the holiday phase. The plan moved -40.85% against the -34.85% the phase historically implies (1.17x). That is 17.21% more adjustment than the pattern calls for -- inside the tolerance for 'captured', but worth noting."
+      "text_deterministic": "National Day (China) falls in this week. Weeks containing a holiday have historically run 34.85% below this queue's non-holiday level, across 16 week(s), moving that way in 93.8% of them. The plan for those weeks moved -25.83%, so the pattern was reflected in the forecast historically. Forecast capture: captured -- The plan moved -40.85% against the -34.85% the phase historically implies (1.17x). That is 17.21% more adjustment than the pattern calls for -- inside the tolerance for 'captured', but worth noting. The week sits in the holiday phase. The plan moved -40.85% against the -34.85% the phase historically implies (1.17x). That is 17.21% more adjustment than the pattern calls for -- inside the tolerance for 'captured', but worth noting.",
+      "reworded_by_model": true
      },
      {
       "rank_basis": 3,
       "what_happened": "Units actually in the market under warranty moves with demand in the same week, with enough history behind it to use.",
-      "text": "Units actually in the market under warranty moves with demand in the same week, with enough history behind it to use. It moves with demand in the same week.",
+      "text": "The number of units under warranty in the market moves together with demand in the same week, and there is sufficient history to use this relationship.",
       "why_it_mattered": "It moves with demand in the same week.",
       "evidence_id": "E7",
       "strength": "Moderate",
       "rank": 5,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "Units actually in the market under warranty moves with demand in the same week, with enough history behind it to use. It moves with demand in the same week."
+      "text_deterministic": "Units actually in the market under warranty moves with demand in the same week, with enough history behind it to use. It moves with demand in the same week.",
+      "reworded_by_model": true
      },
      {
       "rank_basis": 3,
       "what_happened": "The population was close to plan, but contacts per unit differed: 0.0025 actual against 0.0034 planned. The two effects sum to the whole -4,123-contact gap (+1,768 from population, -5,891 from contact rate), so nothing is left unexplained by the split.",
-      "text": "The population was close to plan, but contacts per unit differed: 0.0025 actual against 0.0034 planned. The two effects sum to the whole -4,123-contact gap (+1,768 from population, -5,891 from contact rate), so nothing is left unexplained by the split. The gap is driven by contacts per unit differing from plan, not by the population.",
+      "text": "The installed base was near its planned level, but each unit generated fewer contacts than expected. The resulting shortfall in contact rate drove the entire gap, while the population contribution was small and offsetting.",
       "forecast_mechanism": "The gap is driven by contacts per unit differing from plan, not by the population.",
       "evidence_id": "E6",
       "strength": "Strong",
       "rank": 6,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "The population was close to plan, but contacts per unit differed: 0.0025 actual against 0.0034 planned. The two effects sum to the whole -4,123-contact gap (+1,768 from population, -5,891 from contact rate), so nothing is left unexplained by the split. The gap is driven by contacts per unit differing from plan, not by the population."
+      "text_deterministic": "The population was close to plan, but contacts per unit differed: 0.0025 actual against 0.0034 planned. The two effects sum to the whole -4,123-contact gap (+1,768 from population, -5,891 from contact rate), so nothing is left unexplained by the split. The gap is driven by contacts per unit differing from plan, not by the population.",
+      "reworded_by_model": true
      },
      {
       "rank_basis": 5,
       "what_happened": "5 item(s) support the conclusion and 10 argue against it.",
-      "text": "5 item(s) support the conclusion and 10 argue against it. Governed by cross-examination, which ran before confidence precisely so its result could feed in. 10 challenge(s) found nothing wrong, 8 raised a doubt and 0 contradicted it outright.",
+      "text": "Five pieces of evidence support the conclusion while ten challenge it. The cross\u2011examination process found no fatal flaws in eight of the challenges, with the remaining two only raising doubts.",
       "why_it_mattered": "Governed by cross-examination, which ran before confidence precisely so its result could feed in.",
       "forecast_mechanism": "10 challenge(s) found nothing wrong, 8 raised a doubt and 0 contradicted it outright.",
       "evidence_id": "E14",
@@ -6123,7 +6206,8 @@
       "rank": 7,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "5 item(s) support the conclusion and 10 argue against it. Governed by cross-examination, which ran before confidence precisely so its result could feed in. 10 challenge(s) found nothing wrong, 8 raised a doubt and 0 contradicted it outright."
+      "text_deterministic": "5 item(s) support the conclusion and 10 argue against it. Governed by cross-examination, which ran before confidence precisely so its result could feed in. 10 challenge(s) found nothing wrong, 8 raised a doubt and 0 contradicted it outright.",
+      "reworded_by_model": true
      }
     ],
     "count": 7,
@@ -6148,8 +6232,8 @@
      "not confirmed",
      "could not be isolated"
     ],
-    "reworded_count": 0,
-    "wording_source": "deterministic wording only"
+    "reworded_count": 7,
+    "wording_source": "model rewording over deterministic bullets"
    },
    "13_forecast_response": {
     "available": true,
@@ -7640,8 +7724,8 @@
     "note": "Observations the evidence supports but the fixed catalogue has no entry for. Recorded for catalogue extension, never converted into a cause."
    }
   },
-  "status": "Incomplete",
-  "incomplete_reason": "Every figure, cause, confidence score and recommendation below is complete. Only the written summary is missing, because the language model call did not succeed: no LLM provider configured",
+  "status": "Complete",
+  "incomplete_reason": null,
   "engine": "spec-v2",
   "view_a_to_f": {
    "A_executive_rca": {
@@ -7663,7 +7747,11 @@
     "miss_contacts": 4122.9,
     "adherence_pct": 21.8,
     "direction": "Over-forecast",
-    "executive_narrative": null
+    "executive_narrative": [
+     "The forecast exceeded actual demand by 4,123 contacts, an over\u2011forecast of 21.8% for FY25 week 36.",
+     "The miss stems from a drifting forecast baseline and a demand shift that the available leading signals could not predict reliably.",
+     "Confidence in this assessment is Medium (63%) because the evidence is mixed and some key data limits the certainty."
+    ]
    },
    "B_why_did_forecast_miss": {
     "from": [

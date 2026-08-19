@@ -247,28 +247,77 @@ def _ex_holiday(claim, obs):
     where = ("falls in this week" if in_week else
              "falls close enough that its run-up or wind-down reaches this week")
     names = ", ".join(hol.get("names") or ["a holiday"])
+    # Whether the plan CARRIED the adjustment is a measurable fact, and asserting it without
+    # looking was producing a false statement: on China FW202435 the plan was cut 45.9% week on week
+    # while this sentence said it "did not carry that adjustment". Read the plan's own movement and
+    # say which of three things happened -- absent, roughly right, or overdone. Only the first keeps
+    # the original wording, and the third points at the opposite remedy.
+    demand_pct = effect.get("difference_pct")
+    plan_pct = effect.get("forecast_difference_pct")
+    if plan_pct is None:
+        plan_pct = effect.get("plan_difference_pct")
+    note, next_kind, next_text = None, "plan_ignored_known_calendar", \
+        "the plan did not adjust for a known holiday"
+    if not isinstance(plan_pct, (int, float)) or not isinstance(demand_pct, (int, float)):
+        note = ("Whether the plan carried a matching adjustment could not be measured for this "
+                "queue, so it is not claimed either way.")
+        next_kind, next_text = "plan_calendar_response_unknown", \
+            "the plan's response to this holiday could not be measured"
+    elif abs(plan_pct) < abs(demand_pct) * 0.5:
+        note = "The plan did not carry that adjustment."
+    elif abs(plan_pct) > abs(demand_pct) * 1.75:
+        note = (f"The plan DID adjust, and overshot: it moved {plan_pct:+.0f}% against the "
+                f"{demand_pct:+.0f}% the history implies. The correction needed here is the SIZE of "
+                f"an adjustment that already exists, not the absence of one.")
+        next_kind, next_text = "plan_over_adjusted_for_calendar", \
+            "the plan's holiday adjustment is too deep"
+    else:
+        note = (f"The plan carried a broadly matching adjustment ({plan_pct:+.0f}% against the "
+                f"{demand_pct:+.0f}% implied), so the calendar was not overlooked.")
+        next_kind, next_text = "plan_adjusted_for_calendar", \
+            "the plan already reflects this holiday"
     return {
         "answer": (f"Because {names} {where}, and holiday weeks run "
                    f"{abs(effect.get('difference_pct', 0)):.0f}% "
                    f"{'below' if (effect.get('difference_pct') or 0) < 0 else 'above'} normal "
                    f"for this queue ({effect.get('avg_holiday'):,.0f} contacts against "
-                   f"{effect.get('avg_normal'):,.0f}). The plan did not carry that adjustment."),
+                   f"{effect.get('avg_normal'):,.0f}). {note}"),
+        "plan_response_note": note,
         "evidence": ["holiday calendar", "holiday effect"], "strength": 0.8, "confidence": 0.80,
-        "next": _claim("plan_ignored_known_calendar", "the plan did not adjust for a known holiday",
-                       names=names),
+        "next": _claim(next_kind, next_text, names=names),
     }
+
+
+# The holiday branch can now end in four ways: the plan missed the adjustment, over-adjusted,
+# already carried it, or its response could not be measured. All four terminate here.
+_CALENDAR_TERMINAL_KINDS = ("plan_ignored_known_calendar", "plan_over_adjusted_for_calendar",
+                            "plan_adjusted_for_calendar", "plan_calendar_response_unknown")
 
 
 def _ex_calendar_terminal(claim, obs):
     """Terminal for the holiday branch -- a known, dated, repeating event."""
-    if claim["kind"] != "plan_ignored_known_calendar":
+    if claim["kind"] not in _CALENDAR_TERMINAL_KINDS:
         return None
     hol = (obs.get("period") or {}).get("holiday") or {}
     dis = hol.get("row_flag_disagreement")
-    answer = (f"Because {claim['data'].get('names')} is a fixed, known date that the plan "
-              f"treats as an ordinary week. This is the most correctable kind of miss: the "
-              f"calendar is published in advance, so the adjustment can be built into the plan "
-              f"rather than explained afterwards.")
+    kind = claim["kind"]
+    nm = claim["data"].get("names")
+    if kind == "plan_over_adjusted_for_calendar":
+        answer = (f"Because the plan's adjustment for {nm} is sized wrong, not missing. A published "
+                  f"date the plan already reacts to is the most correctable kind of miss -- the "
+                  f"depth of the reaction is a number that can be tuned against this queue's own "
+                  f"history.")
+    elif kind == "plan_adjusted_for_calendar":
+        answer = (f"Because the plan already reflects {nm} at roughly the right size, the calendar "
+                  f"is not what went wrong this week and the explanation lies elsewhere.")
+    elif kind == "plan_calendar_response_unknown":
+        answer = (f"Because the plan's historical response to {nm} could not be measured for this "
+                  f"queue, whether the calendar was handled cannot be settled from this data.")
+    else:
+        answer = (f"Because {nm} is a fixed, known date that the plan "
+                  f"treats as an ordinary week. This is the most correctable kind of miss: the "
+                  f"calendar is published in advance, so the adjustment can be built into the plan "
+                  f"rather than explained afterwards.")
     if dis:
         answer += f" Note: {dis}"
     return {"answer": answer, "evidence": ["holiday calendar"], "strength": 0.8,

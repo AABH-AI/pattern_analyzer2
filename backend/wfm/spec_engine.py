@@ -94,15 +94,38 @@ def _holiday_effect_for(history):
            if (num(h.get("Holiday_Count")) or 0) > 0 and h.get("Actual_Offered") is not None]
     nor = [num(h.get("Actual_Offered")) for h in history or []
            if (num(h.get("Holiday_Count")) or 0) == 0 and h.get("Actual_Offered") is not None]
+    # The PLAN's own movement on the same weeks. Without this the why-chain had no way to check
+    # whether the plan carried a holiday adjustment, and asserted that it had not -- which on China
+    # FW202435 was the opposite of the truth: the plan was cut 45.9% week on week.
+    holf = [num(h.get("fcst_offered")) for h in history or []
+            if (num(h.get("Holiday_Count")) or 0) > 0 and h.get("fcst_offered") is not None]
+    norf = [num(h.get("fcst_offered")) for h in history or []
+            if (num(h.get("Holiday_Count")) or 0) == 0 and h.get("fcst_offered") is not None]
     if len(hol) < 3 or len(nor) < 3:
         return {"material": False, "reason": f"only {len(hol)} holiday week(s) in history"}
     mh, mn = sum(hol) / len(hol), sum(nor) / len(nor)
     if not mn:
         return {"material": False, "reason": "no normal-week baseline"}
     diff = (mh - mn) / mn * 100.0
+    fdiff = None
+    if len(holf) >= 3 and len(norf) >= 3:
+        mhf, mnf = sum(holf) / len(holf), sum(norf) / len(norf)
+        if mnf:
+            fdiff = (mhf - mnf) / mnf * 100.0
     return {"material": abs(diff) >= 5.0, "difference_pct": round(diff, 1),
             "avg_holiday": round(mh), "avg_normal": round(mn),
-            "holiday_weeks": len(hol), "normal_weeks": len(nor)}
+            "holiday_weeks": len(hol), "normal_weeks": len(nor),
+            "forecast_difference_pct": (round(fdiff, 1) if fdiff is not None else None),
+            "avg_holiday_forecast": (round(sum(holf) / len(holf)) if len(holf) >= 3 else None),
+            "avg_normal_forecast": (round(sum(norf) / len(norf)) if len(norf) >= 3 else None),
+            # FIX 3: name what this counted. holiday_response.phase_effect answers a similar
+            # question over a DIFFERENT population with a DIFFERENT statistic, and the card was
+            # printing both figures unlabelled -- 29% here against 11.93% there.
+            "basis": "weeks where Holiday_Count > 0, against weeks where it is 0",
+            "measure": "mean",
+            "differs_from": ("holiday_response.phase_effect, which uses the MEDIAN over weeks the "
+                             "CALENDAR marks as the holiday phase -- a smaller and different set, "
+                             "so the two percentages are expected to differ")}
 
 
 

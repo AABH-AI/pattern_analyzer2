@@ -257,19 +257,65 @@ def _numbers_in(text):
     return out
 
 
+# How far a ROUNDING may sit from the figure it rounds. Being a rounding is not enough on its own:
+# round(33790, -4) is 30,000, arithmetically a rounding and 11% wrong. 5% admits every rounding a
+# person would write and refuses the ones that lose the number.
+ROUNDING_MAX_DRIFT = 0.05
+
+
+def _rounds_to(supplied, written):
+    """Does `supplied` round to `written` at some sensible precision?
+
+    This is the question a percentage band cannot express. The error introduced by rounding to the
+    nearest hundred is a different fraction at every magnitude -- 1.3% at 3,929, 5% near 1,000,
+    0.5% near 10,000 -- so any single percentage either rejects real roundings or admits inventions.
+    Asking directly does neither.
+
+    Precision walks from two decimal places down to one significant figure. A rounding that would
+    leave nothing (3,929 -> 0) is refused, because "0" is not a less precise way of saying 3,929.
+    """
+    a = abs(supplied)
+    if a == 0:
+        return abs(written) == 0
+    import math
+    digits = int(math.floor(math.log10(a))) + 1          # 3929 -> 4
+    for nd in range(2, -digits, -1):                      # 2, 1, 0, -1, -2, -3 for a 4-digit number
+        r = round(supplied, nd)
+        if r == 0:
+            break                                         # rounded away entirely; not a rounding
+        if abs(written - r) < 1e-9:
+            # Being a rounding is necessary but NOT sufficient -- it also has to be close.
+            # round(33790, -4) is 30,000, which is arithmetically a rounding and 11% wrong, and
+            # nobody writing a report means 33,790 when they say 30,000.
+            return abs(written - supplied) <= ROUNDING_MAX_DRIFT * a
+    return False
+
+
 def _matches_supplied(written, supplied):
     """Is this figure one of the supplied ones, allowing for sensible rounding?
 
-    Exact matching rejected legitimate business writing: the forecast is 6400.45 and the
-    model correctly wrote "6,400", which an exact test called a fabrication and which
-    failed the whole narrative. Rounding a figure for a report is not inventing it.
+    Exact matching rejected legitimate business writing: the forecast is 6400.45 and the model
+    correctly wrote "6,400", which an exact test called a fabrication and which failed the whole
+    narrative. Rounding a figure for a report is not inventing it.
 
-    A 0.5% band (floor of 1) accepts rounding to the nearest whole, ten or hundred at these
-    magnitudes while still catching a genuinely invented number -- 9,999 has nothing within
-    0.5% of it and is still rejected.
+    Two tests, and a figure passes on either:
+
+      1. within 0.5% (floor of 1) -- catches trailing-decimal trims like 6400.45 -> 6400
+      2. IS the supplied figure rounded to some sensible precision (see _rounds_to) -- catches
+         3,929 -> 3,900 and 3,929 -> 4,000, which test 1 misses at 0.74% and 1.8%
+
+    A genuinely invented number still fails both: 9,999 is within 0.5% of nothing supplied and is
+    not any rounding of anything supplied. That is the property worth preserving -- the check exists
+    to stop the report lying, not to police how many digits an executive summary quotes.
     """
-    for s in supplied:
-        if abs(written - s) <= max(1.0, 0.005 * abs(s)):
+    for v in supplied:
+        # The floor of 1 lets 26.5 -> 27 through, where 0.5% is only 0.13. It must NOT apply below
+        # 1, where a floor of 1 exceeds the number itself -- a contact rate of 0.0018 was accepting
+        # a written "0" on that rule alone.
+        band = max(1.0, 0.005 * abs(v)) if abs(v) >= 1.0 else 0.005 * abs(v)
+        if abs(written - v) <= band:
+            return True
+        if _rounds_to(v, written):
             return True
     return False
 

@@ -554,33 +554,35 @@
     "level": 1,
     "question": "Why did demand reach 10,919 when this queue normally runs about 33,178?",
     "semantic_key": "# # # apj book csg moved out partly region wider",
-    "answer": "Partly because the wider book moved with it: Region (CSG / APJ) is out by 10,452 contacts (+7.4%), and this queue is 38% of that.",
+    "answer": "The APJ region deviated by 10,452 contacts (+7.4%), and the Social Media China Basic queue accounts for 38% of that variance.",
     "evidence": [
      "investigation ladder"
     ],
     "strength": 0.8,
     "confidence": 0.78,
     "decision": "continue",
-    "claim_kind": "shared_with_wider_book"
+    "claim_kind": "shared_with_wider_book",
+    "answer_deterministic": "Partly because the wider book moved with it: Region (CSG / APJ) is out by 10,452 contacts (+7.4%), and this queue is 38% of that."
    },
    {
     "level": 2,
     "question": "Why is Region out by 10,452 contacts?",
     "semantic_key": "# across apj basic ccc channel channel china concentrates csg down further",
-    "answer": "Because the gap concentrates further down: Channel (CSG / APJ / CCC / China / Basic / Social Media) is out by +26.5%, worse than Region. The problem sits inside Channel, not across the whole of Region.",
+    "answer": "The Channel (CSG/APJ/CCC/China/Basic/Social Media) shows a +26.5% deviation, indicating the gap is concentrated within the channel rather than across the broader region.",
     "evidence": [
      "investigation ladder"
     ],
     "strength": 0.7,
     "confidence": 0.72,
     "decision": "continue",
-    "claim_kind": "concentrated_below"
+    "claim_kind": "concentrated_below",
+    "answer_deterministic": "Because the gap concentrates further down: Channel (CSG / APJ / CCC / China / Basic / Social Media) is out by +26.5%, worse than Region. The problem sits inside Channel, not across the whole of Region."
    },
    {
     "level": 3,
     "question": "Why is Channel (CSG / APJ / CCC / China / Basic / Social Media) worse than the levels above it?",
-    "semantic_key": "# # # adjustment against autumn below carry day day did falls",
-    "answer": "Because Mid-Autumn Festival holiday, National Day, National Day Golden Week holiday falls in this week, and holiday weeks run 29% below normal for this queue (24,091 contacts against 34,113). The plan did not carry that adjustment.",
+    "semantic_key": "# # # # # adjustment against against autumn below broadly calendar",
+    "answer": "The queue recorded 24,091 contacts against a typical 34,113, a 29% shortfall, while the plan already applied a -30% adjustment, closely aligning with the implied -29% holiday impact.",
     "evidence": [
      "holiday calendar",
      "holiday effect"
@@ -588,13 +590,14 @@
     "strength": 0.8,
     "confidence": 0.72,
     "decision": "continue",
-    "claim_kind": "plan_ignored_known_calendar"
+    "claim_kind": "plan_adjusted_for_calendar",
+    "answer_deterministic": "Because Mid-Autumn Festival holiday, National Day, National Day Golden Week holiday falls in this week, and holiday weeks run 29% below normal for this queue (24,091 contacts against 34,113). The plan carried a broadly matching adjustment (-30% against the -29% implied), so the calendar was not overlooked."
    },
    {
     "level": 4,
-    "question": "Why did the plan not allow for Mid-Autumn Festival holiday, National Day, National Day Golden Week holiday, which is a known date?",
-    "semantic_key": "adjustment advance afterwards as autumn be built calendar can correctable date day",
-    "answer": "Because Mid-Autumn Festival holiday, National Day, National Day Golden Week holiday is a fixed, known date that the plan treats as an ordinary week. This is the most correctable kind of miss: the calendar is published in advance, so the adjustment can be built into the plan rather than explained afterwards.",
+    "question": "Why the plan already reflects this holiday?",
+    "semantic_key": "already autumn calendar day day elsewhere explanation festival golden holiday holiday lies",
+    "answer": "The plan already incorporated the holiday impact at the appropriate level, indicating the calendar is not the source of this week's variance.",
     "evidence": [
      "holiday calendar"
     ],
@@ -602,14 +605,20 @@
     "confidence": 0.72,
     "decision": "terminate",
     "claim_kind": null,
-    "termination_reason": "the chain reached a cause that cannot be broken down further"
+    "termination_reason": "the chain reached a cause that cannot be broken down further",
+    "answer_deterministic": "Because the plan already reflects Mid-Autumn Festival holiday, National Day, National Day Golden Week holiday at roughly the right size, the calendar is not what went wrong this week and the explanation lies elsewhere."
    }
   ],
   "depth_reached": 4,
   "max_depth": 6,
-  "terminating_cause": "Because Mid-Autumn Festival holiday, National Day, National Day Golden Week holiday is a fixed, known date that the plan treats as an ordinary week. This is the most correctable kind of miss: the calendar is published in advance, so the adjustment can be built into the plan rather than explained afterwards.",
+  "terminating_cause": "Because the plan already reflects Mid-Autumn Festival holiday, National Day, National Day Golden Week holiday at roughly the right size, the calendar is not what went wrong this week and the explanation lies elsewhere.",
   "confidence_at_root": 0.72,
-  "termination_reason": "the chain reached a cause that cannot be broken down further"
+  "termination_reason": "the chain reached a cause that cannot be broken down further",
+  "wording": {
+   "rewritten": 4,
+   "rejected_ungrounded": 0,
+   "prompt_version": "1.0.0"
+  }
  },
  "forecast_response_diagnostic": {
   "available": true,
@@ -1904,7 +1913,10 @@
      "instances": 3,
      "reason": "only 3 historical week(s) in this phase (4 required to measure a response)"
     }
-   }
+   },
+   "basis": "weeks the CALENDAR marks as each phase, against this queue's non-holiday weeks",
+   "measure": "median",
+   "differs_from": "spec_engine._holiday_effect_for, which uses the MEAN over every week with Holiday_Count > 0 -- a wider set, so its percentage is expected to differ from this one"
   },
   "plan_bias": {
    "available": true,
@@ -3099,10 +3111,11 @@
    {
     "rank_basis": 1,
     "what_happened": "A forecast-response failure IS supported: a repeatable signal was available before the week and the plan did not respond adequately to it.",
-    "text": "A forecast-response failure IS supported: a repeatable signal was available before the week and the plan did not respond adequately to it. All four conditions for calling this a forecast-response failure hold.",
-    "forecast_mechanism": "All four conditions for calling this a forecast-response failure hold.",
+    "text": "A forecast-response failure IS supported: a repeatable signal was available before the week and the plan did not respond adequately to it. All four conditions for calling this a forecast-response failure hold -- the plan COULD have reacted. It is still not the cause here: the direction-coherence gate, which runs afterwards, rejected it because the mechanism implies demand moving the opposite way to this miss. Being able to react and being the explanation are two different tests, and this evidence passes the first and fails the second.",
+    "forecast_mechanism": "All four conditions for calling this a forecast-response failure hold -- the plan COULD have reacted. It is still not the cause here: the direction-coherence gate, which runs afterwards, rejected it because the mechanism implies demand moving the opposite way to this miss. Being able to react and being the explanation are two different tests, and this evidence passes the first and fails the second.",
     "evidence_id": "E5",
     "strength": "Strong",
+    "overridden_by_direction_gate": true,
     "rank": 4,
     "jargon_found": [],
     "causal_verbs_found": []
@@ -3190,10 +3203,81 @@
    "could not be isolated"
   ]
  },
- "narrative": null,
- "status": "Incomplete",
- "narrative_error": "no LLM provider configured",
- "incomplete_reason": "Every figure, cause, confidence score and recommendation below is complete. Only the written summary is missing, because the language model call did not succeed: no LLM provider configured",
+ "narrative": {
+  "executiveSummary": [
+   "The forecast over\u2011estimated demand by about 26.5\u202f% (roughly 3,900 contacts) for Social Media China Basic in FW35.",
+   "Actual contacts were unusually low \u2013 a genuine dip that makes this week a statistical outlier for the queue.",
+   "The miss came from two main drivers: the plan over\u2011reacted to the holiday pattern in the week, and it did not use a leading driver signal (planned units for delivery/production) that was available eight weeks earlier.",
+   "Confidence in this assessment is Medium (65\u202f%)."
+  ],
+  "rootCauseStatement": "This week is a statistical outlier for the queue: actual contacts were 10,919 against a typical level of about 33,200, a genuine dip that is not a rounding issue.",
+  "confidenceExplanation": "Confidence is Medium (65\u202f%). This level reflects the weighted average of the eight evidence dimensions (data sufficiency, statistical agreement, model agreement, context completeness, evidence strength, contradictory evidence, business rule validation, and historical consistency). No confidence caps were triggered.",
+  "limitations": [
+   "Only 35 weeks of history are held for this queue; seasonal and long-term trend findings need 104 and are therefore less dependable.",
+   "Business Event Repository is not deployed, so this is NotApplicable and carries no confidence penalty (BR-202).",
+   "Only 35 weeks of actuals; below the 104 the framework expects, so seasonal and trend findings are less dependable.",
+   "The same fiscal period in prior years does not show this movement, so a seasonal reading is not supported.",
+   "No established direction exists for this queue, so the movement cannot be attributed to a continuing trend.",
+   "Weekend impact cannot be isolated from fiscal-week totals because day-level actual and forecast data is unavailable in the source.",
+   "7 other hypothesis(es) survived and explain the same movement, so this one is not uniquely supported."
+  ],
+  "recommendationNarratives": [
+   {
+    "recommendationId": "M3",
+    "text": "Revisit the pre\u2011holiday, holiday and post\u2011holiday adjustments for this queue: the calendar pattern is established in its own history and the plan did not capture it. (follows mechanism: CALENDAR_RESPONSE_FAILURE)"
+   },
+   {
+    "recommendationId": "M4-Final_Units",
+    "text": "Evaluate planned units for delivery / production (shipment) as a leading demand input at an 8\u2011week lag, which is where its relationship with this queue's demand is strongest and most stable. (follows mechanism: DRIVER_RESPONSE_FAILURE)"
+   },
+   {
+    "recommendationId": "R2",
+    "text": "Extend the history held for this queue to at least 104 weeks."
+   }
+  ],
+  "whyThisHappened": [
+   {
+    "rank": 1,
+    "text": "The plan moved \u201359.79\u202f%, well beyond the \u201311.93\u202f% that the holiday phase historically implies. This is one of the mechanisms the evidence supports: more than one supported mechanism contributed materially. Direction checks out: the miss pushed demand down and this mechanism implies down."
+   },
+   {
+    "rank": 2,
+    "text": "Planned units for delivery / production (shipment) eight weeks earlier has a stronger and more stable historical relationship with demand than the same\u2011week comparison. This is one of the mechanisms the evidence supports: more than one supported mechanism contributed materially. Direction checks out: the miss pushed demand down and this mechanism implies down."
+   },
+   {
+    "rank": 3,
+    "text": "Against an expected 33,790 contacts (median demand over the last 13 weeks), the plan sat 18,942 contacts below expectation and demand landed 22,871 contacts below it. Most of the gap \u2013 about 55\u202f% \u2013 sits on the demand side, meaning demand moved away from what the available signals pointed to."
+   },
+   {
+    "rank": 4,
+    "text": "A forecast\u2011response failure is supported: a repeatable signal was available before the week and the plan did not respond adequately to it. All four conditions for calling this a forecast\u2011response failure hold \u2013 the plan could have reacted. However, the direction\u2011coherence gate rejected it as the cause because the mechanism implies demand moving the opposite way to this miss. Being able to react and being the explanation are two different tests; this evidence passes the first and fails the second."
+   },
+   {
+    "rank": 5,
+    "text": "Mid\u2011Autumn Festival and National Day (China) fall in this week. Weeks containing a holiday have historically run 11.93\u202f% below this queue's non\u2011holiday level, across four weeks, moving that way in 100\u202f% of them. The plan for those weeks moved \u201324.88\u202f%, so the pattern was reflected in the forecast historically. Forecast capture: over\u2011reacted \u2013 the plan moved \u201359.79\u202f%, well beyond the \u201311.93\u202f% the phase historically implies. The week sits in the holiday phase, and the plan moved \u201359.79\u202f%, well beyond the \u201311.93\u202f% the phase historically implies."
+   },
+   {
+    "rank": 6,
+    "text": "The population was close to plan, but contacts per unit differed: 0.0012 actual against 0.0018 planned. The two effects sum to the whole \u20133,929\u2011contact gap (+1,366 from population, \u20135,294 from contact rate), so nothing is left unexplained by the split. The gap is driven by contacts per unit differing from plan, not by the population."
+   },
+   {
+    "rank": 7,
+    "text": "FORECAST_BASELINE_FAILURE was raised by the evidence but points the opposite way to the miss. Governed by the direction\u2011coherence gate (section\u202f32). The miss pushed demand down and this mechanism implies up, from the plan sitting below the expected level for this week (\u201356.1\u202f%) \u2013 the directions disagree, so the mechanism cannot be the cause."
+   },
+   {
+    "rank": 8,
+    "text": "FORECAST_RESPONSE_FAILURE was raised by the evidence but points the opposite way to the miss. Governed by the direction\u2011coherence gate (section\u202f32). The miss pushed demand down and this mechanism implies up, from the plan sitting below the expected level for this week (\u201356.1\u202f%) \u2013 the directions disagree, so the mechanism cannot be the cause."
+   },
+   {
+    "rank": 9,
+    "text": "Eight items support the conclusion and eight argue against it. Governed by cross\u2011examination, which ran before confidence precisely so its result could feed in. Thirteen challenge(s) found nothing wrong, five raised a doubt and none contradicted it outright."
+   }
+  ],
+  "criticalityExplanation": "The miss is rated High criticality. The absolute gap of about 3,900 contacts represents roughly 12\u202f% of a typical week\u2019s volume for this queue (typical actual \u2248 33,790 contacts)."
+ },
+ "status": "Complete",
+ "narrative_error": null,
+ "incomplete_reason": null,
  "hypotheses": {
   "generated": [
    {
@@ -5458,10 +5542,10 @@
  "material": true,
  "audit": {
   "input_fingerprint": "85facde45136193f",
-  "narrative_model": null,
-  "narrative_seconds": 0.0,
-  "started_at": "2026-08-19T11:40:28.729550+00:00",
-  "completed_at": "2026-08-19T11:40:28.792099+00:00",
+  "narrative_model": "nvidia/nvidia/nemotron-3-super-120b-a12b",
+  "narrative_seconds": 21.46,
+  "started_at": "2026-08-19T12:47:14.955854+00:00",
+  "completed_at": "2026-08-19T12:48:03.247730+00:00",
   "catalogue_version": "2.0.0",
   "challenge_catalogue_version": "2.1.0",
   "confidence_weights_version": "2.0.0",
@@ -5521,7 +5605,7 @@
    {
     "step": 10,
     "name": "Root Cause Wording",
-    "detail": "kept deterministic wording: no LLM provider configured"
+    "detail": "4 of 4 finding(s) rewritten in business language"
    },
    {
     "step": 11,
@@ -5541,7 +5625,7 @@
    {
     "step": 14,
     "name": "Generate Executive Summary",
-    "detail": "narrative unavailable: no LLM provider configured"
+    "detail": "narrative generated"
    },
    {
     "step": 15,
@@ -5570,19 +5654,18 @@
    "criticality_band": "High",
    "miss_mechanism": "COMPOUND_MISS",
    "markers": [
-    "Investigation Incomplete",
     "Criticality: High"
    ]
   },
   "sections": {
    "1_executive_summary": [
-    "Over-forecast of 26.5% \u2014 3,929 contacts against plan.",
-    "This week is itself a statistical outlier for this queue: 10,919 contacts against a typical 33,178 -- a genuine dip, not a rounding issue. 2 of 35 weeks (6%) in the window are outliers -- which means spikes like this are uncommon but not rare for this queue, so treat it as notable rather than exceptional.",
-    "Confidence: Medium (65.0%).",
-    "Narrative generation was unavailable; these figures are the engine's own and are complete."
+    "The forecast over\u2011estimated demand by about 26.5\u202f% (roughly 3,900 contacts) for Social Media China Basic in FW35.",
+    "Actual contacts were unusually low \u2013 a genuine dip that makes this week a statistical outlier for the queue.",
+    "The miss came from two main drivers: the plan over\u2011reacted to the holiday pattern in the week, and it did not use a leading driver signal (planned units for delivery/production) that was available eight weeks earlier.",
+    "Confidence in this assessment is Medium (65\u202f%)."
    ],
    "2_root_cause": {
-    "statement": "This week is itself a statistical outlier for this queue: 10,919 contacts against a typical 33,178 -- a genuine dip, not a rounding issue. 2 of 35 weeks (6%) in the window are outliers -- which means spikes like this are uncommon but not rare for this queue, so treat it as notable rather than exceptional.",
+    "statement": "This week is a statistical outlier for the queue: actual contacts were 10,919 against a typical level of about 33,200, a genuine dip that is not a rounding issue.",
     "hypothesis": "Outlier",
     "category": "Statistical",
     "inconclusive": false,
@@ -5678,33 +5761,35 @@
        "level": 1,
        "question": "Why did demand reach 10,919 when this queue normally runs about 33,178?",
        "semantic_key": "# # # apj book csg moved out partly region wider",
-       "answer": "Partly because the wider book moved with it: Region (CSG / APJ) is out by 10,452 contacts (+7.4%), and this queue is 38% of that.",
+       "answer": "The APJ region deviated by 10,452 contacts (+7.4%), and the Social Media China Basic queue accounts for 38% of that variance.",
        "evidence": [
         "investigation ladder"
        ],
        "strength": 0.8,
        "confidence": 0.78,
        "decision": "continue",
-       "claim_kind": "shared_with_wider_book"
+       "claim_kind": "shared_with_wider_book",
+       "answer_deterministic": "Partly because the wider book moved with it: Region (CSG / APJ) is out by 10,452 contacts (+7.4%), and this queue is 38% of that."
       },
       {
        "level": 2,
        "question": "Why is Region out by 10,452 contacts?",
        "semantic_key": "# across apj basic ccc channel channel china concentrates csg down further",
-       "answer": "Because the gap concentrates further down: Channel (CSG / APJ / CCC / China / Basic / Social Media) is out by +26.5%, worse than Region. The problem sits inside Channel, not across the whole of Region.",
+       "answer": "The Channel (CSG/APJ/CCC/China/Basic/Social Media) shows a +26.5% deviation, indicating the gap is concentrated within the channel rather than across the broader region.",
        "evidence": [
         "investigation ladder"
        ],
        "strength": 0.7,
        "confidence": 0.72,
        "decision": "continue",
-       "claim_kind": "concentrated_below"
+       "claim_kind": "concentrated_below",
+       "answer_deterministic": "Because the gap concentrates further down: Channel (CSG / APJ / CCC / China / Basic / Social Media) is out by +26.5%, worse than Region. The problem sits inside Channel, not across the whole of Region."
       },
       {
        "level": 3,
        "question": "Why is Channel (CSG / APJ / CCC / China / Basic / Social Media) worse than the levels above it?",
-       "semantic_key": "# # # adjustment against autumn below carry day day did falls",
-       "answer": "Because Mid-Autumn Festival holiday, National Day, National Day Golden Week holiday falls in this week, and holiday weeks run 29% below normal for this queue (24,091 contacts against 34,113). The plan did not carry that adjustment.",
+       "semantic_key": "# # # # # adjustment against against autumn below broadly calendar",
+       "answer": "The queue recorded 24,091 contacts against a typical 34,113, a 29% shortfall, while the plan already applied a -30% adjustment, closely aligning with the implied -29% holiday impact.",
        "evidence": [
         "holiday calendar",
         "holiday effect"
@@ -5712,13 +5797,14 @@
        "strength": 0.8,
        "confidence": 0.72,
        "decision": "continue",
-       "claim_kind": "plan_ignored_known_calendar"
+       "claim_kind": "plan_adjusted_for_calendar",
+       "answer_deterministic": "Because Mid-Autumn Festival holiday, National Day, National Day Golden Week holiday falls in this week, and holiday weeks run 29% below normal for this queue (24,091 contacts against 34,113). The plan carried a broadly matching adjustment (-30% against the -29% implied), so the calendar was not overlooked."
       },
       {
        "level": 4,
-       "question": "Why did the plan not allow for Mid-Autumn Festival holiday, National Day, National Day Golden Week holiday, which is a known date?",
-       "semantic_key": "adjustment advance afterwards as autumn be built calendar can correctable date day",
-       "answer": "Because Mid-Autumn Festival holiday, National Day, National Day Golden Week holiday is a fixed, known date that the plan treats as an ordinary week. This is the most correctable kind of miss: the calendar is published in advance, so the adjustment can be built into the plan rather than explained afterwards.",
+       "question": "Why the plan already reflects this holiday?",
+       "semantic_key": "already autumn calendar day day elsewhere explanation festival golden holiday holiday lies",
+       "answer": "The plan already incorporated the holiday impact at the appropriate level, indicating the calendar is not the source of this week's variance.",
        "evidence": [
         "holiday calendar"
        ],
@@ -5726,14 +5812,20 @@
        "confidence": 0.72,
        "decision": "terminate",
        "claim_kind": null,
-       "termination_reason": "the chain reached a cause that cannot be broken down further"
+       "termination_reason": "the chain reached a cause that cannot be broken down further",
+       "answer_deterministic": "Because the plan already reflects Mid-Autumn Festival holiday, National Day, National Day Golden Week holiday at roughly the right size, the calendar is not what went wrong this week and the explanation lies elsewhere."
       }
      ],
      "depth_reached": 4,
      "max_depth": 6,
-     "terminating_cause": "Because Mid-Autumn Festival holiday, National Day, National Day Golden Week holiday is a fixed, known date that the plan treats as an ordinary week. This is the most correctable kind of miss: the calendar is published in advance, so the adjustment can be built into the plan rather than explained afterwards.",
+     "terminating_cause": "Because the plan already reflects Mid-Autumn Festival holiday, National Day, National Day Golden Week holiday at roughly the right size, the calendar is not what went wrong this week and the explanation lies elsewhere.",
      "confidence_at_root": 0.72,
-     "termination_reason": "the chain reached a cause that cannot be broken down further"
+     "termination_reason": "the chain reached a cause that cannot be broken down further",
+     "wording": {
+      "rewritten": 4,
+      "rejected_ungrounded": 0,
+      "prompt_version": "1.0.0"
+     }
     },
     "interrogation": {
      "available": false,
@@ -6358,7 +6450,7 @@
    ],
    "10_audit_reference": {
     "fingerprint": "85facde45136193f",
-    "completed_at": "2026-08-19T11:40:28.792099+00:00",
+    "completed_at": "2026-08-19T12:48:03.247730+00:00",
     "catalogue_version": "2.0.0",
     "confidence_weights_version": "2.0.0",
     "prompt_version": "2.1.0",
@@ -6416,7 +6508,7 @@
      {
       "step": 10,
       "name": "Root Cause Wording",
-      "detail": "kept deterministic wording: no LLM provider configured"
+      "detail": "4 of 4 finding(s) rewritten in business language"
      },
      {
       "step": 11,
@@ -6436,7 +6528,7 @@
      {
       "step": 14,
       "name": "Generate Executive Summary",
-      "detail": "narrative unavailable: no LLM provider configured"
+      "detail": "narrative generated"
      },
      {
       "step": 15,
@@ -6476,7 +6568,7 @@
      {
       "rank_basis": 0,
       "what_happened": "The plan moved -59.79%, well beyond the -11.93% the phase historically implies.",
-      "text": "The plan moved -59.79%, well beyond the -11.93% the phase historically implies. This is one of the mechanisms the evidence supports: More than one supported mechanism contributed materially. Direction checks out: the miss pushed demand down and this mechanism implies down.",
+      "text": "The plan moved \u201359.79\u202f%, well beyond the \u201311.93\u202f% that the holiday phase historically implies. This is one of the mechanisms the evidence supports: more than one supported mechanism contributed materially. Direction checks out: the miss pushed demand down and this mechanism implies down.",
       "why_it_mattered": "This is one of the mechanisms the evidence supports: More than one supported mechanism contributed materially.",
       "forecast_mechanism": "Direction checks out: the miss pushed demand down and this mechanism implies down.",
       "evidence_id": "E5",
@@ -6484,12 +6576,13 @@
       "rank": 1,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "The plan moved -59.79%, well beyond the -11.93% the phase historically implies. This is one of the mechanisms the evidence supports: More than one supported mechanism contributed materially. Direction checks out: the miss pushed demand down and this mechanism implies down."
+      "text_deterministic": "The plan moved -59.79%, well beyond the -11.93% the phase historically implies. This is one of the mechanisms the evidence supports: More than one supported mechanism contributed materially. Direction checks out: the miss pushed demand down and this mechanism implies down.",
+      "reworded_by_model": true
      },
      {
       "rank_basis": 0,
       "what_happened": "Planned units for delivery / production (shipment) 8 week(s) earlier has a stronger and more stable historical relationship with demand than the same-week comparison.",
-      "text": "Planned units for delivery / production (shipment) 8 week(s) earlier has a stronger and more stable historical relationship with demand than the same-week comparison. This is one of the mechanisms the evidence supports: More than one supported mechanism contributed materially. Direction checks out: the miss pushed demand down and this mechanism implies down.",
+      "text": "Planned units for delivery / production (shipment) eight weeks earlier has a stronger and more stable historical relationship with demand than the same\u2011week comparison. This is one of the mechanisms the evidence supports: more than one supported mechanism contributed materially. Direction checks out: the miss pushed demand down and this mechanism implies down.",
       "why_it_mattered": "This is one of the mechanisms the evidence supports: More than one supported mechanism contributed materially.",
       "forecast_mechanism": "Direction checks out: the miss pushed demand down and this mechanism implies down.",
       "evidence_id": "E5",
@@ -6497,12 +6590,13 @@
       "rank": 2,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "Planned units for delivery / production (shipment) 8 week(s) earlier has a stronger and more stable historical relationship with demand than the same-week comparison. This is one of the mechanisms the evidence supports: More than one supported mechanism contributed materially. Direction checks out: the miss pushed demand down and this mechanism implies down."
+      "text_deterministic": "Planned units for delivery / production (shipment) 8 week(s) earlier has a stronger and more stable historical relationship with demand than the same-week comparison. This is one of the mechanisms the evidence supports: More than one supported mechanism contributed materially. Direction checks out: the miss pushed demand down and this mechanism implies down.",
+      "reworded_by_model": true
      },
      {
       "rank_basis": 0,
       "what_happened": "Against an expected 33790.0 contacts (median demand over the last 13 weeks (fewer than 2 prior years available for fiscal week 35)), the plan sat 18942.23 contacts below expectation and demand landed 22871.0 contacts below it.",
-      "text": "Against an expected 33790.0 contacts (median demand over the last 13 weeks (fewer than 2 prior years available for fiscal week 35)), the plan sat 18942.23 contacts below expectation and demand landed 22871.0 contacts below it. Most of the gap -- 55% of it -- sits on the demand side. Demand moved away from what the available signals pointed to.",
+      "text": "Against an expected 33,790 contacts (median demand over the last 13 weeks), the plan sat 18,942 contacts below expectation and demand landed 22,871 contacts below it. Most of the gap \u2013 about 55\u202f% \u2013 sits on the demand side, meaning demand moved away from what the available signals pointed to.",
       "why_it_mattered": "Most of the gap -- 55% of it -- sits on the demand side.",
       "forecast_mechanism": "Demand moved away from what the available signals pointed to.",
       "evidence_id": "E2",
@@ -6510,24 +6604,27 @@
       "rank": 3,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "Against an expected 33790.0 contacts (median demand over the last 13 weeks (fewer than 2 prior years available for fiscal week 35)), the plan sat 18942.23 contacts below expectation and demand landed 22871.0 contacts below it. Most of the gap -- 55% of it -- sits on the demand side. Demand moved away from what the available signals pointed to."
+      "text_deterministic": "Against an expected 33790.0 contacts (median demand over the last 13 weeks (fewer than 2 prior years available for fiscal week 35)), the plan sat 18942.23 contacts below expectation and demand landed 22871.0 contacts below it. Most of the gap -- 55% of it -- sits on the demand side. Demand moved away from what the available signals pointed to.",
+      "reworded_by_model": true
      },
      {
       "rank_basis": 1,
       "what_happened": "A forecast-response failure IS supported: a repeatable signal was available before the week and the plan did not respond adequately to it.",
-      "text": "A forecast-response failure IS supported: a repeatable signal was available before the week and the plan did not respond adequately to it. All four conditions for calling this a forecast-response failure hold.",
-      "forecast_mechanism": "All four conditions for calling this a forecast-response failure hold.",
+      "text": "A forecast\u2011response failure is supported: a repeatable signal was available before the week and the plan did not respond adequately to it. All four conditions for calling this a forecast\u2011response failure hold \u2013 the plan could have reacted. However, the direction\u2011coherence gate rejected it as the cause because the mechanism implies demand moving the opposite way to this miss. Being able to react and being the explanation are two different tests; this evidence passes the first and fails the second.",
+      "forecast_mechanism": "All four conditions for calling this a forecast-response failure hold -- the plan COULD have reacted. It is still not the cause here: the direction-coherence gate, which runs afterwards, rejected it because the mechanism implies demand moving the opposite way to this miss. Being able to react and being the explanation are two different tests, and this evidence passes the first and fails the second.",
       "evidence_id": "E5",
       "strength": "Strong",
+      "overridden_by_direction_gate": true,
       "rank": 4,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "A forecast-response failure IS supported: a repeatable signal was available before the week and the plan did not respond adequately to it. All four conditions for calling this a forecast-response failure hold."
+      "text_deterministic": "A forecast-response failure IS supported: a repeatable signal was available before the week and the plan did not respond adequately to it. All four conditions for calling this a forecast-response failure hold -- the plan COULD have reacted. It is still not the cause here: the direction-coherence gate, which runs afterwards, rejected it because the mechanism implies demand moving the opposite way to this miss. Being able to react and being the explanation are two different tests, and this evidence passes the first and fails the second.",
+      "reworded_by_model": true
      },
      {
       "rank_basis": 2,
       "what_happened": "Mid-Autumn Festival, National Day (China) falls in this week. Weeks containing a holiday have historically run 11.93% below this queue's non-holiday level, across 4 week(s), moving that way in 100.0% of them. The plan for those weeks moved -24.88%, so the pattern was reflected in the forecast historically. Forecast capture: over reacted -- The plan moved -59.79%, well beyond the -11.93% the phase historically implies.",
-      "text": "Mid-Autumn Festival, National Day (China) falls in this week. Weeks containing a holiday have historically run 11.93% below this queue's non-holiday level, across 4 week(s), moving that way in 100.0% of them. The plan for those weeks moved -24.88%, so the pattern was reflected in the forecast historically. Forecast capture: over reacted -- The plan moved -59.79%, well beyond the -11.93% the phase historically implies. The week sits in the holiday phase. The plan moved -59.79%, well beyond the -11.93% the phase historically implies.",
+      "text": "Mid\u2011Autumn Festival and National Day (China) fall in this week. Weeks containing a holiday have historically run 11.93\u202f% below this queue's non\u2011holiday level, across four weeks, moving that way in 100\u202f% of them. The plan for those weeks moved \u201324.88\u202f%, so the pattern was reflected in the forecast historically. Forecast capture: over\u2011reacted \u2013 the plan moved \u201359.79\u202f%, well beyond the \u201311.93\u202f% the phase historically implies. The week sits in the holiday phase, and the plan moved \u201359.79\u202f%, well beyond the \u201311.93\u202f% the phase historically implies.",
       "why_it_mattered": "The week sits in the holiday phase.",
       "forecast_mechanism": "The plan moved -59.79%, well beyond the -11.93% the phase historically implies.",
       "evidence_id": "E10",
@@ -6535,24 +6632,26 @@
       "rank": 5,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "Mid-Autumn Festival, National Day (China) falls in this week. Weeks containing a holiday have historically run 11.93% below this queue's non-holiday level, across 4 week(s), moving that way in 100.0% of them. The plan for those weeks moved -24.88%, so the pattern was reflected in the forecast historically. Forecast capture: over reacted -- The plan moved -59.79%, well beyond the -11.93% the phase historically implies. The week sits in the holiday phase. The plan moved -59.79%, well beyond the -11.93% the phase historically implies."
+      "text_deterministic": "Mid-Autumn Festival, National Day (China) falls in this week. Weeks containing a holiday have historically run 11.93% below this queue's non-holiday level, across 4 week(s), moving that way in 100.0% of them. The plan for those weeks moved -24.88%, so the pattern was reflected in the forecast historically. Forecast capture: over reacted -- The plan moved -59.79%, well beyond the -11.93% the phase historically implies. The week sits in the holiday phase. The plan moved -59.79%, well beyond the -11.93% the phase historically implies.",
+      "reworded_by_model": true
      },
      {
       "rank_basis": 3,
       "what_happened": "The population was close to plan, but contacts per unit differed: 0.0012 actual against 0.0018 planned. The two effects sum to the whole -3,929-contact gap (+1,366 from population, -5,294 from contact rate), so nothing is left unexplained by the split.",
-      "text": "The population was close to plan, but contacts per unit differed: 0.0012 actual against 0.0018 planned. The two effects sum to the whole -3,929-contact gap (+1,366 from population, -5,294 from contact rate), so nothing is left unexplained by the split. The gap is driven by contacts per unit differing from plan, not by the population.",
+      "text": "The population was close to plan, but contacts per unit differed: 0.0012 actual against 0.0018 planned. The two effects sum to the whole \u20133,929\u2011contact gap (+1,366 from population, \u20135,294 from contact rate), so nothing is left unexplained by the split. The gap is driven by contacts per unit differing from plan, not by the population.",
       "forecast_mechanism": "The gap is driven by contacts per unit differing from plan, not by the population.",
       "evidence_id": "E6",
       "strength": "Strong",
       "rank": 6,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "The population was close to plan, but contacts per unit differed: 0.0012 actual against 0.0018 planned. The two effects sum to the whole -3,929-contact gap (+1,366 from population, -5,294 from contact rate), so nothing is left unexplained by the split. The gap is driven by contacts per unit differing from plan, not by the population."
+      "text_deterministic": "The population was close to plan, but contacts per unit differed: 0.0012 actual against 0.0018 planned. The two effects sum to the whole -3,929-contact gap (+1,366 from population, -5,294 from contact rate), so nothing is left unexplained by the split. The gap is driven by contacts per unit differing from plan, not by the population.",
+      "reworded_by_model": true
      },
      {
       "rank_basis": 5,
       "what_happened": "FORECAST_BASELINE_FAILURE was raised by the evidence but points the opposite way to the miss.",
-      "text": "FORECAST_BASELINE_FAILURE was raised by the evidence but points the opposite way to the miss. Governed by the direction-coherence gate (section 32). The miss pushed demand down and this mechanism implies up, from the plan sat below the expected level for this week (-56.1%) -- the directions DISAGREE, so the mechanism cannot be the cause.",
+      "text": "FORECAST_BASELINE_FAILURE was raised by the evidence but points the opposite way to the miss. Governed by the direction\u2011coherence gate (section\u202f32). The miss pushed demand down and this mechanism implies up, from the plan sitting below the expected level for this week (\u201356.1\u202f%) \u2013 the directions disagree, so the mechanism cannot be the cause.",
       "why_it_mattered": "Governed by the direction-coherence gate (section 32).",
       "forecast_mechanism": "The miss pushed demand down and this mechanism implies up, from the plan sat below the expected level for this week (-56.1%) -- the directions DISAGREE, so the mechanism cannot be the cause.",
       "evidence_id": "E14",
@@ -6560,12 +6659,13 @@
       "rank": 7,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "FORECAST_BASELINE_FAILURE was raised by the evidence but points the opposite way to the miss. Governed by the direction-coherence gate (section 32). The miss pushed demand down and this mechanism implies up, from the plan sat below the expected level for this week (-56.1%) -- the directions DISAGREE, so the mechanism cannot be the cause."
+      "text_deterministic": "FORECAST_BASELINE_FAILURE was raised by the evidence but points the opposite way to the miss. Governed by the direction-coherence gate (section 32). The miss pushed demand down and this mechanism implies up, from the plan sat below the expected level for this week (-56.1%) -- the directions DISAGREE, so the mechanism cannot be the cause.",
+      "reworded_by_model": true
      },
      {
       "rank_basis": 5,
       "what_happened": "FORECAST_RESPONSE_FAILURE was raised by the evidence but points the opposite way to the miss.",
-      "text": "FORECAST_RESPONSE_FAILURE was raised by the evidence but points the opposite way to the miss. Governed by the direction-coherence gate (section 32). The miss pushed demand down and this mechanism implies up, from the plan sat below the expected level for this week (-56.1%) -- the directions DISAGREE, so the mechanism cannot be the cause.",
+      "text": "FORECAST_RESPONSE_FAILURE was raised by the evidence but points the opposite way to the miss. Governed by the direction\u2011coherence gate (section\u202f32). The miss pushed demand down and this mechanism implies up, from the plan sitting below the expected level for this week (\u201356.1\u202f%) \u2013 the directions disagree, so the mechanism cannot be the cause.",
       "why_it_mattered": "Governed by the direction-coherence gate (section 32).",
       "forecast_mechanism": "The miss pushed demand down and this mechanism implies up, from the plan sat below the expected level for this week (-56.1%) -- the directions DISAGREE, so the mechanism cannot be the cause.",
       "evidence_id": "E14",
@@ -6573,12 +6673,13 @@
       "rank": 8,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "FORECAST_RESPONSE_FAILURE was raised by the evidence but points the opposite way to the miss. Governed by the direction-coherence gate (section 32). The miss pushed demand down and this mechanism implies up, from the plan sat below the expected level for this week (-56.1%) -- the directions DISAGREE, so the mechanism cannot be the cause."
+      "text_deterministic": "FORECAST_RESPONSE_FAILURE was raised by the evidence but points the opposite way to the miss. Governed by the direction-coherence gate (section 32). The miss pushed demand down and this mechanism implies up, from the plan sat below the expected level for this week (-56.1%) -- the directions DISAGREE, so the mechanism cannot be the cause.",
+      "reworded_by_model": true
      },
      {
       "rank_basis": 5,
       "what_happened": "8 item(s) support the conclusion and 8 argue against it.",
-      "text": "8 item(s) support the conclusion and 8 argue against it. Governed by cross-examination, which ran before confidence precisely so its result could feed in. 13 challenge(s) found nothing wrong, 5 raised a doubt and 0 contradicted it outright.",
+      "text": "Eight items support the conclusion and eight argue against it. Governed by cross\u2011examination, which ran before confidence precisely so its result could feed in. Thirteen challenge(s) found nothing wrong, five raised a doubt and none contradicted it outright.",
       "why_it_mattered": "Governed by cross-examination, which ran before confidence precisely so its result could feed in.",
       "forecast_mechanism": "13 challenge(s) found nothing wrong, 5 raised a doubt and 0 contradicted it outright.",
       "evidence_id": "E14",
@@ -6586,7 +6687,8 @@
       "rank": 9,
       "jargon_found": [],
       "causal_verbs_found": [],
-      "text_deterministic": "8 item(s) support the conclusion and 8 argue against it. Governed by cross-examination, which ran before confidence precisely so its result could feed in. 13 challenge(s) found nothing wrong, 5 raised a doubt and 0 contradicted it outright."
+      "text_deterministic": "8 item(s) support the conclusion and 8 argue against it. Governed by cross-examination, which ran before confidence precisely so its result could feed in. 13 challenge(s) found nothing wrong, 5 raised a doubt and 0 contradicted it outright.",
+      "reworded_by_model": true
      }
     ],
     "count": 9,
@@ -6611,8 +6713,8 @@
      "not confirmed",
      "could not be isolated"
     ],
-    "reworded_count": 0,
-    "wording_source": "deterministic wording only"
+    "reworded_count": 9,
+    "wording_source": "model rewording over deterministic bullets"
    },
    "13_forecast_response": {
     "available": true,
@@ -7949,8 +8051,8 @@
     "note": "Observations the evidence supports but the fixed catalogue has no entry for. Recorded for catalogue extension, never converted into a cause."
    }
   },
-  "status": "Incomplete",
-  "incomplete_reason": "Every figure, cause, confidence score and recommendation below is complete. Only the written summary is missing, because the language model call did not succeed: no LLM provider configured",
+  "status": "Complete",
+  "incomplete_reason": null,
   "engine": "spec-v2",
   "view_a_to_f": {
    "A_executive_rca": {
@@ -7972,7 +8074,12 @@
     "miss_contacts": 3928.8,
     "adherence_pct": 26.5,
     "direction": "Over-forecast",
-    "executive_narrative": null
+    "executive_narrative": [
+     "The forecast over\u2011estimated demand by about 26.5\u202f% (roughly 3,900 contacts) for Social Media China Basic in FW35.",
+     "Actual contacts were unusually low \u2013 a genuine dip that makes this week a statistical outlier for the queue.",
+     "The miss came from two main drivers: the plan over\u2011reacted to the holiday pattern in the week, and it did not use a leading driver signal (planned units for delivery/production) that was available eight weeks earlier.",
+     "Confidence in this assessment is Medium (65\u202f%)."
+    ]
    },
    "B_why_did_forecast_miss": {
     "from": [

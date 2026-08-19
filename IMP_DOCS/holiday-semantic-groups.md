@@ -239,3 +239,158 @@ to happen.
 | `find_holiday_weekend_test_weeks.sql` | 9 / 9 batches, 0 failures |
 
 All exit 0. Running on **http://localhost:9000/rca_console.html**.
+
+---
+
+# Four defects the FW202435 card exposed, and their fixes
+
+The test cases above were built to exercise the calendar work. Reading the card they produced found
+four problems that no suite had caught — and the reason is worth stating: all 189 FC checks pass on a
+card that contradicts itself, because they check that the machinery ran, not that the conclusion holds
+together.
+
+Verified against SQL first, independently of the engine. `results/verify` figures quoted below come
+from recomputing them from `dbo.Input_To_ML_Full_138_Trimmed`, not from the report.
+
+## What was already right
+
+| Claim | Independent check |
+|---|---|
+| Adherence +26.5%, variance 3,929 | +26.46%, 3,929 ✓ |
+| ASU split +1,366 / −5,294 | sums to −3,929, **reconciles exactly** ✓ |
+| Outlier verdict | modified z = **−5.88**, far beyond the 3.5 bar ✓ |
+| Holiday merge, 4 raw → 2 displayed | ✓ |
+| The three "typical" levels | each correct for its own window: 33,790 (13wk), 33,330 (35wk), 33,666 (no-holiday) |
+
+---
+
+## FIX 1 — the card asserted and denied the same mechanism
+
+`backend/wfm/decision_card.py`
+
+Bullet 4 said *"A forecast-response failure **IS** supported… all four conditions hold."* Bullet 8 said
+*"FORECAST_RESPONSE_FAILURE… **cannot be the cause**."* Four bullets apart, on one card.
+
+Both were true of **different gates** — forecastability asks whether the plan *could* have reacted,
+direction-coherence asks whether the mechanism pushes demand the way the miss went. Neither gate was
+wrong; the card just never said they had disagreed, so it read as self-contradiction and a reviewer is
+right to distrust it.
+
+The forecastability bullet now carries the override and the precedence in the same sentence:
+
+> "All four conditions for calling this a forecast-response failure hold — the plan COULD have
+> reacted. It is still not the cause here: the direction-coherence gate, which runs afterwards,
+> rejected it because the mechanism implies demand moving the opposite way to this miss. **Being able
+> to react and being the explanation are two different tests**, and this evidence passes the first and
+> fails the second."
+
+`overridden_by_direction_gate` is published on the bullet so a consumer can detect it without parsing
+prose. Neither gate was weakened.
+
+## FIX 2 — "the plan did not carry that adjustment" was false
+
+`backend/wfm/recursive_why.py`, `backend/wfm/spec_engine.py`
+
+The why-chain asserted the plan had not adjusted for the holiday. SQL says the plan was cut from
+**27,454.82 to 14,847.77 — 45.9% week on week**. The same card also said it *"over reacted"*. The
+over-reaction was right; "did not carry that adjustment" is the opposite of the truth, and it is the
+more damaging sentence, because it points a reader at *add a holiday adjustment* when the finding is
+that an existing one was too deep.
+
+`_ex_holiday` never looked at the plan — and could not have, because `_holiday_effect_for` measured
+**actuals only**. It now measures the plan on the same weeks (`forecast_difference_pct`), and the
+explainer states which of four things happened: adjustment absent, roughly right, overdone, or not
+measurable. Only the first keeps the original wording, and each leads to a different terminal.
+
+On FW202435 the chain now ends:
+
+> L3 "…holiday weeks run 29% below normal for this queue (24,091 against 34,113). **The plan carried a
+> broadly matching adjustment (−30% against the −29% implied), so the calendar was not overlooked.**"
+>
+> L4 "Because the plan already reflects [the holidays] at roughly the right size, **the calendar is not
+> what went wrong this week and the explanation lies elsewhere.**"
+
+That is a materially better answer: it sends the reader on instead of blaming the calendar.
+
+## FIX 3 — two holiday effects, neither labelled
+
+`backend/wfm/spec_engine.py`, `backend/wfm/holiday_response.py`
+
+The card printed **11.93%** in one place and **29%** in another for "the holiday effect". Both are
+real, over different populations with different statistics:
+
+| Source | Population | Statistic | FW202435 |
+|---|---|---|---|
+| `_holiday_effect_for` | every week with `Holiday_Count > 0` | **mean** | −19.7% / −29% |
+| `holiday_response.phase_effect` | weeks the **calendar** marks as the holiday phase | **median** | −11.93% |
+
+Reproduced both from SQL. Each block now publishes `basis`, `measure` and `differs_from`, so a reader
+can see *why* they differ rather than concluding the engine cannot count. Neither figure changed —
+only the labelling.
+
+This also explains a second apparent contradiction that is really two findings: on **all** holiday
+weeks the plan's adjustment is well sized (−30% vs −29%), while **this** week it cut far deeper than
+the phase norm (−59.79% vs −11.93% implied). Both useful, and now distinguishable.
+
+## FIX 4 — a rounding killed the whole narrative
+
+`backend/wfm/narrative_prompt.py`
+
+This is why the card said **Investigation Incomplete**. Not a provider failure:
+
+> *"the language model call did not succeed: contains number(s) absent from the inputs: **3900.0**"*
+
+The variance is 3,929 and the model wrote 3,900 — rounded to the nearest hundred. The validator's
+docstring is explicit that this is a hard failure *"because it is the one error that would make the
+report lie"*, which is the right instinct. But rounding a figure for a report is not inventing one, and
+the cost was the entire summary discarded and a card announcing failure when the analysis was complete.
+
+A tolerance already existed — 0.5% with a floor of 1 — and was **too tight**: 3,929 → 3,900 is 0.74%.
+The docstring claimed it accepted "rounding to the nearest hundred", which is untrue at this magnitude.
+
+The flaw is expressing "rounded to a round number" as a **percentage**, because the error from
+rounding to the nearest hundred is a different fraction at every magnitude — 1.3% at 3,929, 5% near
+1,000, 0.5% near 10,000. No single percentage covers it without becoming wide enough to admit
+inventions.
+
+`_rounds_to()` asks the question directly: *does the supplied figure round to the written one at some
+sensible precision?* Two further conditions keep it honest, both added because the test found them:
+
+- **a 5% drift cap** (`ROUNDING_MAX_DRIFT`). `round(33790, -4)` is 30,000 — arithmetically a rounding
+  and 11% wrong. Nobody writing a report means 33,790 when they say 30,000.
+- **no floor of 1 below 1.** The pre-existing floor meant any supplied value under 1 accepted anything
+  within 1.0 of it — a contact rate of 0.0018 was letting the model write "0".
+
+`results/test_narrative_grounding.py`, **21/21**: every legitimate rounding accepted (3,929 → 3,900,
+3,930, 4,000; 14,847.77 → 14,848, 14,800, 15,000; 26.5 → 27) and every invention still refused (9,999,
+3,500, 12,500, 2,000, 5,000, 13,000, 30,000, 0). **The invention half is the real test** — loosening a
+guard is only safe if what it guards against still fails.
+
+End to end with a live model, all three cases now report **`status=Complete`** with a narrative, and
+test 1's opening line is the sentence that used to fail:
+
+> "The forecast over-estimated demand by about 26.5% (**roughly 3,900 contacts**) for Social Media
+> China Basic in FW35."
+
+---
+
+## Verification after the four fixes
+
+| | |
+|---|---|
+| Module smoke | 12 / 12 |
+| FC spec semantics | 189 / 189 |
+| WFM diagnostics | 148 / 148 |
+| **Narrative grounding** (new) | **21 / 21** |
+| UI render, Decision Cards | 18 |
+| Three test cases with `--narrate` | 3 / 3 `status=Complete` |
+
+## Still open from this review
+
+Two cosmetic items were left, deliberately, as they change no conclusion:
+
+1. **Unformatted floats reach executive prose** — `33790.0`, `18942.23`, `0.0012 against 0.0018`.
+   Section 40 bans jargon, not raw formatting, so the jargon check passes them.
+2. **The header says "Why Forecast missed: Compound miss" while Root Cause says "Outlier"** — two
+   answers to one question. Both are correct in their own terms (the mechanism is compound, the
+   promoted catalogue hypothesis is Outlier), but a reader has to work that out unaided.

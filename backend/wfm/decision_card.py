@@ -559,15 +559,36 @@ def why_bullets(result):
                evidence_id="E2", strength="Strong")
 
     # 3. Could the plan have reacted (section 15)?
+    #
+    # The forecastability gate and the direction-coherence gate answer DIFFERENT questions, and they
+    # can disagree: the plan may well have been able to react (all four conditions met) while the
+    # mechanism still pushes demand the opposite way to the miss, in which case the direction gate --
+    # which runs later -- rejects it. Stating only the first produced a card that asserted
+    # "a forecast-response failure IS supported" four bullets above "FORECAST_RESPONSE_FAILURE cannot
+    # be the cause". Both were true; together they read as self-contradiction. The override is now
+    # named in the same sentence rather than left for the reader to reconcile.
     gate = resp.get("forecastability_gate") or {}
     if gate.get("conditions"):
-        bullet(_RANK_FORECASTABILITY, gate.get("verdict"),
-               None,
-               ("All four conditions for calling this a forecast-response failure hold."
-                if gate.get("supports_forecast_response_failure") else
-                f"{gate.get('conditions_met')} of 4 conditions hold, so it is not classed as a "
-                f"forecast failure."),
+        _rejected_mechs = {c.get("mechanism") for c in (mech.get("rejected_for_direction") or [])}
+        _fr_overridden = (gate.get("supports_forecast_response_failure")
+                          and "FORECAST_RESPONSE_FAILURE" in _rejected_mechs)
+        if _fr_overridden:
+            _why = ("All four conditions for calling this a forecast-response failure hold -- the "
+                    "plan COULD have reacted. It is still not the cause here: the direction-"
+                    "coherence gate, which runs afterwards, rejected it because the mechanism "
+                    "implies demand moving the opposite way to this miss. Being able to react and "
+                    "being the explanation are two different tests, and this evidence passes the "
+                    "first and fails the second.")
+        elif gate.get("supports_forecast_response_failure"):
+            _why = "All four conditions for calling this a forecast-response failure hold."
+        else:
+            _why = (f"{gate.get('conditions_met')} of 4 conditions hold, so it is not classed as a "
+                    f"forecast failure.")
+        bullet(_RANK_FORECASTABILITY, gate.get("verdict"), None, _why,
                evidence_id="E5", strength="Strong")
+        if _fr_overridden:
+            # Published so a consumer can see the two gates disagreed without parsing prose.
+            out[-1]["overridden_by_direction_gate"] = True
 
     # 4. Calendar (sections 22-24).
     cap = hol.get("forecast_capture") or {}

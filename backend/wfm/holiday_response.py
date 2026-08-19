@@ -192,7 +192,14 @@ def _historical_phase_effect(rows, country, cache):
         phases[phase]["reading"] = _phase_reading(phase, phases[phase])
     return {"available": True, "baseline_actual": _rnd(base_actual),
             "baseline_forecast": _rnd(base_forecast),
-            "baseline_weeks": len(base_actuals), "phases": phases}
+            "baseline_weeks": len(base_actuals), "phases": phases,
+            # FIX 3: the counterpart label to spec_engine._holiday_effect_for. Two holiday effects
+            # on one card with different values is only confusing while neither says what it counted.
+            "basis": "weeks the CALENDAR marks as each phase, against this queue's non-holiday weeks",
+            "measure": "median",
+            "differs_from": ("spec_engine._holiday_effect_for, which uses the MEAN over every week "
+                             "with Holiday_Count > 0 -- a wider set, so its percentage is expected "
+                             "to differ from this one")}
 
 
 def _phase_name(country, week, cache):
