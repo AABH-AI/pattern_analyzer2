@@ -711,40 +711,29 @@ a default chain when nothing is picked, which is right for the main run - an inv
 something. A summary is optional, so silently spending a call on a model nobody chose is the wrong
 default.
 
-## Section 20 - channel mix rotation
+## Section 20 - channel mix rotation: BUILT, THEN REVERTED
 
-Asked whether channel rotation could be detected for same-name queues across channels. It can, and
-`channel_migration_detector` already existed - wired into the WFM engine, not the card, and answering a
-**different question**: it compares the target week with the prior week. A drift of fifteen points
-spread over three years moves almost nothing between adjacent weeks, so that test cannot see it.
+Built as a long-run complement to the existing week-over-week `channel_migration_detector`, measuring
+which channel is losing share of a scope's total and which is taking it, over a first-13-weeks against
+last-13-weeks comparison.
 
-`backend/wfm/channel_mix_rotation.py` is the long-run complement. It needed a second fetch:
-`channel_sibling_rows` is filtered to two weeks because that is all the week-over-week detector needs,
-so widening it would change what that detector sees. `channel_mix_rows` is a separate key for the same
-reason - neither test can quietly start reading the other's rows.
+**Reverted on request: it answered the wrong question.** The measurements it produced were real -- Voice
+losing 12 to 15 points of share to Email and Social Media across four scopes, correctly reporting
+"stable" where the mix did not move -- but a correct answer to a question nobody asked is not worth
+carrying, and a panel that looks authoritative while measuring the wrong thing is worse than no panel.
 
-Measured on live data. **Voice is losing share to digital channels across regions:**
+Reverted surgically rather than with `git revert`, because the same commit carried the marker-row fix,
+the tab layout, the Summary call and mathematics.md, all of which were wanted. Removed:
+`backend/wfm/channel_mix_rotation.py`, the `channel_mix_rows` fetch in `data_access.py`, the engine call
+and output key in `spec_engine.py`, card section `20_channel_mix`, `cardChannelMixPanel` and its tab
+routing, and the `live-spec-channel-mix-case.json` regression case.
 
-| Scope | Rotation | Points | Offset |
-|---|---|---|---|
-| APJ / CCC / China / Basic | Social Media -> **Email** | 14.5 | 95% |
-| Americas / United States / Basic | Voice -> **Social Media** | 12.2 | 65% |
-| APJ / IN / India / Pro | Voice -> **Email** | 12.3 | 85% |
-| NA Core scope | Voice -> **Email** | 12.4 | 66% |
+**Untouched:** the pre-existing `channel_migration_detector`, which is week-over-week and wired into the
+WFM engine. It predates this work and nothing here changed it.
 
-And it discriminates: China Basic under the `business_org` grouping reports **stable**, largest move 4.9
-points, under the 5-point bar. A mix that never changes is not a migration and reporting one would be
-noise.
-
-**Co-movement is reported; diversion is not claimed.** A falling channel and a rising channel can both
-be driven by something else, so the wording is always "share moved from X to Y" and the offset ratio is
-published so a reader can judge how completely the two account for each other. Each channel's own weekly
-share deviation is computed so a genuine drift is separable from wobble.
-
-Grouped by `Region + SubRegion + Country + business_org`, reusing the existing convention rather than
-inventing a second one, and **not** the CQN key: the signed-off CQN definition includes channel, so
-grouping by CQN would put every channel in its own group and guarantee nothing was ever found. Every
-result carries `is_cqn_proxy: true`.
+What a correct version would need is a clearer statement of the question -- whether the interest is a
+one-week diversion, a structural mix shift, a same-name queue appearing under several channels, or
+something else again. That is recorded here rather than guessed at a second time.
 
 ## mathematics.md
 

@@ -55,7 +55,6 @@ from . import fc_evidence
 from . import fiscal_calendar as fcal
 from . import hypothesis_catalogue as cat
 from . import decision_card
-from . import channel_mix_rotation
 from . import narrative_prompt
 from . import recursive_why
 from . import why_rephrase
@@ -1076,13 +1075,6 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
     # The miss STREAK survives the removal of the plan-vintage finding: criticality lifts a band
     # when a miss is standing rather than isolated, and that is computed from adherence alone.
     fc_streak = fc_evidence.miss_streak(history)
-    # Long-run channel rotation. `channel_sibling_rows` was already fetched for every investigation
-    # and never read by this engine -- the same waste as the statistical profile. It answers a
-    # DIFFERENT question from channel_migration_detector, which compares the target week with the
-    # prior week: a fifteen-point drift spread over three years moves almost nothing between two
-    # adjacent weeks, so the week-over-week test cannot see it and this cannot see a one-week shift.
-    fc_channel_mix = channel_mix_rotation.analyse(
-        (wfm_context or {}).get("channel_mix_rows") or [], target_week, fields.get("channel"))
     fc_weekend = fc_evidence.weekend_evidence(history, fields)
     fc_mechanism = fc_evidence.miss_mechanism(adherence, fc_response, fc_holiday, fc_lag,
                                               fc_asu, dq["clean"])
@@ -1351,7 +1343,6 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
         "lagged_driver_evidence": fc_lag,
         "holiday_response": fc_holiday,
         "weekend_diagnostic": fc_weekend,
-        "channel_mix_rotation": fc_channel_mix,
         "asu_decomposition": fc_asu,
         # `plan_revision` and `plan_vintage_timeline` are DELETED, not emptied: this engine
         # treats Projection_plan_name as non-existent, and a key that can never carry a value

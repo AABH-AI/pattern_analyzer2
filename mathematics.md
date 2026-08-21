@@ -5,7 +5,7 @@ Every formula, threshold and data path this system uses. Extracted from the code
 thirteen things missing because it trusted documentation over the payload, and this document exists to
 be the thing that is checked rather than the thing that is trusted.
 
-Written **2026-08-21** against branch `test3`. **90 numeric constants** live in `backend/wfm/`; every
+Written **2026-08-21** against branch `test3`. **86 numeric constants** live in `backend/wfm/`; every
 one is named, commented at its definition, and listed here.
 
 ---
@@ -60,7 +60,6 @@ why the weekend question reports "cannot be isolated from fiscal-week totals" ra
 | `history_104` | up to 104 prior weeks for the queue | two years, so a same-week-last-year comparison exists |
 | `history_forward` | weeks after the target | lets a rebound be measured |
 | `channel_sibling_rows` | target + prior week, all channels in scope | week-over-week channel shift |
-| `channel_mix_rows` | **all** weeks, all channels in scope | long-run rotation; a 15-point drift over 3 years is invisible in two weeks |
 | `ladder` | same week aggregated at 5 scope levels | where the miss is visible |
 | `cqn_names` | Combined Queue names for the queue | authoritative grouping when available |
 
@@ -335,50 +334,6 @@ Adjacency: `ADJACENCY_DAYS = 1`, `SAME_OCCURRENCE_DAYS = 7`.
 
 ---
 
-## Part 6 — Channel mix
-
-`backend/wfm/channel_mix_rotation.py` (long-run) and `channel_migration_detector.py` (week-over-week)
-
-Two modules answering two questions. The week-over-week detector asks *did volume shift between
-channels this week*; it cannot see a structural drift, because 15 points spread over three years moves
-almost nothing between adjacent weeks.
-
-```
-share(channel, window) = Σ actual for that channel / Σ actual for all channels × 100
-change_pts             = share(last 13 weeks) − share(first 13 weeks)
-offset_ratio           = min(|fall|, rise) / max(|fall|, rise)
-```
-
-| Constant | Value | Gate |
-|---|---|---|
-| `MIN_SHARE_MOVE_PTS` | **5.0** | smaller moves sit inside ordinary wobble |
-| `MIN_OFFSET_RATIO` | **0.5** | the rise and fall must account for each other |
-| `WINDOW_WEEKS` | 13 | |
-| `MIN_WEEKS_PER_WINDOW` | 8 | two independent windows or no comparison |
-
-Each channel's own weekly share standard deviation is computed so a genuine drift is separable from
-wobble (`exceeds_own_noise`).
-
-Measured on live data — **Voice is losing share to digital channels across regions**:
-
-| Scope | Rotation | Points | Offset |
-|---|---|---|---|
-| APJ / CCC / China / Basic | Social Media → **Email** | 14.5 | 95% |
-| Americas / United States / Basic | Voice → **Social Media** | 12.2 | 65% |
-| APJ / IN / India / Pro | Voice → **Email** | 12.3 | 85% |
-| NA Core scope | Voice → **Email** | 12.4 | 66% |
-
-**What is claimed and what is not.** Share moving from one channel to another is **co-movement**, not
-proof a contact was diverted — both could be driven by something else. The wording is always "share
-moved from X to Y", never "X was diverted to Y", and the offset ratio is published so the reader can
-judge how completely the two account for each other.
-
-Grouped by `Region + SubRegion + Country + business_org`, **not** the CQN key: the signed-off CQN
-definition includes channel, so grouping by CQN would put every channel in its own group and guarantee
-nothing was ever found. Every result is labelled `is_cqn_proxy: true`.
-
----
-
 ## Part 7 — Confidence and criticality
 
 ### Confidence
@@ -461,12 +416,12 @@ half is the real test.
 
 ## Part 9 — Every constant, by module
 
-90 total. Full list with inline rationale at each definition site.
+86 total, verified by re-running the extractor after the channel-rotation module was
+reverted -- the module carried four of them. Full list with inline rationale at each definition site.
 
 | Module | Constants |
 |---|---|
 | `channel_migration_detector` | `_MIN_OFFSET_SHARE` 0.6 · `_MAX_NET_SHARE` 0.25 |
-| `channel_mix_rotation` | `MIN_SHARE_MOVE_PTS` 5.0 · `MIN_OFFSET_RATIO` 0.5 · `MIN_WEEKS_PER_WINDOW` 8 · `WINDOW_WEEKS` 13 |
 | `common` | `DEFAULT_BAND_PCT` 10.0 · `WFM_HISTORY_WEEKS` 157 |
 | `confidence` | `MISSING_FLOOR` 0.20 · `REPEAT_FAMILY_INDEPENDENCE` 0.3 |
 | `correlation_engine` | `_MIN_WEEKS` 12 · `_MIN_STRENGTH` 0.5 |

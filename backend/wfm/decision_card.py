@@ -1073,10 +1073,6 @@ def build(result, ladder=None):
             # 19 rather than slotted in mid-list: the existing 18 keep their keys and order, which is
             # the non-breaking guarantee. Everything here was already computed and discarded.
             "19_statistical_profile": statistical_profile(result),
-            # 20, additive like 19. Answers "did the demand leave, or change door?" -- a
-            # question no other section asks, and one that explains a miss the queue's own
-            # volume history cannot.
-            "20_channel_mix": result.get("channel_mix_rotation"),
             "18_catalogue_gaps": {
                 # Section 9: an observation the catalogue cannot carry is shown as a GAP, so a
                 # reader can see the engine noticed something it had no sanctioned hypothesis for.

@@ -2270,8 +2270,7 @@ const CARD_TAB_GROUPS = [
     match: [/Confidence/i, /Criticality/i, /Recommendations/i] },
   { id: 'stats',     label: 'Statistics',
     hint: 'the standing profile and the evidence behind it',
-    match: [/Statistical Profile/i, /Channel Mix/i, /^Evidence$/i,
-            /Driver Evidence/i] },
+    match: [/Statistical Profile/i, /^Evidence$/i, /Driver Evidence/i] },
   { id: 'challenge', label: 'Challenge',
     hint: 'what was asked of the findings, and what was rejected',
     match: [/Interrogation/i, /Hypotheses Considered/i, /Contradiction/i] },
@@ -2637,56 +2636,6 @@ function dedupeRenderedProse(html){
     return '>' + (out ? out + ' <span style="color:#9aa0a6;font-size:11px;">(as above)</span>'
                       : '<span style="color:#9aa0a6;font-size:11.5px;">Same as stated above.</span>') + '<';
   });
-}
-
-/* ---- Channel mix rotation (card section 20). The one question no other panel asks: did the demand
-   leave, or did it change door? A queue whose channel is losing share to a sibling will keep missing
-   in a direction its own volume history cannot explain, because the contacts did not disappear.
-
-   Reports co-movement, never diversion. A falling channel and a rising channel can both be driven by
-   something else, so the offset ratio is shown and the wording stays at "share moved". ---- */
-function cardChannelMixPanel(s){
-  const c = s['20_channel_mix'] || {};
-  if (!c || (!c.available && !c.reason)) return '';
-  if (!c.available) {
-    return `<div class="inv-card">${cardTitle('Channel Mix — did demand change channel?')}
-      ${cardSecDesc(c.how_to_read||'')}
-      <div style="margin-top:10px;background:#f3f4f6;border-left:3px solid #6b7280;border-radius:0 4px 4px 0;padding:8px 12px;line-height:1.6;">${invEsc(c.reason||'')}</div></div>`;
-  }
-  const rows = (c.per_channel||[]).map(m=>{
-    const up = (m.change_pts||0) > 0;
-    const big = Math.abs(m.change_pts||0) >= 5;
-    const isTarget = c.target_channel && m.channel === c.target_channel;
-    return `<tr style="border-top:1px solid #eef0f3;${isTarget?'background:#f0f7ff;':''}">
-      <td style="padding:5px 8px;font-weight:${isTarget?'800':'600'};">${invEsc(m.channel)}${isTarget?' <span style="font-size:10px;color:#1d4ed8;font-weight:800;">THIS QUEUE</span>':''}</td>
-      <td style="padding:5px 8px;text-align:right;">${invEsc(m.share_early_pct)}%</td>
-      <td style="padding:5px 8px;text-align:right;">${invEsc(m.share_late_pct)}%</td>
-      <td style="padding:5px 8px;text-align:right;font-weight:${big?'800':'600'};color:${big?(up?'#0b7a3b':'#a01b2b'):'#555'};">${(m.change_pts>0?'+':'')}${invEsc(m.change_pts)} pts</td>
-      <td style="padding:5px 8px;text-align:right;color:#6b7280;">${m.weekly_share_sd_pts!=null?invEsc(m.weekly_share_sd_pts)+' pts':'—'}</td>
-      <td style="padding:5px 8px;color:${m.exceeds_own_noise?'#0b7a3b':'#6b7280'};font-weight:${m.exceeds_own_noise?'700':'600'};">${m.exceeds_own_noise==null?'—':(m.exceeds_own_noise?'yes':'no')}</td>
-    </tr>`;}).join('');
-  const rots = (c.rotations||[]).map(r=>`<div style="margin-top:8px;padding:9px 12px;border-radius:4px;background:${r.both_exceed_noise?'#fff4e5':'#f6f7f9'};border-left:3px solid ${r.both_exceed_noise?'#b26a00':'#9aa0a6'};line-height:1.65;">
-      <b>${invEsc(r.from_channel)} &rarr; ${invEsc(r.to_channel)}</b>
-      <span style="font-weight:800;">${invEsc(r.points_moved)} points</span>
-      <span style="color:#6b7280;">&middot; the two account for ${invEsc(Math.round((r.offset_ratio||0)*100))}% of each other${r.both_exceed_noise?'':' &middot; one side is inside its own weekly wobble, so treat it as weaker'}</span>
-      <div style="margin-top:4px;font-size:12px;color:#374151;">${invEsc(r.reading||'')}</div></div>`).join('');
-  return `<div class="inv-card">
-    ${cardTitle('Channel Mix — did demand change channel?')}
-    ${cardSecDesc(c.how_to_read||'')}
-    <div style="margin-top:10px;font-weight:700;line-height:1.6;">${invEsc(c.headline||'')}</div>
-    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:9px;">
-      <tr style="background:#f6f7f9;font-weight:700;text-align:left;">
-        <td style="padding:5px 8px;">Channel</td>
-        <td style="padding:5px 8px;text-align:right;">First ${invEsc(c.window_weeks)} wks</td>
-        <td style="padding:5px 8px;text-align:right;">Last ${invEsc(c.window_weeks)} wks</td>
-        <td style="padding:5px 8px;text-align:right;">Change</td>
-        <td style="padding:5px 8px;text-align:right;">Weekly wobble</td>
-        <td style="padding:5px 8px;">Beats own noise?</td></tr>
-      ${rows}
-    </table>
-    ${rots}
-    <div style="margin-top:9px;font-size:11.5px;color:#6b7280;font-style:italic;line-height:1.55;">Grouped by ${invEsc(c.grouped_by||'')} across ${invEsc(c.weeks)} weeks (${invEsc((c.early_weeks||[])[0])}&ndash;${invEsc((c.early_weeks||[])[1])} against ${invEsc((c.late_weeks||[])[0])}&ndash;${invEsc((c.late_weeks||[])[1])}). ${invEsc(c.cqn_note||'')}</div>
-  </div>`;
 }
 
 function cardStatsPanel(s){
@@ -3382,7 +3331,7 @@ function renderDecisionCard(resp, ctx){
   sayOnceReset();   // per-render, so a repeat is judged within one card and never across two
   const _assembled = head + summaryCard + cardWhyPanel(s) + rootCauseCard + interro + conf
        + cardCriticalityPanel(s) + evidence + cardForecastResponsePanel(s) + cardCalendarPanel(s)
-       + cardDriverPanel(s) + cardStatsPanel(s) + cardChannelMixPanel(s) + ctxHtml + hyp + cardEvidenceIndexPanel(s) + tail;
+       + cardDriverPanel(s) + cardStatsPanel(s) + ctxHtml + hyp + cardEvidenceIndexPanel(s) + tail;
   /* The central pass runs LAST, on everything the reader will actually see. The per-site sayOnce
      calls above stay because they produce a better-worded pointer where they apply; this catches
      everywhere they do not. */
