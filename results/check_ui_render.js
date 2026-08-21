@@ -308,6 +308,37 @@ for (const file of specFiles) {
           console.log(`           ---- ${tot} name printing(s)`);
         }
       }
+      /* MARKER-ONLY ROWS. The dedup passes replace a repeated sentence with "(as above)", which is
+         right inside a sentence or a table cell that must stay populated and wrong as an entire list
+         item -- a Limitations panel shipped with one real line and five "(as above)" bullets, which
+         is noisier than the repetition it replaced. The row itself is the noise. */
+      const markerLi = (out.match(
+        /<li[^>]*>(?:\s|<[^>]*>)*(?:\(as above\)|Same as stated above\.?)(?:\s|<\/[^>]*>)*<\/li>/gi
+      ) || []).length;
+      if (markerLi) bad.push(`${markerLi} list item(s) contain nothing but an "(as above)" marker`);
+
+      /* NO SECTION LOST to the tab layout. The layout buckets each inv-card block into a group by
+         matching its title; a section whose name no pattern covers must still be reachable, so it
+         falls through to Reference rather than vanishing. This asserts the count in equals the count
+         out, because silently losing a panel is far worse than showing it under the wrong tab. */
+      const blocksOut = (out.match(/<div class="inv-card"/g) || []).length;
+      const titlesOut = (out.match(/class="rtitle"/g) || []).length;
+      if (blocksOut && titlesOut && titlesOut > blocksOut) {
+        bad.push(`${titlesOut} section title(s) but only ${blocksOut} card block(s) rendered`);
+      }
+      const tabBtns = (out.match(/data-cardtabbtn=/g) || []).length;
+      const tabPanels = (out.match(/data-cardtab=/g) || []).length;
+      if (tabBtns !== tabPanels) {
+        bad.push(`tab strip has ${tabBtns} button(s) but ${tabPanels} panel(s)`);
+      }
+      if (tabBtns && blocksOut < 6) {
+        bad.push(`tab layout rendered but only ${blocksOut} card block(s) survived`);
+      }
+      if (process.env.RENDER_REPEAT_REPORT && tabBtns) {
+        const labels = [...out.matchAll(/data-cardtabbtn="([^"]+)"/g)].map(m => m[1]);
+        console.log(`           tabs: ${labels.join(', ')}   (${blocksOut} section blocks)`);
+      }
+
       const SENT_CAP = 3;
       const seenS = {};
       for (const sn of vis.split(/(?<=[.!?])\s+/)) {

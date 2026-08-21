@@ -604,3 +604,168 @@ plus a new check that section 19 is present. **190/190.**
 | UI render + repetition caps | **19 Decision Cards**, including the reported case |
 | prompt2 conformance | 16 / 16 |
 | `new_prompt` conformance | 34 / 34 |
+
+---
+
+# FIX 7 - the cure became the symptom, and the card got a shape
+
+## The reported problem
+
+```
+Limitations - what could not be assessed
+Business Event Repository is not deployed, so this is NotApplicable ... (BR-202).
+(as above)
+(as above)
+(as above)
+(as above)
+(as above)
+```
+
+Five rows saying nothing. The dedup shipped in FIX 6 replaced repeated sentences with a marker, which
+is right inside a sentence or a table cell that must stay populated, and wrong as an entire list item.
+Measured on the captured page: **21 "(as above)" and 36 "Same as stated above"** markers, five of them
+whole bullets. The cure had become the symptom.
+
+`dropMarkerOnlyItems` now removes any list item whose entire content is a marker and replaces the run
+with one honest line: *"5 further items repeated points already made above, and are not restated
+here."* A guard assertion was added so it cannot come back.
+
+## Two more repetition gaps, both mine
+
+**Single-holiday cards got no dedup at all.** `dedupeNameLists` opened with
+`if (known.length < 2) return html` because it was written to collapse comma-joined *runs*. One holiday
+has no run, so the function returned immediately -- which is why `Shavuot` still printed **12 times** on
+the latest output while the earlier three-holiday card was fixed.
+
+**And I reintroduced it while fixing it.** I replaced the single-name special case with a general
+per-name cap, then left the `< 2` early return in place, so `Columbus Day` reached **9 printings** on a
+new case. The cap is the part that always applies; run-collapsing is the part that needs two names. The
+early return now calls the cap before returning.
+
+| Case | Before | After |
+|---|---|---|
+| Three-holiday card | 39 printings | **9** |
+| `Passover (Day 7)` | 10x | **4x** |
+| `Columbus Day` | 9x | **4x** |
+| Worst repeated sentence | 7x | **1x** |
+
+## The card now has a shape
+
+Measured on the captured output: **~32,000 characters of visible text, about 11 A4 pages**, top four
+sections 56% of it, and the whole page carried **one** `<details>` element, closed. Leads said the
+output was too long to act on.
+
+**Tabs, with an accordion behind a live toggle.** Six groups, ordered as asked:
+
+| Tab | Holds |
+|---|---|
+| Decision | summary, headline, ranked reasons, the cause |
+| Calendar | holidays, phases, the weekend question |
+| Confidence & Recommendation | how sure, how much it matters, what to do |
+| Statistics | standing profile, channel mix, evidence |
+| Challenge | interrogation, the 23 hypotheses |
+| Reference | index, context, limitations, audit |
+
+Implemented as a post-process over the assembled card, the same shape as the dedup passes: split on the
+`inv-card` boundary, bucket by title, emit a strip plus panels. Nothing inside a panel changes, so every
+existing render assertion still sees the markup it asserted on. An unmatched section falls through to
+Reference rather than vanishing, and a guard asserts the count in equals the count out - silently losing
+a panel would be far worse than showing it one tab away from ideal.
+
+The layout choice is the viewer's, remembered per browser, so switching between tabs and accordion is a
+click rather than a redeploy.
+
+## The Summary button - a third model call
+
+`POST /api/rca-summarise`, `backend/wfm/summary_prompt.py`.
+
+**Fed deterministic figures only** - headline numbers, the ranked why-bullets as the engine wrote them,
+root cause, confidence, criticality, and the statistical measures that actually fed the conclusion.
+**Not** the narrative from call 1 or the interrogation prose from call 2. Summarising another model's
+prose lets a first-call error return as established fact in the paragraph a lead is most likely to
+forward on, with rounded figures rounded again. `results/test_summary_grounding.py` asserts that no
+earlier prose reaches the prompt, rather than trusting that it does not.
+
+**On click, cached per queue + week + prompt version.** Groq's cap is 100k tokens per *day* and most
+cards are never summarised, so spending a third call on every run would be paid for by the runs that
+fail later in the day. Measured: **0.02s** cached against **21s** live.
+
+Same numeric grounding as the narrative, reusing `narrative_prompt._numbers_in` and `_matches_supplied`
+directly rather than reimplementing - two grounding rules would drift, and the looser one would ship.
+A rejected summary is discarded and reported, never shown with a warning.
+
+Verified end to end against a live model. The output states what is unsettled, unprompted:
+
+> "These patterns were consistent with a forecast-response failure and a demand spike, **though the
+> measures did not agree and no single statistical story was settled.**"
+
+## A scoping bug in the summary button
+
+First attempt failed with `API_BASE is not defined`. It is a **function-local** `const` redeclared in
+four separate functions, so a fifth calling `fetch()` cannot see it. Fixed with one shared
+`rcaApiBase()`; the existing four keep their local copies, because rewriting working call sites to fix a
+bug they do not have is risk without benefit.
+
+The summary also now **only invokes when a model is selected**. The investigation endpoint falls back to
+a default chain when nothing is picked, which is right for the main run - an investigation must produce
+something. A summary is optional, so silently spending a call on a model nobody chose is the wrong
+default.
+
+## Section 20 - channel mix rotation
+
+Asked whether channel rotation could be detected for same-name queues across channels. It can, and
+`channel_migration_detector` already existed - wired into the WFM engine, not the card, and answering a
+**different question**: it compares the target week with the prior week. A drift of fifteen points
+spread over three years moves almost nothing between adjacent weeks, so that test cannot see it.
+
+`backend/wfm/channel_mix_rotation.py` is the long-run complement. It needed a second fetch:
+`channel_sibling_rows` is filtered to two weeks because that is all the week-over-week detector needs,
+so widening it would change what that detector sees. `channel_mix_rows` is a separate key for the same
+reason - neither test can quietly start reading the other's rows.
+
+Measured on live data. **Voice is losing share to digital channels across regions:**
+
+| Scope | Rotation | Points | Offset |
+|---|---|---|---|
+| APJ / CCC / China / Basic | Social Media -> **Email** | 14.5 | 95% |
+| Americas / United States / Basic | Voice -> **Social Media** | 12.2 | 65% |
+| APJ / IN / India / Pro | Voice -> **Email** | 12.3 | 85% |
+| NA Core scope | Voice -> **Email** | 12.4 | 66% |
+
+And it discriminates: China Basic under the `business_org` grouping reports **stable**, largest move 4.9
+points, under the 5-point bar. A mix that never changes is not a migration and reporting one would be
+noise.
+
+**Co-movement is reported; diversion is not claimed.** A falling channel and a rising channel can both
+be driven by something else, so the wording is always "share moved from X to Y" and the offset ratio is
+published so a reader can judge how completely the two account for each other. Each channel's own weekly
+share deviation is computed so a genuine drift is separable from wobble.
+
+Grouped by `Region + SubRegion + Country + business_org`, reusing the existing convention rather than
+inventing a second one, and **not** the CQN key: the signed-off CQN definition includes channel, so
+grouping by CQN would put every channel in its own group and guarantee nothing was ever found. Every
+result carries `is_cqn_proxy: true`.
+
+## mathematics.md
+
+`mathematics.md` at the repo root: every formula, all **90** numeric constants with their module and
+rationale, the full data lineage, and the principles the numbers serve. Generated from
+`results/extract_maths.py` rather than written from memory, because an earlier audit in this project
+reported thirteen things missing by trusting documentation over the payload.
+
+## Verification
+
+| | |
+|---|---|
+| Module smoke | 12 / 12 |
+| FC spec semantics | 190 / 190 |
+| WFM diagnostics | 148 / 148 |
+| Narrative grounding | 21 / 21 |
+| **Summary grounding** (new) | **14 / 14** |
+| UI render, repetition caps, tab integrity | **21 Decision Cards** |
+| prompt2 conformance | 16 / 16 |
+| `new_prompt` conformance | 34 / 34 |
+
+Three permanent regression cases now live in `results/`: the reported three-holiday card, a
+single-holiday card, and a channel-mix card. Each **failed when first added**, which is the point of
+adding them.

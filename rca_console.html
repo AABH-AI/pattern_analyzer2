@@ -2240,12 +2240,319 @@ function sayOnce(text, pointer){
    So the LIST is established once and referred to afterwards. Only runs of two or more comma-joined
    names are collapsed, which deliberately leaves the holiday reference table alone -- its rows carry
    one name each and that table is where a reader goes to look them up. ---- */
+/* ---- A list item whose entire content is a back-reference is noise, not information. Reported from
+   the screen: a Limitations panel with one real line followed by five "(as above)" rows. The marker
+   earns its place inside a sentence or a table cell that must stay populated; as a whole bullet it
+   says nothing. Dropped rows are counted in one closing line, so the reader still knows they existed
+   and that they repeated something already on the page. ---- */
+/* ================= CARD LAYOUT =========================================================
+   The card was one continuous scroll of ~32,000 characters, about 11 A4 pages, with the top four
+   sections making up 56% of it and nothing collapsible. Two layouts are offered because the right
+   answer depends on the reader: a lead wants the decision and nothing else, an analyst wants to
+   compare the calendar against the statistics side by side.
+
+   TABS      one group visible at a time. Shortest page.
+   ACCORDION every group present and independently open/closed, so two can be read together.
+
+   The choice is the viewer's, remembered per browser. Neither changes a single byte inside a panel,
+   so every existing render assertion still sees the markup it asserted on.
+   ====================================================================================== */
+const CARD_TAB_GROUPS = [
+  { id: 'decision',  label: 'Decision',
+    hint: 'the headline, the ranked reasons and the cause',
+    match: [/Executive Decision Card/i, /^Summary$/i, /Executive Summary/i,
+            /Why This Happened/i, /^Root Cause$/i] },
+  { id: 'calendar',  label: 'Calendar',
+    hint: 'holidays, phases and the weekend question',
+    match: [/Calendar Context/i, /Forecast Response/i] },
+  { id: 'confidence', label: 'Confidence & Recommendation',
+    hint: 'how sure, how much it matters, what to do next',
+    match: [/Confidence/i, /Criticality/i, /Recommendations/i] },
+  { id: 'stats',     label: 'Statistics',
+    hint: 'the standing profile and the evidence behind it',
+    match: [/Statistical Profile/i, /Channel Mix/i, /^Evidence$/i,
+            /Driver Evidence/i] },
+  { id: 'challenge', label: 'Challenge',
+    hint: 'what was asked of the findings, and what was rejected',
+    match: [/Interrogation/i, /Hypotheses Considered/i, /Contradiction/i] },
+  { id: 'reference', label: 'Reference',
+    hint: 'index, context, limitations and audit trail',
+    match: [/Evidence Index/i, /Business Context/i, /Limitations/i, /Catalogue/i, /Audit/i] },
+];
+
+function _cardLayoutMode(){
+  try { return localStorage.getItem('rcaCardLayout') || 'tabs'; } catch (e) { return 'tabs'; }
+}
+function setCardLayout(mode){
+  try { localStorage.setItem('rcaCardLayout', mode); } catch (e) {}
+  const host = document.getElementById('investigationPanel');
+  if (host && window._rcaLastCardHtml) {
+    const anchor = host.querySelector('#rcaCardLayoutHost');
+    if (anchor) anchor.outerHTML = layoutCardSections(window._rcaLastCardHtml);
+    else host.innerHTML = layoutCardSections(window._rcaLastCardHtml);
+  }
+}
+function showCardTab(id){
+  document.querySelectorAll('[data-cardtab]').forEach(function(el){
+    el.style.display = (el.getAttribute('data-cardtab') === id) ? '' : 'none';
+  });
+  document.querySelectorAll('[data-cardtabbtn]').forEach(function(b){
+    const on = b.getAttribute('data-cardtabbtn') === id;
+    b.style.background = on ? '#0b5d2e' : '#fff';
+    b.style.color = on ? '#fff' : '#374151';
+    b.style.borderColor = on ? '#0b5d2e' : '#d1d5db';
+    b.style.fontWeight = on ? '800' : '600';
+  });
+  try { localStorage.setItem('rcaCardTab', id); } catch (e) {}
+}
+
+/* ================= SUMMARY BUTTON (third LLM call) ====================================
+   Leads reported the output as too long to act on -- measured at ~32,000 characters, about 11 A4
+   pages. Tabs shorten the page; this shortens the reading.
+
+   On click only, and cached server-side per queue and week. Nothing on the card depends on it, so a
+   failure is reported in place and blocks nothing.
+   ====================================================================================== */
+/* ---- One API base for every call. It was a function-local `const API_BASE` redeclared in four
+   separate functions, so a fifth function calling fetch() got "API_BASE is not defined" at runtime
+   -- which is exactly what the summary button hit. Declared once here; the existing four keep their
+   local copies because they shadow this harmlessly and rewriting working call sites to fix a bug
+   they do not have is risk without benefit. ---- */
+function rcaApiBase(){
+  return (typeof location !== 'undefined' && location.protocol === 'file:')
+    ? 'http://localhost:9000' : '';
+}
+
+function cardSummaryBlock(){
+  return '<div class="inv-card" id="rcaSummaryCard">'
+    + '<div class="rtitle">Summary</div>'
+    + '<div class="rca-cap">One short paragraph built from the engine&rsquo;s own figures. Written '
+    + 'from the deterministic findings only &mdash; not from the other model output on this page &mdash; '
+    + 'so it cannot repeat a wording mistake made elsewhere and cannot introduce a number the '
+    + 'investigation did not produce.</div>'
+    + '<div id="rcaSummaryBody" style="margin-top:10px;">'
+    + '<button type="button" id="rcaSummariseBtn" onclick="rcaSummarise()" '
+    + 'style="font-size:12.5px;font-weight:700;padding:7px 14px;border-radius:6px;cursor:pointer;'
+    + 'border:1px solid #0b5d2e;background:#0b5d2e;color:#fff;">Summarise this investigation</button>'
+    + '<span style="font-size:11.5px;color:#6b7280;margin-left:9px;">one model call, a few seconds, '
+    + 'then kept for this queue and week</span>'
+    + '</div></div>';
+}
+
+async function rcaSummarise(force){
+  const body = document.getElementById('rcaSummaryBody');
+  const res = window._rcaLastResult;
+  if (!body) return;
+  if (!res) {
+    body.innerHTML = '<div style="color:#6b7280;font-size:12.5px;">Run an investigation first &mdash; '
+      + 'there is nothing to summarise yet.</div>';
+    return;
+  }
+  /* Only call out when a model is actually selected. The investigation endpoint falls back to a
+     default chain when nothing is picked, which is right for the main run -- an investigation must
+     produce something. A summary is optional, so silently spending a call on a model nobody chose is
+     the wrong default: say which model would be used and let the picker decide. */
+  const picked = window.RCA_MODEL;
+  if (!picked || !picked.model) {
+    body.innerHTML = '<div style="background:#f3f4f6;border-left:3px solid #6b7280;'
+      + 'border-radius:0 4px 4px 0;padding:9px 12px;font-size:12.5px;line-height:1.6;">'
+      + 'No model is selected, so no summary was requested. Pick one in the model selector above '
+      + 'and press the button again &mdash; the card&rsquo;s own figures do not depend on it.</div>';
+    return;
+  }
+  body.innerHTML = '<div style="font-size:12.5px;color:#374151;">Summarising with '
+    + invEsc(picked.label || picked.model) + '&hellip; '
+    + '<span style="color:#9aa0a6;">one model call</span></div>';
+  try {
+    const pick = picked;
+    const qs = [];
+    if (pick.provider) qs.push('provider=' + encodeURIComponent(pick.provider));
+    if (pick.model) qs.push('model=' + encodeURIComponent(pick.model));
+    if (force) qs.push('refresh=1');
+    const r = await fetch(rcaApiBase() + '/api/rca-summarise' + (qs.length ? '?' + qs.join('&') : ''), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ result: res }),
+    });
+    const j = await r.json();
+    if (!j || !j.ok) {
+      /* Stated, not hidden, and explicitly harmless. The grounding guard rejecting a summary is the
+         guard working -- the reader needs to know the paragraph is missing, and that nothing else is. */
+      body.innerHTML = '<div style="background:#fff9e8;border-left:3px solid #b26a00;'
+        + 'border-radius:0 4px 4px 0;padding:9px 12px;line-height:1.6;font-size:12.5px;">'
+        + '<b>No summary was produced.</b> ' + invEsc((j && (j.error || j.note)) || 'unknown reason')
+        + (j && j.note && j.error ? '<div style="margin-top:5px;color:#6b7280;">' + invEsc(j.note)
+                                    + '</div>' : '')
+        + '<div style="margin-top:7px;"><button type="button" onclick="rcaSummarise(1)" '
+        + 'style="font-size:11.5px;padding:4px 10px;border-radius:5px;cursor:pointer;'
+        + 'border:1px solid #b26a00;background:#fff;color:#8a5200;font-weight:700;">Try again</button>'
+        + '</div></div>';
+      return;
+    }
+    body.innerHTML =
+      (j.headline ? '<div style="font-size:14px;font-weight:800;line-height:1.5;color:#111;'
+        + 'margin-bottom:7px;">' + invEsc(j.headline) + '</div>' : '')
+      + '<div style="font-size:13px;line-height:1.75;color:#1f2937;">' + invEsc(j.summary || '')
+        + '</div>'
+      + (j.watch_next ? '<div style="margin-top:9px;padding:7px 11px;background:#f3f4f6;'
+        + 'border-left:3px solid #6b7280;border-radius:0 4px 4px 0;font-size:12.5px;line-height:1.6;">'
+        + '<b>Watch next:</b> ' + invEsc(j.watch_next) + '</div>' : '')
+      + '<div style="margin-top:9px;font-size:11px;color:#9aa0a6;">'
+      + (j.cached ? 'from cache for this queue and week' : 'generated just now')
+      + ' &middot; built from the engine&rsquo;s deterministic figures'
+      + ' <button type="button" onclick="rcaSummarise(1)" style="font-size:11px;padding:2px 8px;'
+      + 'margin-left:6px;border-radius:4px;cursor:pointer;border:1px solid #d1d5db;background:#fff;'
+      + 'color:#374151;">Regenerate</button></div>';
+  } catch (e) {
+    body.innerHTML = '<div style="color:#a01b2b;font-size:12.5px;">The summary request did not '
+      + 'complete: ' + invEsc(String(e && e.message || e)) + '. Everything else on this card is '
+      + 'unaffected.</div>';
+  }
+}
+
+function layoutCardSections(html){
+  const src = String(html || '');
+  /* Split on the inv-card boundary. Anything before the first one is the header strip and stays put
+     above the layout -- it is the identity of the investigation and belongs on every tab. */
+  const first = src.indexOf('<div class="inv-card"');
+  if (first < 0) return src;
+  const head = src.slice(0, first);
+  const rest = src.slice(first);
+  const blocks = [];
+  let idx = 0;
+  while (idx < rest.length) {
+    const nxt = rest.indexOf('<div class="inv-card"', idx + 1);
+    blocks.push(rest.slice(idx, nxt < 0 ? rest.length : nxt));
+    if (nxt < 0) break;
+    idx = nxt;
+  }
+  const titleOf = (b) => {
+    const m = b.match(/class="rtitle"[^>]*>([^<]+)</);
+    return m ? m[1].replace(/&[a-zA-Z#0-9]+;/g, ' ').trim() : '';
+  };
+  const buckets = {};
+  const sizes = {};
+  const counts = {};
+  CARD_TAB_GROUPS.forEach(function(g){ buckets[g.id] = []; sizes[g.id] = 0; counts[g.id] = 0; });
+  const spill = [];
+  for (const b of blocks) {
+    const t = titleOf(b);
+    const g = CARD_TAB_GROUPS.find(gr => gr.match.some(re => re.test(t)));
+    const plain = b.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().length;
+    if (g) { buckets[g.id].push(b); sizes[g.id] += plain; counts[g.id] += 1; }
+    else { spill.push(b); }
+  }
+  /* An unmatched block goes to Reference rather than being dropped. A section added later with a name
+     no pattern covers must still be reachable -- silently losing it would be far worse than putting
+     it one tab away from ideal. */
+  if (spill.length) {
+    buckets.reference = buckets.reference.concat(spill);
+    sizes.reference += spill.reduce((a, b) =>
+      a + b.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().length, 0);
+    counts.reference += spill.length;
+  }
+  const live = CARD_TAB_GROUPS.filter(g => buckets[g.id].length);
+  if (live.length < 2) return src;
+
+  const mode = _cardLayoutMode();
+  const pages = (n) => Math.max(1, Math.round(n / 3000));
+  const toggle =
+    '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 4px;">'
+    + '<span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;'
+    + 'color:#6b7280;">Layout</span>'
+    + ['tabs', 'accordion'].map(function(m){
+        const on = mode === m;
+        return '<button type="button" onclick="setCardLayout(\'' + m + '\')" '
+          + 'style="font-size:11.5px;padding:3px 10px;border-radius:12px;cursor:pointer;'
+          + 'border:1px solid ' + (on ? '#0b5d2e' : '#d1d5db') + ';'
+          + 'background:' + (on ? '#0b5d2e' : '#fff') + ';color:' + (on ? '#fff' : '#374151') + ';'
+          + 'font-weight:' + (on ? '800' : '600') + ';">'
+          + (m === 'tabs' ? 'Tabs' : 'All sections') + '</button>';
+      }).join('')
+    + '<span style="font-size:11px;color:#9aa0a6;">'
+    + (mode === 'tabs' ? 'one group at a time - shortest page'
+                       : 'every group, open or close each independently') + '</span></div>';
+
+  if (mode === 'accordion') {
+    /* Measured defaults rather than a blanket rule: the groups a reader almost always wants are open,
+       the long reference material is closed but labelled with its size so a closed panel still tells
+       you what is in it. */
+    const OPEN_BY_DEFAULT = ['decision', 'confidence'];
+    const body = live.map(function(g){
+      const open = OPEN_BY_DEFAULT.indexOf(g.id) >= 0 ? ' open' : '';
+      return '<details' + open + ' style="margin:8px 0;border:1px solid #e5e7eb;border-radius:6px;'
+        + 'background:#fff;">'
+        + '<summary style="cursor:pointer;padding:9px 12px;font-weight:800;font-size:12.5px;'
+        + 'color:#111;list-style:none;">' + invEsc(g.label)
+        + ' <span style="font-weight:600;color:#6b7280;font-size:11.5px;">- ' + invEsc(g.hint)
+        + '</span>'
+        + '<span style="float:right;font-weight:600;color:#9aa0a6;font-size:11px;">'
+        + counts[g.id] + ' section' + (counts[g.id] === 1 ? '' : 's') + ' &middot; ~'
+        + pages(sizes[g.id]) + ' page' + (pages(sizes[g.id]) === 1 ? '' : 's') + '</span>'
+        + '</summary><div style="padding:0 4px 6px;">' + buckets[g.id].join('') + '</div></details>';
+    }).join('');
+    return head + '<div id="rcaCardLayoutHost">' + toggle + body + '</div>';
+  }
+
+  let want = 'decision';
+  try { want = localStorage.getItem('rcaCardTab') || 'decision'; } catch (e) {}
+  if (!live.some(g => g.id === want)) want = live[0].id;
+
+  const strip = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px;'
+    + 'padding-bottom:8px;border-bottom:1px solid #e5e7eb;">'
+    + live.map(function(g){
+        const on = g.id === want;
+        return '<button type="button" data-cardtabbtn="' + g.id + '" '
+          + 'onclick="showCardTab(\'' + g.id + '\')" title="' + invAttr(g.hint) + '" '
+          + 'style="font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;'
+          + 'border:1px solid ' + (on ? '#0b5d2e' : '#d1d5db') + ';'
+          + 'background:' + (on ? '#0b5d2e' : '#fff') + ';color:' + (on ? '#fff' : '#374151') + ';'
+          + 'font-weight:' + (on ? '800' : '600') + ';">'
+          + invEsc(g.label)
+          + '<span style="font-weight:600;opacity:.75;font-size:10.5px;margin-left:5px;">'
+          + counts[g.id] + '</span></button>';
+      }).join('')
+    + '</div>';
+
+  const panels = live.map(function(g){
+    return '<div data-cardtab="' + g.id + '"' + (g.id === want ? '' : ' style="display:none;"') + '>'
+      + '<div style="font-size:11.5px;color:#6b7280;margin:0 0 8px;line-height:1.5;">'
+      + invEsc(g.hint) + ' &middot; ' + counts[g.id] + ' section'
+      + (counts[g.id] === 1 ? '' : 's') + ', about ' + pages(sizes[g.id]) + ' page'
+      + (pages(sizes[g.id]) === 1 ? '' : 's') + ' of reading.</div>'
+      + buckets[g.id].join('') + '</div>';
+  }).join('');
+
+  return head + '<div id="rcaCardLayoutHost">' + toggle + strip + panels + '</div>';
+}
+
+function dropMarkerOnlyItems(html){
+  let dropped = 0;
+  let out = String(html || '').replace(
+    /<li\b[^>]*>(?:\s|<[^>]*>)*(?:\(as above\)|Same as stated above\.?)(?:\s|<\/[^>]*>)*<\/li>/gi,
+    function(){ dropped++; return ''; });
+  if (!dropped) return out;
+  const note = '<li style="color:#9aa0a6;font-style:italic;list-style:none;margin-left:-16px;">'
+             + dropped + ' further item' + (dropped === 1 ? '' : 's')
+             + ' repeated points already made above, and ' + (dropped === 1 ? 'is' : 'are')
+             + ' not restated here.</li>';
+  // Put the note at the end of whichever <ul>/<ol> lost items; if the list is now empty the note is
+  // all that remains, which is still shorter and more honest than five markers.
+  out = out.replace(/<\/(ul|ol)>/i, note + '</$1>');
+  return out;
+}
+
 function dedupeNameLists(html, names){
   const known = (names || []).filter(n => n && String(n).length > 5)
                              .sort((a, b) => b.length - a.length);
-  if (known.length < 2) return html;
+  if (!known.length) return html;
+  /* NO early return on a single name. This guard used to sit here and it is how "Columbus Day"
+     reached 9 printings: with one holiday the run-collapse has nothing to do, so the function
+     returned before capNameRepeats ever ran. Run-collapsing needs two names; the per-name cap does
+     not, and the cap is the part that always applies. The run-collapse below simply finds nothing
+     when there is one name, which is the correct no-op. */
+  if (known.length < 2) return capNameRepeats(html, known);
   const seenSets = new Set();
-  return String(html || '').replace(/>([^<>]{20,})</g, function(whole, chunk){
+  const collapsed = String(html || '').replace(/>([^<>]{20,})</g, function(whole, chunk){
     /* Ordered by POSITION IN THE TEXT, not by name length. Sorting by length left runs that
        start mid-list unmatched -- "Joint Holiday for Waisak Day" stayed at 10 printings
        because it is last in every list and the prefix joins never reached it. */
@@ -2270,6 +2577,42 @@ function dedupeNameLists(html, names){
     const count = run.split(/,\s*/).length;
     return '>' + chunk.replace(run, 'the ' + count + ' holidays named above') + '<';
   });
+  return capNameRepeats(collapsed, known);
+}
+
+
+/* ---- Second pass: cap how often any ONE name is printed, however it appears.
+   Run-collapsing only catches comma-joined lists. A name that appears alone in ten different
+   sentences -- "Passover (Day 7)" on the latest output -- matches no run and survived untouched,
+   which is the same fault wearing different clothes. This is the general rule the run-collapse is a
+   special case of.
+
+   The first NAME_CAP printings stand, because a holiday genuinely belongs in the headline, in the
+   calendar statement and in its own reference row. Beyond that it becomes a back-reference.
+
+   Longest names first: "Passover (Day 7)" and "Passover (Day 1)" share a prefix, and replacing the
+   shorter form first would corrupt the longer one. ---- */
+const NAME_CAP = 4;
+function capNameRepeats(html, known){
+  let out = String(html || '');
+  for (const nm of [...known].sort((a, b) => b.length - a.length)) {
+    if (!nm || nm.length < 6) continue;
+    let seen = 0;
+    out = out.replace(/>([^<>]{6,})</g, function(whole, chunk){
+      if (chunk.indexOf(nm) < 0) return whole;
+      let edited = '';
+      let rest = chunk;
+      let i;
+      while ((i = rest.indexOf(nm)) >= 0) {
+        seen += 1;
+        edited += rest.slice(0, i) + (seen <= NAME_CAP ? nm : 'the holiday named above');
+        rest = rest.slice(i + nm.length);
+      }
+      edited += rest;
+      return edited === chunk ? whole : '>' + edited + '<';
+    });
+  }
+  return out;
 }
 
 function dedupeRenderedProse(html){
@@ -2294,6 +2637,56 @@ function dedupeRenderedProse(html){
     return '>' + (out ? out + ' <span style="color:#9aa0a6;font-size:11px;">(as above)</span>'
                       : '<span style="color:#9aa0a6;font-size:11.5px;">Same as stated above.</span>') + '<';
   });
+}
+
+/* ---- Channel mix rotation (card section 20). The one question no other panel asks: did the demand
+   leave, or did it change door? A queue whose channel is losing share to a sibling will keep missing
+   in a direction its own volume history cannot explain, because the contacts did not disappear.
+
+   Reports co-movement, never diversion. A falling channel and a rising channel can both be driven by
+   something else, so the offset ratio is shown and the wording stays at "share moved". ---- */
+function cardChannelMixPanel(s){
+  const c = s['20_channel_mix'] || {};
+  if (!c || (!c.available && !c.reason)) return '';
+  if (!c.available) {
+    return `<div class="inv-card">${cardTitle('Channel Mix — did demand change channel?')}
+      ${cardSecDesc(c.how_to_read||'')}
+      <div style="margin-top:10px;background:#f3f4f6;border-left:3px solid #6b7280;border-radius:0 4px 4px 0;padding:8px 12px;line-height:1.6;">${invEsc(c.reason||'')}</div></div>`;
+  }
+  const rows = (c.per_channel||[]).map(m=>{
+    const up = (m.change_pts||0) > 0;
+    const big = Math.abs(m.change_pts||0) >= 5;
+    const isTarget = c.target_channel && m.channel === c.target_channel;
+    return `<tr style="border-top:1px solid #eef0f3;${isTarget?'background:#f0f7ff;':''}">
+      <td style="padding:5px 8px;font-weight:${isTarget?'800':'600'};">${invEsc(m.channel)}${isTarget?' <span style="font-size:10px;color:#1d4ed8;font-weight:800;">THIS QUEUE</span>':''}</td>
+      <td style="padding:5px 8px;text-align:right;">${invEsc(m.share_early_pct)}%</td>
+      <td style="padding:5px 8px;text-align:right;">${invEsc(m.share_late_pct)}%</td>
+      <td style="padding:5px 8px;text-align:right;font-weight:${big?'800':'600'};color:${big?(up?'#0b7a3b':'#a01b2b'):'#555'};">${(m.change_pts>0?'+':'')}${invEsc(m.change_pts)} pts</td>
+      <td style="padding:5px 8px;text-align:right;color:#6b7280;">${m.weekly_share_sd_pts!=null?invEsc(m.weekly_share_sd_pts)+' pts':'—'}</td>
+      <td style="padding:5px 8px;color:${m.exceeds_own_noise?'#0b7a3b':'#6b7280'};font-weight:${m.exceeds_own_noise?'700':'600'};">${m.exceeds_own_noise==null?'—':(m.exceeds_own_noise?'yes':'no')}</td>
+    </tr>`;}).join('');
+  const rots = (c.rotations||[]).map(r=>`<div style="margin-top:8px;padding:9px 12px;border-radius:4px;background:${r.both_exceed_noise?'#fff4e5':'#f6f7f9'};border-left:3px solid ${r.both_exceed_noise?'#b26a00':'#9aa0a6'};line-height:1.65;">
+      <b>${invEsc(r.from_channel)} &rarr; ${invEsc(r.to_channel)}</b>
+      <span style="font-weight:800;">${invEsc(r.points_moved)} points</span>
+      <span style="color:#6b7280;">&middot; the two account for ${invEsc(Math.round((r.offset_ratio||0)*100))}% of each other${r.both_exceed_noise?'':' &middot; one side is inside its own weekly wobble, so treat it as weaker'}</span>
+      <div style="margin-top:4px;font-size:12px;color:#374151;">${invEsc(r.reading||'')}</div></div>`).join('');
+  return `<div class="inv-card">
+    ${cardTitle('Channel Mix — did demand change channel?')}
+    ${cardSecDesc(c.how_to_read||'')}
+    <div style="margin-top:10px;font-weight:700;line-height:1.6;">${invEsc(c.headline||'')}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:9px;">
+      <tr style="background:#f6f7f9;font-weight:700;text-align:left;">
+        <td style="padding:5px 8px;">Channel</td>
+        <td style="padding:5px 8px;text-align:right;">First ${invEsc(c.window_weeks)} wks</td>
+        <td style="padding:5px 8px;text-align:right;">Last ${invEsc(c.window_weeks)} wks</td>
+        <td style="padding:5px 8px;text-align:right;">Change</td>
+        <td style="padding:5px 8px;text-align:right;">Weekly wobble</td>
+        <td style="padding:5px 8px;">Beats own noise?</td></tr>
+      ${rows}
+    </table>
+    ${rots}
+    <div style="margin-top:9px;font-size:11.5px;color:#6b7280;font-style:italic;line-height:1.55;">Grouped by ${invEsc(c.grouped_by||'')} across ${invEsc(c.weeks)} weeks (${invEsc((c.early_weeks||[])[0])}&ndash;${invEsc((c.early_weeks||[])[1])} against ${invEsc((c.late_weeks||[])[0])}&ndash;${invEsc((c.late_weeks||[])[1])}). ${invEsc(c.cqn_note||'')}</div>
+  </div>`;
 }
 
 function cardStatsPanel(s){
@@ -2989,7 +3382,7 @@ function renderDecisionCard(resp, ctx){
   sayOnceReset();   // per-render, so a repeat is judged within one card and never across two
   const _assembled = head + summaryCard + cardWhyPanel(s) + rootCauseCard + interro + conf
        + cardCriticalityPanel(s) + evidence + cardForecastResponsePanel(s) + cardCalendarPanel(s)
-       + cardDriverPanel(s) + cardStatsPanel(s) + ctxHtml + hyp + cardEvidenceIndexPanel(s) + tail;
+       + cardDriverPanel(s) + cardStatsPanel(s) + cardChannelMixPanel(s) + ctxHtml + hyp + cardEvidenceIndexPanel(s) + tail;
   /* The central pass runs LAST, on everything the reader will actually see. The per-site sayOnce
      calls above stay because they produce a better-worded pointer where they apply; this catches
      everywhere they do not. */
@@ -2999,7 +3392,25 @@ function renderDecisionCard(resp, ctx){
     ((s['14_calendar_context'] || {}).holidays_in_target_week || {}).canonical_names || [],
     ((s['14_calendar_context'] || {}).recent_holidays_affecting_target_week || {}).canonical_names || [],
     (s['14_calendar_context'] || {}).calendar_names || []);
-  return dedupeRenderedProse(dedupeNameLists(_assembled, [...new Set(_holNamesAll)]));
+  /* Order matters: names, then prose, then strip the rows the prose pass emptied. Running the
+     stripper earlier would find nothing to strip. */
+  /* Inserted BEFORE the first card, not between two of them. The first attempt put it between
+     Executive Summary and Why This Happened, which broke the panel-order rule this file asserts on
+     purpose -- "Why" must follow the headline immediately, because those are the two most-read
+     blocks and a long panel between them was a deliberate fix. Slicing by summaryCard.length also
+     ate the header strip. Anchoring on the first inv-card boundary avoids both. */
+  const _firstCard = _assembled.indexOf('<div class="inv-card"');
+  const _withSummary = _firstCard < 0 ? _assembled
+    : _assembled.slice(0, _firstCard) + cardSummaryBlock() + _assembled.slice(_firstCard);
+  const _clean = dropMarkerOnlyItems(
+    dedupeRenderedProse(dedupeNameLists(_withSummary, [...new Set(_holNamesAll)])));
+  /* Kept so the layout toggle can re-lay the same card without re-running the investigation. */
+  window._rcaLastCardHtml = _clean;
+  /* The summary endpoint needs the RESULT, not the markup, and nothing stored it before.
+     Held here rather than at the fetch site so it is always the object this card was built
+     from -- a summary of a different run than the one on screen would be worse than none. */
+  window._rcaLastResult = resp;
+  return layoutCardSections(_clean);
 }
 
 function renderInvestigationReport(f, ctx){

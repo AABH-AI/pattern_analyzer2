@@ -304,6 +304,72 @@ def cqn_mapping(table: str = Query("dbo.CQN_Mapping", description="Mapping table
                 pass
 
 
+# ------------------------------------------------------------------------------------------------
+# The third LLM call. Kept OUT of the investigation pipeline on purpose: it is the only call whose
+# output nothing else depends on, so it is also the only one safe to make optional.
+_SUMMARY_CACHE = {}
+_SUMMARY_CACHE_MAX = 200
+
+
+@app.post("/api/rca-summarise")
+def rca_summarise(payload: dict,
+                  provider: str = Query("", description="Optional model-picker provider"),
+                  model: str = Query("", description="Optional model-picker model id"),
+                  refresh: int = Query(0, description="1 = ignore the cache and call again")):
+    """Summarise a finished investigation into a few sentences.
+
+    Body is the investigation RESULT the console already holds, so this re-uses work rather than
+    re-running anything: no SQL, no second investigation, one provider call.
+
+    Deterministic fields only go to the model -- not the narrative from call 1 or the interrogation
+    prose from call 2. Summarising another model's prose would let a first-call error come back as an
+    established fact in the part a lead is most likely to forward on.
+    """
+    from wfm import summary_prompt
+    from wfm.spec_engine import _call_llm   # already returns (parsed, error)
+
+    result = payload.get("result") or payload
+    q = result.get("queue") or {}
+    key = "%s|%s|%s" % (q.get("Forecast_name") or "?", q.get("Fiscal_Week") or "?",
+                        summary_prompt.SUMMARY_PROMPT_VERSION)
+
+    if not refresh and key in _SUMMARY_CACHE:
+        cached = dict(_SUMMARY_CACHE[key])
+        cached["cached"] = True
+        return cached
+
+    if not (result.get("forecast_summary") or result.get("root_cause")):
+        return {"ok": False, "error": "no investigation result supplied to summarise",
+                "summary": None}
+
+    llm_cfg = (load_config() or {}).get("llm") or {}
+    choice = {"provider": provider, "model": model} if model else None
+    messages = summary_prompt.build_summary_messages(result)
+
+    parsed, err = _call_llm(messages, llm_cfg, choice, prefer_fast=True)
+    if err or not parsed:
+        return {"ok": False, "error": str(err or "no response from the model"), "summary": None,
+                "note": ("The investigation itself is unaffected -- every figure and finding on the "
+                         "card is deterministic and already complete. Only this summary is missing.")}
+
+    ok, errors = summary_prompt.validate_summary(parsed, result)
+    if not ok:
+        # Same posture as the narrative: a summary that fails grounding is discarded, not shown with
+        # a warning. A wrong number in the shortest, most-forwarded paragraph is the worst place for it.
+        return {"ok": False, "error": "; ".join(errors), "summary": None,
+                "note": ("The model's summary was rejected because it did not survive the numeric "
+                         "grounding check. The card's own figures are unaffected.")}
+
+    out = {"ok": True, "cached": False,
+           "summary": parsed.get("summary"), "headline": parsed.get("headline"),
+           "watch_next": parsed.get("watch_next"),
+           "prompt_version": summary_prompt.SUMMARY_PROMPT_VERSION}
+    if len(_SUMMARY_CACHE) >= _SUMMARY_CACHE_MAX:
+        _SUMMARY_CACHE.pop(next(iter(_SUMMARY_CACHE)))
+    _SUMMARY_CACHE[key] = out
+    return out
+
+
 @app.post("/api/rca-investigate")
 def rca_investigate(context_bundle: dict, provider: str = Query("", description="Optional model-picker provider"),
                     model: str = Query("", description="Optional model-picker model id"),

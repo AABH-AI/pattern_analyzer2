@@ -84,6 +84,7 @@ def fetch_wfm_context(cur, table, key, map_table=CQN_MAP_TABLE):
     name = key.get("Forecast_name")
     week = key.get("Fiscal_Week")
     out = {"history_104": [], "history_forward": [], "channel_sibling_rows": [],
+           "channel_mix_rows": [],
            "ladder": [], "prior_week": None, "prior_year_week": prior_year_week(week),
            "cqn_names": [], "cqn_source": "proxy"}
     if not name or week is None:
@@ -154,6 +155,28 @@ def fetch_wfm_context(cur, table, key, map_table=CQN_MAP_TABLE):
                 tuple([key[d] for d in dims] + weeks))
             cols = [d[0] for d in cur.description]
             out["channel_sibling_rows"] = [dict(zip(cols, r)) for r in cur.fetchall()]
+
+    # -- 3b. FULL-HISTORY sibling rows, for long-run channel rotation ------------------------
+    # A SEPARATE fetch, deliberately. `channel_sibling_rows` above is filtered to the target and
+    # prior week because that is all the week-over-week migration detector needs, and widening it
+    # would change what that detector sees. A rotation of fifteen points spread over three years is
+    # invisible in two adjacent weeks, so it needs the whole span -- and this stays a separate key so
+    # neither test can quietly start reading the other's rows.
+    try:
+        dims_all = [d for d in CHANNEL_SIBLING_DIMS if key.get(d) not in (None, "")]
+        if dims_all:
+            where_all = " AND ".join(f"{d} = ?" for d in dims_all)
+            cur.execute(
+                f"SELECT Fiscal_Week, channel, Forecast_name, Actual_Offered, fcst_offered "
+                f"FROM {table} WHERE {where_all} AND Actual_Offered IS NOT NULL "
+                f"ORDER BY Fiscal_Week",
+                tuple(key[d] for d in dims_all))
+            cols_all = [c[0] for c in cur.description]
+            out["channel_mix_rows"] = [dict(zip(cols_all, r)) for r in cur.fetchall()]
+            out["channel_mix_grouped_by"] = " + ".join(dims_all)
+    except Exception:
+        # Never fatal: a missing rotation panel is a gap, a failed investigation is a regression.
+        out["channel_mix_rows"] = []
 
     # -- 4. the investigation ladder: adherence recomputed at each level, same week --
     ladder = []
