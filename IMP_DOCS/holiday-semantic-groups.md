@@ -463,3 +463,144 @@ Verified through the renderer, not just the response — the same mistake as the
 otherwise repeat. Suites after the fix: smoke 12/12, FC semantics 189/189, WFM diagnostics 148/148,
 narrative grounding 21/21, UI render 18 Decision Cards, prompt2 render 28/28, prompt2 conformance
 16/16.
+
+---
+
+# FIX 6 - the card said the same thing over and over
+
+Reported from the UI: the holiday name and its sentence appearing "10-12 times... infuriating". A
+captured page (`Downloads/1.html`) put real numbers on it, and they were worse than any synthetic
+render had shown: **39 name printings** on one card - 14x `Idul Fitri Holiday`, 13x `Ascension of
+Jesus Christ`, 12x `Joint Holiday for Waisak Day` - with one sentence printed **7 times**.
+
+None of the 189 FC checks or 18 render checks caught it, and the reason matters: **every panel was
+individually correct.** One measured fact is stored in **26 payload locations** and four to six card
+sections each legitimately report it, because each is the section that fact belongs to. No per-panel
+assertion can see a problem that only exists in the total.
+
+## Two data bugs the capture exposed that a synthetic render never did
+
+```
+"Holiday calendar: Ascension of Jesus Christ, Ascension of Jesus Christ, Idul Fitri Holiday, ..."
+"...but Ascension Day of Jesus Christ, Ascension of Jesus Christ, Idul Fitri Holiday, ..."
+```
+
+**The same name twice in one list.** `calendar_names` carries one entry per dated *occurrence*, so an
+event spanning two days appears twice, and joining it raw printed the name twice inside one sentence.
+Fixed with `_uniq_names()` - the dated occurrences stay distinct in the data, because a five-day
+closure is five days; only the name list used for prose collapses.
+
+**A raw spelling printed beside its own canonical form.** `_holNames` read `h.name`, the raw source
+string, so both spellings of one event were listed as two holidays - in the panel whose entire purpose
+this week is to show they are the same event. `canonical_name` was already on those rows. The semantic
+grouping was being bypassed at the last step, which makes this the more embarrassing of the two.
+
+## Why site-by-site patching failed, and what worked
+
+I patched render sites one at a time first. It moved the worst repeat from 13 printings to 9 and left
+**fifteen of eighteen cards still failing**. That approach cannot converge: the fact is stored in 26
+places, and any new panel reading the same field reintroduces it.
+
+Two central passes over the assembled card replaced it, both renderer-side only so the response keeps
+every field self-contained for anything reading one section over the API:
+
+**`dedupeNameLists`** - the list of names is established once, then referred to. "Holiday calendar: A,
+B, C", "Recent holidays potentially affecting this week: A, B, C" and "A, B, C fell shortly before this
+week" are three *different* sentences carrying the same list, so sentence-level dedup never touched
+them. Later occurrences become "the 3 holidays named above". Only runs of two or more comma-joined
+names collapse, which deliberately leaves the holiday reference table alone - its rows carry one name
+each and that table is where a reader looks them up.
+
+**`dedupeRenderedProse`** - the first occurrence of a sentence survives in full; later ones become
+"(as above)". Only text *between* tags is touched, so attributes and handlers are untouched, and
+sentences under 55 characters are always kept because a short label repeating is not the problem and
+dropping one can strand a table row.
+
+One bug worth recording in the name pass: `present` was ordered by name **length**, so runs starting
+mid-list never matched and `Joint Holiday for Waisak Day` - last in every list - stayed at 10
+printings while the other two dropped. Ordering by position in the text fixed it.
+
+## Result on the reported card
+
+| | Captured page | After |
+|---|---|---|
+| Name printings | **39** (14 / 13 / 12) | **14** (6 / 4 / 4) |
+| Worst repeated sentence | **7x** | **1x** |
+| Sentences appearing >3x | 14 distinct | **0** |
+
+## The guard that would have caught it
+
+`results/check_ui_render.js` now asserts on the **whole rendered card**, which is the only level the
+fault exists at: no holiday name more than 6 times, no sentence over 55 characters more than 3 times,
+and never the same name twice consecutively in one list. `RENDER_REPEAT_REPORT=1` prints the actual
+counts for a before/after.
+
+The reported queue is committed as `results/live-spec-holiday-repetition-case.json` so this exact case
+is re-checked on every run. When first added it **failed**, which is the point of adding it.
+
+---
+
+# The phase table, and a new statistical section
+
+## The phase table already had columns - and the prose as well
+
+Three rows, each repeating one template: *"Weeks [X] have historically run Y% below this queue's
+non-holiday level, across N week(s), moving that way in Z% of them. The plan for those weeks moved W%,
+so the pattern was [not] reflected in the forecast historically."* Every figure in that sentence was
+**already a column**, except the plan's movement - which existed on the phase block as
+`forecast_effect_pct` and was simply not projected into the card panel, the same filtering bug that
+once shipped a driver block the page never displayed.
+
+So the sixth "Reading" column became a `Plan moved` column, and the shared wording moved to a single
+caption under the table, which is the job a table header does.
+
+| Phase | Weeks | Demand vs non-holiday | Consistency | Plan moved | Reflected in plan? |
+|---|---|---|---|---|---|
+| holiday | 52 | -13.0% | 75% | -13.88% | yes |
+| pre-holiday | 17 | +0.45% | 53% | +4.56% | yes |
+| post-holiday | 27 | -2.24% | 52% | +4.35% | **no** |
+
+## Section 19 - statistical profile
+
+Asked for the WFM "Statistical Evidence - queue level" quality on the Decision Card. The finding on
+opening it up: **the engine already computed all of it and the card threw it away** - 14 metrics,
+ranked findings and 4 Pearson correlations over **155 weeks** on the reported queue, against 18 card
+sections none of which was statistical. Some readings did reach `5_evidence.supporting`, but only the
+ones that *support* the conclusion: cherry-picked, unlabelled and mixed with non-statistical items.
+
+`19_statistical_profile` carries all **14** metrics - the WFM panel's 8 plus `accuracy_long`,
+`coefficient_of_variation_recent`, `trend_year`, `drift_year` and `plan_vs_seasonal_norm`, the last of
+which is the strongest single item on the reported queue:
+
+> *"The plan was set at 64 contacts for a week that has averaged 122 across 3 earlier years... Demand
+> of 152 is in line with the week's own history, so **the plan is the outlier, not the demand**."*
+
+Carried over from WFM: a fixed labelled metric list in a stable order, one plain-English reading each,
+explicit not-available handling (stated, not dropped), the ranked findings block, the correlations
+sub-list, and a caption saying it is arithmetic with no model.
+
+Added beyond it: a **FED THE CONCLUSION** marker on the metrics that actually fed the ranked result.
+WFM has no ranked why-chain to tie back to; the card does, and "this number is context" against "this
+number is why" is the difference between a dashboard and an argument. Three of thirteen are marked on
+the reported queue.
+
+Deliberately **not** filtered by what the conclusion needs - a measure that argues against the finding,
+or says nothing, is shown the same as one that supports it. A profile that only ever corroborates
+teaches a reader to distrust it.
+
+`test_fc_spec_semantics` asserted the card carries *exactly* 18 sections, which was the wrong
+assertion for its own stated intent ("nothing was lost") since it also forbade adding one. It now
+checks all 18 original keys **by name** - strictly stronger, since a rename or a drop still fails -
+plus a new check that section 19 is present. **190/190.**
+
+## Verification
+
+| | |
+|---|---|
+| Module smoke | 12 / 12 |
+| FC spec semantics | **190 / 190** |
+| WFM diagnostics | 148 / 148 |
+| Narrative grounding | 21 / 21 |
+| UI render + repetition caps | **19 Decision Cards**, including the reported case |
+| prompt2 conformance | 16 / 16 |
+| `new_prompt` conformance | 34 / 34 |

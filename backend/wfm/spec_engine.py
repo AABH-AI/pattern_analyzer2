@@ -87,6 +87,27 @@ def _fingerprint(rows):
     return hashlib.sha256(payload).hexdigest()[:16]
 
 
+def _uniq_names(names):
+    """De-duplicate a holiday name list, preserving first-seen order.
+
+    `calendar_names` holds one entry per dated OCCURRENCE, so a single event spanning two days appears
+    twice, and joining it raw produced "Ascension of Jesus Christ, Ascension of Jesus Christ" inside
+    one sentence. The dated occurrences must stay distinct in the DATA -- a five-day closure is five
+    days -- so this collapses only the NAME list used for prose.
+    """
+    seen, out = set(), []
+    for n in (names or []):
+        t = str(n or "").strip()
+        if not t:
+            continue
+        k = " ".join(t.lower().split())
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(t)
+    return out
+
+
 def _holiday_effect_for(history):
     """Do holiday weeks actually move THIS queue? Group contrast, not a rank correlation --
     Holiday_Count is 0 in most weeks so ranks would be almost all ties."""
@@ -190,7 +211,7 @@ def _derived_facts(history, target_week, ctx, gates, m):
 
     hol = (ctx or {}).get("holiday") or {}
     if hol.get("applies"):
-        facts.append(f"Holiday calendar: {', '.join(hol.get('names') or [])} "
+        facts.append(f"Holiday calendar: {', '.join(_uniq_names(hol.get('names')))} "
                      f"{hol.get('reading', '')}")
 
     if not (gates or {}).get("any_driver_relevant"):
@@ -474,7 +495,7 @@ def _fc_evidence_items(fc):
     # --- calendar (sections 22-24) ---
     if hol.get("applies") and hol.get("calendar_names"):
         add(supporting,
-            f"Holiday calendar: {', '.join(hol['calendar_names'])}. {hol.get('reading') or ''}"
+            f"Holiday calendar: {', '.join(_uniq_names(hol['calendar_names']))}. {hol.get('reading') or ''}"
             .strip(),
             "Moderate", "business_rule", "holiday_calendar", "E10")
     cap = hol.get("forecast_capture") or {}

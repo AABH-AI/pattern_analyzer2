@@ -757,6 +757,87 @@ def forecast_response_panel(resp):
 # ==============================================================================
 # Sections 22-25 -- Calendar and weekend context
 # ==============================================================================
+# The 14 metrics the engine computes, in reading order: accuracy, then spread, then shape over time,
+# then the calendar, then the plan against the calendar, then outliers. Labels are the reader's
+# vocabulary, not the payload key. Ordered deliberately -- a reader who stops a third of the way down
+# should still have the three things that matter most.
+STAT_PROFILE_ORDER = [
+    ("accuracy_recent", "Forecast accuracy - recent"),
+    ("accuracy_year", "Forecast accuracy - 52 weeks"),
+    ("accuracy_long", "Forecast accuracy - full history"),
+    ("coefficient_of_variation_recent", "Volatility - recent"),
+    ("coefficient_of_variation_long", "Volatility - full history"),
+    ("trend_recent", "Trend - recent"),
+    ("trend_year", "Trend - 52 weeks"),
+    ("drift_recent", "Baseline drift - recent"),
+    ("drift_year", "Baseline drift - 52 weeks"),
+    ("momentum", "Momentum"),
+    ("seasonality", "Seasonality for this fiscal week"),
+    ("plan_vs_seasonal_norm", "Plan against the seasonal norm"),
+    ("outliers", "Outlier detection"),
+]
+
+
+def statistical_profile(result):
+    """A standing statistical profile of this queue, whether or not it supports the conclusion.
+
+    Deliberately NOT filtered by what the conclusion needs. A metric that argues against the finding,
+    or simply says nothing, is information -- and a panel that only ever shows corroborating numbers
+    teaches a reader to distrust it. Metrics that could not be computed are RETURNED with their note
+    rather than dropped, for the same reason section 17 separates "not tested" from "not present".
+    """
+    se = result.get("statistical_evidence") or {}
+    if not se.get("available"):
+        return {"available": False,
+                "reason": se.get("reason") or "not enough history for statistical measures",
+                "how_to_read": ("Deterministic arithmetic on this queue's own history. No model is "
+                                "involved and nothing here is model-written.")}
+
+    metrics = se.get("metrics") or {}
+    # Which metrics actually fed the ranked conclusion, so context can be told from cause.
+    used = {str(f.get("rank_basis") or "") for f in (se.get("findings") or [])}
+    used |= {str((result.get("root_cause") or {}).get("rank_basis") or "")}
+
+    rows = []
+    for key, label in STAT_PROFILE_ORDER:
+        blk = metrics.get(key)
+        if not blk:
+            continue
+        ok = blk.get("available") is not False
+        rows.append({
+            "metric": key, "label": label, "available": ok,
+            "reading": (blk.get("reading") if ok else None),
+            "note": (None if ok else (blk.get("note") or "not available for this queue")),
+            # A prefix match, since rank_basis is the family ("drift") and the metric key is the
+            # window ("drift_recent"). An exact match would report every window as unused.
+            "fed_the_conclusion": any(u and (key == u or key.startswith(u) or u.startswith(key))
+                                      for u in used if u),
+        })
+
+    return {
+        "available": True,
+        "weeks_available": se.get("weeks_available"),
+        "metrics_shown": len(rows),
+        "metrics_unavailable": sum(1 for r in rows if not r["available"]),
+        "rows": rows,
+        "findings": [{"title": f.get("title"), "cause_type": f.get("cause_type"),
+                      "confidence_pct": f.get("confidence_pct"),
+                      "rank_basis": f.get("rank_basis")}
+                     for f in (se.get("findings") or [])],
+        "correlations": [{"subject": c.get("subject"), "field": c.get("field"),
+                          "pearson_r": c.get("pearson_r"), "n": c.get("n"),
+                          "strength": c.get("strength"), "direction": c.get("direction"),
+                          "reading": c.get("reading")}
+                         for c in (metrics.get("correlations_pearson") or [])],
+        "how_to_read": ("Deterministic arithmetic on this queue's own %s weeks of history - no model "
+                        "involved, and it runs whether or not the miss also appears at a higher "
+                        "level. Shown whatever it says: a measure that argues against the conclusion, "
+                        "or says nothing, is reported the same as one that supports it. Anything that "
+                        "could not be computed says so instead of being dropped."
+                        % (se.get("weeks_available") or 0)),
+    }
+
+
 def calendar_panel(holiday, weekend):
     """Pre / holiday / post, plus what the data grain will and will not support."""
     h, w = holiday or {}, weekend or {}
@@ -783,6 +864,11 @@ def calendar_panel(holiday, weekend):
         "row_flag_disagreement": h.get("row_flag_disagreement"),
         "phases": {k: {"instances": v.get("instances"),
                        "actual_effect_pct": v.get("actual_effect_pct"),
+                       # The plan's own movement for these weeks. Present on the phase block all
+                       # along and simply not projected, which forced the renderer to read it out of
+                       # the prose -- so every row repeated the whole sentence to carry one number.
+                       "forecast_effect_pct": v.get("forecast_effect_pct"),
+                       "historically_planned_for": v.get("historically_planned_for"),
                        "direction": v.get("direction"),
                        "consistency": v.get("consistency"),
                        "consistent": v.get("consistent"),
@@ -984,6 +1070,9 @@ def build(result, ladder=None):
                                                result.get("asu_decomposition")),
             "16_evidence_index": result.get("fc_evidence_index"),
             "17_contradiction_resolution": result.get("evidence_resolution"),
+            # 19 rather than slotted in mid-list: the existing 18 keep their keys and order, which is
+            # the non-breaking guarantee. Everything here was already computed and discarded.
+            "19_statistical_profile": statistical_profile(result),
             "18_catalogue_gaps": {
                 # Section 9: an observation the catalogue cannot carry is shown as a GAP, so a
                 # reader can see the engine noticed something it had no sanctioned hypothesis for.

@@ -676,9 +676,24 @@ _MUST_KEEP = ("forecast_response_diagnostic", "forecastability", "lagged_driver_
 check("PLAN-15", "every OTHER finding still renders -- nothing else was lost",
       all(k in _pv_res for k in _MUST_KEEP),
       f"missing {[k for k in _MUST_KEEP if k not in _pv_res]}")
-check("PLAN-16", "and the card still carries all 18 sections",
-      len([k for k in ((_pv_res.get("decision_card") or {}).get("sections") or {})
-           if k[0].isdigit()]) == 18)
+# The original 18 by NAME. An exact count of 18 was the wrong assertion for the intent, which is
+# "nothing was lost" -- it also forbade ADDING a section, and section 19 (statistical profile) is
+# additive by design. Checking the names is strictly stronger: a rename or a drop still fails, and a
+# genuine addition does not.
+_ORIGINAL_18 = [
+    "1_executive_summary", "2_root_cause", "3_confidence", "4_business_impact", "5_evidence",
+    "6_hypothesis_comparison", "7_recommendations", "8_limitations", "9_data_availability",
+    "10_audit_reference", "11_criticality", "12_why_this_happened", "13_forecast_response",
+    "14_calendar_context", "15_driver_evidence", "16_evidence_index",
+    "17_contradiction_resolution", "18_catalogue_gaps",
+]
+_pv_secs = (_pv_res.get("decision_card") or {}).get("sections") or {}
+check("PLAN-16", "and every one of the original 18 sections is still present",
+      all(k in _pv_secs for k in _ORIGINAL_18),
+      f"missing {[k for k in _ORIGINAL_18 if k not in _pv_secs]}")
+check("PLAN-16b", "section 19 (statistical profile) is present and additive",
+      "19_statistical_profile" in _pv_secs,
+      f"{len([k for k in _pv_secs if k[0].isdigit()])} numbered section(s) total")
 
 # ==============================================================================
 # Scenario 20 -- confidence caps, and Missing vs NotApplicable

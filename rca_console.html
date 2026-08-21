@@ -2063,7 +2063,7 @@ function renderSpecStatus(resp, ctx){
   const colour=inBand?'#0b7a3b':'#b26a00', bg=inBand?'#e8f6ee':'#fff4e5';
   const stepRows=steps.map(s=>`<tr><td style="padding:3px 8px;color:#6b7280;">${invEsc(s.step)}</td>
     <td style="padding:3px 8px;font-weight:600;">${invEsc(s.name)}</td>
-    <td style="padding:3px 8px;color:#555;">${invEsc(s.detail)}</td></tr>`).join('');
+    <td style="padding:3px 8px;color:#555;">${invEsc(sayOnce(s.detail||'','(as above)'))}</td></tr>`).join('');
   return `<div class="inv-card">
     <div class="rhead" style="gap:8px;flex-wrap:wrap;">
       <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">${inBand?'No RCA Generated':'Investigation '+invEsc(st)}</div>
@@ -2130,7 +2130,7 @@ function cardCriticalityPanel(s){
       <span style="background:${bg};color:${col};border:1px solid ${col}33;border-radius:4px;padding:4px 12px;font-size:14px;font-weight:800;">${invEsc(c.band||'—')}</span>
       ${c.lifted?`<span style="font-size:11.5px;color:#6b7280;">calculated ${invEsc(c.band_before_lifts)}, lifted one step</span>`:''}
     </div>
-    <div style="margin-top:10px;line-height:1.7;">${invEsc(c.statement||'')}</div>
+    <div style="margin-top:10px;line-height:1.7;">${invEsc(sayOnce(c.statement||'',''))}</div>
     <div class="inv-kv-grid" style="margin-top:10px;">
       <div class="kvi"><div class="l">Gap</div><div class="v">${cardNum(c.absolute_gap_contacts)} contacts</div></div>
       <div class="kvi"><div class="l">Typical week</div><div class="v">${cardNum(c.typical_week_actual)}</div></div>
@@ -2152,7 +2152,7 @@ function cardForecastResponsePanel(s){
       <td style="padding:5px 8px;color:${x.detected?'#0b7a3b':'#6b7280'};font-weight:700;white-space:nowrap;">${x.detected?'present':'not present'}</td>
       <td style="padding:5px 8px;">${invEsc(x.direction||'—')}</td>
       <td style="padding:5px 8px;white-space:nowrap;">${x.visible_from_fiscal_week!=null?'FW'+invEsc(x.visible_from_fiscal_week):'—'}</td>
-      <td style="padding:5px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(x.reading||'')}</td>
+      <td style="padding:5px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(sayOnce(x.reading||'','(stated above)'))}</td>
     </tr>`).join('');
   const gate=(r.gate_conditions||[]).map(x=>`<li style="margin-bottom:4px;line-height:1.55;">
       <span style="color:${x.met?'#0b7a3b':'#a01b2b'};font-weight:800;">${x.met?'✓':'✗'}</span>
@@ -2187,6 +2187,150 @@ function cardForecastResponsePanel(s){
 }
 
 /* Calendar context -- pre / holiday / post, and the weekend grain limit. */
+/* ---- Statistical profile (card section 19). The engine computed all of this and the card used to
+   discard it, surfacing only the readings that happened to support the conclusion inside the evidence
+   list. A profile that only ever corroborates teaches the reader to distrust it, so this shows every
+   measure whatever it says -- including the ones that could not be computed, which state so rather
+   than vanishing. USED marks a measure that fed the ranked conclusion. ---- */
+/* ---- Say-once. One measured fact can legitimately belong to four card sections; the reader should
+   still meet it once. `_said` is reset per card render, the first panel to print a sentence keeps it,
+   and later panels get the remainder plus a pointer. Deliberately renderer-side only: the response
+   keeps every sentence self-contained for anything reading a single section over the API. ---- */
+let _said = new Set();
+function sayOnceReset(){ _said = new Set(); }
+function _sayKey(t){ return String(t||'').toLowerCase().replace(/[^a-z0-9%.\-]+/g,' ').trim(); }
+function sayOnce(text, pointer){
+  const raw = String(text||'').trim();
+  if(!raw) return '';
+  // Split on sentence ends, keeping the terminator. Short fragments are never suppressed: a label
+  // or a two-word clause repeating is not what irritates anyone, and dropping it can break a line.
+  const parts = raw.match(/[^.!?]+[.!?]+|\s*[^.!?]+$/g) || [raw];
+  const kept = [];
+  let dropped = 0;
+  for(const p of parts){
+    const t = p.trim();
+    if(!t) continue;
+    const k = _sayKey(t);
+    if(t.length < 40 || !k){ kept.push(t); continue; }
+    if(_said.has(k)){ dropped++; continue; }
+    _said.add(k); kept.push(t);
+  }
+  if(!kept.length) return pointer ? pointer : '';
+  let out = kept.join(' ');
+  if(dropped && pointer) out += ' ' + pointer;
+  return out;
+}
+
+/* ---- One central pass over the finished card, instead of chasing render sites one at a time.
+   Patching individual sites got the worst repeat from 13 printings down to 9 and left fifteen cards
+   still failing, because the same measured fact is stored in 26 places and reported by whichever
+   sections are about it. Any site-by-site fix is incomplete the moment a new panel reads the same
+   field. This runs once on the assembled markup, so it covers every panel including future ones.
+
+   Only text BETWEEN tags is touched -- never inside a tag, so attributes, styles and handlers are
+   untouched. Sentences under 55 characters are always kept: a short label repeating is not what makes
+   a card unreadable, and dropping one can strand a row. The first occurrence always survives in full
+   and later ones become a marker, so nothing silently disappears. ---- */
+/* ---- The same three holidays, listed in six different sentences.
+   Sentence dedup does not touch this: "Holiday calendar: A, B, C", "Recent holidays potentially
+   affecting this week: A, B, C" and "A, B, C fell shortly before this week" are three DIFFERENT
+   sentences that each happen to carry the same list. Every one is a legitimate statement; the reader
+   still meets the same three names six times, which is what was reported.
+
+   So the LIST is established once and referred to afterwards. Only runs of two or more comma-joined
+   names are collapsed, which deliberately leaves the holiday reference table alone -- its rows carry
+   one name each and that table is where a reader goes to look them up. ---- */
+function dedupeNameLists(html, names){
+  const known = (names || []).filter(n => n && String(n).length > 5)
+                             .sort((a, b) => b.length - a.length);
+  if (known.length < 2) return html;
+  const seenSets = new Set();
+  return String(html || '').replace(/>([^<>]{20,})</g, function(whole, chunk){
+    /* Ordered by POSITION IN THE TEXT, not by name length. Sorting by length left runs that
+       start mid-list unmatched -- "Joint Holiday for Waisak Day" stayed at 10 printings
+       because it is last in every list and the prefix joins never reached it. */
+    const present = known.filter(n => chunk.indexOf(n) >= 0)
+                         .sort((a, b) => chunk.indexOf(a) - chunk.indexOf(b));
+    if (present.length < 2) return whole;
+    // Slide a window over the positionally-ordered names and keep the LONGEST comma-joined run
+    // that actually appears in the text. Any start index, any length, so mid-list runs match too.
+    let run = null;
+    for (let start = 0; start + 1 < present.length; start++) {
+      for (let end = present.length; end - start >= 2; end--) {
+        const cand = present.slice(start, end).join(', ');
+        if (chunk.indexOf(cand) >= 0) {
+          if (!run || cand.length > run.length) run = cand;
+          break;
+        }
+      }
+    }
+    if (!run) return whole;
+    const setKey = run.split(/,\s*/).map(x => x.trim().toLowerCase()).sort().join('|');
+    if (!seenSets.has(setKey)) { seenSets.add(setKey); return whole; }
+    const count = run.split(/,\s*/).length;
+    return '>' + chunk.replace(run, 'the ' + count + ' holidays named above') + '<';
+  });
+}
+
+function dedupeRenderedProse(html){
+  const seen = new Set();
+  const key = (t) => t.toLowerCase().replace(/[^a-z0-9%.\-]+/g, ' ').trim();
+  return String(html || '').replace(/>([^<>]{55,})</g, function(whole, chunk){
+    const parts = chunk.match(/[^.!?]+[.!?]+|[^.!?]+$/g);
+    if (!parts) return whole;
+    const kept = [];
+    let dropped = 0;
+    for (const p of parts){
+      const t = p.trim();
+      if (!t) continue;
+      if (t.length < 55){ kept.push(t); continue; }
+      const k = key(t);
+      if (!k){ kept.push(t); continue; }
+      if (seen.has(k)){ dropped++; continue; }
+      seen.add(k); kept.push(t);
+    }
+    if (!dropped) return whole;
+    const out = kept.join(' ').trim();
+    return '>' + (out ? out + ' <span style="color:#9aa0a6;font-size:11px;">(as above)</span>'
+                      : '<span style="color:#9aa0a6;font-size:11.5px;">Same as stated above.</span>') + '<';
+  });
+}
+
+function cardStatsPanel(s){
+  const p=s['19_statistical_profile']||{};
+  if(!p.available){
+    if(!p.reason) return '';
+    return `<div class="inv-card">${cardTitle('Statistical Profile — this queue on its own history')}
+      ${cardSecDesc(p.how_to_read||'')}
+      <div style="margin-top:10px;background:#f3f4f6;border-left:3px solid #6b7280;border-radius:0 4px 4px 0;padding:8px 12px;line-height:1.6;">${invEsc(p.reason)}</div></div>`;
+  }
+  const rows=(p.rows||[]).map(r=>{
+    const na=!r.available;
+    const txt=na?(r.note||'not available'):(r.reading||'');
+    return `<li style="padding:8px 0;border-bottom:1px solid #eef0f3;">
+      <div style="display:flex;align-items:baseline;gap:8px;">
+        <b style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;">${invEsc(r.label||'')}</b>
+        ${r.fed_the_conclusion?'<span style="font-size:9.5px;font-weight:800;letter-spacing:.5px;color:#0b7a3b;background:#e8f6ee;border:1px solid #0b7a3b33;border-radius:3px;padding:1px 5px;">FED THE CONCLUSION</span>':''}
+        ${na?'<span style="font-size:9.5px;font-weight:800;letter-spacing:.5px;color:#6b7280;background:#f3f4f6;border:1px solid #d1d5db;border-radius:3px;padding:1px 5px;">NOT MEASURABLE</span>':''}
+      </div>
+      <div style="font-size:12.5px;line-height:1.6;margin-top:3px;${na?'color:#6b7280;font-style:italic;':''}">${invEsc(txt)}</div></li>`;
+  }).join('');
+  const finds=(p.findings||[]).map(f=>`<li style="padding:6px 0;font-size:12.5px;line-height:1.55;">
+      <b>${invEsc(f.title||'')}</b>
+      <span style="color:#6b7280;"> — ${invEsc(String(f.cause_type||'').replace(/_/g,' '))}${(f.confidence_pct!=null)?' ('+invEsc(f.confidence_pct)+'%)':''}</span></li>`).join('');
+  const corr=(p.correlations||[]).map(c=>`<li style="padding:5px 0;font-size:12.5px;line-height:1.55;">${invEsc(c.reading||'')}</li>`).join('');
+  return `<div class="inv-card">
+    ${cardTitle('Statistical Profile — this queue on its own history')}
+    ${cardSecDesc(p.how_to_read||'')}
+    ${finds?`<div style="margin-top:10px;"><div style="font-size:11px;color:#6b7280;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">What the numbers point to</div>
+      <ul style="list-style:none;padding:0;margin:0;">${finds}</ul></div>`:''}
+    <ul style="list-style:none;padding:0;margin:10px 0 0;">${rows}</ul>
+    ${corr?`<div style="margin-top:12px;"><div style="font-size:11px;color:#6b7280;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">Correlation with demand drivers</div>
+      <ul style="list-style:none;padding:0;margin:0;">${corr}</ul></div>`:''}
+    <div style="margin-top:10px;font-size:11.5px;color:#6b7280;font-style:italic;line-height:1.55;">${invEsc(String(p.metrics_shown||0))} measure(s) shown${(p.metrics_unavailable)?', of which '+invEsc(p.metrics_unavailable)+' could not be computed on this queue and say so above':', all computable on this queue'}. Measures without a FED THE CONCLUSION marker are context, not evidence for the finding — they are shown so the profile is not selective.</div>
+  </div>`;
+}
+
 function cardCalendarPanel(s){
   const c=s['14_calendar_context']||{};
   const w=c.weekend||{};
@@ -2196,9 +2340,17 @@ function cardCalendarPanel(s){
       <td style="padding:5px 8px;text-align:right;">${v.instances!=null?invEsc(v.instances):'—'}</td>
       <td style="padding:5px 8px;text-align:right;">${cardPct(v.actual_effect_pct,2)}</td>
       <td style="padding:5px 8px;text-align:right;color:${v.consistent?'#0b7a3b':'#b26a00'};font-weight:700;">${(typeof v.consistency==='number')?Math.round(v.consistency*100)+'%':'—'}</td>
+      <td style="padding:5px 8px;text-align:right;">${cardPct(v.forecast_effect_pct,2)}</td>
       <td style="padding:5px 8px;color:${v.historically_planned_for?'#0b7a3b':'#a01b2b'};font-weight:700;white-space:nowrap;">${v.historically_planned_for?'yes':'no'}</td>
-      <td style="padding:5px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(v.reading||'')}</td>
     </tr>`).join('');
+  /* PHASE TABLE: columns, not paragraphs. Every row used to carry `v.reading` in a sixth column --
+     the full sentence "Weeks [X] have historically run Y% below this queue's non-holiday level,
+     across N week(s), moving that way in Z% of them. The plan for those weeks moved W%, so the
+     pattern was [not] reflected in the forecast historically." Each of those figures is already a
+     column; the only one that was not is the plan's movement, which now has its own. The shared
+     wording sits once in the caption below, which is the job a table header does. The `reading`
+     strings are untouched in the response -- an API consumer reading one phase still gets a
+     self-contained sentence. */
   const names=(c.calendar_names||[]);
   const review=(c.names_needing_review||[]);
   return `<div class="inv-card">
@@ -2241,12 +2393,30 @@ function cardCalendarPanel(s){
       </div>`;
     })()}
     ${(c.raw_source_names&&c.raw_source_names.length&&c.raw_source_names.join(', ')!==names.join(', '))?`<div style="margin-top:3px;font-size:11.5px;color:#6b7280;">Raw source names: ${invEsc(c.raw_source_names.join(', '))}</div>`:''}
-    ${c.statement?`<div style="margin-top:8px;line-height:1.7;">${invEsc(c.statement)}</div>`:''}
+    ${(()=>{
+      /* c.statement opens by listing the same holidays iw/ad have just listed, and repeats the
+         "source row flags no holiday" clause they already carry. Established context should not be
+         re-established three times in one panel. The names are stripped only when they are visibly
+         on screen directly above; the phase clause it ends with is what actually adds something. */
+      if(!c.statement) return '';
+      const iw=c.holidays_in_target_week||{}, ad=c.recent_holidays_affecting_target_week||{};
+      const shown=[].concat(iw.canonical_names||[], ad.canonical_names||[]);
+      let t=String(c.statement);
+      if(shown.length && (iw.statement||ad.statement)){
+        const lead=shown.join(', ');
+        if(t.indexOf(lead)===0) t='They '+t.slice(lead.length).replace(/^\s*/,'');
+        t=t.replace(/\s*The source row flags no holiday for this week, which is correct[^.]*\.\s*/g,' ');
+      }
+      t=t.replace(/\s+/g,' ').trim();
+      t=sayOnce(t,'');   // the phase sentence it ends with is usually already on screen
+      return t?`<div style="margin-top:8px;line-height:1.7;">${invEsc(t)}</div>`:'';
+    })()}
     ${!c.available&&c.reason?`<div style="margin-top:10px;background:#f3f4f6;border-left:3px solid #6b7280;border-radius:0 4px 4px 0;padding:8px 12px;line-height:1.6;">${invEsc(c.reason)}</div>`:''}
     ${ph?`<div style="margin-top:12px;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">What each phase does to THIS queue, measured on its own history</div>
       <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:4px;">
-        <tr style="background:#f6f7f9;font-weight:700;text-align:left;"><td style="padding:5px 8px;">Phase</td><td style="padding:5px 8px;text-align:right;">Instances</td><td style="padding:5px 8px;text-align:right;">Effect</td><td style="padding:5px 8px;text-align:right;">Consistency</td><td style="padding:5px 8px;">Planned for?</td><td style="padding:5px 8px;">Reading</td></tr>
-        ${ph}</table>`:''}
+        <tr style="background:#f6f7f9;font-weight:700;text-align:left;"><td style="padding:5px 8px;">Phase</td><td style="padding:5px 8px;text-align:right;">Weeks</td><td style="padding:5px 8px;text-align:right;">Demand vs non-holiday</td><td style="padding:5px 8px;text-align:right;">Consistency</td><td style="padding:5px 8px;text-align:right;">Plan moved</td><td style="padding:5px 8px;">Reflected in plan?</td></tr>
+        ${ph}</table>
+      <div style="font-size:11.5px;color:#6b7280;font-style:italic;margin-top:4px;line-height:1.55;">Each row: how weeks in that phase actually ran against this queue&rsquo;s own non-holiday level, across how many weeks, how often the move went that way, and what the plan did for those same weeks. <b>Consistency</b> under 60% means the pattern is real but not dependable. <b>Reflected in plan?</b> compares the plan&rsquo;s movement with the demand effect beside it &mdash; &ldquo;no&rdquo; means the plan did not follow a pattern its own history shows.</div>`:''}
     ${(c.forecast_capture&&c.forecast_capture.reason)?`<div style="margin-top:10px;"><b>Did the plan capture it?</b> ${invEsc(String(c.forecast_capture.classification||'').replace(/_/g,' '))} — ${invEsc(c.forecast_capture.reason)}
       ${(typeof c.forecast_capture.capture_ratio==='number')?`<div style="font-size:11.5px;color:#6b7280;margin-top:3px;">Adjustment applied was ${invEsc(c.forecast_capture.capture_ratio)}× the historical phase effect${c.forecast_capture.tolerance_band?` (tolerance for “captured”: ${invEsc(c.forecast_capture.tolerance_band)})`:''}.</div>`:''}
     </div>`:''}
@@ -2305,7 +2475,7 @@ function cardCalendarPanel(s){
     ${c.row_flag_disagreement?`<div style="margin-top:8px;background:#fff4e5;border-left:3px solid #b26a00;border-radius:0 4px 4px 0;padding:8px 12px;font-size:11.5px;line-height:1.6;">${invEsc(c.row_flag_disagreement)}</div>`:''}
     ${w.statement?`<div style="margin-top:12px;padding-top:10px;border-top:1px solid #e5e7eb;">
       <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">Weekend</div>
-      <div style="margin-top:4px;color:${w.supported?'#111':'#6b7280'};line-height:1.65;">${invEsc(w.statement)}</div>
+      <div style="margin-top:4px;color:${w.supported?'#111':'#6b7280'};line-height:1.65;">${invEsc(sayOnce(w.statement||'','(stated above)'))}</div>
       ${w.grain?`<div style="margin-top:3px;font-size:11.5px;color:#6b7280;">Data grain found in the source: ${invEsc(w.grain)}.</div>`:''}
       ${(()=>{
         /* prompt2.md clause C: the weekend is THREE questions with three different answers, and the
@@ -2321,14 +2491,14 @@ function cardCalendarPanel(s){
             return `<tr style="border-top:1px solid #eef0f3;">
               <td style="padding:4px 8px;font-weight:600;">${invEsc(lab)}</td>
               <td style="padding:4px 8px;color:${bad?'#6b7280':'#0b7a3b'};font-weight:700;white-space:nowrap;">${invEsc(String(v.state||'').replace(/_/g,' '))}</td>
-              <td style="padding:4px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(v.reason||'')}</td>
+              <td style="padding:4px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(sayOnce(v.reason||'','(as above)'))}</td>
             </tr>`;}).join('');
         const wd=w.weekday_outcomes||{};
         const rowsK=Object.entries(wd.weekdays||{}).map(([d,v])=>`<tr style="border-top:1px solid #eef0f3;">
             <td style="padding:4px 8px;font-weight:600;">${invEsc(d)}</td>
             <td style="padding:4px 8px;text-align:right;">${v.weeks!=null?invEsc(v.weeks):'—'}</td>
             <td style="padding:4px 8px;text-align:right;">${v.measurable?cardPct(v.effect_vs_no_holiday_week_pct,2):'—'}</td>
-            <td style="padding:4px 8px;color:#555;font-size:11.5px;">${v.measurable?'':invEsc(v.reason||'')}</td>
+            <td style="padding:4px 8px;color:#555;font-size:11.5px;">${v.measurable?'':invEsc(sayOnce(v.reason||'','(as above)'))}</td>
           </tr>`).join('');
         if(!rowsC && !rowsK) return '';
         return `${rowsC?`<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;">
@@ -2353,7 +2523,7 @@ function cardCalendarPanel(s){
             <td style="padding:5px 8px;font-weight:600;">${invEsc(k.replace(/_/g,' '))}</td>
             <td style="padding:5px 8px;text-align:right;">${v.instances!=null?invEsc(v.instances):'—'}</td>
             <td style="padding:5px 8px;text-align:right;">${v.measurable?cardPct(v.effect_vs_no_holiday_week_pct,2):'—'}</td>
-            <td style="padding:5px 8px;color:#555;font-size:11.5px;">${v.measurable?'':invEsc(v.reason||'')}</td>
+            <td style="padding:5px 8px;color:#555;font-size:11.5px;">${v.measurable?'':invEsc(sayOnce(v.reason||'','(as above)'))}</td>
           </tr>`).join('');
         const ct=hw.long_weekend_contrast||{};
         const col=ct.material?'#b26a00':'#0b7a3b';
@@ -2388,7 +2558,7 @@ function cardDriverPanel(s){
       <td style="padding:5px 8px;text-align:right;white-space:nowrap;">${x.strongest_lag_weeks!=null?invEsc(x.strongest_lag_weeks)+' wk':'—'}</td>
       <td style="padding:5px 8px;text-align:right;">${x.strongest_strength!=null?invEsc(x.strongest_strength):'—'}</td>
       <td style="padding:5px 8px;color:${x.clears_evidence_threshold?'#b26a00':'#6b7280'};font-weight:700;white-space:nowrap;">${x.clears_evidence_threshold?'reaches bar':'below bar'}</td>
-      <td style="padding:5px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(x.reading||'')}</td>
+      <td style="padding:5px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(sayOnce(x.reading||'','(stated above)'))}</td>
     </tr>`).join('');
   const _enrBlock=_enr.available?`<div style="margin-top:12px;padding-top:10px;border-top:1px solid #e5e7eb;">
       <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">Re-examined at other lags — drivers the gate did not confirm</div>
@@ -2413,7 +2583,7 @@ function cardDriverPanel(s){
       <td style="padding:5px 8px;text-align:right;">${x.relationship_strength!=null?invEsc(x.relationship_strength):'—'}</td>
       <td style="padding:5px 8px;white-space:nowrap;">${invEsc(x.stability||'—')}</td>
       <td style="padding:5px 8px;color:${x.usable_as_evidence?'#0b7a3b':'#6b7280'};font-weight:700;white-space:nowrap;">${x.usable_as_evidence?'used':'not used'}</td>
-      <td style="padding:5px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(x.reading||'')}</td>
+      <td style="padding:5px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(sayOnce(x.reading||'','(stated above)'))}</td>
     </tr>`;}).join('');
   const a=d.asu_decomposition||{};
   return `<div class="inv-card">
@@ -2646,7 +2816,7 @@ function renderDecisionCard(resp, ctx){
 
   /* --- 5: evidence, both directions --- */
   const ev=s['5_evidence']||{};
-  const evList=(arr,sign,col)=>(arr||[]).map(e=>`<li style="color:${col};">${invEsc(e.text||'')}</li>`).join('')||`<li style="color:#6b7280;">none recorded</li>`;
+  const evList=(arr,sign,col)=>(arr||[]).map(e=>`<li style="color:${col};">${invEsc(sayOnce(e.text||'','(stated above)'))}</li>`).join('')||`<li style="color:#6b7280;">none recorded</li>`;
   const evidence=`<div class="inv-card">
     <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Evidence</div>
     <div style="margin-top:8px;font-size:11.5px;font-weight:800;color:#0b7a3b;">SUPPORTING</div>
@@ -2671,7 +2841,21 @@ function renderDecisionCard(resp, ctx){
   // in an adjacent week reaches into this one. Without the name and the date, "Holiday: Accepted"
   // reads as the engine inventing a calendar cause.
   const _hol = resp.holiday || {};
-  const _holNames = (arr)=> (arr||[]).map(h=>h && (h.name||h.holiday)).filter(Boolean);
+  /* CANONICAL first, then de-duplicated. Reading h.name printed the raw source spelling, so one
+     event with two spellings ("Ascension Day of Jesus Christ" and "Ascension of Jesus Christ") was
+     listed as two holidays -- in the very panel whose job is to show they are one. And one event
+     spanning two dates carries two rows, so without the dedup its name printed twice in a row. */
+  const _holNames = (arr)=>{
+    const seen=new Set(), out=[];
+    for(const h of (arr||[])){
+      const n = h && (h.canonical_name || h.display_name || h.name || h.holiday);
+      if(!n) continue;
+      const k = String(n).toLowerCase().replace(/\s+/g,' ').trim();
+      if(seen.has(k)) continue;
+      seen.add(k); out.push(n);
+    }
+    return out;
+  };
   const _holLine = (()=>{
     if (!_hol.available) return '';
     const inw=_holNames(_hol.in_week), win=_holNames(_hol.in_window);
@@ -2683,7 +2867,7 @@ function renderDecisionCard(resp, ctx){
       <div style="font-weight:700;font-size:12px;color:${CARD_STATE_COLOUR[r.state]};">${invEsc(r.state)} · ${invEsc(r.id)} ${invEsc(r.name)}</div>
       <div style="font-size:12px;margin-top:2px;">${invEsc(r.action_hint||'')}</div>
       ${(r.id==='CAL-01'&&_holLine)?`<div style="font-size:11.5px;color:#0b5d2e;margin-top:3px;line-height:1.5;font-weight:600;">${invEsc(_holLine)}</div>`:''}
-      ${r.detail?`<div style="font-size:11.5px;color:#555;margin-top:2px;line-height:1.5;">${invEsc(r.detail)}</div>`:''}
+      ${r.detail?`<div style="font-size:11.5px;color:#555;margin-top:2px;line-height:1.5;">${invEsc(sayOnce(r.detail||'','(as above)'))}</div>`:''}
       ${(r.doubts_raised&&r.doubts_raised.length)?`<div style="font-size:11.5px;color:#8a5a00;margin-top:4px;">Doubts raised:<ul style="margin:2px 0 0 16px;line-height:1.5;">${r.doubts_raised.map(d=>`<li>${invEsc(d)}</li>`).join('')}</ul></div>`:''}
     </div>`).join('');
   const ctxHtml=(()=>{
@@ -2732,7 +2916,7 @@ function renderDecisionCard(resp, ctx){
         return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
           <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Data quality of the figures used</div>
           <div style="font-size:12.5px;margin-top:4px;color:${col};font-weight:600;">${dq.clean?'Checked and clean':'Issues found'}${dq.mandatory_blank_count!=null?` — ${invEsc(dq.mandatory_blank_count)} mandatory field(s) blank`:''}</div>
-          ${issues.length?`<ul style="margin:4px 0 0 16px;font-size:12px;line-height:1.55;">${issues.map(i=>`<li>${invEsc(typeof i==='string'?i:(i.detail||i.issue||JSON.stringify(i)))}</li>`).join('')}</ul>`:''}
+          ${issues.length?`<ul style="margin:4px 0 0 16px;font-size:12px;line-height:1.55;">${issues.map(i=>`<li>${invEsc(sayOnce(typeof i==='string'?i:(i.detail||i.issue||JSON.stringify(i)),'(as above)'))}</li>`).join('')}</ul>`:''}
         </div>`;
       })()}
       ${(()=>{
@@ -2760,7 +2944,7 @@ function renderDecisionCard(resp, ctx){
 
   /* --- 7 + 8 + 10 --- */
   const recs=(s['7_recommendations']||[]).map(r=>`<li><b>[${invEsc(r.priority)}]</b> ${invEsc(r.text)}<div style="font-size:11.5px;color:#555;">${invEsc(r.impact||'')}</div></li>`).join('')||'<li style="color:#6b7280;">No recommendation follows from this finding.</li>';
-  const lims=(s['8_limitations']||[]).map(l=>`<li>${invEsc(l)}</li>`).join('')||'<li style="color:#6b7280;">None recorded.</li>';
+  const lims=(s['8_limitations']||[]).map(l=>`<li>${invEsc(sayOnce(l,'(as above)'))}</li>`).join('')||'<li style="color:#6b7280;">None recorded.</li>';
   const audit=s['10_audit_reference']||{};
   const tail=`<div class="inv-card">
     <div class="rtitle" style="font-size:13.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;">Recommendations</div>
@@ -2802,9 +2986,20 @@ function renderDecisionCard(resp, ctx){
   /* "Why This Happened" sits immediately after the Executive Summary and BEFORE Root Cause: the
      reader gets the headline, then the ranked reasons, then the formal cause with its scope table.
      It used to follow Root Cause, which put the two most-read blocks either side of a long panel. */
-  return head + summaryCard + cardWhyPanel(s) + rootCauseCard + interro + conf
+  sayOnceReset();   // per-render, so a repeat is judged within one card and never across two
+  const _assembled = head + summaryCard + cardWhyPanel(s) + rootCauseCard + interro + conf
        + cardCriticalityPanel(s) + evidence + cardForecastResponsePanel(s) + cardCalendarPanel(s)
-       + cardDriverPanel(s) + ctxHtml + hyp + cardEvidenceIndexPanel(s) + tail;
+       + cardDriverPanel(s) + cardStatsPanel(s) + ctxHtml + hyp + cardEvidenceIndexPanel(s) + tail;
+  /* The central pass runs LAST, on everything the reader will actually see. The per-site sayOnce
+     calls above stay because they produce a better-worded pointer where they apply; this catches
+     everywhere they do not. */
+  /* Names first, so a list already collapsed to a back-reference is not then judged as a repeated
+     sentence, then prose. Both are renderer-side only; the response keeps every name in every field. */
+  const _holNamesAll = [].concat(
+    ((s['14_calendar_context'] || {}).holidays_in_target_week || {}).canonical_names || [],
+    ((s['14_calendar_context'] || {}).recent_holidays_affecting_target_week || {}).canonical_names || [],
+    (s['14_calendar_context'] || {}).calendar_names || []);
+  return dedupeRenderedProse(dedupeNameLists(_assembled, [...new Set(_holNamesAll)]));
 }
 
 function renderInvestigationReport(f, ctx){
@@ -2892,7 +3087,7 @@ function renderInvestigationReport(f, ctx){
   </div></details>`;
 
   const rejectedHtml=`<details class="inv-sec"><summary>Rejected Hypotheses</summary><div class="body">
-    ${(f.rejected_hypotheses||[]).length?(f.rejected_hypotheses||[]).map(h=>`<div class="rej-item"><div class="h">&#x2715; ${invEsc(h.hypothesis)}</div><div class="r">${invEsc(h.reason_rejected)}</div></div>`).join(''):'<div class="inv-empty">No hypotheses recorded as rejected.</div>'}
+    ${(f.rejected_hypotheses||[]).length?(f.rejected_hypotheses||[]).map(h=>`<div class="rej-item"><div class="h">&#x2715; ${invEsc(h.hypothesis)}</div><div class="r">${invEsc(sayOnce(h.reason_rejected||'','(same reason as above)'))}</div></div>`).join(''):'<div class="inv-empty">No hypotheses recorded as rejected.</div>'}
   </div></details>`;
 
   // STATISTICAL EVIDENCE -- the deterministic queue-level drill-down. Every metric already carries a

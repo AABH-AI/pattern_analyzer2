@@ -262,6 +262,74 @@ for (const file of specFiles) {
       if (out.includes('>null<')) bad.push('a literal "null" reached the markup');
       if (/>None</.test(out)) bad.push('a Python "None" reached the markup');
 
+      /* REPETITION. A reader reported the holiday name and its sentence appearing 10-12 times on one
+       * card, and a captured output confirmed it: 13 / 12 / 14 printings of three names, one sentence
+       * 7 times. Nothing caught it, because every panel was individually correct -- the same measured
+       * fact is stored in 19 places and four sections each legitimately report it. So the assertion
+       * has to be about the WHOLE rendered card, not any one panel.
+       *
+       * Two separate faults are guarded here. A name repeated INSIDE one list was a real data bug
+       * (raw spellings printed beside their own canonical form, and one event spanning two dates
+       * printed twice). A sentence repeated ACROSS panels is a presentation fault, handled by
+       * sayOnce. Both show up as counts on the finished card. */
+      const vis = out.replace(/<[^>]+>/g, ' ').replace(/&[a-zA-Z#0-9]+;/g, ' ')
+                     .replace(/\s+/g, ' ').trim();
+      const holBlk = (resp.holiday_response || {});
+      const holNames = [...new Set([].concat(
+        (holBlk.holidays_in_target_week || {}).canonical_names || [],
+        (holBlk.recent_holidays_affecting_target_week || {}).canonical_names || []))];
+      const NAME_CAP = 6;
+      for (const nm of holNames) {
+        if (!nm || nm.length < 6) continue;
+        const c = vis.split(nm).length - 1;
+        if (c > NAME_CAP) {
+          bad.push(`holiday "${nm}" printed ${c}x on one card (cap ${NAME_CAP})`);
+        }
+      }
+      // The same name twice inside one comma list is always wrong, whatever the cap.
+      for (const nm of holNames) {
+        if (!nm || nm.length < 6) continue;
+        // Plain string search: no regex, so no escaping to get wrong.
+        if (vis.indexOf(nm + ', ' + nm) >= 0) {
+          bad.push(`holiday "${nm}" listed twice consecutively in one list`);
+        }
+      }
+      /* Set RENDER_REPEAT_REPORT=1 to print the actual counts rather than only cap breaches.
+         Useful for showing a before/after on a specific card without a second harness -- the last
+         three attempts at a standalone sandbox each failed on a different global this one already
+         sets up correctly. */
+      if (process.env.RENDER_REPEAT_REPORT) {
+        const counts = holNames.map(n => [n, vis.split(n).length - 1])
+                               .filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1]);
+        const tot = counts.reduce((a, [, c]) => a + c, 0);
+        if (tot) {
+          console.log(`  REPORT ${key}`);
+          for (const [n, c] of counts) console.log(`           ${c}x  ${n}`);
+          console.log(`           ---- ${tot} name printing(s)`);
+        }
+      }
+      const SENT_CAP = 3;
+      const seenS = {};
+      for (const sn of vis.split(/(?<=[.!?])\s+/)) {
+        const t = sn.trim();
+        if (t.length < 55) continue;
+        seenS[t] = (seenS[t] || 0) + 1;
+      }
+      const worst = Object.entries(seenS).filter(([, n]) => n > SENT_CAP)
+                          .sort((a, b) => b[1] - a[1]);
+      if (process.env.RENDER_REPEAT_REPORT) {
+        const top = Object.entries(seenS).sort((a, b) => b[1] - a[1])[0];
+        if (top) console.log(`           worst repeated sentence: ${top[1]}x`);
+        const backrefs = (out.match(/holidays named above/g) || []).length;
+        const asabove = (out.match(/as above|Same as stated above/g) || []).length;
+        console.log(`           back-references: ${backrefs}   as-above markers: ${asabove}`
+                    + `   Statistical Profile: ${/Statistical Profile/.test(out) ? 'yes' : 'no'}`);
+      }
+      if (worst.length) {
+        bad.push(`${worst.length} sentence(s) repeated more than ${SENT_CAP}x on one card, worst `
+                 + `${worst[0][1]}x: "${worst[0][0].slice(0, 60)}..."`);
+      }
+
       /* Panel ORDER, not just presence. The reading order is a deliberate decision -- headline,
        * then the ranked reasons, then the formal cause -- and it is set by one concatenation
        * expression that is easy to reorder by accident while every "is the panel there" check
