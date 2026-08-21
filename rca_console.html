@@ -2231,15 +2231,6 @@ function sayOnce(text, pointer){
    untouched. Sentences under 55 characters are always kept: a short label repeating is not what makes
    a card unreadable, and dropping one can strand a row. The first occurrence always survives in full
    and later ones become a marker, so nothing silently disappears. ---- */
-/* ---- The same three holidays, listed in six different sentences.
-   Sentence dedup does not touch this: "Holiday calendar: A, B, C", "Recent holidays potentially
-   affecting this week: A, B, C" and "A, B, C fell shortly before this week" are three DIFFERENT
-   sentences that each happen to carry the same list. Every one is a legitimate statement; the reader
-   still meets the same three names six times, which is what was reported.
-
-   So the LIST is established once and referred to afterwards. Only runs of two or more comma-joined
-   names are collapsed, which deliberately leaves the holiday reference table alone -- its rows carry
-   one name each and that table is where a reader goes to look them up. ---- */
 /* ---- A list item whose entire content is a back-reference is noise, not information. Reported from
    the screen: a Limitations panel with one real line followed by five "(as above)" rows. The marker
    earns its place inside a sentence or a table cell that must stay populated; as a whole bullet it
@@ -2537,80 +2528,6 @@ function dropMarkerOnlyItems(html){
   // Put the note at the end of whichever <ul>/<ol> lost items; if the list is now empty the note is
   // all that remains, which is still shorter and more honest than five markers.
   out = out.replace(/<\/(ul|ol)>/i, note + '</$1>');
-  return out;
-}
-
-function dedupeNameLists(html, names){
-  const known = (names || []).filter(n => n && String(n).length > 5)
-                             .sort((a, b) => b.length - a.length);
-  if (!known.length) return html;
-  /* NO early return on a single name. This guard used to sit here and it is how "Columbus Day"
-     reached 9 printings: with one holiday the run-collapse has nothing to do, so the function
-     returned before capNameRepeats ever ran. Run-collapsing needs two names; the per-name cap does
-     not, and the cap is the part that always applies. The run-collapse below simply finds nothing
-     when there is one name, which is the correct no-op. */
-  if (known.length < 2) return capNameRepeats(html, known);
-  const seenSets = new Set();
-  const collapsed = String(html || '').replace(/>([^<>]{20,})</g, function(whole, chunk){
-    /* Ordered by POSITION IN THE TEXT, not by name length. Sorting by length left runs that
-       start mid-list unmatched -- "Joint Holiday for Waisak Day" stayed at 10 printings
-       because it is last in every list and the prefix joins never reached it. */
-    const present = known.filter(n => chunk.indexOf(n) >= 0)
-                         .sort((a, b) => chunk.indexOf(a) - chunk.indexOf(b));
-    if (present.length < 2) return whole;
-    // Slide a window over the positionally-ordered names and keep the LONGEST comma-joined run
-    // that actually appears in the text. Any start index, any length, so mid-list runs match too.
-    let run = null;
-    for (let start = 0; start + 1 < present.length; start++) {
-      for (let end = present.length; end - start >= 2; end--) {
-        const cand = present.slice(start, end).join(', ');
-        if (chunk.indexOf(cand) >= 0) {
-          if (!run || cand.length > run.length) run = cand;
-          break;
-        }
-      }
-    }
-    if (!run) return whole;
-    const setKey = run.split(/,\s*/).map(x => x.trim().toLowerCase()).sort().join('|');
-    if (!seenSets.has(setKey)) { seenSets.add(setKey); return whole; }
-    const count = run.split(/,\s*/).length;
-    return '>' + chunk.replace(run, 'the ' + count + ' holidays named above') + '<';
-  });
-  return capNameRepeats(collapsed, known);
-}
-
-
-/* ---- Second pass: cap how often any ONE name is printed, however it appears.
-   Run-collapsing only catches comma-joined lists. A name that appears alone in ten different
-   sentences -- "Passover (Day 7)" on the latest output -- matches no run and survived untouched,
-   which is the same fault wearing different clothes. This is the general rule the run-collapse is a
-   special case of.
-
-   The first NAME_CAP printings stand, because a holiday genuinely belongs in the headline, in the
-   calendar statement and in its own reference row. Beyond that it becomes a back-reference.
-
-   Longest names first: "Passover (Day 7)" and "Passover (Day 1)" share a prefix, and replacing the
-   shorter form first would corrupt the longer one. ---- */
-const NAME_CAP = 4;
-function capNameRepeats(html, known){
-  let out = String(html || '');
-  for (const nm of [...known].sort((a, b) => b.length - a.length)) {
-    if (!nm || nm.length < 6) continue;
-    let seen = 0;
-    out = out.replace(/>([^<>]{6,})</g, function(whole, chunk){
-      if (chunk.indexOf(nm) < 0) return whole;
-      let edited = '';
-      let rest = chunk;
-      let i;
-      while ((i = rest.indexOf(nm)) >= 0) {
-        seen += 1;
-        edited += rest.slice(0, i) + (seen <= NAME_CAP ? nm : 'the holiday named above');
-        rest = rest.slice(i + nm.length);
-      }
-      edited += rest;
-      return edited === chunk ? whole : '>' + edited + '<';
-    });
-  }
   return out;
 }
 
@@ -3335,12 +3252,10 @@ function renderDecisionCard(resp, ctx){
   /* The central pass runs LAST, on everything the reader will actually see. The per-site sayOnce
      calls above stay because they produce a better-worded pointer where they apply; this catches
      everywhere they do not. */
-  /* Names first, so a list already collapsed to a back-reference is not then judged as a repeated
-     sentence, then prose. Both are renderer-side only; the response keeps every name in every field. */
-  const _holNamesAll = [].concat(
-    ((s['14_calendar_context'] || {}).holidays_in_target_week || {}).canonical_names || [],
-    ((s['14_calendar_context'] || {}).recent_holidays_affecting_target_week || {}).canonical_names || [],
-    (s['14_calendar_context'] || {}).calendar_names || []);
+  /* Holiday NAMES are never rewritten. A name is the one thing on a calendar panel that has to read
+     exactly as the calendar says it, and back-referencing it ("the 3 holidays named above") saved
+     space at the cost of the fact. Whole repeated SENTENCES are still collapsed, which removes the
+     duplication without touching a single name. */
   /* Order matters: names, then prose, then strip the rows the prose pass emptied. Running the
      stripper earlier would find nothing to strip. */
   /* Inserted BEFORE the first card, not between two of them. The first attempt put it between
@@ -3352,7 +3267,7 @@ function renderDecisionCard(resp, ctx){
   const _withSummary = _firstCard < 0 ? _assembled
     : _assembled.slice(0, _firstCard) + cardSummaryBlock() + _assembled.slice(_firstCard);
   const _clean = dropMarkerOnlyItems(
-    dedupeRenderedProse(dedupeNameLists(_withSummary, [...new Set(_holNamesAll)])));
+    dedupeRenderedProse(_withSummary));
   /* Kept so the layout toggle can re-lay the same card without re-running the investigation. */
   window._rcaLastCardHtml = _clean;
   /* The summary endpoint needs the RESULT, not the markup, and nothing stored it before.

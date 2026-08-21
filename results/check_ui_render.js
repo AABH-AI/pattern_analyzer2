@@ -278,14 +278,17 @@ for (const file of specFiles) {
       const holNames = [...new Set([].concat(
         (holBlk.holidays_in_target_week || {}).canonical_names || [],
         (holBlk.recent_holidays_affecting_target_week || {}).canonical_names || []))];
-      const NAME_CAP = 6;
-      for (const nm of holNames) {
-        if (!nm || nm.length < 6) continue;
-        const c = vis.split(nm).length - 1;
-        if (c > NAME_CAP) {
-          bad.push(`holiday "${nm}" printed ${c}x on one card (cap ${NAME_CAP})`);
-        }
-      }
+      /* NO CAP ON HOW OFTEN A HOLIDAY IS NAMED, deliberately, and this is not an oversight.
+       * A cap was enforced here and the mechanism behind it rewrote later mentions into "the 3
+       * holidays named above". That was rejected, and rightly: a holiday's name is the one thing on
+       * a calendar panel that has to read exactly as the calendar says it, and paraphrasing it saves
+       * space at the cost of the fact the panel exists to carry.
+       *
+       * The repetition is still addressed, by the two rules below, which shrink the page without
+       * touching a name: whole repeated SENTENCES collapse, and a row that is nothing but a marker is
+       * not written. On the reported card that takes 39 name printings to 29 with every name intact.
+       *
+       * If a cap is ever wanted again, cap the SENTENCES that carry the name, never the name. */
       // The same name twice inside one comma list is always wrong, whatever the cap.
       for (const nm of holNames) {
         if (!nm || nm.length < 6) continue;

@@ -8,7 +8,7 @@
    "clause": "1",
    "requirement": "existing 18 card sections intact",
    "state": "PRESENT",
-   "detail": "20 sections"
+   "detail": "19 sections"
   },
   {
    "clause": "2",
@@ -206,7 +206,7 @@
    "clause": "28",
    "requirement": "A-F card view",
    "state": "PRESENT",
-   "detail": "6/6 sections; the 18 numbered sections remain (20)"
+   "detail": "6/6 sections; the 18 numbered sections remain (19)"
   }
  ]
 }
