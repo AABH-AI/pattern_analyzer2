@@ -344,6 +344,63 @@ from Country" is never a root cause.
 
 ---
 
+## The interrogation uses TWO models, not one
+
+The interrogation stage runs two prompts:
+
+| prompt | job | model |
+|---|---|---|
+| **2 — ask** | read the findings, ask what they leave unexplained | **`llm.interrogator`** |
+| **1 — answer** | answer each question strictly from the evidence bundle | `llm.primary` |
+
+Until now both went to the same model, which meant the questioner and the answerer shared the same
+blind spots — a model is least likely to ask about the thing it does not think to look at, and then it
+is the one deciding whether the data can answer. Splitting the questioner off gives the challenge some
+independence.
+
+**The answerer deliberately stays on the primary.** It is the half whose output is quoted as fact on
+the card, so it must remain grounded in the evidence bundle and its behaviour should not change.
+
+```jsonc
+"llm": {
+  "primary":      { "provider": "nvidia", "model": "nvidia/nemotron-3-super-120b-a12b", "api_key": "..." },
+  "interrogator": { "model": "openai/gpt-oss-120b" }
+}
+```
+
+Only `model` is needed — provider, `api_key` and endpoint are inherited from `primary`, because this
+is the same account and the same key. **Omit the key and nothing changes**: the questioner stays on
+the primary exactly as before.
+
+**Two rules that differ from every other call.**
+
+- **The console's per-queue model picker does NOT override the interrogator.** Everywhere else an
+  explicit pick wins so a model-comparison run is uniform; here it does not, because the questioner is
+  part of the method rather than a subject of the comparison — the questions stay comparable across runs.
+- **A dead questioner falls back to the primary rather than deleting the section**, and the response
+  says so: `interrogation.questions_asked_by`,
+  `questions_asked_by_configured_model` and `interrogator_fell_back`. A silent fallback would look
+  identical to the split working.
+
+**Verify a candidate on the REAL prompt, not a toy one.** The question prompt is ~40,000 characters and
+that is what separates the models. Measured 2026-08-21 on this account:
+
+| model | latency | valid questions |
+|---|---|---|
+| `openai/gpt-oss-120b` | 56.8s | **5/5**, `arises_from` intact |
+| `openai/gpt-oss-20b` | 57.9s | 5/5 |
+| `nvidia/nemotron-3-super-120b-a12b` | 28.5s | 3/3 |
+| `nvidia/nemotron-3.5-lightning-30b-a3b` | **timed out** | — |
+| `minimaxai/minimax-m3` | **timed out** | — |
+
+The last two answered a trivial prompt in under 11s and then failed the real one, so a smoke test
+proves nothing here. `deepseek-ai/deepseek-v4-flash` is **HTTP 410 Gone** on this account and the
+dated `-0731` variant timed out; `nvidia/llama-3.3-nemotron-super-49b-v1.5` is deprecated by NVIDIA
+on 2026-08-25. All three were removed from `selectable_models` — a picker that offers a model which
+cannot answer is worse than one that omits it.
+
+---
+
 ## Running it
 
 ```bash

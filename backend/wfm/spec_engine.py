@@ -1616,8 +1616,15 @@ def _interrogate(finding, evidence_bundle, llm_cfg, model_choice):
         return out
 
     # --- Prompt 2: ask -------------------------------------------------------
-    parsed, err = _call_llm(why_prompt.build_messages(finding), llm_cfg, model_choice,
-                            prefer_fast=True)
+    # A separately configured model asks the questions; see `_interrogator_slot`. It is PREPENDED to
+    # the chain, so if it is down the primary still asks and the section survives -- and `_asked_by`
+    # records which model actually produced them, so a reader can tell the two cases apart instead of
+    # having to trust that the intended model answered.
+    _islot = _interrogator_slot(llm_cfg)
+    _asked_by = {}
+    parsed, err = _call_llm(why_prompt.build_messages(finding), llm_cfg,
+                            None if _islot else model_choice, prefer_fast=True,
+                            slot_override=_islot, used=_asked_by)
     if not parsed:
         out["reason"] = f"question generation unavailable: {err}"
         return out
@@ -1641,11 +1648,28 @@ def _interrogate(finding, evidence_bundle, llm_cfg, model_choice):
                     "unchanged in wording, with `arises_from` set on each to the exact "
                     "statement in the findings that prompted it. Same JSON schema, "
                     "nothing else added."}]
-            reparsed, _ = _call_llm(repair, llm_cfg, model_choice, prefer_fast=True)
+            # Same model as the original ask -- a repair answered by a different model would be
+            # repairing its own schema against someone else's questions.
+            reparsed, _ = _call_llm(repair, llm_cfg, None if _islot else model_choice,
+                                    prefer_fast=True, slot_override=_islot, used=_asked_by)
             if reparsed:
                 questions, rejected = why_prompt.validate(reparsed)
                 parsed = reparsed if questions else parsed
                 out["schema_repaired"] = bool(questions)
+
+    # Which model asked, and whether that is the one configured to. Published because the whole
+    # point of the split is that the questions came from somewhere other than the answerer -- a
+    # silent fallback would look identical to it working.
+    _want = (_islot or {}).get("model")
+    out["questions_asked_by"] = (f"{_asked_by.get('provider')}/{_asked_by.get('model')}"
+                                 if _asked_by.get("model") else None)
+    out["questions_asked_by_configured_model"] = (
+        bool(_want) and _asked_by.get("model") == _want)
+    out["interrogator_configured"] = _want
+    if _want and _asked_by.get("model") and _asked_by.get("model") != _want:
+        out["interrogator_fell_back"] = (
+            f"The questions were asked by {_asked_by.get('model')}, not the configured "
+            f"{_want}, which did not respond.")
 
     out["rejected_questions"] = rejected
     out["not_asked"] = [n for n in (parsed.get("not_asked") or []) if isinstance(n, dict)]
@@ -1708,12 +1732,21 @@ def _interrogate(finding, evidence_bundle, llm_cfg, model_choice):
 _FAST_FIRST = ("groq", "nvidia")
 
 
-def _call_llm(messages, llm_cfg, model_choice, prefer_fast=False):
+def _call_llm(messages, llm_cfg, model_choice, prefer_fast=False, slot_override=None, used=None):
     """One provider call returning (parsed, error). Shared by narrative and interrogation.
 
     `prefer_fast` reorders the fallback chain. An EXPLICIT model choice always wins over it:
     when someone picks a model to compare engines, every call in that run must use it or the
     comparison means nothing.
+
+    `slot_override` is PREPENDED to the chain rather than replacing it, so a call can prefer a
+    specific model and still fall back to the configured primary if that model is down. Used by the
+    interrogator: the questions should come from a different model, but a timeout there must not
+    delete the section.
+
+    `used`, if given a dict, is filled with the provider and model that actually answered. The
+    return value stays a TWO-tuple on purpose -- widening it is exactly the mistake that made
+    ?mode=spec answer HTTP 500 on this branch, so what answered is reported out-of-band instead.
     """
     from rca_investigate import _slot_for_choice
     from .investigation_engine import DEFAULT_MODELS, PROVIDER_ENDPOINTS
@@ -1726,6 +1759,8 @@ def _call_llm(messages, llm_cfg, model_choice, prefer_fast=False):
         if prefer_fast:
             slots.sort(key=lambda sl: _FAST_FIRST.index(sl.get("provider"))
                        if sl.get("provider") in _FAST_FIRST else len(_FAST_FIRST))
+    if slot_override and slot_override.get("api_key"):
+        slots = [slot_override] + [s for s in slots if s is not slot_override]
     if not slots:
         # TWO values. `_call_llm` returns (parsed, error) and all four call sites unpack two --
         # this path returned three, raising `ValueError: too many values to unpack (expected 2)`.
@@ -1746,10 +1781,51 @@ def _call_llm(messages, llm_cfg, model_choice, prefer_fast=False):
                     f"(add it to PROVIDER_ENDPOINTS or set `endpoint` on the slot in config.json)")
             continue
         try:
-            return chat_json(endpoint, slot["api_key"], model, messages, timeout=timeout), None
+            parsed = chat_json(endpoint, slot["api_key"], model, messages, timeout=timeout)
+            if used is not None:
+                used["provider"] = slot.get("provider")
+                used["model"] = model
+            return parsed, None
         except Exception as exc:
             last = f"{slot.get('provider')}/{model}: {exc}"
     return None, last
+
+
+def _interrogator_slot(llm_cfg):
+    """The model that ASKS the interrogation questions, if one is configured separately.
+
+    WHY A DIFFERENT MODEL ASKS THAN ANSWERS
+    ----------------------------------------
+    The interrogation runs two prompts against what was, until now, ONE model: prompt 2 reads the
+    findings and asks what they leave unexplained, then prompt 1 answers each question strictly from
+    the evidence bundle. Having the same model do both means the questioner and the answerer share
+    the same blind spots -- a model is least likely to ask about the thing it does not think to look
+    at, and then it is the one deciding whether the data can answer.
+
+    Splitting the questioner off gives the challenge some independence. The ANSWERER is deliberately
+    left on the primary: it must stay grounded in the evidence bundle and is the half whose output is
+    quoted as fact, so its behaviour should not change.
+
+    CONFIG. `llm.interrogator` needs only a `model` -- provider, api_key and endpoint are inherited
+    from `primary`, because this is the same account and the same key, just a different model:
+
+        "interrogator": { "model": "openai/gpt-oss-120b" }
+
+    Omit the key entirely and nothing changes: the questioner stays on the primary exactly as before.
+
+    THE PICKER DOES NOT OVERRIDE THIS. Everywhere else an explicitly picked model wins, so a
+    model-comparison run is uniform. Here it deliberately does not: the questioner is a fixed part of
+    the method rather than a subject of the comparison, so the questions stay comparable across runs.
+    """
+    prim = (llm_cfg or {}).get("primary") or {}
+    cfgd = (llm_cfg or {}).get("interrogator") or {}
+    if not isinstance(cfgd, dict) or not cfgd.get("model"):
+        return None
+    slot = dict(prim)
+    slot.update({k: v for k, v in cfgd.items() if v and not k.startswith("_")})
+    if not slot.get("api_key") or not slot.get("provider"):
+        return None
+    return slot
 
 
 def _narrate(finding, llm_cfg, model_choice):

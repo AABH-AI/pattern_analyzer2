@@ -26,6 +26,7 @@ that happened is commented in full, so nobody later "fixes" working logic to sat
 """
 import json
 import os
+import pathlib
 import re
 import sys
 
@@ -694,6 +695,59 @@ check("PLAN-16", "and every one of the original 18 sections is still present",
 check("PLAN-16b", "section 19 (statistical profile) is present and additive",
       "19_statistical_profile" in _pv_secs,
       f"{len([k for k in _pv_secs if k[0].isdigit()])} numbered section(s) total")
+
+# ==============================================================================
+# The split interrogator -- a DIFFERENT model asks the questions
+# ==============================================================================
+# The interrogation runs two prompts. Until now both went to one model, so the questioner and the
+# answerer shared the same blind spots: a model is least likely to ask about the thing it does not
+# think to look at, and then it is the one judging whether the data can answer. `llm.interrogator`
+# moves the QUESTIONER to another model on the same API key. The ANSWERER stays on the primary
+# deliberately -- it is the half whose output is quoted as fact.
+print("\n-- The split interrogator --")
+
+_PRIM = {"provider": "nvidia", "api_key": "k", "model": "nvidia/nemotron-3-super-120b-a12b",
+         "endpoint": "https://example/v1/chat"}
+
+check("INT-1", "no interrogator key -> None, i.e. the previous single-model behaviour",
+      spec_engine._interrogator_slot({"primary": _PRIM}) is None,
+      "absence of the key must change nothing, so an existing deployment cannot break")
+check("INT-2", "a configured model inherits the primary provider, key and endpoint",
+      (lambda s: s and s["provider"] == "nvidia" and s["api_key"] == "k"
+       and s["endpoint"] == _PRIM["endpoint"] and s["model"] == "openai/gpt-oss-120b")(
+          spec_engine._interrogator_slot({"primary": _PRIM,
+                                          "interrogator": {"model": "openai/gpt-oss-120b"}})),
+      "same account, same key, different model")
+check("INT-3", "an interrogator with no model is ignored rather than half-applied",
+      spec_engine._interrogator_slot({"primary": _PRIM, "interrogator": {}}) is None
+      and spec_engine._interrogator_slot({"primary": _PRIM,
+                                          "interrogator": {"provider": "nvidia"}}) is None)
+check("INT-4", "no primary api_key -> None, never a slot that cannot authenticate",
+      spec_engine._interrogator_slot(
+          {"primary": {"provider": "nvidia", "model": "m"},
+           "interrogator": {"model": "openai/gpt-oss-120b"}}) is None)
+check("INT-5", "the interrogator may override provider and endpoint if it ever needs to",
+      (lambda s: s and s["provider"] == "groq" and s["endpoint"] == "https://other/v1")(
+          spec_engine._interrogator_slot({"primary": _PRIM, "interrogator": {
+              "model": "x", "provider": "groq", "endpoint": "https://other/v1",
+              "api_key": "k2"}})))
+check("INT-6", "comment-style keys in the config block are not copied into the slot",
+      "_note" not in (spec_engine._interrogator_slot(
+          {"primary": _PRIM, "interrogator": {"model": "m", "_note": "ignore me"}}) or {}),
+      "config files carry _comment keys; they must not become request fields")
+
+# `_call_llm` keeps a TWO-tuple return. Widening it is the exact mistake that made ?mode=spec
+# answer HTTP 500 on this branch, so which model answered is reported through a dict instead.
+import inspect                                                              # noqa: E402
+_sig = inspect.signature(spec_engine._call_llm)
+check("INT-7", "_call_llm still returns a 2-tuple; provenance comes back out-of-band",
+      "used" in _sig.parameters and "slot_override" in _sig.parameters,
+      f"params: {list(_sig.parameters)}")
+check("INT-8", "slot_override PREPENDS rather than replaces, so a dead questioner falls back",
+      "slots = [slot_override] + [s for s in slots if s is not slot_override]"
+      in pathlib.Path(os.path.join(ROOT, "backend", "wfm", "spec_engine.py")).read_text(
+          encoding="utf-8"),
+      "a timeout on the questioner must not delete the whole section")
 
 # ==============================================================================
 # Scenario 20 -- confidence caps, and Missing vs NotApplicable

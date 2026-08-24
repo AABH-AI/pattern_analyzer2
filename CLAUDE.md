@@ -32,11 +32,15 @@ Key facts:
   the legacy keys.
 - `llm.timeout_seconds` in `config.json` sets the LLM read timeout for both engines (150 now;
   NVIDIA needs 45–100s, Groq has a 100k token/**day** cap).
+- `llm.interrogator` (optional, `config.json` — **gitignored, so set it per environment**)
+  routes the interrogation's QUESTION prompt to a different model on the same API key; the
+  answering prompt and the narrative stay on `llm.primary`. Currently `openai/gpt-oss-120b`.
+  Omit the key to restore single-model behaviour. See `IMP_DOCS/fc-decision-card-engine.md`.
 - Evidence and re-runnable tests live in `results/` — start with `results/audit-log.md`.
 
 Test suites (all runnable without SQL except the last):
 ```
-python results/test_fc_spec_semantics.py          # FC Decision Card — 149 checks, 24 brief scenarios
+python results/test_fc_spec_semantics.py          # FC Decision Card — 198 checks, 24 brief scenarios
 python results/test_wfm_diagnostics.py            # the shared diagnostic modules — 148 checks
 python results/smoke_test_modules.py              # 12 modules load and wire up
 node   results/check_ui_render.js                 # the REAL renderers over REAL captured responses
