@@ -34,7 +34,7 @@ Key facts:
   NVIDIA needs 45–100s, Groq has a 100k token/**day** cap).
 - `llm.interrogator` (optional, `config.json` — **gitignored, so set it per environment**)
   routes the interrogation's QUESTION prompt to a different model on the same API key; the
-  answering prompt and the narrative stay on `llm.primary`. Currently `openai/gpt-oss-120b`.
+  answering prompt and the narrative stay on `llm.primary`. Currently `openai/gpt-oss-20b` (gpt-oss-120b was tried and times out on ~half of attempts). Every call prints a `[FC-RCA]` line to the terminal.
   Omit the key to restore single-model behaviour. See `IMP_DOCS/fc-decision-card-engine.md`.
 - Evidence and re-runnable tests live in `results/` — start with `results/audit-log.md`.
 

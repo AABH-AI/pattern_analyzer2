@@ -382,22 +382,46 @@ the primary exactly as before.
   `questions_asked_by_configured_model` and `interrogator_fell_back`. A silent fallback would look
   identical to the split working.
 
-**Verify a candidate on the REAL prompt, not a toy one.** The question prompt is ~40,000 characters and
-that is what separates the models. Measured 2026-08-21 on this account:
+**Verify a candidate on the REAL prompt, and verify RELIABILITY not just capability.** The question
+prompt is ~40,000 characters, and repeated runs matter more than one good run. Measured 2026-08-21 on
+this account:
 
-| model | latency | valid questions |
-|---|---|---|
-| `openai/gpt-oss-120b` | 56.8s | **5/5**, `arises_from` intact |
-| `openai/gpt-oss-20b` | 57.9s | 5/5 |
-| `nvidia/nemotron-3-super-120b-a12b` | 28.5s | 3/3 |
-| `nvidia/nemotron-3.5-lightning-30b-a3b` | **timed out** | — |
-| `minimaxai/minimax-m3` | **timed out** | — |
+| model | success | median | max | valid questions |
+|---|---|---|---|---|
+| **`openai/gpt-oss-20b`** ← configured | **5/5** | **38.1s** | 67.0s | 3–5 every run |
+| `openai/gpt-oss-120b` | **2/4** | 135.7s | **150.1s timeout** | 5/5 when it answered |
+| `nvidia/nemotron-3-super-120b-a12b` *(primary)* | 4/4 | 25.0s | 28.7s | 3 |
+| `nvidia/nemotron-3.5-lightning-30b-a3b` | 0 | — | **timeout** | — |
+| `minimaxai/minimax-m3` | 0 | — | **timeout** | — |
 
-The last two answered a trivial prompt in under 11s and then failed the real one, so a smoke test
-proves nothing here. `deepseek-ai/deepseek-v4-flash` is **HTTP 410 Gone** on this account and the
-dated `-0731` variant timed out; `nvidia/llama-3.3-nemotron-super-49b-v1.5` is deprecated by NVIDIA
-on 2026-08-25. All three were removed from `selectable_models` — a picker that offers a model which
-cannot answer is worse than one that omits it.
+Two traps this table records, both of which caught me:
+
+- **A single good run is not reliability.** `gpt-oss-120b` was chosen on one 56.8s sample and is
+  genuinely the strongest questioner — 5/5 valid every time it answered — but it times out on roughly
+  half of attempts, with a median of 135.7s against the 150s timeout. Half of all investigations were
+  falling back silently. `gpt-oss-20b` is slightly weaker per run and dramatically more useful.
+- **A trivial prompt proves nothing.** `nemotron-3.5-lightning` and `minimax-m3` both answered a
+  toy prompt in under 11s and then timed out on the real one.
+
+Retired ids: `deepseek-ai/deepseek-v4-flash` is **HTTP 410 Gone**, the dated `-0731` variant timed out,
+and `nvidia/llama-3.3-nemotron-super-49b-v1.5` is deprecated by NVIDIA on **2026-08-25**. All three
+were removed from `selectable_models` — a picker offering a model that cannot answer is worse than one
+that omits it.
+
+### Seeing it work — terminal log
+
+Every LLM call prints one line, because the fallback is otherwise invisible: the card reads identically
+whichever model asked.
+
+```
+[FC-RCA] narrate(step14)  nvidia/nemotron-3-super-120b-a12b   64.3s  OK
+[FC-RCA] ask(prompt2)     openai/gpt-oss-20b                  30.2s  OK   5 question(s) kept, 0 rejected
+[FC-RCA] answer(prompt1)  nvidia/nemotron-3-super-120b-a12b   54.9s  OK   5 call(s), 2 answered from evidence
+```
+
+A failed questioner adds a `FELL BACK` line naming both models and suggesting the model may be
+deprecated or withdrawn. `print` rather than `logging` because uvicorn owns the logging configuration
+and a custom logger needs its handlers wired up to appear at all.
 
 ---
 
