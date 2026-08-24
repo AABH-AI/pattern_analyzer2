@@ -758,3 +758,136 @@ reported thirteen things missing by trusting documentation over the payload.
 Three permanent regression cases now live in `results/`: the reported three-holiday card, a
 single-holiday card, and a channel-mix card. Each **failed when first added**, which is the point of
 adding them.
+
+---
+
+# FIX 8 - four reported problems, three of them one bug
+
+## 1. The Confidence cap was not in "Confidence & Recommendation"
+
+A real bug, and mine. `layoutCardSections` split the assembled card on `<div class="inv-card"` only,
+and **two panels are not inv-cards**: the Confidence block is a `<details class="inv-sec">`, as is
+Business Context Used. Neither started a block, so both were glued to whichever card preceded them and
+inherited its tab.
+
+Measured through the renderer rather than reasoned about: **Confidence was landing in `challenge`**,
+stuck to the Interrogation card. It rendered perfectly well, three tabs from where it belongs.
+
+The split now recognises every top-level panel boundary, and `titleOf` falls back to `<summary>` so the
+new blocks bucket on a real title instead of an empty string and the Reference catch-all. After:
+Confidence, Criticality, Recommendations and Business Context all resolve to `confidence`.
+
+## 2. "Daily weekend demand effect - NOT TESTABLE - (as above)"
+
+**The state is correct**, and verified against the schema rather than assumed. All 32 columns listed:
+`Monday`..`Sunday` hold only **0 and 1** - on non-holiday high-volume weeks every one is `0`, though
+those weeks plainly took contacts every day. They are holiday flags. `Actual_Offered`,
+`Actual_Handled`, `fcst_offered` and `fcst_handled` are all **weekly**. No daily demand figure exists
+anywhere in the source, so a weekend effect genuinely cannot be isolated from a fiscal-week total.
+
+**The "(as above)" was a bug.** `sayOnce` had been applied to that reason column to cut a repeat count,
+and the cost was a row that says nothing: the state column already says WHAT happened, so the reason
+column is the only place the WHY lives. A repeated reason costs a line; an empty one costs the finding.
+Removed from all three state-table reason columns, and they now carry `data-keep` so the central
+sentence dedup leaves them alone too.
+
+## 3. "Driver Evidence ... not coming in any output"
+
+It **is** rendering - in the Statistics tab. `available: false`, but `reason` is present and the panel
+prints the note. Not a bug; a consequence of (1) putting panels where nobody expected them.
+
+## 4. "Confidence says business context is 100%, why is it not showing"
+
+**The arithmetic is right**, checked element by element rather than trusted:
+
+| Element | Applicable | Available |
+|---|---|---|
+| Fiscal calendar | yes | yes |
+| Holiday calendar | yes | yes |
+| Warranty coverage | yes | yes |
+| Volume band | yes | yes |
+| Queue metadata | yes | yes |
+| Installed base (ASU) | **no** | - |
+| Business events | **no** - repository not deployed | - |
+
+5 applicable, 5 available -> **1.0**. The two NotApplicable elements are **excluded from the
+denominator**, not counted as missing, which is exactly what `context_completeness` documents: an
+element that cannot apply to this queue must not be penalised as though it were absent.
+
+The panel listing them was in **Reference**. It now sits in the Confidence tab, beside the score that
+cites it, because that panel *is* the evidence for that dimension.
+
+---
+
+# FIX 9 - the Confidence breakdown looked broken
+
+Reported with a screenshot: "How much data was available" wrapping over four lines in a narrow first
+column while the Score column beside it sat almost empty, every row tall and mostly whitespace.
+
+Three compounding causes, all layout:
+
+1. **No column widths declared.** A `width:100%` auto-layout table negotiates widths from content.
+2. **`white-space:nowrap` on Score, Effect AND Weight.** Three columns that cannot wrap take the width
+   they want, and the one column that can wrap pays for all of it.
+3. The label column carries a **name and a description**, so it is the longest content in the table and
+   the least able to defend its width.
+
+Fixed with a declared `colgroup` (46 / 26 / 17 / 11) plus `table-layout:fixed`, `nowrap` removed from
+Score - which can hold a full sentence like *"Not relevant to this queue - only 1 method(s) applicable;
+nothing to cross-check"* - and from Effect, which is two short words and never needed to dictate table
+width. The table is wrapped in an `overflow-x:auto` container so a narrow viewport scrolls it rather
+than crushing it.
+
+## The same defect in two more tables
+
+An audit for the pattern - a table mixing `nowrap` figure columns with an unfloored prose column -
+found the **Signal** table in Forecast Response and the **Driver** table in Driver Evidence, each with
+**eight to twelve** nowrap cells beside one Reading column. Both floored at `min-width:230px`, and the
+state-table reason columns at 210px. Flooring the prose column rather than fixing the whole table
+leaves every figure column's natural sizing untouched.
+
+Worth noting: **no cell was ever both `nowrap` and prose.** Every `nowrap` holds a short figure -
+`yes`/`no`, `FW202435`, `1 wk`, `reaches bar` - which is correct use. The fault is entirely in what
+happens when several of them compete with one sentence column and nothing sets a floor.
+
+A guard now asserts it on the whole rendered card: a table with two or more `nowrap` columns and a cell
+holding 70+ characters must declare `colgroup`, `table-layout:fixed` or a `min-width`. It **failed on
+the Signal and Driver tables the moment it was added**, which is how they were found.
+
+---
+
+# A mistake I made twice in this file
+
+The first attempt at the lone-cell guard wrote `\b` inside a heredoc, and it reached the file as a
+**literal backspace character (0x08)**. The regex therefore matched nothing and the fix appeared to do
+nothing at all - I only found it by printing the line with `repr()`.
+
+That is the **second time** this exact quoting trap has cost time here; the first was the causal-verb
+check in `decision_card.py`. Both are now written with character classes and no escape sequences, and
+the file is scanned for stray control characters - currently zero.
+
+The lesson worth keeping: a regex assembled through two quoting layers cannot be trusted to contain
+what it looks like it contains, and a silently-matching-nothing pattern is indistinguishable from a
+working one until something asserts on the result.
+
+---
+
+## Verification after both fixes
+
+| | |
+|---|---|
+| Module smoke | 12 / 12 |
+| FC spec semantics | 190 / 190 |
+| WFM diagnostics | 148 / 148 |
+| Narrative grounding | 21 / 21 |
+| Summary grounding | 14 / 14 |
+| UI render, incl. tab attribution + squeeze + lone-cell | **20 Decision Cards** |
+| prompt2 conformance | 16 / 16 |
+| `new_prompt` conformance | 34 / 34 |
+
+New guard assertions this round, all on the finished card rather than any single panel:
+
+- **tab attribution** per named panel, under `RENDER_REPEAT_REPORT=1` - the only way to catch a
+  mis-bucketed panel, since it renders either way
+- **no table cell** may contain nothing but an `(as above)` marker
+- **no table** may mix `nowrap` columns with an unfloored prose column

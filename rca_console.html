@@ -2152,7 +2152,7 @@ function cardForecastResponsePanel(s){
       <td style="padding:5px 8px;color:${x.detected?'#0b7a3b':'#6b7280'};font-weight:700;white-space:nowrap;">${x.detected?'present':'not present'}</td>
       <td style="padding:5px 8px;">${invEsc(x.direction||'—')}</td>
       <td style="padding:5px 8px;white-space:nowrap;">${x.visible_from_fiscal_week!=null?'FW'+invEsc(x.visible_from_fiscal_week):'—'}</td>
-      <td style="padding:5px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(sayOnce(x.reading||'','(stated above)'))}</td>
+      <td style="min-width:230px;padding:5px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(sayOnce(x.reading||'','(stated above)'))}</td>
     </tr>`).join('');
   const gate=(r.gate_conditions||[]).map(x=>`<li style="margin-bottom:4px;line-height:1.55;">
       <span style="color:${x.met?'#0b7a3b':'#a01b2b'};font-weight:800;">${x.met?'✓':'✗'}</span>
@@ -2735,7 +2735,7 @@ function cardCalendarPanel(s){
       const col=pb.systematic?'#a01b2b':(pb.deteriorating?'#b26a00':'#0b7a3b');
       const bg=pb.systematic?'#fdecee':(pb.deteriorating?'#fff4e5':'#e8f6ee');
       const rows=Object.entries(pb.phases||{}).map(([k,v])=>{
-        if(!v.testable) return `<tr style="border-top:1px solid #eef0f3;"><td style="padding:5px 8px;font-weight:600;">${invEsc(k.replace(/_/g,'-'))}</td><td colspan="5" style="padding:5px 8px;color:#6b7280;font-size:11.5px;">${invEsc(v.reason||'not testable')}</td></tr>`;
+        if(!v.testable) return `<tr style="border-top:1px solid #eef0f3;"><td style="min-width:210px;padding:5px 8px;font-weight:600;">${invEsc(k.replace(/_/g,'-'))}</td><td colspan="5" style="padding:5px 8px;color:#6b7280;font-size:11.5px;">${invEsc(v.reason||'not testable')}</td></tr>`;
         return `<tr style="border-top:1px solid #eef0f3;">
           <td style="padding:5px 8px;font-weight:600;">${invEsc(k.replace(/_/g,'-'))}</td>
           <td style="padding:5px 8px;text-align:right;">${invEsc(v.instances)}</td>
@@ -2799,7 +2799,7 @@ function cardCalendarPanel(s){
             return `<tr style="border-top:1px solid #eef0f3;">
               <td style="padding:4px 8px;font-weight:600;">${invEsc(lab)}</td>
               <td style="padding:4px 8px;color:${bad?'#6b7280':'#0b7a3b'};font-weight:700;white-space:nowrap;">${invEsc(String(v.state||'').replace(/_/g,' '))}</td>
-              <td data-keep style="padding:4px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(v.reason||'')}</td>
+              <td data-keep style="min-width:210px;padding:4px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(v.reason||'')}</td>
             </tr>`;}).join('');
         const wd=w.weekday_outcomes||{};
         const rowsK=Object.entries(wd.weekdays||{}).map(([d,v])=>`<tr style="border-top:1px solid #eef0f3;">
@@ -2866,7 +2866,7 @@ function cardDriverPanel(s){
       <td style="padding:5px 8px;text-align:right;white-space:nowrap;">${x.strongest_lag_weeks!=null?invEsc(x.strongest_lag_weeks)+' wk':'—'}</td>
       <td style="padding:5px 8px;text-align:right;">${x.strongest_strength!=null?invEsc(x.strongest_strength):'—'}</td>
       <td style="padding:5px 8px;color:${x.clears_evidence_threshold?'#b26a00':'#6b7280'};font-weight:700;white-space:nowrap;">${x.clears_evidence_threshold?'reaches bar':'below bar'}</td>
-      <td style="padding:5px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(sayOnce(x.reading||'','(stated above)'))}</td>
+      <td style="min-width:230px;padding:5px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(sayOnce(x.reading||'','(stated above)'))}</td>
     </tr>`).join('');
   const _enrBlock=_enr.available?`<div style="margin-top:12px;padding-top:10px;border-top:1px solid #e5e7eb;">
       <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">Re-examined at other lags — drivers the gate did not confirm</div>
@@ -2891,7 +2891,7 @@ function cardDriverPanel(s){
       <td style="padding:5px 8px;text-align:right;">${x.relationship_strength!=null?invEsc(x.relationship_strength):'—'}</td>
       <td style="padding:5px 8px;white-space:nowrap;">${invEsc(x.stability||'—')}</td>
       <td style="padding:5px 8px;color:${x.usable_as_evidence?'#0b7a3b':'#6b7280'};font-weight:700;white-space:nowrap;">${x.usable_as_evidence?'used':'not used'}</td>
-      <td style="padding:5px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(sayOnce(x.reading||'','(stated above)'))}</td>
+      <td style="min-width:230px;padding:5px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(sayOnce(x.reading||'','(stated above)'))}</td>
     </tr>`;}).join('');
   const a=d.asu_decomposition||{};
   return `<div class="inv-card">
@@ -2927,7 +2927,7 @@ function cardEvidenceIndexPanel(s){
       <td style="padding:4px 8px;font-weight:700;color:#1f4e79;white-space:nowrap;">${invEsc(k)}</td>
       <td style="padding:4px 8px;font-weight:600;">${invEsc(e.label||'')}</td>
       <td style="padding:4px 8px;color:${e.available?'#0b7a3b':'#6b7280'};font-weight:700;white-space:nowrap;">${e.available?'available':'not established'}</td>
-      <td style="padding:4px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(e.note||'')}</td>
+      <td style="min-width:210px;padding:4px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(e.note||'')}</td>
     </tr>`;}).join('');
   const gapRows=(gaps.items||[]).map(g=>`<li style="line-height:1.6;"><b>${invEsc(g.observation)}</b> — ${invEsc(g.why_recorded||'')}</li>`).join('');
   return `<div class="inv-card">
@@ -3053,9 +3053,9 @@ function renderDecisionCard(resp, ctx){
     return `<tr style="border-top:1px solid #eef0f3;">
       <td style="padding:6px 8px;vertical-align:top;">
         <div style="font-weight:600;">${invEsc(d.plain_name||d.dimension)}</div>
-        <div style="font-size:11px;color:#6b7280;line-height:1.45;">${invEsc(d.meaning||'')}</div>
+        <div style="font-size:11px;color:#6b7280;line-height:1.45;margin-top:2px;">${invEsc(d.meaning||'')}</div>
       </td>
-      <td style="padding:6px 8px;color:${col};vertical-align:top;white-space:nowrap;">
+      <td style="padding:6px 8px;color:${col};vertical-align:top;">
         ${(d.state==='Available'&&typeof d.score==='number')?`
           <div style="display:flex;align-items:center;gap:7px;">
             <div style="width:64px;height:6px;background:#e9ecf1;border-radius:4px;overflow:hidden;">
@@ -3064,7 +3064,7 @@ function renderDecisionCard(resp, ctx){
             <span style="font-variant-numeric:tabular-nums;">${invEsc(Math.round(d.score*100))}%</span>
           </div>`:invEsc(d.wording)}
       </td>
-      <td style="padding:6px 8px;vertical-align:top;color:${VCOL[d.verdict]||'#6b7280'};font-size:11.5px;white-space:nowrap;">${invEsc(d.verdict||'')}</td>
+      <td style="padding:6px 8px;vertical-align:top;color:${VCOL[d.verdict]||'#6b7280'};font-size:11.5px;">${invEsc(d.verdict||'')}</td>
       <td style="padding:6px 8px;text-align:right;color:#6b7280;vertical-align:top;">${invEsc(d.weight)}</td>
     </tr>`;}).join('');
   // The bar is drawn from the CALCULATED score but coloured by the FINAL level, so a
@@ -3102,10 +3102,23 @@ function renderDecisionCard(resp, ctx){
     ${cp.cap_statement?`<div style="margin:8px 0;background:#fff4e5;border:1px solid #ffd9a0;border-radius:4px;padding:8px 10px;line-height:1.6;font-size:12px;">${invEsc(cp.cap_statement)}</div>`:
       `<div class="rmeta" style="margin:6px 0;">Calculated ${invEsc(cp.calculated_level)} (${invEsc(cp.score_pct)}%). No cap applied.</div>`}
     ${cp.how_to_read?`<div style="font-size:11.5px;color:#6b7280;font-style:italic;margin:6px 0 2px;line-height:1.55;">${invEsc(cp.how_to_read)}</div>`:''}
-    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;">
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;table-layout:fixed;">
+      <!-- Widths DECLARED, not negotiated. Without a colgroup the browser sized these four columns
+           from their content, and three of them carried white-space:nowrap, so they took the width
+           they wanted and the label column was left with what remained -- wrapping "How much data was
+           available" over four lines while the score column beside it sat almost empty. The label
+           column carries a name AND a description, so it needs the majority of the width. -->
+      <colgroup>
+        <col style="width:46%;">
+        <col style="width:26%;">
+        <col style="width:17%;">
+        <col style="width:11%;">
+      </colgroup>
       <tr style="background:#f6f7f9;font-weight:700;text-align:left;"><td style="padding:5px 8px;">What was scored</td><td style="padding:5px 8px;">Score</td><td style="padding:5px 8px;">Effect</td><td style="padding:5px 8px;text-align:right;">Weight</td></tr>
       ${dimRows}
     </table>
+    </div>
     <div style="margin-top:10px;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#444;">What would change it</div>
     <ul style="margin:6px 0 0 18px;line-height:1.6;">${(cp.what_would_change_it||[]).map(w=>`<li>${invEsc(w)}</li>`).join('')}</ul>
   </details>`;

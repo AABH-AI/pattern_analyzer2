@@ -391,6 +391,25 @@ for (const file of specFiles) {
         }
       }
 
+      /* TABLE SQUEEZE. Reported: the Confidence breakdown looked broken -- "How much data was
+         available" wrapped over four lines while the score column beside it sat nearly empty. Cause:
+         an auto-layout table with three white-space:nowrap figure columns and one prose column that
+         had no width floor, so the figure columns took what they wanted and prose paid for it.
+         A table that mixes nowrap cells with a prose column must declare widths or floor the prose. */
+      const tables = out.match(/<table[\s\S]*?<\/table>/g) || [];
+      for (const t of tables) {
+        const nowraps = (t.match(/white-space:nowrap/g) || []).length;
+        if (nowraps < 2) continue;
+        const hasFloor = /<colgroup|table-layout:fixed|min-width:/.test(t);
+        // a cell holding a full sentence, as against a figure or a short label
+        const prose = /<t[dh][^>]*>[^<]{70,}</.test(t);
+        if (prose && !hasFloor) {
+          const head = (t.match(/<t[dh][^>]*>([^<]{3,40})</) || [])[1] || '(unnamed)';
+          bad.push(`table "${head.trim()}" has ${nowraps} nowrap column(s) and a prose column with `
+                   + `no width floor, so the prose column will be squeezed`);
+        }
+      }
+
       const SENT_CAP = 3;
       const seenS = {};
       for (const sn of vis.split(/(?<=[.!?])\s+/)) {
