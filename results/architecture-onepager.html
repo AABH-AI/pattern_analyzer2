@@ -1,0 +1,242 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>RCA Console — Architecture</title>
+<!--
+  Built directly rather than generated from a prompt, because two prompt attempts produced a diagram
+  that was first inaccurate and then accurate but uncommunicative. Every figure here comes from
+  results/verify_architecture_prompt.py, which checks 54 claims against the running system.
+
+  A4 landscape, print-ready. Self-contained: no libraries, no fonts, no network.
+-->
+<style>
+  @page { size: A4 landscape; margin: 10mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 14px 18px; background: #fff; color: #16202c;
+         font: 13px/1.5 "Segoe UI", system-ui, -apple-system, Arial, sans-serif; }
+  h1 { margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -.2px; }
+  .sub { color: #5b6b7c; font-size: 12.5px; margin: 3px 0 0; }
+  .intro { margin: 9px 0 14px; padding: 10px 13px; background: #f7f9fb;
+           border-left: 3px solid #1f4e8c; border-radius: 0 4px 4px 0;
+           font-size: 12.5px; line-height: 1.62; max-width: 1180px; }
+  .intro b { color: #12365f; }
+
+  .lane { margin-bottom: 13px; }
+  .lanehead { display: flex; align-items: baseline; gap: 9px; margin-bottom: 6px; }
+  .lanenum { width: 19px; height: 19px; border-radius: 50%; background: #1f4e8c; color: #fff;
+             font-size: 11.5px; font-weight: 800; display: inline-flex; align-items: center;
+             justify-content: center; flex: none; }
+  .lanetitle { font-size: 12.5px; font-weight: 800; text-transform: uppercase;
+               letter-spacing: .6px; color: #12365f; }
+  .lanenote { font-size: 11.5px; color: #6b7a89; font-weight: 400; text-transform: none;
+              letter-spacing: 0; }
+
+  .flow { display: flex; align-items: stretch; gap: 0; }
+  .stage { flex: 1; border: 1px solid #cfd9e4; border-radius: 6px; padding: 8px 10px;
+           background: #fff; min-width: 0; }
+  .stage .st { font-size: 10px; font-weight: 800; color: #8697a8; letter-spacing: .5px; }
+  .stage .sn { font-size: 12.5px; font-weight: 800; margin: 1px 0 4px; }
+  .stage ul { margin: 0; padding-left: 13px; }
+  .stage li { font-size: 11px; line-height: 1.5; color: #43586c; }
+  .arrow { flex: none; width: 22px; display: flex; align-items: center; justify-content: center;
+           color: #9db0c4; font-size: 15px; font-weight: 700; }
+
+  .ai { border: 1px solid #b98a3e; border-radius: 6px; background: #fffdf7; padding: 9px 11px; }
+  .aitop { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-bottom: 7px; }
+  .aibadge { background: #b98a3e; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 7px;
+             border-radius: 3px; letter-spacing: .5px; }
+  .chain { font-size: 11.5px; color: #6b5525; }
+  .calls { display: flex; gap: 0; align-items: stretch; }
+  .call { flex: 1; border: 1px solid #e2d3b4; border-radius: 5px; background: #fff;
+          padding: 7px 9px; min-width: 0; }
+  .call .cn { font-size: 11.5px; font-weight: 800; color: #6b5525; }
+  .call .cf { font-size: 10.5px; color: #7b8794; line-height: 1.45; margin-top: 3px; }
+  .call.opt { border-style: dashed; }
+
+  .cols { display: flex; gap: 11px; }
+  .card { flex: 1; border: 1px solid #cfd9e4; border-radius: 6px; padding: 8px 11px; min-width: 0; }
+  .card h4 { margin: 0 0 4px; font-size: 12px; font-weight: 800; color: #12365f; }
+  .card p, .card li { font-size: 11px; line-height: 1.52; color: #43586c; margin: 0; }
+  .card ul { margin: 0; padding-left: 13px; }
+  .data { background: #fbf8f2; border-color: #ddc9a6; }
+  .data h4 { color: #7a5a1e; }
+  .trust { background: #f4f9f5; border-color: #b9d6c1; }
+  .trust h4 { color: #1d5e34; }
+
+  .foot { margin-top: 12px; border-top: 1px solid #dde5ee; padding-top: 9px;
+          display: flex; gap: 16px; align-items: flex-start; }
+  .foot > div { flex: 1; }
+  .fh { font-size: 10px; font-weight: 800; letter-spacing: .6px; color: #8697a8;
+        text-transform: uppercase; margin-bottom: 3px; }
+  .foot p { margin: 0; font-size: 11px; line-height: 1.55; color: #43586c; }
+  .big { font-weight: 800; color: #16202c; }
+  .quote { font-style: italic; color: #12365f; }
+  .lim { font-size: 10.5px; color: #6b7a89; }
+</style>
+
+<h1>RCA Console — how a forecast miss is explained</h1>
+<p class="sub">Business &amp; executive view · every figure verified against the running system,
+2026-08-24</p>
+
+<div class="intro">
+  Every week about <b>400 queues</b> get a contact-forecast, and <b>63% of them miss</b> by more than
+  the agreed tolerance. Working out <i>why</i> any one of them missed is currently manual: an analyst
+  pulls history, checks the calendar, looks at shipments, forms a view. It takes hours, and two analysts
+  reach different answers. <b>This system does that reasoning in about a minute, identically every
+  time</b> — and it is built so that it cannot bluff: the arithmetic is in code, the AI is allowed to
+  choose words but never a number, and the system states its own limits on screen.
+</div>
+
+<!-- ============================================================ 1. the user -->
+<div class="lane">
+  <div class="lanehead"><span class="lanenum">1</span>
+    <span class="lanetitle">What the user does</span>
+    <span class="lanenote">one web page · no installation · also runs offline with no server</span></div>
+  <div class="flow">
+    <div class="stage"><div class="st">A</div><div class="sn">See the list</div>
+      <ul><li>Every queue-week that missed beyond tolerance</li>
+          <li>Ranked by how much the miss <i>matters</i>, not by percentage</li></ul></div>
+    <div class="arrow">&#9654;</div>
+    <div class="stage"><div class="st">B</div><div class="sn">Pick one, click</div>
+      <ul><li>One click asks &ldquo;why did this miss?&rdquo;</li>
+          <li>A non-flagged week can be investigated deliberately</li></ul></div>
+    <div class="arrow">&#9654;</div>
+    <div class="stage"><div class="st">C</div><div class="sn">Read the answer</div>
+      <ul><li>Six tabs: Decision · Calendar · Confidence &amp; Recommendation</li>
+          <li>Statistics · Challenge · Reference</li></ul></div>
+  </div>
+</div>
+
+<!-- ============================================================ 2. the engine -->
+<div class="lane">
+  <div class="lanehead"><span class="lanenum">2</span>
+    <span class="lanetitle">How the answer is produced</span>
+    <span class="lanenote">15 fixed steps, always in this order · every figure computed in code, never by AI</span></div>
+  <div class="flow">
+    <div class="stage"><div class="st">STEPS 1&ndash;4</div><div class="sn">Measure</div>
+      <ul><li>Read the week, validate the data</li>
+          <li>Compute adherence and accuracy</li>
+          <li>Is the deviation significant?</li></ul></div>
+    <div class="arrow">&#9654;</div>
+    <div class="stage"><div class="st">STEPS 5&ndash;6</div><div class="sn">Frame</div>
+      <ul><li>Assemble the business context</li>
+          <li>Raise <b>23 candidate explanations</b> across six families</li></ul></div>
+    <div class="arrow">&#9654;</div>
+    <div class="stage"><div class="st">STEPS 7&ndash;9</div><div class="sn">Test</div>
+      <ul><li>Evidence <i>for</i> &mdash; and evidence <i>against</i>, gathered separately</li>
+          <li>13 statistical measures of the queue&rsquo;s own history</li></ul></div>
+    <div class="arrow">&#9654;</div>
+    <div class="stage"><div class="st">STEPS 10&ndash;12</div><div class="sn">Challenge</div>
+      <ul><li>Ask &ldquo;why&rdquo; down the causal chain</li>
+          <li><b>Cross-examine before scoring</b>, so a challenge can lower confidence</li>
+          <li>8 weighted factors &mdash; contradiction weighs most, 20%</li></ul></div>
+    <div class="arrow">&#9654;</div>
+    <div class="stage"><div class="st">STEPS 13&ndash;15</div><div class="sn">Deliver</div>
+      <ul><li>Assemble the card, all 23 verdicts shown</li>
+          <li>Write the summary <span style="color:#b98a3e;font-weight:700;">(AI)</span></li>
+          <li>Persist the audit trail</li></ul></div>
+  </div>
+</div>
+
+<!-- ============================================================ the AI lane -->
+<div class="lane">
+  <div class="ai">
+    <div class="aitop">
+      <span class="aibadge">AI &mdash; WORDING ONLY</span>
+      <span class="chain"><b>Never a number, never a cause.</b> No web search, no browsing, no document
+        lookup, no tools.</span>
+      <span class="chain" style="margin-left:auto;">Fallback chain: <b>NVIDIA Nemotron 3 Super 120B
+        &rarr; Groq Llama 3.3 70B &rarr; Gemini 3.6 Flash</b> · 9 selectable models ·
+        temperature 0, fixed seed</span>
+    </div>
+    <div class="calls">
+      <div class="call"><div class="cn">1 · Rewrite</div>
+        <div class="cf">Puts the reasoning chain into plain language.<br>
+          <b>If it fails:</b> the original wording stands.</div></div>
+      <div class="arrow" style="color:#c9ab74;">&#9654;</div>
+      <div class="call"><div class="cn">2 · Narrative</div>
+        <div class="cf">Writes the summary over figures already final. Retries once.<br>
+          <b>If it fails:</b> status reads <i>Incomplete</i>; every figure remains.</div></div>
+      <div class="arrow" style="color:#c9ab74;">&#9654;</div>
+      <div class="call"><div class="cn">3 · Interrogation &mdash; ask</div>
+        <div class="cf">Generates the sceptical questions a reviewer would put to the findings.<br>
+          <b>If it fails:</b> one repair attempt, then omitted.</div></div>
+      <div class="arrow" style="color:#c9ab74;">&#9654;</div>
+      <div class="call"><div class="cn">4 · Interrogation &mdash; answer</div>
+        <div class="cf">Answers them <b>from the evidence file only</b>, never from the model&rsquo;s
+          own knowledge.</div></div>
+      <div class="arrow" style="color:#c9ab74;">&#9654;</div>
+      <div class="call opt"><div class="cn">5 · Summary <span style="font-weight:400;color:#8697a8;">(on click)</span></div>
+        <div class="cf">A short paragraph, cached. Deliberately <b>not</b> given calls 1&ndash;4 &mdash;
+          summarising a summary would let an early mistake return as fact.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ 3 + 4 side by side -->
+<div class="cols">
+  <div class="card data" style="flex:1.35;">
+    <h4>Where the data comes from &mdash; one read-only SQL Server source</h4>
+    <p style="margin-bottom:5px;">No spreadsheets, no copies, no manual steps. The system
+      <b>cannot change it</b>. Weekly forecast and actuals per queue, plus installed base and
+      shipments, and a public-holiday calendar with curated mapping so one holiday spelled several ways
+      counts once.</p>
+    <p style="font-size:10.5px;color:#7a5a1e;font-weight:700;margin:6px 0 2px;">The six questions it
+      asks of the data</p>
+    <ul style="columns:2;column-gap:14px;">
+      <li>What has this queue done for three years?</li>
+      <li>What happened in the weeks straight after?</li>
+      <li>This queue, or the whole region? <span class="lim">(six levels)</span></li>
+      <li>Did demand move to another channel?</li>
+      <li>Which other queues belong with this one?</li>
+      <li>Was there a public holiday nobody counted?</li>
+    </ul>
+  </div>
+  <div class="card trust">
+    <h4>Why the answer can be trusted</h4>
+    <ul>
+      <li><b>Deterministic</b> &mdash; same input, same answer, every time.</li>
+      <li><b>The AI cannot add a number.</b> One unsupported figure discards the whole summary &mdash;
+        not flagged, discarded.</li>
+      <li><b>The analysis never depends on the AI.</b> If every call fails, all figures, causes,
+        confidence and recommendations remain.</li>
+      <li><b>&ldquo;Not measurable&rdquo; is never reported as &ldquo;no effect&rdquo;</b> &mdash; it
+        says what it needs instead.</li>
+      <li><b>Small misses are set aside on purpose</b> &mdash; a 90% miss on 20 contacts is arithmetic.</li>
+      <li>Every finding names the field it came from.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================================ footer -->
+<div class="foot">
+  <div>
+    <div class="fh">Scale</div>
+    <p><span class="big">427</span> queues · <span class="big">49</span> countries ·
+      <span class="big">5</span> channels · over <span class="big">5 years</span> of weekly history<br>
+      <span class="big">71,780</span> scoreable queue-weeks · <span class="big">44,883</span> beyond
+      tolerance (<span class="big">63%</span>)<br>
+      <span class="big">21,788</span> worth acting on · <span class="big">23,095</span> set aside as
+      immaterial<br>
+      <span class="big">60.3M</span> contacts handled against <span class="big">78.6M</span> planned</p>
+  </div>
+  <div>
+    <div class="fh">One real investigation</div>
+    <p>A US social-media queue, 2024. Planned <span class="big">18,932</span>, arrived
+      <span class="big">25,697</span> &mdash; short by <span class="big">6,765</span>
+      (<span class="big">35.7%</span>). Impact <span class="big">Critical</span>, cause a drifting
+      baseline, confidence <span class="big">67.5%</span>, <span class="big">23</span> explanations
+      tested.</p>
+    <p class="quote" style="margin-top:4px;">&ldquo;The evidence implied the plan should have moved by
+      1,241 contacts. It moved by 77.&rdquo;</p>
+  </div>
+  <div>
+    <div class="fh">What it cannot do</div>
+    <p class="lim">No daily detail &mdash; the source records whole weeks; daily analysis needs a new
+      feed. Promotions and campaigns cannot be tested as causes &mdash; that source is not deployed.
+      185 holiday-naming questions await a business decision. <b>It does not prove causation</b> &mdash;
+      it reports what the evidence supports. The judgement stays with the analyst.</p>
+    <p class="lim" style="margin-top:5px;">Built on a Python service and one self-contained web page.
+      <b>Four dependencies in total</b> &mdash; no data-science stack, no AI vendor SDK, so every
+      statistic is plain readable code and no provider is locked in.</p>
+  </div>
+</div>

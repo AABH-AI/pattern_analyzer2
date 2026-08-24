@@ -3,6 +3,10 @@
 Copy everything below the line. Every fact verified against the running system on 2026-08-24 —
 **54 claims checked, all correct** (see `results/verify_architecture_prompt.py`).
 
+**A built version already exists:** `results/architecture-onepager.html` — open it in a browser and
+print to A4 landscape. It was authored directly rather than generated, so it cannot invent anything.
+Use this prompt only if you want a different visual treatment of the same facts.
+
 ---
 
 # TASK
@@ -21,18 +25,35 @@ URL paths · HTTP methods · file, function or module names · `pyODBC` · `vani
 Those read as noise to this audience and invite the one question you don't want: *"why are you showing
 me this?"*
 
-# THE ONE-PAGE DISCIPLINE — this is the hard part
+# THREE THINGS THAT MUST BE TRUE OF THE PICTURE
+
+The last two attempts failed in opposite directions — the first was cluttered and invented things, the
+second was accurate but said nothing. These three exist to stop the second failure repeating.
+
+**1. It must be a FLOW, not a grid.** Numbered stages with **visible arrows between them**. A row of
+numbered boxes with no arrows reads as a table and communicates no sequence. The reader must be able to
+trace one path from "a week missed" to "here is why".
+
+**2. The AI must have its own lane, not a corner box.** Show the **four calls in order, left to right,
+each with what happens when it fails**. The AI story is the single most-questioned part of a system like
+this; compressing it into one small box with four semicolons in it wastes the answer. It should occupy
+roughly as much of the page as the engine lane.
+
+**3. It must open with a real introduction.** Two or three full sentences that a reader who knows
+nothing can absorb: what this is, what problem it solves, and why it can be trusted. A one-line subtitle
+is not an introduction.
+
+# THE ONE-PAGE DISCIPLINE
 
 The previous attempt at this diagram failed by being **cluttered**: forty-plus boxes, an endpoint table,
 and icon rows nobody reads. Treat these as limits, not suggestions:
 
-- **Four bands. Maximum five boxes per band. Twenty boxes total, absolute ceiling.**
+- **Four bands plus the AI lane. Around five boxes per band; twenty-five is the ceiling.** Fewer, fuller boxes beat many empty ones — but an empty page is the worse failure of the two.
 - **No tables inside the diagram.** Tables are for documents, not one-pagers.
 - **No icon rows.** One icon per band at most, or none.
 - **Three colours plus grey.** Nothing else.
-- **If a box needs more than twelve words, cut the box or cut the words.**
-- **Leave white space.** If you have room left over, add nothing. A sparse accurate page beats a full
-  one with an invented box in it.
+- **Aim for fifteen to thirty words per box.** Under about ten words a box stops explaining and starts labelling, which is what made the previous attempt read as a bingo card.
+- **Use the page.** Leave margins, not holes. A sparse page that explains nothing is not an improvement on a crowded one.
 
 Label the bands in these words — not "Layer 1/2/3/4", which tells a business reader nothing:
 
