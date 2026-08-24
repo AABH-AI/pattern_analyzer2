@@ -2417,13 +2417,34 @@ function layoutCardSections(html){
   if (first < 0) return src;
   const head = src.slice(0, first);
   const rest = src.slice(first);
+  /* A block starts at an inv-card OR at a top-level inv-sec <details>.
+     ============================================================================================
+     WHY THE SECOND KIND MATTERS. The Confidence panel is deliberately NOT an inv-card: it is a
+     <details> so the reader can collapse it. Splitting only on `inv-card` therefore never gave it a
+     block of its own -- it was swallowed into whichever card happened to precede it in the
+     assembly, which is Interrogation. Interrogation matches /Interrogation/i, so the confidence
+     bar, its cap badge and the whole eight-dimension breakdown were being filed under the
+     **Challenge** tab, while the tab literally named "Confidence & Recommendation" held only
+     Criticality and Recommendations.
+
+     Nothing about the panel is changed here -- not its markup, not its styling, not its
+     collapsed-by-default behaviour. It simply becomes visible to the splitter, and its own
+     `rtitle` of "Confidence" then routes it to the confidence group like any other panel. Because
+     it is emitted BEFORE the Criticality card in the assembly, it lands first in that tab.
+
+     Safe because the rendered Decision Card contains exactly ONE `<details class="inv-sec">` -- the
+     Confidence panel -- and no inv-card nests one inside itself. `layoutCardSections` is called
+     only from `renderDecisionCard`, so the WFM report, which has many such <details>, never reaches
+     this code. */
   const blocks = [];
-  let idx = 0;
-  while (idx < rest.length) {
-    const nxt = rest.indexOf('<div class="inv-card"', idx + 1);
-    blocks.push(rest.slice(idx, nxt < 0 ? rest.length : nxt));
-    if (nxt < 0) break;
-    idx = nxt;
+  const bounds = [];
+  const boundaryRe = /<div class="inv-card"|<details class="inv-sec"/g;
+  let bm;
+  while ((bm = boundaryRe.exec(rest)) !== null) bounds.push(bm.index);
+  if (!bounds.length || bounds[0] !== 0) bounds.unshift(0);
+  for (let i = 0; i < bounds.length; i++) {
+    const stop = (i + 1 < bounds.length) ? bounds[i + 1] : rest.length;
+    if (stop > bounds[i]) blocks.push(rest.slice(bounds[i], stop));
   }
   const titleOf = (b) => {
     const m = b.match(/class="rtitle"[^>]*>([^<]+)</);

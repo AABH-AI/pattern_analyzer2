@@ -397,6 +397,45 @@ for (const file of specFiles) {
         bad.push('the Evidence Index no longer lists E1 -- removing the chips must not cost traceability');
       }
 
+      /* TAB PLACEMENT: the Confidence panel belongs FIRST in "Confidence & Recommendation".
+       *
+       * It is a <details>, not an inv-card, so the tab splitter did not see it as its own block and
+       * it rode along inside whichever card preceded it -- Interrogation -- which filed the
+       * confidence bar, its cap badge and the whole eight-dimension breakdown under the CHALLENGE
+       * tab, while the tab named for it held only Criticality and Recommendations.
+       *
+       * Asserted here rather than trusted because the routing is a title regex over a splitter
+       * boundary: a later panel inserted between Confidence and Criticality, or a rename of either,
+       * moves it again with nothing else complaining.
+       */
+      {
+        const starts = [...out.matchAll(/<div data-cardtab="([^"]+)"/g)];
+        if (starts.length) {
+          const panelOf = {};
+          starts.forEach((m, i) => {
+            panelOf[m[1]] = out.slice(m.index, i + 1 < starts.length ? starts[i + 1].index : out.length);
+          });
+          const confTab = panelOf.confidence || '';
+          const chalTab = panelOf.challenge || '';
+          const CONF_DETAILS = /<details class="inv-sec"/;
+          if (!CONF_DETAILS.test(confTab)) {
+            bad.push('the Confidence panel is NOT in the "Confidence & Recommendation" tab');
+          }
+          if (CONF_DETAILS.test(chalTab)) {
+            bad.push('the Confidence panel is back in the Challenge tab');
+          }
+          const firstTitle = (confTab.match(/class="rtitle"[^>]*>([^<]+)</) || [])[1] || '';
+          if (!/^\s*Confidence\s*$/.test(firstTitle.replace(/&[a-zA-Z#0-9]+;/g, ' '))) {
+            bad.push(`the Confidence panel is not FIRST in its tab (first is "${firstTitle.trim()}")`);
+          }
+          /* It must stay collapsible. The move was a relocation, not a behaviour change -- forcing
+             it open would be a different decision than the one that was asked for. */
+          if (/<details class="inv-sec"[^>]*\bopen\b/.test(confTab)) {
+            bad.push('the Confidence panel was forced open -- the move must not change its behaviour');
+          }
+        }
+      }
+
       /* `Projection_plan_name` is treated by this engine as NON-EXISTENT, so neither the column name
        * nor a plan-vintage VALUE may reach the rendered card. Checking the column name alone would
        * miss the case that actually matters -- a value like "FY27 May Projection" printed in prose. */
