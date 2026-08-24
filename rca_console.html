@@ -2258,7 +2258,11 @@ const CARD_TAB_GROUPS = [
     match: [/Calendar Context/i, /Forecast Response/i] },
   { id: 'confidence', label: 'Confidence & Recommendation',
     hint: 'how sure, how much it matters, what to do next',
-    match: [/Confidence/i, /Criticality/i, /Recommendations/i] },
+    /* Business Context Used sits here, not in Reference. ContextCompleteness is one of the eight
+       weighted confidence dimensions, so the panel listing which context elements were present IS
+       the evidence for that score. Reported as "confidence says business context is 100% available,
+       why is it not showing" -- it was showing, in Reference, three tabs from the number citing it. */
+    match: [/Confidence/i, /Criticality/i, /Recommendations/i, /Business Context/i] },
   { id: 'stats',     label: 'Statistics',
     hint: 'the standing profile and the evidence behind it',
     match: [/Statistical Profile/i, /^Evidence$/i, /Driver Evidence/i] },
@@ -2401,22 +2405,41 @@ async function rcaSummarise(force){
 
 function layoutCardSections(html){
   const src = String(html || '');
-  /* Split on the inv-card boundary. Anything before the first one is the header strip and stays put
-     above the layout -- it is the identity of the investigation and belongs on every tab. */
-  const first = src.indexOf('<div class="inv-card"');
+  /* Split on EVERY top-level panel boundary, not just inv-card.
+     The first version keyed only on '<div class="inv-card"', and two panels are not inv-cards: the
+     Confidence block is a <details class="inv-sec"> and so is Business Context Used. Both were
+     therefore glued to whichever card happened to precede them and inherited its tab -- which is why
+     the Confidence panel, cap badge and all, was reported as missing from "Confidence &
+     Recommendation": it was rendering perfectly well, three tabs away in Challenge, stuck to the
+     Interrogation card.
+
+     Anything before the first boundary is the header strip and stays above the layout, since it is
+     the identity of the investigation and belongs on every tab. */
+  const BOUNDARIES = ['<div class="inv-card"', '<details class="inv-sec"'];
+  const nextBoundary = (from) => {
+    let best = -1;
+    for (const b of BOUNDARIES) {
+      const i = src.indexOf(b, from);
+      if (i >= 0 && (best < 0 || i < best)) best = i;
+    }
+    return best;
+  };
+  const first = nextBoundary(0);
   if (first < 0) return src;
   const head = src.slice(0, first);
-  const rest = src.slice(first);
   const blocks = [];
-  let idx = 0;
-  while (idx < rest.length) {
-    const nxt = rest.indexOf('<div class="inv-card"', idx + 1);
-    blocks.push(rest.slice(idx, nxt < 0 ? rest.length : nxt));
-    if (nxt < 0) break;
+  let idx = first;
+  while (idx >= 0 && idx < src.length) {
+    const nxt = nextBoundary(idx + 1);
+    blocks.push(src.slice(idx, nxt < 0 ? src.length : nxt));
     idx = nxt;
   }
   const titleOf = (b) => {
-    const m = b.match(/class="rtitle"[^>]*>([^<]+)</);
+    /* rtitle first -- both inv-card and the <details> panels carry one. Falling back to <summary>
+       matters for any panel that has a summary but no rtitle, otherwise it buckets on an empty
+       string and lands in Reference by the catch-all. */
+    let m = b.match(/class="rtitle"[^>]*>([^<]+)</);
+    if (!m) m = b.match(/<summary[^>]*>\s*([^<]{3,80})</);
     return m ? m[1].replace(/&[a-zA-Z#0-9]+;/g, ' ').trim() : '';
   };
   const buckets = {};
@@ -2534,7 +2557,27 @@ function dropMarkerOnlyItems(html){
 function dedupeRenderedProse(html){
   const seen = new Set();
   const key = (t) => t.toLowerCase().replace(/[^a-z0-9%.\-]+/g, ' ').trim();
-  return String(html || '').replace(/>([^<>]{55,})</g, function(whole, chunk){
+  const src = String(html || '');
+  return src.replace(/>([^<>]{55,})</g, function(whole, chunk, offset){
+    /* A TABLE CELL that carries the row's only explanation is never reduced to a marker. Reported:
+         Daily weekend demand effect   NOT TESTABLE   (as above)
+       The state column says what happened, so the reason column is the only place the WHY lives; a
+       marker there reads as a rendering fault and leaves the row saying nothing. A marker still earns
+       its place mid-paragraph, and a whole bullet that becomes one is removed outright elsewhere. */
+    const before = src.slice(Math.max(0, offset - 220), offset + 1);
+    const after = src.slice(offset + whole.length - 1, offset + whole.length + 6);
+    /* Two ways for a chunk to be exempt from sentence dedup.
+       `data-keep` is the explicit one, declared by whoever built the element, and it is what the
+       state-table reason columns use: the state column already says WHAT happened, so the reason
+       column is the only place the WHY lives and a marker there leaves the row saying nothing.
+       The positional test is a safety net for a cell nobody has marked yet.
+
+       No backslash escapes in these patterns on purpose. The first version used \b and it reached
+       the file as a literal backspace character, so it silently matched nothing. */
+    const _keepMark = /data-keep[^<>]*>$/i.test(before);
+    const _cellOpen = /<t[dh][ >][^<>]*>$/i.test(before) || /<t[dh]>$/i.test(before);
+    const _cellClose = /^<[/]t[dh]>/i.test(after);
+    const isLoneCell = _keepMark || (_cellOpen && _cellClose);
     const parts = chunk.match(/[^.!?]+[.!?]+|[^.!?]+$/g);
     if (!parts) return whole;
     const kept = [];
@@ -2550,6 +2593,8 @@ function dedupeRenderedProse(html){
     }
     if (!dropped) return whole;
     const out = kept.join(' ').trim();
+    // Everything dropped, and it is a cell's entire content: keep the original rather than emptying it.
+    if (!out && isLoneCell) return whole;
     return '>' + (out ? out + ' <span style="color:#9aa0a6;font-size:11px;">(as above)</span>'
                       : '<span style="color:#9aa0a6;font-size:11.5px;">Same as stated above.</span>') + '<';
   });
@@ -2740,6 +2785,10 @@ function cardCalendarPanel(s){
         /* prompt2.md clause C: the weekend is THREE questions with three different answers, and the
            document names stopping at "weekend impact cannot be isolated" as the error. The
            limitation above stays exactly as it was -- these say what IS answerable. */
+        /* NO sayOnce on these reason columns. The state column says WHAT happened; the reason
+           column is the only place the WHY lives, so a marker there leaves the row saying
+           nothing -- reported as "Daily weekend demand effect  NOT TESTABLE  (as above)". A
+           repeated reason costs a line; an empty one costs the finding. */
         const st=w.clause_c_states||{};
         const rowsC=[['Daily weekend demand effect',st.daily_weekend_demand_effect],
                      ['Weekly calendar structure',st.weekly_calendar_structure],
@@ -2750,14 +2799,14 @@ function cardCalendarPanel(s){
             return `<tr style="border-top:1px solid #eef0f3;">
               <td style="padding:4px 8px;font-weight:600;">${invEsc(lab)}</td>
               <td style="padding:4px 8px;color:${bad?'#6b7280':'#0b7a3b'};font-weight:700;white-space:nowrap;">${invEsc(String(v.state||'').replace(/_/g,' '))}</td>
-              <td style="padding:4px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(sayOnce(v.reason||'','(as above)'))}</td>
+              <td data-keep style="padding:4px 8px;color:#555;font-size:11.5px;line-height:1.5;">${invEsc(v.reason||'')}</td>
             </tr>`;}).join('');
         const wd=w.weekday_outcomes||{};
         const rowsK=Object.entries(wd.weekdays||{}).map(([d,v])=>`<tr style="border-top:1px solid #eef0f3;">
             <td style="padding:4px 8px;font-weight:600;">${invEsc(d)}</td>
             <td style="padding:4px 8px;text-align:right;">${v.weeks!=null?invEsc(v.weeks):'—'}</td>
             <td style="padding:4px 8px;text-align:right;">${v.measurable?cardPct(v.effect_vs_no_holiday_week_pct,2):'—'}</td>
-            <td style="padding:4px 8px;color:#555;font-size:11.5px;">${v.measurable?'':invEsc(sayOnce(v.reason||'','(as above)'))}</td>
+            <td data-keep style="padding:4px 8px;color:#555;font-size:11.5px;">${v.measurable?'':invEsc(v.reason||'')}</td>
           </tr>`).join('');
         if(!rowsC && !rowsK) return '';
         return `${rowsC?`<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;">
@@ -2782,7 +2831,7 @@ function cardCalendarPanel(s){
             <td style="padding:5px 8px;font-weight:600;">${invEsc(k.replace(/_/g,' '))}</td>
             <td style="padding:5px 8px;text-align:right;">${v.instances!=null?invEsc(v.instances):'—'}</td>
             <td style="padding:5px 8px;text-align:right;">${v.measurable?cardPct(v.effect_vs_no_holiday_week_pct,2):'—'}</td>
-            <td style="padding:5px 8px;color:#555;font-size:11.5px;">${v.measurable?'':invEsc(sayOnce(v.reason||'','(as above)'))}</td>
+            <td data-keep style="padding:5px 8px;color:#555;font-size:11.5px;">${v.measurable?'':invEsc(v.reason||'')}</td>
           </tr>`).join('');
         const ct=hw.long_weekend_contrast||{};
         const col=ct.material?'#b26a00':'#0b7a3b';

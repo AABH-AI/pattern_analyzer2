@@ -342,6 +342,55 @@ for (const file of specFiles) {
         console.log(`           tabs: ${labels.join(', ')}   (${blocksOut} section blocks)`);
       }
 
+      /* TAB ATTRIBUTION. The layout buckets by splitting on the inv-card boundary, so a panel that
+         is NOT an inv-card gets glued to whichever card precedes it and lands in that card's tab.
+         Reported: the Confidence cap was not in "Confidence & Recommendation". This prints which tab
+         each named panel actually ends up in, which is the only way to see a mis-bucketed panel --
+         it renders, it is just somewhere else. Set RENDER_REPEAT_REPORT=1. */
+      if (process.env.RENDER_REPEAT_REPORT) {
+        const marks = [...out.matchAll(/data-cardtab="([^"]+)"/g)];
+        if (marks.length) {
+          const tabOf = (needle) => {
+            const at = out.indexOf(needle);
+            if (at < 0) return 'NOT RENDERED';
+            let cur = '(above the tabs)';
+            for (const m of marks) { if (m.index <= at) cur = m[1]; }
+            return cur;
+          };
+          const probes = [
+            ['Confidence panel', '>Confidence<'],
+            ['confidence CAP badge', 'capped at '],
+            ['Criticality panel', 'Criticality —'],
+            ['Recommendations', '>Recommendations<'],
+            ['Driver Evidence', '>Driver Evidence<'],
+            ['Business Context Used', 'Business Context Used'],
+            ['Statistical Profile', 'Statistical Profile'],
+          ];
+          console.log('           tab attribution:');
+          for (const [label, needle] of probes) {
+            console.log(`             ${label.padEnd(24)} -> ${tabOf(needle)}`);
+          }
+        }
+      }
+
+      /* LONE CELL emptied by the dedup. Reported as
+           Daily weekend demand effect   NOT TESTABLE   (as above)
+         The state column already says what happened, so the reason column is the only place the WHY
+         lives. A marker alone in a cell leaves the row saying nothing and reads as a render fault. */
+      const loneCellMarkers = (out.match(
+        /<t[dh][^>]*>\s*(?:<span[^>]*>)?\s*(?:\(as above\)|Same as stated above\.?)\s*(?:<\/span>)?\s*<\/t[dh]>/gi
+      ) || []).length;
+      if (loneCellMarkers) {
+        bad.push(`${loneCellMarkers} table cell(s) contain nothing but an "(as above)" marker`);
+      }
+      if (process.env.RENDER_REPEAT_REPORT) {
+        const wk = out.match(/Daily weekend demand effect[\s\S]{0,500}?<\/tr>/);
+        if (wk) {
+          console.log('             weekend row: '
+            + wk[0].replace(/<[^>]+>/g, ' | ').replace(/\s+/g, ' ').replace(/\| \|/g, '|').trim().slice(0, 165));
+        }
+      }
+
       const SENT_CAP = 3;
       const seenS = {};
       for (const sn of vis.split(/(?<=[.!?])\s+/)) {
