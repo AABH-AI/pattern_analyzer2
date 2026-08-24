@@ -44,6 +44,9 @@ things and lead to opposite actions. A reader must never have to infer which is 
 """
 from .confidence import AVAILABLE, MISSING, NOT_APPLICABLE
 from .common import rnd
+# Imported rather than restated: two copies of the 50-contact floor would drift, and the header
+# marker would then quote a different number from the one criticality actually applies.
+from .fc_evidence import MATERIALITY_FLOOR_CONTACTS
 
 INCONCLUSIVE = "Inconclusive"
 
@@ -973,25 +976,53 @@ def build(result, ladder=None):
     scope = scope_analysis(ladder, adh, variance, key.get("Forecast_name") or "This queue")
 
     # --- 3.2 conditional header markers ---
+    #
+    # Every marker used to render in the same red alarm styling, so a neutral fact sat beside genuine
+    # warnings and read as one. `markers` stays a list of plain strings for anything already consuming
+    # it; `marker_detail` carries the tone so the UI can tell a warning from a note.
     markers = []
+    detail = []
+
+    def mark(text, tone):
+        markers.append(text)
+        detail.append({"text": text, "tone": tone})
+
     if result.get("major_deviation"):
-        markers.append("Major Deviation")
+        mark("Major Deviation", "warn")
     if not result.get("material", True):
-        markers.append("Below materiality floor — worklist suppressed, RCA still generated")
+        # Was: "Below materiality floor -- worklist suppressed, RCA still generated". Every word of
+        # that is engine vocabulary, and it fires on the MAJORITY of investigable weeks -- 23,095 of
+        # the 44,883 rows beyond the band sit under the 50-contact floor. A note that common, painted
+        # red and written in internal language, trains the reader to ignore the marker row.
+        #
+        # What a reader needs is the number and its consequence: the gap is small, so the percentage
+        # is the misleading part, and nothing about the analysis below is affected.
+        v = variance
+        if isinstance(v, (int, float)):
+            # rnd(), the same formatter the rest of the card uses. round() applies banker's
+            # rounding, so a 22.5-contact gap printed as "22" -- a small thing, and exactly the kind
+            # of quiet disagreement between two figures on one card that costs a reader trust.
+            mark(f"Small miss: {rnd(abs(v))} contacts, under the {MATERIALITY_FLOOR_CONTACTS}-"
+                 f"contact floor for ranking. The percentage overstates it; the analysis below is "
+                 f"unaffected.", "info")
+        else:
+            mark(f"Small miss: under the {MATERIALITY_FLOOR_CONTACTS}-contact floor for ranking, so "
+                 f"the percentage overstates it. The analysis below is unaffected.", "info")
     if not period.get("complete", True):
-        markers.append(f"Timeline: {period.get('label')}")
+        mark(f"Timeline: {period.get('label')}", "info")
     if result.get("status") == "Incomplete":
-        markers.append("Investigation Incomplete")
+        mark("Investigation Incomplete", "warn")
 
     narrative = result.get("narrative") or {}
     inconclusive = rc.get("cause_type") == INCONCLUSIVE
     crit = result.get("criticality") or {}
     if crit.get("band") and crit["band"] in ("Critical", "High"):
-        markers.append(f"Criticality: {crit['band']}")
+        mark(f"Criticality: {crit['band']}", "warn")
 
     return {
         # --- 3.1 mandatory header ---
         "header": {
+            "marker_detail": detail,   # same markers, each with a tone: "warn" or "info"
             "forecast_adherence_pct": adh,               # SIGNED, never absolute
             "direction": fs.get("direction"),            # business language
             "absolute_variance_contacts": variance,

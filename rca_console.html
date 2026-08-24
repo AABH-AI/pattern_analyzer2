@@ -2899,7 +2899,26 @@ function renderDecisionCard(resp, ctx){
   const adh=h.forecast_adherence_pct;
   const adhColour=(Math.abs(adh||0)>25)?'#a01b2b':(Math.abs(adh||0)>10?'#b26a00':'#0b7a3b');
 
-  const markers=(h.markers||[]).map(m=>`<span style="background:#fdecee;color:#a01b2b;border:1px solid #f3c2c8;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;">${invEsc(m)}</span>`).join(' ');
+  /* Markers are TIERED. Every one of them used to render in the same red alarm styling, so a
+     neutral note -- "this miss is small in absolute terms" -- was painted identically to "Major
+     Deviation" and "Investigation Incomplete". That note fires on the majority of investigable weeks,
+     and a red chip that common teaches the reader to skip the whole row, including the chips that
+     matter.
+
+     `marker_detail` carries a tone per marker. Falls back to the plain `markers` strings so a cached
+     response from before this change still renders, and an unknown tone is treated as a warning --
+     if the engine ever adds a marker without saying what it is, the loud styling is the safe default. */
+  const _markerList = (h.marker_detail && h.marker_detail.length)
+    ? h.marker_detail
+    : (h.markers||[]).map(m=>({text:m, tone:'warn'}));
+  const _TONE = {
+    warn: 'background:#fdecee;color:#a01b2b;border:1px solid #f3c2c8;',
+    info: 'background:#f3f4f6;color:#4b5563;border:1px solid #d8dbe0;font-weight:600;',
+  };
+  const markers=_markerList.map(m=>{
+    const t = (m && m.tone === 'info') ? 'info' : 'warn';
+    return `<span style="${_TONE[t]}border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;line-height:1.5;">${invEsc((m&&m.text)||m||'')}</span>`;
+  }).join(' ');
 
   /* --- header --- */
   const head=`<div class="inv-card">
