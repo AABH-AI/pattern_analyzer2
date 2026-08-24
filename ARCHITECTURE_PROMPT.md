@@ -1,312 +1,225 @@
-# Prompt — generate the RCA Console architecture
+# Prompt — RCA Console architecture, for a business audience
 
-Copy everything below the line into your diagramming or writing tool. It is self-contained: every fact
-is stated, so nothing has to be inferred or invented.
+Copy everything below the line. Facts verified against the running system on 2026-08-24.
 
-Facts verified against branch `test3` at commit `773c943` on 2026-08-24, by reading the live database
-and the running source. If you regenerate this prompt later, re-read them — a stale fact sheet is worse
-than none, because it looks authoritative.
+**This replaces an earlier version of this prompt.** That one produced a diagram with six invented API
+endpoints, an invented table name, an invented engine pipeline, and three invented AI capabilities
+called "Web Search", "Spec Lookup" and "Forecaster Intent" — none of which exist anywhere in this
+system. The cause was in the prompt, not the tool: it described components without **naming** them, so
+the gaps got filled with whatever a typical AI application usually contains. Everything below is now
+named explicitly, and there is a closed list of permitted boxes.
 
 ---
 
-## TASK
+## AUDIENCE — read this first, it governs everything else
 
-Produce an architecture description of the **RCA Console** — one application, as it exists on git branch
-`test3` at commit `773c943`. Cover it end to end: the browser, the API, the analysis engine, the data
-source, the language-model calls, and the guardrails.
+This diagram will be reviewed by a **business and executive team**. They are deciding whether to trust
+and fund this system. They are not reviewing the code.
 
-## HARD CONSTRAINTS
+**Therefore, the following must NOT appear anywhere in the output:**
 
-1. **Use only the facts in the FACT SHEET below.** Do not add components, services, queues, caches,
-   containers, message brokers or cloud services that are not listed. This system is smaller than a
-   typical enterprise architecture and the accuracy matters more than the impressiveness.
-2. **Describe only the RCA Console.** Ignore any other tool, branch or historical version.
-3. **Do not invent numbers.** Every figure you need is below. If a figure you want is not below, say
-   "not measured" rather than estimating.
-4. **Do not describe the two other engines** (`mode=legacy`, `mode=wfm`) beyond noting they exist behind
-   the same endpoint. The Decision Card comes from `mode=spec` only.
-5. Flag anything below that looks internally inconsistent instead of silently smoothing it over.
+- line counts, file sizes, byte counts
+- git branch names or commit hashes
+- port numbers, driver versions, framework version numbers
+- HTTP methods (GET/POST) or URL paths
+- file names, function names, module names, class names
+- phrases like "vanilla JS", "DOM string assembly", "grain normalization", "pyODBC", "JSON schema"
+- anything of the form `No src="http"`
+
+Those details belong in an engineering document. On an executive diagram they read as noise, and worse,
+they invite exactly the question you do not want: *"why are you showing me this?"*
+
+**What must appear instead:** what the system does, what it is built on in one line, where the data comes
+from, how the answer is produced, why the answer can be trusted, and what it cannot do.
+
+## HARD RULES
+
+1. **Use only the components in the COMPONENT LIST below.** It is a closed list. If your diagram needs a
+   box that is not on it — a queue, a cache, a broker, a search tool, a vector store, an agent — you
+   have made an error. Stop and re-read the list.
+2. **Invent nothing.** No capability, tool, table, model or step that is not named below. This is the
+   failure the previous attempt made, and it is the one that destroys credibility in the room.
+3. **Every number you use must come from the FIGURES section.** If you want a figure that is not there,
+   write "not measured".
+4. If anything below appears contradictory, **say so in a note** rather than resolving it silently.
 
 ## WHAT TO PRODUCE
 
-1. **A layered diagram** — browser → API → engine → data, with the three language-model calls shown as
-   side calls that the main path does not depend on. Mermaid or equivalent.
-2. **A request walkthrough** — one numbered sequence from the user's click to the rendered card, naming
-   the actual function and module at each hop.
-3. **A data-flow section** — which SQL query feeds which analysis, and which card section each analysis
-   ends up in.
-4. **A component table** — every module named below, its responsibility, and what it depends on.
-5. **A guardrails section** — the mechanisms that stop the system asserting more than the data supports.
-   Treat this as a first-class part of the architecture, not a footnote; it is the part that determines
-   whether the output can be trusted.
-6. **A limits section** — what the architecture cannot do, and why.
+1. **One diagram**, four bands top to bottom: *What the user does* → *What the system does* →
+   *Where the data comes from* → *What guarantees the answer*. Label the bands in those words, not as
+   "Layer 1/2/3/4" — a layer number tells a business reader nothing.
+2. **A short narrative**, six to ten sentences, that a manager could read aloud.
+3. **A "why you can trust this" panel** — the guardrails. Give this real space; it is the reason the
+   system is defensible, and it is what an executive actually wants to know.
+4. **A "what it cannot do" panel** — stated plainly, not hedged.
+5. **A one-line value statement** at the top.
 
-Write for a technically literate reader who has not seen the code. Prefer plain sentences over
-bullet fragments. Do not pad.
+Keep it to one page. Prefer fewer, larger boxes over many small ones.
 
 ---
 
-# FACT SHEET
+# COMPONENT LIST — the only boxes permitted
 
-## Identity
+## Band 1 — what the user does
 
-| | |
+| Component | Say this about it |
 |---|---|
-| Application | RCA Console — root-cause analysis for contact-centre forecast misses |
-| Branch | `test3` |
-| Commit | `773c943` |
-| Purpose | Given one queue and one fiscal week that missed its forecast, determine why, state how confident that conclusion is, and state what could not be determined |
+| **The console** | A single web page. No installation, no plug-ins. It can also run entirely offline from a file, with no server, if someone just wants to check a week. |
+| **The weekly list** | Every queue and week whose forecast missed by more than the agreed tolerance, ranked by how much the miss actually matters. |
+| **Investigate** | The user picks one and asks why. One click. |
+| **The result** | A structured card, organised into six tabs: **Decision · Calendar · Confidence & Recommendation · Statistics · Challenge · Reference**. |
 
-## Layer 1 — the browser
+## Band 2 — what the system does
 
-| | |
+| Component | Say this about it |
 |---|---|
-| File | `rca_console.html` — **one self-contained file**, 3,775 lines, 284 KB |
-| External dependencies | **zero** — verified: no `src="http`, no `href="http`, no CDN reference anywhere in the file |
-| Libraries | none. No framework, no build step, no bundler, no npm install |
-| Rendering | plain DOM string assembly in vanilla JavaScript |
-| Offline mode | the file opens directly from disk and accepts a weekly upload, with no backend at all |
+| **The analysis engine** | Reads the queue's own history, computes every figure, tests candidate explanations, rejects the ones the evidence does not support, and scores how confident it is. **All arithmetic happens here, in code — never by an AI.** |
+| **Candidate explanations** | **23** of them, across six families: business change, calendar, demand behaviour, statistical artefact, data quality, and forecasting process. Every one is reported with its verdict and the reason — including the rejected ones. |
+| **The challenge step** | Before confidence is scored, the conclusion is argued against. This deliberately runs first, so the challenge can lower the confidence rather than being an afterthought. |
+| **Confidence scoring** | **Eight** weighted factors. The heaviest is *evidence that contradicts the conclusion*, at 20% — what argues against a finding counts for more than what argues for it. |
+| **The written summary** | The only place AI is used. See the AI section below. |
 
-Front-end responsibilities: load the dataset once, compute the flag list client-side (every queue-week
-whose absolute adherence exceeds the band), let a user pick one, POST it for investigation, and render
-the returned card.
+## Band 3 — where the data comes from
 
-The card is rendered into **six tabs**, in this order: `Decision`, `Calendar`,
-`Confidence & Recommendation`, `Statistics`, `Challenge`, `Reference`. An accordion layout is available
-behind a toggle and the choice is remembered per browser. The tab layout is a post-process over the
-assembled card: it splits on panel boundaries and buckets each panel by its own title.
-
-Three post-processing passes run over the assembled card before it is shown: repeated whole sentences
-collapse to "(as above)"; a list row that would consist only of that marker is dropped and counted; and
-holiday names are never rewritten — a name must read exactly as the calendar says it.
-
-## Layer 2 — the API
-
-| | |
+| Component | Say this about it |
 |---|---|
-| Framework | FastAPI |
-| Database driver | pyODBC, ODBC Driver 17/18 |
-| Entry point | `backend/sql_backend.py` |
-| Launcher | `run.py` / `run.bat` / `run.sh`, or Docker |
-| Port on this branch | **9000** |
+| **One SQL Server database** | A single source. No spreadsheets, no copies, no manual steps in between. **Read-only** — the system has no ability to change it. |
+| **The forecast and actuals table** | Weekly figures per queue: what was planned, what actually arrived, the installed base, and shipments. |
+| **The holiday calendar** | Public holidays by country and week, plus a curated mapping so one holiday spelled several ways is counted once rather than three times. |
+| **The queue mapping** | So related queues are grouped the way the business groups them. |
 
-Seven endpoints:
+For the diagram, the six kinds of question the system asks the database — describe them as questions,
+not as queries:
 
-| Method | Path | Role |
+1. *What has this queue done for the last three years?*
+2. *What happened in the weeks straight after?* (so a recovery can be seen)
+3. *Is this one queue's problem, or the whole region's?* (checked at six levels, from business
+   organisation down to individual channel)
+4. *Did the demand move to a different channel rather than disappear?*
+5. *Which other queues belong with this one?*
+6. *Was there a public holiday nobody accounted for?*
+
+## Band 4 — what guarantees the answer
+
+| Guarantee | Say this about it |
+|---|---|
+| **Every figure is computed, not judged** | Same input, same answer, every time. Two analysts can disagree; this cannot disagree with itself. |
+| **The AI cannot introduce a number** | Any figure in the written summary that does not exist in the underlying analysis causes the **entire summary to be discarded**. Not flagged — discarded. |
+| **The analysis does not depend on the AI** | If every AI call fails, the investigation still completes. Every figure, cause, confidence score and recommendation is present; only the prose is missing. |
+| **It reports what it could not measure** | Where there is not enough history, it says so and says how much more it would need — it does not report a small number as "no effect". |
+| **Small misses are set aside deliberately** | A 90% miss on twenty contacts is arithmetic, not a problem. Misses below a materiality floor are not put on the worklist, though they can still be investigated on request. |
+| **Every figure is traceable** | Each finding names the field it came from. |
+
+---
+
+# THE AI SECTION — read carefully, this is what the previous attempt got wrong
+
+**AI is used for wording only. It never produces a number, and it never decides a cause.**
+
+There is **no web search. No browsing. No document lookup. No intent detection. No agent, and no
+tools.** If any of those appear in your output, it is an invention — the previous attempt at this
+diagram invented exactly those three and they do not exist.
+
+### The models actually used
+
+A **three-provider fallback chain**, in this order. If the first is unavailable the second is tried,
+then the third:
+
+| Order | Provider | Model |
 |---|---|---|
-| GET | `/api/health` | is the backend up, is SQL configured, which table |
-| GET | `/api/data` | the dataset the browser loads once |
-| GET | `/api/queue-context` | scope context for one queue |
-| GET | `/api/models` | which language models are available to pick |
-| GET | `/api/cqn-mapping` | Combined Queue Name mapping |
-| POST | `/api/rca-investigate` | **the main call.** `?mode=spec\|wfm\|legacy`, `&grain=weekly\|monthly\|quarterly`, `&interrogate=0\|1` |
-| POST | `/api/rca-summarise` | the optional third model call; cached per queue + week + prompt version |
+| 1 | NVIDIA | Nemotron 3 Super 120B |
+| 2 | Groq | Llama 3.3 70B Versatile |
+| 3 | Google | Gemini 3.6 Flash |
 
-## Layer 3 — the analysis engine
+A user can also pick from **nine** models directly, to compare how different models word the same
+finding. The analysis underneath is identical whichever is chosen — only the prose changes.
 
-`backend/wfm/` — **33 Python modules, 14,511 lines**. All arithmetic happens here. No figure on the card
-is produced by a language model.
+### The calls, and there are up to five — not three
 
-The modules that carry the architecture, largest first:
+This is the part to draw carefully, and the previous attempt showed it wrongly as "three calls in
+parallel". They are **sequential**, and most are optional.
 
-| Module | Lines | Responsibility |
-|---|---|---|
-| `spec_engine.py` | 1,809 | orchestrates the 15-step investigation; the only entry point for `mode=spec` |
-| `fc_evidence.py` | 1,695 | forecast-response, holiday, weekend, ASU and criticality evidence blocks |
-| `decision_card.py` | 1,290 | assembles the 19 numbered card sections from the finished analysis |
-| `holiday_response.py` | 981 | calendar phases, phase effects, forecast capture, standing bias |
-| `forecast_response.py` | 812 | was a signal available before the week, and did the plan react |
-| `statistical_evidence.py` | 685 | the 13 statistical measures of the queue on its own history |
-| `why_prompt.py` | 634 | the interrogation prompt |
-| `business_report_generator.py` | 571 | narrative assembly for the WFM engine |
-| `lag_analysis.py` | 544 | lagged driver relationships, stability across a split history |
-| `cross_examination.py` | 536 | challenges the conclusion before confidence is scored |
-| `recursive_why.py` | 527 | the why-chain, up to 6 levels deep |
-| `narrative_prompt.py` | 396 | the narrative prompt **and the numeric grounding guard** |
-| `confidence.py` | 377 | the 8 weighted confidence dimensions and the level caps |
-| `holiday_events.py` | 354 | holiday identity, semantic families, weekday structure |
-| `hypothesis_catalogue.py` | 332 | the 23 candidate explanations |
-| `driver_gate.py` | 328 | whether a candidate driver is relevant at all |
-| `prompts.py` | 307 | WFM engine prompts |
-| `investigation_engine.py` | 266 | the WFM engine orchestrator |
-| `why_rephrase.py` | 203 | plain-language rewriting of why-chain steps |
-| `correlation_engine.py` | 201 | Spearman rank correlation |
-| `fiscal_calendar.py` | 200 | fiscal week arithmetic |
-| `data_granularity.py` | 199 | what the source can and cannot support |
-| `skeptic.py` | 191 | rejects causes the evidence does not carry |
-| `data_access.py` | 182 | **every SQL query lives here** |
-| `channel_migration_detector.py` | 178 | week-over-week movement between channels |
-| `hypothesis_generator.py` | 144 | selects which catalogue entries to test |
-| `summary_prompt.py` | 139 | the third call's prompt and its grounding check |
-| `common.py` | 124 | the adherence formula, shared constants |
-| `llm_client.py` | 99 | provider calls, timeout, temperature, seed |
-| `data_quality.py` | 75 | extreme-value and integrity checks |
-| `temporal_reasoner.py` | 56 | time-order reasoning helpers |
-| `hierarchy_analyzer.py` | 37 | scope-level helpers |
+| # | Call | When | Purpose |
+|---|---|---|---|
+| 1 | **Narrative** | every investigation | writes the executive summary over figures that are already final |
+| 2 | **Interrogation — questions** | when the interrogation is enabled | generates the sceptical questions a reviewer would ask of the findings |
+| 3 | **Interrogation — repair** | only if call 2 returns something malformed | one retry |
+| 4 | **Interrogation — answers** | when the interrogation is enabled | answers those questions **from the evidence file only**, never from the model's own knowledge |
+| 5 | **Summary** | only when a user clicks *Summarise* | a short paragraph for someone who will not read the full card. Cached, so a second reader pays nothing |
 
-Engine characteristics:
+So the interrogation is a **two-stage exchange** — ask, then answer — with a repair attempt in between
+if needed. Show it that way; a single "interrogation" box loses the point, which is that the questions
+and the answers are produced separately and the answers are constrained to the evidence.
 
-- **15 canonical steps**, run in a fixed order. Two orderings are structural: hypotheses are formed
-  before statistics are computed, and cross-examination runs before confidence is scored so its result
-  can feed in.
-- **23 hypotheses** across 6 categories — Business 5, Calendar 4, Demand 4, Statistical 4, Data
-  Quality 4, Forecast 2. Every one is reported with a state and a reason, including the rejected ones.
-- **8 confidence dimensions**, weighted: ContradictoryEvidence 0.20, EvidenceStrength 0.18,
-  BusinessRuleValidation 0.15, StatisticalAgreement 0.14, DataSufficiency 0.12, ContextCompleteness
-  0.10, HistoricalConsistency 0.06, ModelAgreement 0.05.
-- **86 named numeric constants** across the modules. Every threshold is a named constant with a comment
-  at its definition; none is an unexplained literal inside a condition.
-- Output: a response object with **42 top-level keys**, containing a Decision Card at version **2.1.0**
-  with **19 numbered sections** (`1_executive_summary` … `19_statistical_profile`).
+Call 5 is deliberately **not** given the output of calls 1–4. Summarising a summary would let a mistake
+made in the first paragraph return as established fact in the one most likely to be forwarded onward.
 
-## Layer 4 — the data source
+### Settings
+
+Temperature zero, fixed seed. Asked twice, the same investigation produces the same words.
+
+---
+
+# FIGURES — the only numbers you may use
+
+## Scale of the problem
 
 | | |
 |---|---|
-| Server | `10.10.9.75` |
-| Database | `Playground` |
-| Table | `dbo.Input_To_ML_Full_138_Trimmed` |
-| Size | **114,436 rows · 32 columns** |
-| Coverage | **427 queues**, **49 countries**, **3 regions**, **5 channels**, **4 offerings** |
-| Fiscal weeks | **202401 – 202908**, 268 distinct weeks |
-| Access | read-only. The application has no `INSERT`, `UPDATE` or `DELETE` against this table |
+| Queues covered | **427**, across **49 countries**, **3 regions**, **5 channels** |
+| History | just over **five years** of weekly data |
+| Queue-weeks with a scoreable forecast | **71,780** — about **400 every week** |
+| Missing by more than the tolerance band | **44,883**, which is **63%** |
+| Large enough in absolute terms to act on | **21,788** |
+| Set aside as immaterial | **23,095** |
+| Contacts handled, across the whole file | **60.3 million** |
+| Contacts planned | **78.6 million** |
 
-Scale of the problem:
+The single most useful framing: *sixty-three percent of forecasts miss the band, and nobody can
+investigate forty-four thousand of anything. The system's first act is to decide which twenty-two
+thousand are worth a person's time.*
+
+## A real worked example — use this, do not invent one
+
+A United States social-media queue, one week in 2024:
 
 | | |
 |---|---|
-| Queue-weeks with a scoreable forecast | **71,780** — about **403 a week** |
-| Missing by more than the 10% band | **44,883**, which is **63%** |
-| …and large enough in absolute terms to act on | **21,788** |
-| Suppressed by the 50-contact materiality floor | **23,095** |
-| Contacts handled across the file | **60,310,135** |
-| Contacts planned across the file | **78,567,681** |
+| Planned | **18,932** contacts |
+| Actually arrived | **25,697** contacts |
+| Shortfall | **6,765** contacts, **35.7%** under-forecast |
+| Business impact | **Critical** |
+| Cause identified | a drifting forecast baseline |
+| Confidence | **67.5%** |
+| Explanations tested | **23** |
 
-The four measures everything derives from: `Actual_Offered` (contacts that arrived), `fcst_offered`
-(the plan), `Planned_ASU` / `Actual_ASU` (installed base), `Final_Units` (shipments, a candidate leading
-signal).
+The finding worth quoting: *the evidence available before that week implied the plan should have moved
+by 1,241 contacts. It moved by 77.* The signal existed and the plan did not respond to it.
 
-**A structural limit that must appear in the architecture.** The table has seven columns named `Monday`
-through `Sunday`. They are **holiday flags, not daily volumes** — every value is 0 or 1, and on
-non-holiday high-volume weeks every one is 0 even though those weeks took contacts daily. All four
-volume columns are weekly. There is therefore **no daily demand figure anywhere in the source**, and the
-system reports that weekend effect cannot be isolated from a fiscal-week total rather than estimating
-it. Any architecture that implies daily analysis is wrong.
+## What it cannot do — state these plainly
 
-Supporting tables:
+1. **No daily detail.** The source records whole weeks. It also has seven columns named after the days
+   of the week, but those only mark *whether a holiday fell on that day* — they are not daily volumes.
+   The system therefore says weekend effects cannot be separated from a weekly total, rather than
+   estimating them. Getting daily analysis would require a new data feed.
+2. **Promotions and campaigns cannot be tested as causes.** The business event repository is not
+   deployed, so that explanation is correctly reported as not-applicable rather than counted against
+   the confidence score.
+3. **185 holiday naming questions are unresolved.** Where two holidays fall on the same date, deciding
+   whether they are one event or two is a business judgement. They are recorded and awaiting an answer,
+   not guessed at.
+4. **It does not prove causation.** It reports what the evidence supports and how strongly. The wording
+   throughout is deliberately "the evidence supports", never "this caused".
+5. **The judgement stays with the analyst.** This produces the evidence; a person still decides.
 
-| Table | Role |
-|---|---|
-| `dbo.Holiday_Master` | holiday dates by country and fiscal week; 36 distinct `holiday_type` values |
-| `dbo.Holiday_Semantic_Group` | 23 event families, so one holiday spelled several ways counts once |
-| `dbo.Holiday_Name_Alias` | raw name → family, scoped by country |
-| `dbo.Holiday_Name_Pair_Review` | merge decisions taken, plus **185 pairs still awaiting a business answer** |
-| `dbo.CQN_Mapping` | authoritative Combined Queue names |
+---
 
-### The queries, all in `data_access.py::fetch_wfm_context`
+# CLOSING GUIDANCE
 
-**Six query shapes, up to eleven statements per investigation** — one of them runs once per scope level.
-Every query is parameterised, so a queue name cannot alter the SQL.
+The strongest thing about this system is not that it is fast. It is that **it is built so that it cannot
+bluff** — the arithmetic is in code, the AI cannot introduce a figure, and the system states its own
+limits on screen. Build the diagram so that a sceptical executive reaches that conclusion without being
+told it.
 
-| # | Fetches | Window and why | Feeds |
-|---|---|---|---|
-| 1 | this queue's own history | up to **157 weeks** — two years plus, so the same week last year exists | statistical profile, phase effects, drift, volatility, outlier test |
-| 2 | the **4 weeks after** the target | so a rebound is measurable | post-holiday rebound, repeatability |
-| 3 | the same week at **6 scope levels** — Business Org → Region → SubRegion → Country → Offering → Channel | answers "this queue, or the whole region?" **This is the one that runs six times** | the scope ladder under Root Cause |
-| 4 | the other channels in the same scope | did demand change channel rather than disappear | week-over-week channel migration |
-| 5 | the queue's Combined Queue name | group related queues the way the business groups them | channel sibling grouping |
-| 6 | the holiday calendar for that country and week | was there a published reason | calendar context, phases, semantic families |
-
-## The two metrics, and nothing else
-
-```
-adherence_pct = (1 − actual / forecast) × 100        signed; negative = demand above plan
-accuracy      = 100 − MAPE                          MAPE = mean|actual−forecast| / mean(actual) × 100
-```
-
-The sign conventions are deliberately opposite and both are shown, so no reader has to infer a
-direction. Adherence is never scored when the forecast is zero or missing — the result is null, not
-zero. The investigation band defaults to 10%; the generation threshold is fixed at 5% and is a worklist
-control only.
-
-## The language-model calls — three, all optional to the result
-
-| # | When | Fed | Guard |
-|---|---|---|---|
-| 1 | step 14, every investigation | the finished figures | numeric grounding: a number in the prose that is not in the inputs **discards the entire narrative** |
-| 2 | `interrogate=1` | the evidence file | answers must come from the evidence, never the model's own knowledge |
-| 3 | on click only, `/api/rca-summarise` | **deterministic figures only** — never the prose from calls 1 or 2 | same grounding; cached per queue + week + prompt version |
-
-Call 3 is deliberately not fed the earlier prose: summarising a summary would let a first-call error
-return as established fact in the paragraph most likely to be forwarded onward.
-
-Determinism: `TEMPERATURE 0.0`, `TOP_P 1.0`, `SEED 20260730`, timeout 150s. Same input, same words.
-
-**If every model call fails, the investigation still completes.** Status reads `Incomplete`; every
-figure, cause, confidence score and recommendation is present. Only the prose is missing. This is the
-single most important property of the architecture and should be drawn as such.
-
-## Guardrails — treat as first-class
-
-| Guard | Rule |
-|---|---|
-| Numeric grounding | a figure in model prose absent from the inputs discards the prose. A genuine rounding is accepted within a 5% drift cap; an invented number is not |
-| Materiality floor | 50 contacts. A 90% miss on 20 contacts is arithmetic, not a finding |
-| Not measurable ≠ no effect | every failed gate reports why and how much data it would need |
-| Absence of evidence ≠ evidence of absence | a weak correlation reads "not confirmed", never "not a driver" |
-| Direction never discarded | −0.22 and +0.22 mean opposite things operationally |
-| Identities must reconcile | the ASU split and the miss decomposition publish whether the parts sum to the whole |
-| Robust statistics | median and MAD for outliers, so a single spike cannot inflate the threshold that would have caught it |
-| Confidence caps are visible | a cap rides beside the score, never hidden behind a click |
-| Missing dimension floors at 0.20 | absence of a measurement is not evidence against a finding |
-
-## Test surface
-
-| Suite | Result |
-|---|---|
-| module smoke | 12 / 12 |
-| FC spec semantics | 190 / 190 |
-| WFM diagnostics | 148 / 148 |
-| narrative grounding | 21 / 21 |
-| summary grounding | 14 / 14 |
-| UI render, incl. repetition caps, tab attribution, table-squeeze | 20 Decision Cards |
-| prompt2 conformance | 16 / 16 |
-| new_prompt conformance | 34 / 34 |
-
-Three permanent regression cases live in `results/` — a three-holiday card, a single-holiday card, and
-an executive worked example. Each failed when first added, which is why they are there.
-
-## Documentation already written — do not duplicate, reference
-
-| File | Contains |
-|---|---|
-| `mathematics.md` | every formula, all 86 constants with rationale, the full data lineage |
-| `EXECUTIVE_WALKTHROUGH.md` | the management-facing script: the scale, the data source, the SQL in plain English, every parameter on every tab with what to say about it, a worked example, the guardrails, and what is still open |
-| `IMP_DOCS/holiday-semantic-groups.md` | the calendar work and every defect found and fixed |
-| `AGENTS.md` | the runbook |
-
-### What `EXECUTIVE_WALKTHROUGH.md` established, which the architecture should stay consistent with
-
-- The scale figures above, all verified against the live database.
-- Six query shapes, up to eleven statements, six ladder levels.
-- The day-column limitation, volunteered rather than buried.
-- A worked example: `Social Media English Basic` FW202422 — plan 18,932 against actual 25,697, a
-  **6,765-contact under-forecast**, criticality **Critical**, root cause **Drift**, confidence 67.5%, 23
-  hypotheses tested. The engine's own strongest line: the evidence implied moving the plan by **1,241**
-  contacts and it moved **77**.
-- Open items: 185 unresolved holiday pairs, no daily granularity from this source, Business Event
-  Repository not deployed, and no independent review of the analytical logic.
-
-## Known-open, and must not be presented as solved
-
-1. **185 holiday name pairs** unresolved — needs a business decision, not code.
-2. **No daily granularity** — the day columns are flags. Would require a new feed.
-3. **Business Event Repository not deployed** — promotions and campaigns cannot be tested as causes; it
-   is correctly reported as not-applicable rather than counted against confidence.
-4. **Indonesia's Ascension is double-dated** in the holiday master — an upstream data issue, flagged
-   rather than patched.
-5. **No independent review** of the analytical logic. The suites pass; a second engineer has not
-   reviewed the reasoning.
-6. `fc_evidence.py` at 1,695 lines does too much and wants splitting.
-7. The suites verify that the machinery ran and is self-consistent. They do **not** assert that a
-   conclusion is correct — that would need labelled ground truth, which does not exist.
+If you find yourself with empty space, add nothing. A sparse accurate diagram beats a full one with an
+invented box in it.
