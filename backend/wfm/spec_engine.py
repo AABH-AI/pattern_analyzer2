@@ -1381,6 +1381,8 @@ def investigate(context_bundle, llm_cfg, wfm_context, grain="weekly", model_choi
     _narr_t0 = _time.time()
     narrative, narrative_error, narrative_model = _narrate(finding, llm_cfg, model_choice)
     _narr_secs = round(_time.time() - _narr_t0, 2)
+    _llm_log("narrate(step14)", narrative_model or "(none)", _narr_secs, ok=bool(narrative),
+             detail="" if narrative else str(narrative_error)[:150])
     _step(14, "Generate Executive Summary",
           "narrative generated" if narrative else f"narrative unavailable: {narrative_error}")
 
@@ -1622,13 +1624,27 @@ def _interrogate(finding, evidence_bundle, llm_cfg, model_choice):
     # having to trust that the intended model answered.
     _islot = _interrogator_slot(llm_cfg)
     _asked_by = {}
+    _want_model = (_islot or {}).get("model")
+    _t0 = _time.time()
     parsed, err = _call_llm(why_prompt.build_messages(finding), llm_cfg,
                             None if _islot else model_choice, prefer_fast=True,
                             slot_override=_islot, used=_asked_by)
+    _took = round(_time.time() - _t0, 2)
     if not parsed:
+        _llm_log("ask(prompt2)", _want_model or "(primary)", _took, ok=False, detail=str(err)[:150])
         out["reason"] = f"question generation unavailable: {err}"
         return out
     questions, rejected = why_prompt.validate(parsed)
+    _got_model = _asked_by.get("model")
+    _llm_log("ask(prompt2)", _got_model, _took, ok=True,
+             detail=f"{len(questions)} question(s) kept, {len(rejected)} rejected")
+    if _want_model and _got_model and _got_model != _want_model:
+        # The configured questioner did not answer, so the primary asked instead. Said out loud
+        # because the card is identical either way -- the whole point of the split is that the
+        # questions came from somewhere other than the answerer, and a silent fallback hides that.
+        _llm_log("FELL BACK", _got_model, None, ok=False,
+                 detail=f"configured interrogator {_want_model} did not respond; the primary asked "
+                        f"instead. Check whether that model is deprecated or withdrawn.")
 
     # Weaker models return good questions while omitting a required field, and the
     # validator then drops everything -- so the whole section vanished on those models and
@@ -1686,9 +1702,10 @@ def _interrogate(finding, evidence_bundle, llm_cfg, model_choice):
     # back with the same answer. Each call now sees ONE question and only the evidence
     # blocks that question needs.
     answers, problems = [], []
+    _ans_by, _ans_t0 = {}, _time.time()
     for q in questions:
         parsed2, err2 = _call_llm(why_prompt.build_answer_messages(q, evidence_bundle),
-                                  llm_cfg, model_choice, prefer_fast=True)
+                                  llm_cfg, model_choice, prefer_fast=True, used=_ans_by)
         if not parsed2:
             problems.append(f"no answer returned for '{str(q.get('question'))[:45]}...': {err2}")
             continue
@@ -1717,6 +1734,14 @@ def _interrogate(finding, evidence_bundle, llm_cfg, model_choice):
             continue
         seen[k] = str(a.get("question") or "")
         deduped.append(a)
+
+    # ONE line for the whole answering pass rather than one per question: N questions means N
+    # calls, and a line each would bury the questioner line this log exists to surface.
+    _llm_log("answer(prompt1)", _ans_by.get("model") or "(none answered)",
+             round(_time.time() - _ans_t0, 2),
+             ok=bool(_ans_by.get("model")),
+             detail=f"{len(questions)} call(s), "
+                    f"{len([a for a in deduped if a.get('answerable')])} answered from evidence")
 
     out.update({"available": True, "questions": questions, "answers": deduped,
                 "problems": problems,
@@ -1789,6 +1814,35 @@ def _call_llm(messages, llm_cfg, model_choice, prefer_fast=False, slot_override=
         except Exception as exc:
             last = f"{slot.get('provider')}/{model}: {exc}"
     return None, last
+
+
+def _llm_log(stage, model, seconds=None, ok=True, detail=""):
+    """Print one line per LLM call so the terminal shows which model did what.
+
+    WHY PRINT AND NOT logging
+    -------------------------
+    uvicorn owns the logging configuration here and a custom logger needs its handlers wiring up to
+    appear at all; stdout is captured and interleaved with the INFO request lines with no setup. This
+    has to be visible in the default `run.py` terminal or it is not doing its job.
+
+    WHY IT EXISTS
+    -------------
+    The interrogation's question prompt runs on a SEPARATE model (see `_interrogator_slot`) which
+    falls back to the primary if it fails. That fallback is deliberate -- losing the section would be
+    worse -- but it is invisible: the card looks the same either way. Measured on this account,
+    openai/gpt-oss-120b answered the real 40,820-char question prompt in 87-150s and TIMED OUT on 2
+    of 4 attempts, so the fallback is not a rare edge case. Without this line you cannot tell whether
+    the questions came from the model you configured, and you get no warning when a model is
+    deprecated or withdrawn -- it simply stops being used.
+
+    Reads as: [FC-RCA] ask(prompt2)  openai/gpt-oss-120b  87.6s  OK  5 questions
+    """
+    mark = "OK  " if ok else "FAIL"
+    secs = f"{seconds:6.1f}s" if isinstance(seconds, (int, float)) else "     -"
+    line = f"[FC-RCA] {stage:<16} {str(model):<42} {secs}  {mark}"
+    if detail:
+        line += f"  {detail}"
+    print(line, flush=True)
 
 
 def _interrogator_slot(llm_cfg):
