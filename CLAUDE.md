@@ -36,11 +36,19 @@ Key facts:
   routes the interrogation's QUESTION prompt to a different model on the same API key; the
   answering prompt and the narrative stay on `llm.primary`. Currently `openai/gpt-oss-20b` (gpt-oss-120b was tried and times out on ~half of attempts). Every call prints a `[FC-RCA]` line to the terminal.
   Omit the key to restore single-model behaviour. See `IMP_DOCS/fc-decision-card-engine.md`.
+- **Data comes from SQL, and the console says so when it cannot.** `GET /api/rows` filters
+  server-side (a week window; adherence computed in SQL) instead of shipping the whole table:
+  114,436 rows / 82.6 MB / 7.3s became 10,946 / 7.3 MB for the default 26-week window.
+  `GET /api/data-freshness` returns a token that moves when the source is reloaded — it is part
+  of the summary cache key, so a restated week cannot serve a stale summary. An unreachable
+  database returns **503 `sql_unreachable`** and NO card, rather than degrading to the posted
+  rows. See `IMP_DOCS/sql-ingestion-and-freshness.md`.
 - Evidence and re-runnable tests live in `results/` — start with `results/audit-log.md`.
 
 Test suites (all runnable without SQL except the last):
 ```
 python results/test_fc_spec_semantics.py          # FC Decision Card — 198 checks, 24 brief scenarios
+python results/test_data_ingestion.py             # server-side filtering + refresh detection — 44 checks
 python results/test_wfm_diagnostics.py            # the shared diagnostic modules — 148 checks
 python results/smoke_test_modules.py              # 12 modules load and wire up
 node   results/check_ui_render.js                 # the REAL renderers over REAL captured responses
@@ -51,4 +59,5 @@ cd backend && python ../results/run_live_spec_validation.py  # live SQL + live m
 already listening — a stale server on 8000 silently answered part of a run with pre-upgrade code.
 
 Details: `AGENTS.md`, `IMP_DOCS/fc-decision-card-engine.md`, `IMP_DOCS/wfm-rca-engine.md`,
+`IMP_DOCS/sql-ingestion-and-freshness.md`,
 `IMP_DOCS/installation-and-connection.md`, `IMP_DOCS/canary-test-log.md`, `DEPLOY.md`.

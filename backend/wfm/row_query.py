@@ -97,6 +97,29 @@ def build_where(filters=None, week_from=None, week_to=None, flagged_only=False, 
     return (" AND ".join(clauses) if clauses else "1=1"), params
 
 
+def resolve_last_weeks(cur, table, n):
+    """The fiscal week that starts a window of the last `n` weeks THAT HOLD DATA.
+
+    Not arithmetic on the week number. Fiscal weeks are YYYYWW, so 202701 minus 5 is not a week
+    at all, and a year is 52 or 53 weeks depending on the year -- subtracting would silently
+    produce a window of the wrong length across every year boundary. Asking the table which
+    weeks actually exist is one cheap DISTINCT and is right by construction.
+
+    Returns None when the table has no usable rows, which the caller must treat as "no window"
+    rather than "window starting at zero".
+    """
+    try:
+        n = int(n)
+    except (TypeError, ValueError):
+        raise FilterError(f"last_weeks must be a number, got {n!r}")
+    if n < 1:
+        raise FilterError("last_weeks must be at least 1")
+    cur.execute(f"SELECT DISTINCT Fiscal_Week FROM {table} WHERE {USABLE} "
+                f"ORDER BY Fiscal_Week DESC OFFSET 0 ROWS FETCH NEXT {n} ROWS ONLY")
+    weeks = [r[0] for r in cur.fetchall()]
+    return min(weeks) if weeks else None
+
+
 def count_sql(table, where_sql):
     return f"SELECT COUNT(*) FROM {table} WHERE {where_sql}"
 

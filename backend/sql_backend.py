@@ -251,6 +251,8 @@ def data_freshness_endpoint(token: str = Query("", description="The token this c
 @app.get("/api/rows")
 def rows(week_from: str = Query("", description="Lowest fiscal week to include, e.g. 202701"),
          week_to: str = Query("", description="Highest fiscal week to include"),
+         last_weeks: int = Query(0, ge=0, description="Window of the last N weeks holding data; "
+                                                      "ignored when week_from is given"),
          flagged_only: int = Query(0, description="1 = only rows whose |adherence| exceeds the band"),
          band: float = Query(10.0, description="Adherence band in percent, used when flagged_only=1"),
          region: str = "", subregion: str = "", country: str = "", offering: str = "",
@@ -274,17 +276,25 @@ def rows(week_from: str = Query("", description="Lowest fiscal week to include, 
                "Offering": multi(offering), "channel": multi(channel),
                "business_org": multi(business_org), "Forecast_name": multi(forecast_name),
                "Forecaster": multi(forecaster), "Volume_Category": multi(volume_category)}
-    try:
-        where, params = rq.build_where(filters, week_from or None, week_to or None,
-                                       flagged_only=bool(flagged_only), band=band)
-        sql_rows = rq.rows_sql(table, where, limit=limit, offset=offset)
-    except rq.FilterError as e:
-        raise HTTPException(status_code=400, detail={"code": "bad_filter", "message": str(e)})
-
     conn = _sql_or_503(cfg)
     try:
         cur = conn.cursor()
-        out = {"rows": [], "count": 0, "total": None, "limit": limit, "offset": offset}
+        # `last_weeks` is resolved against the weeks that actually hold data, not by arithmetic
+        # on the week number -- see row_query.resolve_last_weeks. An explicit week_from always
+        # wins, so a caller that states a window cannot have it silently overridden.
+        resolved_from = week_from or None
+        if not resolved_from and last_weeks:
+            resolved_from = rq.resolve_last_weeks(cur, table, last_weeks)
+        where, params = rq.build_where(filters, resolved_from, week_to or None,
+                                       flagged_only=bool(flagged_only), band=band)
+        sql_rows = rq.rows_sql(table, where, limit=limit, offset=offset)
+    except rq.FilterError as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail={"code": "bad_filter", "message": str(e)})
+
+    try:
+        out = {"rows": [], "count": 0, "total": None, "limit": limit, "offset": offset,
+               "week_from": resolved_from, "week_to": week_to or None}
         if include_total:
             cur.execute(rq.count_sql(table, where), params)
             out["total"] = int((cur.fetchone() or [0])[0] or 0)
@@ -614,15 +624,27 @@ def rca_investigate(context_bundle: dict, provider: str = Query("", description=
         # SEPARATE engine rather than a rewrite of the WFM one: the same queue can be
         # investigated both ways and the outputs compared, and rollback is a query parameter
         # rather than a revert.
+        # The load this card was built from, stamped on the RESPONSE rather than left inside
+        # wfm_context. The engines copy forward the context keys they know about, so a new key
+        # placed there simply never surfaced -- verified against a live run before this was
+        # moved. Stamping here also keeps both engines consistent without either knowing about
+        # freshness, which is not their concern.
+        def _stamp(result):
+            fresh = (wfm_context or {}).get("data_freshness")
+            if isinstance(result, dict) and fresh:
+                result.setdefault("data_freshness", fresh)
+            return result
+
         if (mode or "").lower() == "spec":
             try:
-                return investigate_spec(context_bundle, cfg.get("llm", {}), wfm_context,
-                                        grain=grain, model_choice=model_choice,
-                                        interrogate=bool(interrogate))
+                return _stamp(investigate_spec(context_bundle, cfg.get("llm", {}), wfm_context,
+                                               grain=grain, model_choice=model_choice,
+                                               interrogate=bool(interrogate)))
             except Exception as e:
                 raise HTTPException(status_code=500, detail=f"Spec investigation failed: {e}")
         try:
-            return investigate_wfm(context_bundle, cfg.get("llm", {}), wfm_context, model_choice=model_choice)
+            return _stamp(investigate_wfm(context_bundle, cfg.get("llm", {}), wfm_context,
+                                          model_choice=model_choice))
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"WFM investigation failed: {e}")
 

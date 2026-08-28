@@ -831,7 +831,15 @@
     <div class="sqlf"><label>Server</label><input id="sqlSrv" value="10.10.9.75"></div>
     <div class="sqlf"><label>Database</label><input id="sqlDb" value="Playground"></div>
     <div class="sqlf"><label>Table / view</label><input id="sqlTbl" value="dbo.Input_To_ML"></div>
-    <div class="sqlnote">🔌 <b>Live:</b> click <b>Fetch table</b> to query SQL Server through the local backend (<code>/api/data</code>) and run the pipeline — no upload. Connection is set in <code>backend/config.json</code>; start it with <code>uvicorn sql_backend:app --port 9000</code>.</div>
+    <div class="sqlf"><label>Weeks to pull</label>
+      <select id="sqlWindow" onchange="window.RCA_WEEK_WINDOW=Number(this.value)">
+        <option value="13">Last 13 weeks — ~5,400 rows</option>
+        <option value="26" selected>Last 26 weeks — ~11,000 rows (default)</option>
+        <option value="52">Last 52 weeks — ~22,000 rows</option>
+        <option value="104">Last 104 weeks — ~43,000 rows</option>
+      </select></div>
+    <div class="sqlnote">🔌 <b>Live:</b> click <b>Fetch table</b> to query SQL Server through the local backend (<code>/api/rows</code>) and run the pipeline — no upload. Connection is set in <code>backend/config.json</code>; start it with <code>uvicorn sql_backend:app --port 9000</code>.
+      <br><span style="color:#6b7280;">The server filters by week and computes adherence in SQL, so only the window travels. Pulling the whole table was 114,436 rows and ~82.6&nbsp;MB per load. RCA context is unaffected — it is fetched per queue from <code>/api/queue-context</code>, not from this window.</span></div>
     <button class="mclose" style="float:none" onclick="sqlFetch()">⇩ Fetch table &amp; run pipeline</button>
     <button class="filebtn ghost" style="margin-left:8px" onclick="closeSQL()">Cancel</button>
   </div>
@@ -935,7 +943,23 @@ async function loadCqnMappingFromSql(apiBase){
     return true;
   }catch(_){ return false; }
 }
-// Live: pull the weekly table from the local FastAPI backend (/api/data), which queries SQL Server.
+/* ---- How many weeks the console pulls.
+   The old path called /api/data, which is SELECT * with no WHERE: measured 114,436 rows, 7.3s
+   and ~82.6 MB on every load, then filtered in JavaScript. A week window is fetched instead.
+
+       last 13 weeks    5,434 rows    3.6 MB
+       last 26 weeks   10,946 rows    7.3 MB   <- default
+       last 52 weeks   21,939 rows   14.9 MB
+       everything     114,436 rows   82.6 MB
+
+   A WINDOW, not flagged-only, on purpose: the band slider filters ROWS client-side, so fetching
+   only rows already flagged at the current band would make lowering the band show nothing new.
+   Within the window every usable row is present and the slider behaves exactly as before.
+   RCA context is unaffected either way -- it comes from /api/queue-context, not from ROWS. ---- */
+window.RCA_WEEK_WINDOW = window.RCA_WEEK_WINDOW || 26;
+window.DATA_TOKEN = null;          // the load this view was built from; see /api/data-freshness
+
+// Live: pull a week window from the local FastAPI backend (/api/rows), which queries SQL Server.
 async function sqlFetch(){
   closeSQL();
   const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:9000':'';
@@ -946,17 +970,31 @@ async function sqlFetch(){
   renderPipe({source:'sql'});
   try{
     ingStep(1,35,'Running query & downloading rows…'); await _tick();
-    const r=await fetch(API_BASE+'/api/data');
-    if(!r.ok){ let d; try{ d=(await r.json()).detail; }catch(_){ d=r.statusText; } throw new Error(d||('HTTP '+r.status)); }
+    const win=Number(window.RCA_WEEK_WINDOW)||26;
+    const qs=(win>0? ('last_weeks='+win) : 'week_from=0')+'&limit=20000&include_total=1';
+    const r=await fetch(API_BASE+'/api/rows?'+qs);
+    if(!r.ok){ throw await _sqlError(r); }
     const j=await r.json(); const rows=j.rows||[];
     if(!rows.length) throw new Error('query returned 0 rows');
+    // Remember which load this is. Everything downstream compares against it, so a refresh that
+    // lands while the console is open can be reported instead of silently disagreeing.
+    window.DATA_TOKEN=((j.freshness)||{}).token||null;
+    window.DATA_FRESHNESS=j.freshness||null;
+    if(j.has_more) console.warn('[RCA] row cap reached: showing '+j.count+' of '+j.total+
+                                ' rows. Narrow the window or add a filter.');
     ingStep(2,58,'Building records…'); await _tick();
     ROWS=rows;
     // Pull the authoritative CQN mapping from SQL (dbo.CQN_Mapping) so queues are resolved to
     // their real Combined Queue Name without needing a manual file upload. Silent no-op if the
     // table has not been loaded — the "Upload CQN mapping" path still works as before.
     await loadCqnMappingFromSql(API_BASE);
-    if(fs) fs.innerHTML='🗄 <b>SQL Server (AA)</b> · '+((j.table)||'dbo.Input_To_ML')+' — '+rows.length.toLocaleString()+' rows';
+    const _win=(Number(window.RCA_WEEK_WINDOW)||26);
+    if(fs) fs.innerHTML='🗄 <b>SQL Server (AA)</b> — '+rows.length.toLocaleString()+' rows'
+      +(j.week_from? (' · from FW'+j.week_from+' ('+_win+' weeks)') : '')
+      +(j.total&&j.total>rows.length? (' · <b style="color:#b26a00">capped, '+j.total.toLocaleString()+' match</b>') : '');
+    renderFreshness();
+    hideSqlBlocker();
+    const _sb=document.getElementById('staleBanner'); if(_sb) _sb.remove();
     document.getElementById('emptyState').style.display='none';
     document.getElementById('consoleArea').style.display='block';
     renderPipe({source:'sql', rows:rows.length});
@@ -969,8 +1007,91 @@ async function sqlFetch(){
   }catch(e){
     hideIngest();
     if(fs) fs.textContent='SQL error: '+e.message; renderPipe({source:'sql'});
-    alert('Connect to SQL Server failed: '+e.message+'\n\nStart the local backend first:\n  cd backend\n  uvicorn sql_backend:app --port 9000\n\n(connection is configured in backend/config.json)');
+    showSqlBlocker(e);
   }
+}
+
+/* ---- Turn a failed response into an error that says what to DO about it.
+   The backend distinguishes "cannot reach the database" (503 sql_unreachable) from a real fault,
+   because those need opposite reactions from the reader: reconnect, versus report a bug. That
+   distinction is only useful if it survives to the surface, so it is carried on the Error. ---- */
+async function _sqlError(r){
+  let d=null; try{ d=(await r.json()).detail; }catch(_){ }
+  const e=new Error((d&&d.message)||(typeof d==='string'?d:null)||('HTTP '+r.status));
+  e.code=(d&&d.code)||null; e.detail=d; e.status=r.status;
+  return e;
+}
+
+/* ---- The blocking panel for "the database is not reachable".
+   Deliberately NOT an alert(): an alert is dismissed and forgotten, and the console then sits
+   there looking merely empty. A panel that stays put is the difference between a user who
+   reconnects and a user who thinks the tool is broken. ---- */
+function showSqlBlocker(e){
+  const unreachable = e && (e.code==='sql_unreachable' || e.code==='sql_not_configured');
+  const d=(e&&e.detail)||{};
+  const host=document.getElementById('emptyState')||document.body;
+  let box=document.getElementById('sqlBlocker');
+  if(!box){ box=document.createElement('div'); box.id='sqlBlocker'; host.insertBefore(box, host.firstChild); }
+  box.style.cssText='margin:14px 0;padding:16px 18px;border:1px solid #e3b7bd;border-left:5px solid #a01b2b;'
+    +'border-radius:9px;background:#fdf5f6;color:#1f2937;font-size:13.5px;line-height:1.55;';
+  box.innerHTML = unreachable
+    ? '<div style="font-weight:800;font-size:15px;color:#a01b2b;margin-bottom:6px;">'
+      +(e.code==='sql_not_configured'?'SQL is not configured':'Cannot reach the database')+'</div>'
+      +'<div><b>'+_esc(e.message)+'</b></div>'
+      +'<div style="margin-top:9px;color:#374151;">The console will not run an investigation without it. '
+      +'An RCA built on the posted rows alone would be missing the 157-week history, the channel '
+      +'siblings and the investigation ladder &mdash; and would still look confident.</div>'
+      +(d.server? '<div style="margin-top:9px;font-family:ui-monospace,Consolas,monospace;font-size:12px;color:#6b7280;">'
+        +'server '+_esc(d.server)+(d.database?' &middot; '+_esc(d.database):'')
+        +(d.driver?' &middot; '+_esc(d.driver):'')+'</div>' : '')
+      +'<div style="margin-top:11px;"><button type="button" onclick="sqlFetch()" style="font-size:13px;'
+      +'font-weight:700;padding:7px 15px;border-radius:6px;cursor:pointer;border:1px solid #a01b2b;'
+      +'background:#a01b2b;color:#fff;">Retry</button>'
+      +'<span style="margin-left:10px;color:#6b7280;font-size:12.5px;">Connect to the VPN first.</span></div>'
+    : '<div style="font-weight:800;font-size:15px;color:#a01b2b;margin-bottom:6px;">SQL error</div>'
+      +'<div>'+_esc(e.message)+'</div>'
+      +'<div style="margin-top:9px;color:#374151;">If the backend is not running: '
+      +'<code>cd backend &amp;&amp; uvicorn sql_backend:app --port 9000</code></div>';
+  box.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function hideSqlBlocker(){ const b=document.getElementById('sqlBlocker'); if(b) b.remove(); }
+function _esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ---- "The data moved under you."
+   Only ever shown when the token is KNOWN to have changed. An unavailable probe reports unknown
+   and shows nothing: a banner that fires when nothing happened is a banner people learn to
+   ignore, which costs more than never having shown it. ---- */
+function renderFreshness(){
+  const f=window.DATA_FRESHNESS; const el=document.getElementById('fileStatus');
+  if(!el||!f||!f.available) return;
+  let tip=document.getElementById('dataFreshTip');
+  if(!tip){ tip=document.createElement('div'); tip.id='dataFreshTip'; el.parentNode.appendChild(tip); }
+  tip.style.cssText='margin-top:5px;font-size:11.5px;color:#6b7280;';
+  tip.textContent=f.describe||'';
+}
+async function checkDataFreshness(){
+  if(window.SRC!=='sql' || !window.DATA_TOKEN) return {stale:false, known:false};
+  const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:9000':'';
+  try{
+    const r=await fetch(API_BASE+'/api/data-freshness?token='+encodeURIComponent(window.DATA_TOKEN));
+    if(!r.ok) return {stale:false, known:false};
+    const j=await r.json();
+    if(j.compare&&j.compare.stale) showStaleBanner(j.freshness);
+    return j.compare||{stale:false, known:false};
+  }catch(_){ return {stale:false, known:false}; }   // a failed check is not evidence of staleness
+}
+function showStaleBanner(fresh){
+  const host=document.getElementById('consoleArea')||document.body;
+  let b=document.getElementById('staleBanner');
+  if(!b){ b=document.createElement('div'); b.id='staleBanner'; host.insertBefore(b, host.firstChild); }
+  b.style.cssText='margin:0 0 12px;padding:11px 15px;border:1px solid #e6cf9a;border-left:5px solid #b26a00;'
+    +'border-radius:8px;background:#fffbf2;color:#1f2937;font-size:13px;line-height:1.5;';
+  b.innerHTML='<b style="color:#b26a00;">The source data has been reloaded since this view was built.</b>'
+    +' Figures on screen are from the previous load.'
+    +(fresh&&fresh.describe? '<div style="margin-top:5px;font-size:11.5px;color:#6b7280;">'+_esc(fresh.describe)+'</div>':'')
+    +'<div style="margin-top:9px;"><button type="button" onclick="sqlFetch()" style="font-size:12.5px;'
+    +'font-weight:700;padding:6px 13px;border-radius:6px;cursor:pointer;border:1px solid #b26a00;'
+    +'background:#b26a00;color:#fff;">Reload from SQL</button></div>';
 }
 function pstage(cls,icon,title,val){ return `<div class="pstage ${cls}"><div class="pi">${icon}</div><div class="pt">${title}</div><div class="pv">${val}</div></div>`; }
 // Visualises the full path: source → ingest → compute (2 metrics) → flag (±band) → RCA. Fills as data flows.
@@ -1822,7 +1943,14 @@ async function callInvestigationEngine(contextBundle){
   }
   const resp=await fetch(API_BASE+'/api/rca-investigate'+q, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(contextBundle)});
 
-  if(!resp.ok){ let d; try{ d=(await resp.json()).detail; }catch(_){ d=resp.statusText; } throw new Error(d||('HTTP '+resp.status)); }
+  // A 503 here means the engine REFUSED rather than failed: it could not reach SQL, so it would
+  // have had to answer from the posted rows alone. Surfacing that as a generic error would hide
+  // the one thing the reader can act on, so it raises the same blocking panel as a failed fetch.
+  if(!resp.ok){
+    const e=await _sqlError(resp);
+    if(e.code==='sql_unreachable'||e.code==='sql_not_configured') showSqlBlocker(e);
+    throw e;
+  }
   return await resp.json();
 }
 
@@ -3605,6 +3733,13 @@ async function triggerRCA(i, force){
   const state={}; STAGES.forEach(s=>state[s.key]='pending');
   const paint=()=>{ timelineHost.innerHTML=invTimelineHtml(STAGES.map(s=>({...s,state:state[s.key]}))); };
   paint();
+
+  // Check the load BEFORE spending 6-8 model calls on it. An investigation takes the better part
+  // of a minute and costs real tokens; discovering afterwards that it was built on the previous
+  // load wastes both, and a card that silently disagrees with the current table is worse than no
+  // card. Non-blocking by design -- it raises a banner and continues, because a refresh does not
+  // necessarily change THIS queue-week and refusing outright would be the wrong trade.
+  checkDataFreshness();
 
   // 1) Detect Forecast Miss — re-validate against the configured threshold.
   const isMiss=(r._padh!=null && Math.abs(r._padh)>band);
