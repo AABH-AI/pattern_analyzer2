@@ -10,14 +10,19 @@
     "driver": "ODBC Driver 17 for SQL Server",
     "encrypt": true,
     "trust_server_certificate": true,
-    "timeout": 30
+    "timeout": 30,
+    "refresh": {
+      "cadence": "weekly",
+      "load_column": null,
+      "batch_column": null
+    }
   },
   "excel_path": "C:\\Users\\arnav.bhargava\\Downloads\\Input_To_ML_20260706110242.csv.xlsx",
   "_filter_comment": "Optional. The Excel->SQL loader only inserts rows whose Fiscal_Week (YYYYWW) is within this range. Set to keep e.g. 2025-2027 only; remove both keys to load all years. CLI --min-week/--max-week override these.",
   "min_fiscal_week": 202500,
   "max_fiscal_week": 202799,
   "llm": {
-    "_comment": "LLM Investigation Engine. Leave api_key blank on both slots to get the deterministic feature-based finding (never a fabricated conclusion). primary is tried first (NVIDIA); secondary is the Groq fallback. model is optional — DEFAULT_MODELS is used if blank. The console's per-queue model picker (selectable_models) can override the model per investigation; a specific picked model that fails is NOT silently answered by a different model — the deterministic finding is returned instead.",
+    "_comment": "LLM Investigation Engine. Leave api_key blank on both slots to get the deterministic feature-based finding (never a fabricated conclusion). primary is tried first (NVIDIA); secondary is the Groq fallback. model is optional \u2014 DEFAULT_MODELS is used if blank. The console's per-queue model picker (selectable_models) can override the model per investigation; a specific picked model that fails is NOT silently answered by a different model \u2014 the deterministic finding is returned instead.",
     "primary": {
       "provider": "nvidia",
       "api_key": "",
@@ -28,13 +33,34 @@
       "api_key": "",
       "model": "llama-3.3-70b-versatile"
     },
-    "_selectable_models_comment": "Optional. Models the console's per-queue picker offers (filtered to providers with a key). Verify ids against your account — the NVIDIA catalog lists models not provisioned for every account. Omit to use the built-in default list.",
+    "_selectable_models_comment": "Optional. Models the console's per-queue picker offers (filtered to providers with a key). Verify ids against your account \u2014 the NVIDIA catalog lists models not provisioned for every account. Omit to use the built-in default list.",
     "selectable_models": [
-      {"provider": "nvidia", "model": "nvidia/nemotron-3-super-120b-a12b", "label": "Nemotron 3 Super 120B — fast, strong reasoning", "default": true},
-      {"provider": "nvidia", "model": "deepseek-ai/deepseek-v4-flash", "label": "DeepSeek V4 Flash — reasoning"},
-      {"provider": "nvidia", "model": "nvidia/llama-3.3-nemotron-super-49b-v1.5", "label": "Nemotron Super 49B — reasoning, fast"},
-      {"provider": "nvidia", "model": "nvidia/nemotron-3-ultra-550b-a55b", "label": "Nemotron 3 Ultra 550B — flagship (may be busy)"},
-      {"provider": "groq", "model": "llama-3.3-70b-versatile", "label": "Llama 3.3 70B (Groq) — fast baseline"}
+      {
+        "provider": "nvidia",
+        "model": "nvidia/nemotron-3-super-120b-a12b",
+        "label": "Nemotron 3 Super 120B \u2014 fast, strong reasoning",
+        "default": true
+      },
+      {
+        "provider": "nvidia",
+        "model": "deepseek-ai/deepseek-v4-flash",
+        "label": "DeepSeek V4 Flash \u2014 reasoning"
+      },
+      {
+        "provider": "nvidia",
+        "model": "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+        "label": "Nemotron Super 49B \u2014 reasoning, fast"
+      },
+      {
+        "provider": "nvidia",
+        "model": "nvidia/nemotron-3-ultra-550b-a55b",
+        "label": "Nemotron 3 Ultra 550B \u2014 flagship (may be busy)"
+      },
+      {
+        "provider": "groq",
+        "model": "llama-3.3-70b-versatile",
+        "label": "Llama 3.3 70B (Groq) \u2014 fast baseline"
+      }
     ]
   }
 }

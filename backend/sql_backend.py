@@ -128,7 +128,21 @@ def connect(cfg):
         conn_str += f"Encrypt={'yes' if c['encrypt'] else 'no'};"
     if c.get("trust_server_certificate"):
         conn_str += "TrustServerCertificate=yes;"
-    return pyodbc.connect(conn_str, timeout=int(c.get("timeout", 30)))
+    # LOGIN timeout and QUERY timeout are different things, and passing one value for both meant
+    # an unreachable server took the full query timeout (measured: 30.3s) to report itself. That
+    # is useless for the case it matters most in -- telling someone their VPN is down.
+    #
+    # `pyodbc.connect(timeout=...)` sets SQL_ATTR_LOGIN_TIMEOUT, so it bounds the LOGIN. The
+    # per-statement timeout is a property set on the connection afterwards. Measured: the
+    # connection-string `Connect Timeout` keyword is overridden by the kwarg, so it is the kwarg
+    # that has to carry the short value.
+    #
+    # Short login timeout on purpose: an unreachable server is not slow, it is absent, and
+    # waiting longer will not make it appear. The query timeout stays generous -- the reads this
+    # app makes are legitimately heavy on a HEAP table.
+    conn = pyodbc.connect(conn_str, timeout=int(c.get("login_timeout", 5)))
+    conn.timeout = int(c.get("timeout", 30))
+    return conn
 
 
 def conv(v):
@@ -167,6 +181,152 @@ def data(limit: int = Query(0, ge=0, description="Optional TOP N; 0 = all rows")
         cols = [d[0] for d in cur.description]
         rows = [dict(zip(cols, (conv(v) for v in r))) for r in cur.fetchall()]
         return {"columns": cols, "rows": rows, "count": len(rows)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Query failed: {e}")
+    finally:
+        conn.close()
+
+
+# --- Server-side filtering and refresh detection ------------------------------------------
+# `/api/data` above ships the whole table: 114,436 rows, 7.3s, ~82.6 MB, on every page load,
+# and the browser then filters it in JavaScript. The endpoints below let the SERVER do the
+# filtering. Measured on the same instance, the console's default view (flagged rows in the
+# current fiscal year) is 6,264 rows, 55 ms and 3.9 MB -- 27x faster and 21x smaller.
+#
+# `/api/data` is deliberately LEFT IN PLACE. It is what the file-upload-free bulk path and the
+# existing UI still call, and removing it in the same change that adds the replacement would
+# make a regression impossible to bisect.
+
+def _sql_or_503(cfg):
+    """Connect, or fail with a message that says what to do about it.
+
+    A dropped VPN is the common case and it must not look like an application error: the caller
+    needs to be told to reconnect, not shown a stack trace. 503 (not 500) because the service is
+    reachable and the DEPENDENCY is not -- that distinction is what lets the console decide
+    between 'retry' and 'report a bug'.
+    """
+    sql = cfg.get("sql", {})
+    if not sql.get("server") or str(sql.get("server", "")).startswith("YOUR_"):
+        raise HTTPException(status_code=503, detail={
+            "code": "sql_not_configured",
+            "message": "SQL is not configured. Copy backend/config.example.json to "
+                       "backend/config.json and fill in your server details."})
+    try:
+        return connect(cfg)
+    except Exception as e:
+        raise HTTPException(status_code=503, detail={
+            "code": "sql_unreachable",
+            "message": "Cannot reach the database. Connect to the VPN and try again.",
+            "server": sql.get("server"), "database": sql.get("database"),
+            "driver": sql.get("driver"), "error": str(e)})
+
+
+def _freshness(cur, cfg):
+    from wfm import data_freshness
+    sql = cfg.get("sql", {})
+    refresh = sql.get("refresh") or {}
+    probe = data_freshness.probe(cur, sql.get("table", "dbo.Input_To_ML"),
+                                 load_column=refresh.get("load_column"))
+    probe["cadence"] = refresh.get("cadence")
+    probe["describe"] = data_freshness.describe(probe, refresh.get("cadence"))
+    return probe
+
+
+@app.get("/api/data-freshness")
+def data_freshness_endpoint(token: str = Query("", description="The token this client currently holds")):
+    """Has the source data been reloaded since the caller's view was built?
+
+    Cheap by design (~100 ms, aggregates only) so a console can poll it without cost.
+    """
+    from wfm import data_freshness
+    cfg = load_config()
+    conn = _sql_or_503(cfg)
+    try:
+        probe = _freshness(conn.cursor(), cfg)
+        return {"freshness": probe, "compare": data_freshness.compare(token or None, probe)}
+    finally:
+        conn.close()
+
+
+@app.get("/api/rows")
+def rows(week_from: str = Query("", description="Lowest fiscal week to include, e.g. 202701"),
+         week_to: str = Query("", description="Highest fiscal week to include"),
+         flagged_only: int = Query(0, description="1 = only rows whose |adherence| exceeds the band"),
+         band: float = Query(10.0, description="Adherence band in percent, used when flagged_only=1"),
+         region: str = "", subregion: str = "", country: str = "", offering: str = "",
+         channel: str = "", business_org: str = "", forecast_name: str = "",
+         forecaster: str = "", volume_category: str = "",
+         limit: int = Query(5000, ge=1, description="Page size"),
+         offset: int = Query(0, ge=0, description="Rows to skip"),
+         include_total: int = Query(1, description="1 = also return the unpaged row count")):
+    """A filtered, paged slice of the demand table, with adherence computed in SQL.
+
+    Multi-value filters: repeat a value comma-separated, e.g. `region=EMEA,APJ`.
+    """
+    from wfm import row_query as rq
+    cfg = load_config()
+    table = cfg.get("sql", {}).get("table", "dbo.Input_To_ML")
+
+    def multi(v):
+        return [p.strip() for p in str(v).split(",") if p.strip()] if v else None
+
+    filters = {"Region": multi(region), "SubRegion": multi(subregion), "Country": multi(country),
+               "Offering": multi(offering), "channel": multi(channel),
+               "business_org": multi(business_org), "Forecast_name": multi(forecast_name),
+               "Forecaster": multi(forecaster), "Volume_Category": multi(volume_category)}
+    try:
+        where, params = rq.build_where(filters, week_from or None, week_to or None,
+                                       flagged_only=bool(flagged_only), band=band)
+        sql_rows = rq.rows_sql(table, where, limit=limit, offset=offset)
+    except rq.FilterError as e:
+        raise HTTPException(status_code=400, detail={"code": "bad_filter", "message": str(e)})
+
+    conn = _sql_or_503(cfg)
+    try:
+        cur = conn.cursor()
+        out = {"rows": [], "count": 0, "total": None, "limit": limit, "offset": offset}
+        if include_total:
+            cur.execute(rq.count_sql(table, where), params)
+            out["total"] = int((cur.fetchone() or [0])[0] or 0)
+        cur.execute(sql_rows, params)
+        cols = [d[0] for d in cur.description]
+        out["columns"] = cols
+        out["rows"] = [dict(zip(cols, (conv(v) for v in r))) for r in cur.fetchall()]
+        out["count"] = len(out["rows"])
+        out["has_more"] = (out["total"] is not None and offset + out["count"] < out["total"])
+        # Every slice carries the token of the load it came from. A client that later sees a
+        # different token knows its view is stale WITHOUT having to re-fetch the rows to notice.
+        out["freshness"] = _freshness(cur, cfg)
+        return out
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Query failed: {e}")
+    finally:
+        conn.close()
+
+
+@app.get("/api/facets")
+def facets(column: str = Query(..., description="Filter column to enumerate"),
+           week_from: str = "", week_to: str = "",
+           flagged_only: int = 0, band: float = 10.0):
+    """Distinct values (and counts) for one filter column, so the console can build its
+    dropdowns without downloading the table."""
+    from wfm import row_query as rq
+    cfg = load_config()
+    table = cfg.get("sql", {}).get("table", "dbo.Input_To_ML")
+    try:
+        where, params = rq.build_where(None, week_from or None, week_to or None,
+                                       flagged_only=bool(flagged_only), band=band)
+        sql_txt = rq.facets_sql(table, column, where)
+    except rq.FilterError as e:
+        raise HTTPException(status_code=400, detail={"code": "bad_filter", "message": str(e)})
+    conn = _sql_or_503(cfg)
+    try:
+        cur = conn.cursor()
+        cur.execute(sql_txt, params)
+        return {"column": column,
+                "values": [{"value": conv(r[0]), "count": int(r[1] or 0)} for r in cur.fetchall()]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Query failed: {e}")
     finally:
@@ -330,8 +490,17 @@ def rca_summarise(payload: dict,
 
     result = payload.get("result") or payload
     q = result.get("queue") or {}
-    key = "%s|%s|%s" % (q.get("Forecast_name") or "?", q.get("Fiscal_Week") or "?",
-                        summary_prompt.SUMMARY_PROMPT_VERSION)
+    # The data token is PART OF THE KEY, not metadata beside it. Without it this cache is a
+    # correctness bug on a table that is reloaded on a cadence: a queue-week whose actuals are
+    # later restated keeps the same Forecast_name and Fiscal_Week, so the old summary -- written
+    # from figures that no longer exist -- would be served as though it were current. The token
+    # comes from the investigation response the console is holding; when it is absent the key
+    # falls back to today's behaviour rather than refusing to cache.
+    token = (payload.get("data_token")
+             or ((result.get("data_freshness") or {}).get("token"))
+             or "no-token")
+    key = "%s|%s|%s|%s" % (q.get("Forecast_name") or "?", q.get("Fiscal_Week") or "?",
+                           summary_prompt.SUMMARY_PROMPT_VERSION, token)
 
     if not refresh and key in _SUMMARY_CACHE:
         cached = dict(_SUMMARY_CACHE[key])
@@ -416,12 +585,24 @@ def rca_investigate(context_bundle: dict, provider: str = Query("", description=
             "Offering": fields.get("Offering"),
         }
         wfm_context = {}
-        conn = None
+        # CONNECT FAILURE AND FETCH FAILURE ARE NOT THE SAME THING, and conflating them is how a
+        # dropped VPN used to produce a confident-looking RCA built on 13 weeks of posted rows.
+        #
+        #   cannot CONNECT  -> the analysis would be running on a fraction of the evidence and
+        #                      the user can fix it in ten seconds. Refuse, and say how. 503.
+        #   connected, but the FETCH failed -> a schema or permission problem the user cannot
+        #                      fix from the console. Degrade, and state what is missing.
+        conn = _sql_or_503(cfg)
         try:
-            conn = connect(cfg)
-            wfm_context = fetch_wfm_context(conn.cursor(), cfg.get("sql", {}).get("table", "dbo.Input_To_ML"), key)
+            cur = conn.cursor()
+            wfm_context = fetch_wfm_context(cur, cfg.get("sql", {}).get("table", "dbo.Input_To_ML"), key)
+            # Stamp the load this investigation was built from, so a card can later be shown to
+            # predate a refresh instead of quietly disagreeing with the current table.
+            try:
+                wfm_context["data_freshness"] = _freshness(cur, cfg)
+            except Exception as e:                      # never fail an investigation over this
+                wfm_context["data_freshness"] = {"available": False, "error": str(e)}
         except Exception as e:
-            # Not fatal: the WFM engine degrades to the posted bundle and says what is missing.
             wfm_context = {"fetch_error": str(e)}
         finally:
             if conn is not None:
