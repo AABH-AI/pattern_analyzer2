@@ -82,6 +82,27 @@ def load_config():
         sql["encrypt"] = os.environ["SQL_ENCRYPT"].lower() in ("1", "true", "yes")
     if os.environ.get("SQL_TRUST_CERT") is not None:
         sql["trust_server_certificate"] = os.environ["SQL_TRUST_CERT"].lower() in ("1", "true", "yes")
+    # Timeouts and the refresh settings were config-file only, which means a container -- where
+    # there is no config file at all -- could not set them. The code defaults are sane, so this
+    # was a gap rather than a break: the refresh cadence could not be stated and the load column
+    # could not be pointed at, so freshness always fell back to the checksum probe even on an
+    # instance that had the column.
+    for key, env in (("login_timeout", "SQL_LOGIN_TIMEOUT"), ("timeout", "SQL_TIMEOUT")):
+        v = os.environ.get(env)
+        if v not in (None, ""):
+            try:
+                sql[key] = int(v)
+            except ValueError:
+                print(f"[config] {env}={v!r} is not a number; keeping the default.")
+    refresh = dict(sql.get("refresh") or {})
+    for key, env in (("cadence", "SQL_REFRESH_CADENCE"),
+                     ("load_column", "SQL_LOAD_COLUMN"),
+                     ("batch_column", "SQL_BATCH_COLUMN")):
+        v = os.environ.get(env)
+        if v not in (None, ""):
+            refresh[key] = v
+    if refresh:
+        sql["refresh"] = refresh
     if sql:
         cfg["sql"] = sql
     # llm: two named slots (primary = tried first, secondary = fallback), env vars take
@@ -91,21 +112,89 @@ def load_config():
     # provider, not to a fixed slot position — so re-ordering primary/secondary in
     # config.json (e.g. to make NVIDIA the priority provider) doesn't get silently undone
     # by GROQ_API_KEY/NVIDIA_API_KEY env vars assuming the old fixed positions.
+    # Imported here rather than at module scope: `rca_investigate` imports from this module's
+    # package at import time, and hoisting this to the top reintroduces a circular import.
+    from rca_investigate import DEFAULT_MODELS, PROVIDER_ENDPOINTS
+
     llm = dict(cfg.get("llm", {}))
     primary = dict(llm.get("primary", {}))
     secondary = dict(llm.get("secondary", {}))
     slots = {"primary": primary, "secondary": secondary}
 
+    # --- provider-keyed env overrides -------------------------------------------------------
+    # These match a slot BY PROVIDER NAME so that re-ordering primary/secondary in config.json
+    # is not silently undone by an env var assuming a fixed slot position.
+    #
+    # THE BUG THIS ALSO FIXES, and it is why a container deployed fine and had no LLM at all:
+    # matching by provider name requires a slot that ALREADY names that provider, which comes
+    # from config.json -- and config.json is excluded from the image by .dockerignore, on
+    # purpose, because it holds live credentials. So in a container both slots were `{}`,
+    # `slot.get("provider")` was None, NVIDIA_API_KEY and GROQ_API_KEY matched nothing, and the
+    # `if primary:` guard below then discarded the empty dicts. Result: SQL configured
+    # correctly from env, LLM silently absent, /api/health reporting no usable model and every
+    # investigation returning "no LLM provider configured".
+    #
+    # Reproduced by deleting config.json and setting only the env vars the deploy block sets.
+    # A key supplied by the environment for a provider no slot claims now CREATES the slot,
+    # taking the endpoint and model from the provider defaults.
     def _apply_env(provider_name, api_key_env, model_env):
+        key, model = os.environ.get(api_key_env), os.environ.get(model_env)
+        claimed = False
         for slot in slots.values():
             if slot.get("provider") == provider_name:
-                if os.environ.get(api_key_env):
-                    slot["api_key"] = os.environ[api_key_env]
-                if os.environ.get(model_env):
-                    slot["model"] = os.environ[model_env]
+                claimed = True
+                if key:
+                    slot["api_key"] = key
+                if model:
+                    slot["model"] = model
+        if claimed or not key:
+            return
+        # Nobody claims this provider and we have been given a key for it. Fill the first empty
+        # slot, primary before secondary, so a single key configures the primary rather than
+        # landing in a fallback that is never reached.
+        for name in ("primary", "secondary"):
+            if not slots[name].get("provider"):
+                slots[name]["provider"] = provider_name
+                slots[name]["api_key"] = key
+                slots[name]["model"] = model or DEFAULT_MODELS.get(provider_name)
+                slots[name]["endpoint"] = PROVIDER_ENDPOINTS.get(provider_name)
+                return
 
-    _apply_env("groq", "GROQ_API_KEY", "GROQ_MODEL")
+    # ORDER MATTERS when there is no config.json to state a preference: the first provider with
+    # a key claims the primary slot. NVIDIA is first deliberately -- it hosts both models this
+    # app actually uses and has measured headroom, while Groq carries a 100k token/DAY cap and
+    # its slot has been observed failing outright. Checking Groq first (as an earlier version of
+    # this fix did) silently made the capped provider primary in every container deploy.
     _apply_env("nvidia", "NVIDIA_API_KEY", "NVIDIA_MODEL")
+    _apply_env("groq", "GROQ_API_KEY", "GROQ_MODEL")
+    _apply_env("gemini", "GEMINI_API_KEY", "GEMINI_MODEL")
+
+    # --- explicit per-slot env overrides ----------------------------------------------------
+    # LLM_PRIMARY_* / LLM_SECONDARY_* name the slot directly, so a provider can be swapped for
+    # one this build has never heard of. The deployment runbook already documented these four
+    # variables; NOTHING IN THE CODE READ THEM. Anyone following those instructions to move off
+    # NVIDIA would have had them silently ignored and concluded the key was bad.
+    #
+    # Highest precedence: naming a slot outright is a more specific instruction than supplying a
+    # key for a provider. ENDPOINT is optional for the providers in PROVIDER_ENDPOINTS and
+    # REQUIRED for any other, which is checked here rather than failing later inside a call.
+    for name in ("primary", "secondary"):
+        pfx = f"LLM_{name.upper()}_"
+        prov = os.environ.get(pfx + "PROVIDER")
+        if prov:
+            slots[name]["provider"] = prov
+        for field, env in (("model", "MODEL"), ("api_key", "API_KEY"), ("endpoint", "ENDPOINT")):
+            v = os.environ.get(pfx + env)
+            if v:
+                slots[name][field] = v
+        s = slots[name]
+        if s.get("provider") and not s.get("endpoint"):
+            s["endpoint"] = PROVIDER_ENDPOINTS.get(s["provider"])
+        if s.get("provider") and not s.get("model"):
+            s["model"] = DEFAULT_MODELS.get(s["provider"])
+        if s.get("provider") and s.get("api_key") and not s.get("endpoint"):
+            print(f"[config] LLM slot '{name}' provider '{s['provider']}' has no endpoint and is "
+                  f"not a known provider -- set {pfx}ENDPOINT or the slot cannot be called.")
     if primary:
         llm["primary"] = primary
     if secondary:
