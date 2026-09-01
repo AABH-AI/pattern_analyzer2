@@ -21,7 +21,7 @@ fi
 
 # One-time data load (uncomment): python3 backend/upload_excel_to_sql.py   # try --dry-run first
 echo ""
-echo "Starting backend on http://localhost:9000  (Ctrl+C to stop)"
-echo "Open: http://localhost:9000/rca_console.html"
+echo "Starting backend on http://localhost:9400  (Ctrl+C to stop)"
+echo "Open: http://localhost:9400/rca_console.html"
 cd backend
-python3 -m uvicorn sql_backend:app --host 0.0.0.0 --port 9000
+python3 -m uvicorn sql_backend:app --host 0.0.0.0 --port 9400

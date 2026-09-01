@@ -10,7 +10,7 @@
 
 Adapted from the `UI` branch's run.py. Two differences, both deliberate:
 
-PORT 9000, NOT 8000. test3 runs alongside test2, which serves on 8000, and the two are
+PORT 9400, NOT 8000. test3 runs alongside test2, which serves on 8000, and the two are
 byte-identical at the fork -- so a browser tab gives no clue which one answered. A different port is
 the cheapest reliable way to tell them apart, and it removes a real hazard: the port-freeing step
 below KILLS whatever holds the port, so a run.py started here would silently take down the test2
@@ -57,7 +57,7 @@ for _stream in (sys.stdout, sys.stderr):
 ROOT = Path(__file__).resolve().parent
 BACKEND = ROOT / "backend"
 HOLIDAY_JSON = BACKEND / "wfm" / "context_repository" / "holiday_master.json"
-DEFAULT_PORT = 9000
+DEFAULT_PORT = 9400
 
 OK, WARN, BAD = "  [ok]  ", "  [--]  ", "  [!!]  "
 
@@ -78,7 +78,7 @@ def free_port(port):
             return
         for line in out.splitlines():
             parts = line.split()
-            # LISTENING lines look like:  TCP  0.0.0.0:9000  0.0.0.0:0  LISTENING  1234
+            # LISTENING lines look like:  TCP  0.0.0.0:9400  0.0.0.0:0  LISTENING  1234
             if len(parts) >= 5 and parts[1].endswith(f":{port}") and parts[-1].isdigit():
                 pids.add(parts[-1])
         for pid in pids:
@@ -205,7 +205,7 @@ def branch_label():
     """The branch actually checked out here, for the banner.
 
     The banner used to hardcode the branch it was authored on, so every fork announced itself as
-    that branch -- exactly the confusion the 9000 port move is meant to end. Falls back to the
+    that branch -- exactly the confusion the 9400 port move is meant to end. Falls back to the
     folder name when git is unavailable (zip download, Docker build context).
     """
     try:

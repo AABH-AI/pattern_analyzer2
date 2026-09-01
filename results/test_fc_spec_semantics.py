@@ -747,7 +747,7 @@ check("S20-11", "the calculated level and the final level are BOTH shown",
       _panel.get("calculated_level") is not None and _panel.get("final_level") is not None)
 
 # Criticality is separate from confidence and never derived from it (section 30).
-_crit_small = fce.criticality(9000.0, -120.0, 400.0, 1, "1-100")
+_crit_small = fce.criticality(9400.0, -120.0, 400.0, 1, "1-100")
 _crit_big = fce.criticality(300.0, -8.0, 40000.0, 1, "20000+")
 check("S30-1", "a huge gap on a small queue is Critical",
       _crit_small["band"] == "Critical", json.dumps(_crit_small, default=str)[:200])

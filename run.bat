@@ -18,7 +18,7 @@ REM     2. install backend dependencies
 REM     3. ensure backend\config.json exists (copied from the example if missing)
 REM     4. VPN: check Cisco Secure Client, and try to connect if it is down
 REM     5. verify the SQL host is reachable on its port
-REM     6. free port 9000 if something is squatting on it
+REM     6. free port 9400 if something is squatting on it
 REM     7. start the backend and wait for /api/health
 REM     8. optionally run the test suites
 REM     9. open the console in the browser
@@ -148,12 +148,12 @@ if errorlevel 2 (
 
 REM ------------------------------------------------------------- 6. free port
 echo.
-echo [6/9] Port 9000
+echo [6/9] Port 9400
 if defined TESTS_ONLY (
   echo    Leaving the running backend alone ^(--tests-only^)
   goto afterport
 )
-powershell -NoProfile -Command "$c=Get-NetTCPConnection -LocalPort 9000 -State Listen -ErrorAction SilentlyContinue; if($c){ foreach($x in $c){ Write-Host ('   stopping PID '+$x.OwningProcess+' already on :9000'); try{ Stop-Process -Id $x.OwningProcess -Force -ErrorAction Stop }catch{} } Start-Sleep -Milliseconds 1200 } else { Write-Host '   free' }"
+powershell -NoProfile -Command "$c=Get-NetTCPConnection -LocalPort 9400 -State Listen -ErrorAction SilentlyContinue; if($c){ foreach($x in $c){ Write-Host ('   stopping PID '+$x.OwningProcess+' already on :9400'); try{ Stop-Process -Id $x.OwningProcess -Force -ErrorAction Stop }catch{} } Start-Sleep -Milliseconds 1200 } else { Write-Host '   free' }"
 :afterport
 
 REM --------------------------------------------------------- 7. start backend
@@ -162,10 +162,10 @@ if defined TESTS_ONLY (
   echo [7/9] Using the already-running backend
   goto afterstart
 )
-echo [7/9] Starting backend on http://localhost:9000
-start "RCA backend" /min cmd /c "cd /d "%~dp0backend" && python -m uvicorn sql_backend:app --host 0.0.0.0 --port 9000"
+echo [7/9] Starting backend on http://localhost:9400
+start "RCA backend" /min cmd /c "cd /d "%~dp0backend" && python -m uvicorn sql_backend:app --host 0.0.0.0 --port 9400"
 echo    waiting for /api/health ...
-powershell -NoProfile -Command "for($i=0;$i -lt 30;$i++){ try{ $r=Invoke-RestMethod http://localhost:9000/api/health -TimeoutSec 4; Write-Host ('   health: status='+$r.status+' configured='+$r.configured+' table='+$r.table); exit 0 }catch{ Start-Sleep 2 } }; exit 1"
+powershell -NoProfile -Command "for($i=0;$i -lt 30;$i++){ try{ $r=Invoke-RestMethod http://localhost:9400/api/health -TimeoutSec 4; Write-Host ('   health: status='+$r.status+' configured='+$r.configured+' table='+$r.table); exit 0 }catch{ Start-Sleep 2 } }; exit 1"
 if errorlevel 1 (
   echo    ERROR: backend did not answer within ~60s. Check the "RCA backend" window.
   goto fail
@@ -204,13 +204,13 @@ echo [9/9] Console
 if defined SKIP_BROWSER (
   echo    not opening a browser ^(--no-browser^)
 ) else (
-  start "" "http://localhost:9000/rca_console.html"
-  echo    opened http://localhost:9000/rca_console.html
+  start "" "http://localhost:9400/rca_console.html"
+  echo    opened http://localhost:9400/rca_console.html
 )
 
 echo.
 echo ===========================================================================
-echo   Ready.  http://localhost:9000/rca_console.html
+echo   Ready.  http://localhost:9400/rca_console.html
 echo.
 echo   Notes
 echo     * Pick an NVIDIA model in the RCA model picker. Groq is fast but has a

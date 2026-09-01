@@ -238,7 +238,7 @@ to happen.
 | `prompt2` conformance | 16 / 16 OK |
 | `find_holiday_weekend_test_weeks.sql` | 9 / 9 batches, 0 failures |
 
-All exit 0. Running on **http://localhost:9000/rca_console.html**.
+All exit 0. Running on **http://localhost:9400/rca_console.html**.
 
 ---
 

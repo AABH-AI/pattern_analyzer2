@@ -54,9 +54,9 @@ cd backend
 pip install -r requirements.txt
 copy config.example.json config.json          # Windows  (cp on Linux/mac)
 # edit config.json → server, database, table, auth=sql, username, password, driver
-uvicorn sql_backend:app --port 9000
+uvicorn sql_backend:app --port 9400
 ```
-Open **http://localhost:9000/rca_console.html** → **🗄 Connect to SQL Server (AA) → Fetch table**.
+Open **http://localhost:9400/rca_console.html** → **🗄 Connect to SQL Server (AA) → Fetch table**.
 
 `config.json` example (this is **gitignored** — never committed):
 ```json
@@ -93,7 +93,7 @@ See **`DEPLOY.md`** in the repo root. Short version, on a server inside the AA n
 copy backend\.env.example .env      # put SQL_USERNAME / SQL_PASSWORD in .env
 docker compose up -d --build
 ```
-Then anyone on the AA network opens **`http://<server-ip>:9000/rca_console.html`**.
+Then anyone on the AA network opens **`http://<server-ip>:9400/rca_console.html`**.
 `restart: unless-stopped` keeps it running across reboots — no laptop required.
 
 ---
@@ -117,8 +117,8 @@ A `git pull` copies **code only**. It does **not** carry the connection or the n
 5. **ODBC driver missing** (non-Docker). Install ODBC Driver 17/18. Symptom: **driver/data-source error**. (Docker bundles it.)
 6. **Opened the public GitHub Pages page.** That's static — it has no backend, so the SQL button can't work there **by design**. Use the backend URL instead.
 
-Quick self-check: open `http://<host>:9000/api/health`.
-`configured:true` = config is loaded; then `http://<host>:9000/api/data?limit=1` should return one row.
+Quick self-check: open `http://<host>:9400/api/health`.
+`configured:true` = config is loaded; then `http://<host>:9400/api/data?limit=1` should return one row.
 
 ---
 

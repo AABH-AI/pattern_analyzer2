@@ -10,7 +10,7 @@ Quick start:
 - **Docker:** `docker compose up -d --build` (see `DEPLOY.md`)
 - **No install / no SQL:** open `rca_console.html` and use **Upload weekly file**.
 
-Then open **http://localhost:9000/rca_console.html**.
+Then open **http://localhost:9400/rca_console.html**.
 
 Key facts:
 - Front end is one self-contained file (`rca_console.html`) — **no libraries, no CDN, no build**.

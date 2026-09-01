@@ -1,0 +1,304 @@
+# =============================================================================================
+# Demand Pattern RCA Agent -- container build for Azure DevOps.
+#
+# THIS FILE RUNS AS-IS, TODAY, WITH NO AZURE SERVICE CONNECTIONS.
+# It builds the image and proves it works. Pushing and deploying are two clearly marked blocks
+# below that you enable once the connections exist.
+#
+# WHY IT IS SPLIT THAT WAY
+# ------------------------
+# Azure DevOps resolves service-connection names when the run is QUEUED -- before any step
+# executes, and regardless of `condition:`. So a pipeline that merely mentions a connection you
+# have not created yet fails validation with exactly this:
+#
+#     input containerRegistry references service connection rca-acr which could not be found
+#
+# No condition avoids that. The only way to have a pipeline that works before the connections
+# exist is not to name them -- hence `docker build` by script here rather than the Docker@2
+# task, which requires `containerRegistry`.
+#
+# ---------------------------------------------------------------------------------------------
+# STEP 1 -- WHAT TO CREATE IN AZURE DEVOPS
+#
+#   a) Container registry connection
+#      Project settings -> Service connections -> New service connection -> Docker Registry
+#        * Registry type: Azure Container Registry
+#        * choose your subscription and registry
+#        * Service connection name: rca-acr          <-- must match `registryConnection` below
+#        * tick "Grant access permission to all pipelines"
+#
+#   b) Variable group for the secrets
+#      Pipelines -> Library -> + Variable group -> name it `rca-secrets`, add these four and
+#      click the PADLOCK on each so they are masked in logs:
+#
+#        SQL_USERNAME      the SQL login
+#        SQL_PASSWORD      its password
+#        NVIDIA_API_KEY    LLM primary slot
+#        GROQ_API_KEY      LLM secondary slot   <-- the new key goes here when it arrives
+#
+#      Then tick "Allow access to all pipelines". Better still, link the group to Azure Key
+#      Vault so rotation happens in one place and the pipeline keeps no copy of its own.
+#
+#   c) Only if you deploy to an Azure Web App: an ARM service connection, named to match
+#      `azureSubscriptionConnection` below.
+#
+# STEP 2 -- create the `rca-acr` connection, uncomment the PUSH block, run. Nothing to edit.
+# STEP 3 -- uncomment the DEPLOY block only if Azure can reach your SQL host. See the note at
+#           the bottom; for an on-premises SQL server it usually cannot.
+#
+# NO SECRET IS USED AT BUILD TIME. None of the four is needed to build, and a --build-arg would
+# write it into an image layer, readable by anyone who can pull the image. They are supplied at
+# RUN time: `sql_backend.load_config()` prefers environment variables over backend/config.json,
+# so the container is configured entirely by app settings.
+#
+# `.dockerignore` is what keeps backend/config.json -- live SQL credentials and three API keys
+# -- out of the image. The preflight step below refuses to build without it.
+# =============================================================================================
+
+trigger:
+  branches:
+    include:
+      - test3_multiagent
+      - main
+  paths:
+    exclude:                      # docs and evidence cannot change the image
+      - IMP_DOCS/**
+      - results/**
+      - '**/*.md'
+
+pr:
+  branches:
+    include:
+      - main
+
+resources:
+  - repo: self
+
+variables:
+  - name: imageRepository
+    value: 'rca-multiagent'
+  - name: dockerfilePath
+    value: '$(Build.SourcesDirectory)/backend/Dockerfile'
+  - name: buildContext
+    value: '$(Build.SourcesDirectory)'    # MUST be the repo root: the Dockerfile copies the
+                                          # root-level UI file and backend/requirements.txt
+  - name: tag
+    value: '$(Build.BuildId)'
+  - name: vmImageName
+    value: 'ubuntu-latest'
+
+  # ---- fill these in for STEP 2 / STEP 3 ---------------------------------------------------
+  - name: registryConnection
+    value: 'rca-acr'                      # the Docker Registry service connection name
+  # registryLoginServer is intentionally absent: buildAndPush reads it from the service
+  # connection, so there is no hostname to hand-edit and get wrong.
+  - name: azureSubscriptionConnection
+    value: 'rca-azure-subscription'       # ARM connection, deploy only
+  - name: webAppName
+    value: 'rca-multiagent'
+
+stages:
+  - stage: Build
+    displayName: Build and verify the image
+    jobs:
+      - job: Build
+        displayName: Build
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+
+          - script: |
+              set -e
+              echo "Preflight -- the things that silently break this build."
+              test -f backend/Dockerfile       || { echo "##vso[task.logissue type=error]backend/Dockerfile missing"; exit 1; }
+              test -f backend/requirements.txt || { echo "##vso[task.logissue type=error]backend/requirements.txt missing"; exit 1; }
+              test -f agents_console.html      || { echo "##vso[task.logissue type=error]agents_console.html missing -- that is the UI this image serves"; exit 1; }
+              test -f backend/agents/server.py || { echo "##vso[task.logissue type=error]backend/agents/server.py missing -- no multi-agent app to run"; exit 1; }
+              for m in state graph nodes models run_agents; do
+                test -f "backend/agents/$m.py" || { echo "##vso[task.logissue type=error]backend/agents/$m.py missing"; exit 1; }
+              done
+              test -f WORKFLOW.md              || echo "##vso[task.logissue type=warning]WORKFLOW.md absent"
+              test -f rca_console.html         || echo "##vso[task.logissue type=warning]rca_console.html absent -- the original engine UI would 404"
+              test -f .dockerignore            || { echo "##vso[task.logissue type=error].dockerignore missing -- refusing to build. It is what keeps backend/config.json out of the image."; exit 1; }
+              test -f backend/wfm/context_repository/holiday_master.json \
+                || echo "##vso[task.logissue type=warning]holiday_master.json absent -- holiday reasoning will report unavailable"
+              # config.json AND every backup of it. The backup that sits on the development
+              # machine carries the SQL password and three live API keys, and is not covered by
+              # a rule that names config.json exactly.
+              # .example / .sample / .template files are deliberate placeholders with empty
+              # values and must not fail the build; everything else named like a config is a
+              # real credentials file and must never be tracked.
+              leaked=$(git ls-files \n                | grep -E '(^|/)config([.][^/]*)?[.]json([.].*)?$' \n                | grep -vE '[.](example|sample|template|dist)[.]json$' || true)
+              if [ -n "$leaked" ]; then
+                echo "##vso[task.logissue type=error]a credentials file is TRACKED IN GIT:"
+                echo "$leaked"
+                exit 1
+              fi
+              echo "  no credentials file tracked in git"
+              if git grep -nE 'gsk_[A-Za-z0-9]{20}|nvapi-[A-Za-z0-9_-]{20}' -- . >/dev/null 2>&1; then
+                echo "##vso[task.logissue type=error]an API key literal is committed. Rotate it, then remove it."
+                exit 1
+              fi
+              echo "  no API key literals committed"
+              echo "OK"
+            displayName: 'Preflight: required files, no committed secrets'
+
+          # Plain docker build: needs no service connection, so this pipeline is valid before
+          # you have created one.
+          - script: |
+              set -e
+              docker build \
+                -f "$(dockerfilePath)" \
+                -t "$(imageRepository):$(tag)" \
+                -t "$(imageRepository):latest" \
+                "$(buildContext)"
+              echo ""
+              docker images "$(imageRepository)" --format '  {{.Repository}}:{{.Tag}}  {{.Size}}'
+            displayName: 'Build image'
+
+          - script: |
+              set -e
+              IMAGE="$(imageRepository):$(tag)"
+              echo "Starting $IMAGE with no SQL and no API keys -- /api/health must still answer."
+              echo "The database is unreachable from a hosted agent, and that is the point: the"
+              echo "app must come up and report the problem rather than crash on import."
+              docker run -d --name rca_smoke -p 9402:9402 "$IMAGE"
+              for i in $(seq 1 30); do
+                curl -fsS --max-time 3 http://127.0.0.1:9402/api/health >/dev/null 2>&1 && { echo "health answered after ${i}s"; break; }
+                sleep 1
+              done
+              curl -fsS --max-time 10 http://127.0.0.1:9402/api/health || {
+                echo "##vso[task.logissue type=error]/api/health never answered"
+                docker logs rca_smoke || true; exit 1; }
+              echo ""
+              echo "ODBC driver present in the image?"
+              docker exec rca_smoke sh -lc 'odbcinst -q -d' || {
+                echo "##vso[task.logissue type=error]no ODBC driver registered -- pyodbc cannot reach SQL Server"; exit 1; }
+              echo ""
+              echo "No secrets baked in?"
+              if docker exec rca_smoke sh -lc 'test -f /app/backend/config.json'; then
+                echo "##vso[task.logissue type=error]backend/config.json IS IN THE IMAGE. Check .dockerignore."; exit 1; fi
+              echo "  backend/config.json absent -- correct"
+              if docker exec rca_smoke sh -lc 'ls /app/backend/config.json.* >/dev/null 2>&1'; then
+                echo "##vso[task.logissue type=error]a config.json BACKUP is in the image. Check .dockerignore."; exit 1; fi
+              echo "  config.json backups absent -- correct"
+              docker exec rca_smoke sh -lc 'test ! -d /app/results' \
+                && echo "  results/ absent -- correct" \
+                || echo "##vso[task.logissue type=warning]results/ was copied in; that is 71 MB of test evidence"
+              echo ""
+              echo "UI served?"
+              curl -fsS --max-time 10 -o /dev/null -w '  multi-agent console at / -> HTTP %{http_code}\n' \
+                http://127.0.0.1:9402/
+              echo ""
+              echo "Endpoints registered? Each may fail honestly without a database, but none"
+              echo "of them may 404 -- a 404 means the route was never wired up."
+              for ep in /api/health /api/models /api/sources; do
+                code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "http://127.0.0.1:9402$ep")
+                echo "  $ep -> HTTP $code"
+                if [ "$code" = "404" ]; then
+                  echo "##vso[task.logissue type=error]$ep is not registered"; exit 1
+                fi
+              done
+            displayName: 'Smoke test: starts, ODBC installed, no secrets, UI served'
+
+          - script: docker rm -f rca_smoke || true
+            displayName: 'Tear down smoke container'
+            condition: always()
+
+          # =====================================================================================
+          # STEP 2 -- PUSH TO THE REGISTRY
+          #
+          # TO ENABLE: create the Docker Registry service connection named `rca-acr` in
+          # Project settings -> Service connections, then delete the leading "# " from the
+          # nine lines below. Nothing else. You do NOT need to know the registry login
+          # server -- buildAndPush resolves it from the service connection, which is why this
+          # is one task rather than a tag-and-push script you would have to hand-edit.
+          #
+          # It rebuilds, but every layer is already in the agent's cache from the Build step
+          # above, so it costs seconds.
+          #
+          # Until it is enabled the pipeline still builds and smoke-tests on every commit,
+          # which is worth having on its own.
+          # =====================================================================================
+          # - task: Docker@2
+          #   displayName: 'Build and push to the registry'
+          #   inputs:
+          #     command: buildAndPush
+          #     containerRegistry: rca-acr
+          #     repository: rca-multiagent
+          #     dockerfile: backend/Dockerfile
+          #     buildContext: .
+          #     tags: |
+          #       $(tag)
+          #       latest
+
+# =============================================================================================
+# STEP 3 -- DEPLOY. Uncomment only when the ARM connection exists AND Azure can reach your SQL
+# host. THE SECRETS LIVE HERE, NOT IN THE BUILD: they become container app settings, present
+# only in the running container's environment.
+#
+#  - stage: Deploy
+#    displayName: Deploy
+#    dependsOn: Build
+#    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+#    variables:
+#      - group: rca-secrets          # SQL_USERNAME, SQL_PASSWORD, NVIDIA_API_KEY, GROQ_API_KEY
+#    jobs:
+#      - deployment: DeployWebApp
+#        environment: 'rca-production'
+#        pool:
+#          vmImage: 'ubuntu-latest'
+#        strategy:
+#          runOnce:
+#            deploy:
+#              steps:
+#                - task: AzureWebAppContainer@1
+#                  inputs:
+#                    azureSubscription: $(azureSubscriptionConnection)
+#                    appName: $(webAppName)
+#                    # replace <registry> with your ACR login server, e.g. aarcaagent.azurecr.io
+#                    containers: '<registry>.azurecr.io/rca-agent:$(tag)'
+#                    appSettings: >-
+#                      -WEBSITES_PORT 9000
+#                      -SQL_SERVER "10.10.9.75"
+#                      -SQL_DATABASE "Playground"
+#                      -SQL_TABLE "dbo.Input_To_ML_Full_138_Trimmed"
+#                      -SQL_AUTH "sql"
+#                      -SQL_DRIVER "ODBC Driver 18 for SQL Server"
+#                      -SQL_ENCRYPT "false"
+#                      -SQL_TRUST_CERT "true"
+#                      -SQL_USERNAME "$(SQL_USERNAME)"
+#                      -SQL_PASSWORD "$(SQL_PASSWORD)"
+#                      -NVIDIA_API_KEY "$(NVIDIA_API_KEY)"
+#                      -GROQ_API_KEY "$(GROQ_API_KEY)"
+#
+# ROTATING A KEY NEEDS NO PIPELINE RUN. App settings are runtime environment variables: change
+# the value in the variable group (or on the Web App), restart, done. No rebuild, no new image,
+# no code change. Confirm it landed with /api/health -> llm[].usable.
+#
+# SWAPPING PROVIDER ENTIRELY -- add these and they override whatever the slot named before:
+#   -LLM_SECONDARY_PROVIDER "openai"
+#   -LLM_SECONDARY_MODEL    "gpt-4o"
+#   -LLM_SECONDARY_API_KEY  "$(OPENAI_API_KEY)"
+#   -LLM_SECONDARY_ENDPOINT "https://api.openai.com/v1/chat/completions"
+# ENDPOINT is optional for groq / nvidia / gemini and REQUIRED for anything else.
+# =============================================================================================
+#
+# NETWORK REACHABILITY -- the most likely reason a green deploy still fails
+#
+# SQL here is 10.10.9.75 on the internal AA network. An Azure Web App cannot see that without
+# VNet integration or a private endpoint: the build passes, the deploy passes, /api/health says
+# ok, and every query fails. If SQL is on-premises only, run the image on a host inside that
+# network instead:
+#
+#     # on the internal server, next to docker-compose.yml
+#     printf 'SQL_USERNAME=...\nSQL_PASSWORD=...\nNVIDIA_API_KEY=...\nGROQ_API_KEY=...\n' > .env
+#     chmod 600 .env
+#     docker compose pull && docker compose up -d
+#
+# docker-compose.yml already reads exactly those four, and .env is gitignored.
+#
+# AFTER ANY DEPLOY, check both -- a green health check only proves the process started:
+#     curl http://<host>:9000/api/health        # configured:true, and llm[].usable
+#     open http://<host>:9000/rca_console.html  # then run one investigation end to end
+# =============================================================================================

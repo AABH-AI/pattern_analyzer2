@@ -10,7 +10,7 @@ of the whole thing.
 |---|---|
 | Branch | `test3`, forked from `test2` at `5b1cdf7` |
 | Worktree | `…/rca patternz/test3` — separate folder, so `test2` was never disturbed |
-| Port | **9000** (`test2` keeps 8000) |
+| Port | **9400** (`test2` keeps 8000) |
 | Code changed | **1,517 insertions / 115 deletions** across 11 files |
 | Suites | 12/12 · 189/189 · 148/148 · 18 cards · 28/28 render — all exit 0 |
 | Confidence invariant | SA Indonesia FW202716 `Medium 60.5%` / `Moderate` — **unmoved from first edit to last** |
@@ -32,7 +32,7 @@ reappear on a merge: `EXECUTIVE_BRIEFING.md`, `PROJECT_DEEP_DIVE.md`, `check_pla
 Two gitignored runtime files were copied by hand because git cannot carry them: `backend/config.json`
 and `backend/.env`.
 
-**The port moved to 9000** across 16 files — `run.py`, the four launchers, `docker-compose.yml`,
+**The port moved to 9400** across 16 files — `run.py`, the four launchers, `docker-compose.yml`,
 `Dockerfile`, `sql_backend.py`, `rca_console.html` including its four `file://` API fallbacks, two
 `results/` scripts, and six instructional docs. All together, because the UI branch changed this port
 once before and then needed a follow-up commit to chase the references it had orphaned.
@@ -45,7 +45,7 @@ substitution would have corrupted a test fixture.
 `run.py`'s banner now reads the live branch from git instead of hardcoding the one it was written on:
 
 ```
-Demand Pattern RCA Console - test3   (port 9000)
+Demand Pattern RCA Console - test3   (port 9400)
 ```
 
 **Why the port move was needed at all:** `run.py` frees its port by *killing whatever holds it*. Run
@@ -299,7 +299,7 @@ python results/audit_prompt2_conformance.py
 node   results/check_prompt2_render.js <live-response.json>
 ```
 
-End-to-end through HTTP on 9000 with a real narrative: `status=Complete`, card 2.1.0, 18 sections,
+End-to-end through HTTP on 9400 with a real narrative: `status=Complete`, card 2.1.0, 18 sections,
 confidence `Medium 60.5%`, criticality `Moderate`.
 
 ---
@@ -348,4 +348,4 @@ confidence `Medium 60.5%`, criticality `Moderate`.
 `AGENTS.md`, `CLAUDE.md`, `DEPLOY.md`, `backend/README.md`, `results/README.md`,
 `IMP_DOCS/installation-and-connection.md`, `results/run_validation.py`, `results/run_llm_ranking.py`.
 
-**Running now:** http://localhost:9000/rca_console.html — hard-refresh, the HTML is served from disk.
+**Running now:** http://localhost:9400/rca_console.html — hard-refresh, the HTML is served from disk.

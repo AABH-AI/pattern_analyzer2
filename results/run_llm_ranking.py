@@ -42,7 +42,7 @@ from sql_backend import connect, load_config                      # noqa: E402
 from wfm import skeptic                                           # noqa: E402
 from wfm.common import confidence_level                           # noqa: E402
 
-BASE = "http://localhost:9000"
+BASE = "http://localhost:9400"
 BAND = 10.0
 PROVIDER = "nvidia"
 MODEL = "nvidia/nemotron-3-super-120b-a12b"

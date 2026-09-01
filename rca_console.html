@@ -833,7 +833,7 @@
     <div class="sqlf"><label>Server</label><input id="sqlSrv" value="10.10.9.75"></div>
     <div class="sqlf"><label>Database</label><input id="sqlDb" value="Playground"></div>
     <div class="sqlf"><label>Table / view</label><input id="sqlTbl" value="dbo.Input_To_ML"></div>
-    <div class="sqlnote">🔌 <b>Live:</b> click <b>Fetch table</b> to query SQL Server through the local backend (<code>/api/data</code>) and run the pipeline — no upload. Connection is set in <code>backend/config.json</code>; start it with <code>uvicorn sql_backend:app --port 9000</code>.</div>
+    <div class="sqlnote">🔌 <b>Live:</b> click <b>Fetch table</b> to query SQL Server through the local backend (<code>/api/data</code>) and run the pipeline — no upload. Connection is set in <code>backend/config.json</code>; start it with <code>uvicorn sql_backend:app --port 9400</code>.</div>
     <button class="mclose" style="float:none" onclick="sqlFetch()">⇩ Fetch table &amp; run pipeline</button>
     <button class="filebtn ghost" style="margin-left:8px" onclick="closeSQL()">Cancel</button>
   </div>
@@ -940,7 +940,7 @@ async function loadCqnMappingFromSql(apiBase){
 // Live: pull the weekly table from the local FastAPI backend (/api/data), which queries SQL Server.
 async function sqlFetch(){
   closeSQL();
-  const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:9000':'';
+  const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:9400':'';
   window.SRC='sql';
   const fs=document.getElementById('fileStatus');
   if(fs) fs.textContent='Querying SQL Server (AA) …';
@@ -971,7 +971,7 @@ async function sqlFetch(){
   }catch(e){
     hideIngest();
     if(fs) fs.textContent='SQL error: '+e.message; renderPipe({source:'sql'});
-    alert('Connect to SQL Server failed: '+e.message+'\n\nStart the local backend first:\n  cd backend\n  uvicorn sql_backend:app --port 9000\n\n(connection is configured in backend/config.json)');
+    alert('Connect to SQL Server failed: '+e.message+'\n\nStart the local backend first:\n  cd backend\n  uvicorn sql_backend:app --port 9400\n\n(connection is configured in backend/config.json)');
   }
 }
 function pstage(cls,icon,title,val){ return `<div class="pstage ${cls}"><div class="pi">${icon}</div><div class="pt">${title}</div><div class="pv">${val}</div></div>`; }
@@ -1719,7 +1719,7 @@ function hydrateSqlRow(raw){
 async function aggregateData(r){
   if(window.SRC==='sql'){
     try{
-      const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:9000':'';
+      const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:9400':'';
       const qs=new URLSearchParams({forecast_name:r.Forecast_name||'', fiscal_week:r._wk||'',
         region:r.Region||'', subregion:r.SubRegion||'', country:r.Country||'', channel:r.channel||'',
         history_cap:RCA_HISTORY_CAP, peers_cap:RCA_PEERS_CAP});
@@ -1813,7 +1813,7 @@ async function buildContext(r){
    has to sit in this file. Until a provider is configured there, the backend returns an
    honest placeholder — this caller does not fabricate anything if the call fails either. ---- */
 async function callInvestigationEngine(contextBundle){
-  const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:9000':'';
+  const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:9400':'';
   // Engine selector. 'wfm' is the existing default and is unchanged; 'spec' runs the
   // FC_RCA v2.0.0 canonical 15-step engine, which returns a Decision Card. Both are live
   // so the same queue can be investigated each way and the outputs compared.
@@ -1835,7 +1835,7 @@ window.RCA_MODELS = window.RCA_MODELS || [];
 window.RCA_MODEL = window.RCA_MODEL || null;
 async function loadRcaModels(){
   try{
-    const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:9000':'';
+    const API_BASE=(typeof location!=='undefined' && location.protocol==='file:')?'http://localhost:9400':'';
     const resp=await fetch(API_BASE+'/api/models'); if(!resp.ok) return;
     const data=await resp.json();
     window.RCA_MODELS=data.models||[];
@@ -2316,7 +2316,7 @@ function showCardTab(id){
    they do not have is risk without benefit. ---- */
 function rcaApiBase(){
   return (typeof location !== 'undefined' && location.protocol === 'file:')
-    ? 'http://localhost:9000' : '';
+    ? 'http://localhost:9400' : '';
 }
 
 function cardSummaryBlock(){
@@ -3560,7 +3560,7 @@ async function triggerRCA(i, force){
     state.investigate='done'; paint();
   }catch(e){
     state.investigate='error'; paint();
-    body.innerHTML=`<div class="inv-empty">Investigation call failed: ${invEsc(e.message)}<br>Start the local backend first:<br><code>cd backend &amp;&amp; uvicorn sql_backend:app --port 9000</code></div>`;
+    body.innerHTML=`<div class="inv-empty">Investigation call failed: ${invEsc(e.message)}<br>Start the local backend first:<br><code>cd backend &amp;&amp; uvicorn sql_backend:app --port 9400</code></div>`;
     return;
   }
 

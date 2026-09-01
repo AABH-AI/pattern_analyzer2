@@ -36,10 +36,10 @@ python upload_excel_to_sql.py               # create table + bulk insert (~139k 
 
 ## 4. Run the connector
 ```bash
-uvicorn sql_backend:app --port 9000
+uvicorn sql_backend:app --port 9400
 ```
-Open **http://localhost:9000/rca_console.html** → click **🗄 Connect to SQL Server**.
-(You can also open the .html file directly; CORS is open so it still reaches localhost:9000.)
+Open **http://localhost:9400/rca_console.html** → click **🗄 Connect to SQL Server**.
+(You can also open the .html file directly; CORS is open so it still reaches localhost:9400.)
 
 ## Endpoints
 - `GET /api/health` → `{status, configured, table}`

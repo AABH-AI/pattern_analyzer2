@@ -30,36 +30,124 @@ run-up that fall in the PREVIOUS fiscal week. At weekly grain a +/-3 day window 
 reaches one week either side, which is why the lookup checks the neighbouring weeks and
 labels how the holiday reaches the target week.
 
-NO RUNTIME DEPENDENCY
----------------------
-Reads a JSON extract produced by `backend/load_holiday_master.py`. The workbook itself is
-gitignored (`*.xlsx`) and parsing 12,197 rows per request would be wasteful; the extract
-is standard-library JSON and travels with the code.
+TWO SOURCES, ONE SHAPE
+----------------------
+By default this reads a JSON extract produced by `backend/load_holiday_master.py` -- the
+workbook is gitignored (`*.xlsx`) and parsing 12,197 rows per request would be wasteful, so
+the extract travels with the code and needs no driver installed.
+
+`use_sql(cursor)` switches the source to the published tables instead, via
+`holiday_sql.build()`. The structure is identical either way, so every function below is
+unchanged and holiday behaviour cannot drift between the two. Nothing calls `use_sql`
+implicitly: the source only changes when a caller asks, which is why turning SQL on cannot
+alter an existing run by accident.
+
+The cache is process-level on purpose. An in-process dict lookup costs nothing, while a
+round trip to the server on every investigation would add latency to every request for data
+that changes weekly at most. `refresh()` drops it; `configured_source()` reports which
+source is live.
 
 DEGRADES HONESTLY
 -----------------
 If the extract is absent the repository reports `available: False` with the reason. Per
 BR-202 a context element that is not deployed is NotApplicable and carries NO confidence
-penalty -- it must never look like a holiday was checked for and not found.
+penalty -- it must never look like a holiday was checked for and not found. A failed SQL
+load behaves the same way and, if a JSON extract is present, falls back to it rather than
+losing holiday reasoning entirely.
 """
 import json
 from pathlib import Path
 
 _DATA_PATH = Path(__file__).resolve().parent / "holiday_master.json"
 _CACHE = None
+_SOURCE = None          # "sql" | "json" | None until first load
+_SQL_CURSOR = None      # set by use_sql(); the caller owns the connection
+
+
+def use_sql(cursor_or_factory):
+    """Serve holidays from SQL from now on. Returns the same dict `loaded()` does.
+
+    Accepts either a live cursor or, preferably, a **zero-argument callable returning a fresh
+    cursor**. The backend opens a connection per request, so a cursor cached at startup would
+    be dead by the second investigation -- a factory is opened on demand and cannot go stale.
+
+    The caller owns the connection either way; this package never opens one, matching the
+    convention in `wfm/data_access.py`. Passing None reverts to the JSON extract.
+    """
+    global _SQL_CURSOR, _CACHE, _SOURCE
+    _SQL_CURSOR = cursor_or_factory
+    _CACHE = None
+    _SOURCE = None
+    _load()
+    return loaded()
+
+
+def _cursor():
+    """A usable cursor from whatever `use_sql` was given, or None."""
+    src = _SQL_CURSOR
+    if src is None:
+        return None
+    if callable(src) and not hasattr(src, "execute"):
+        return src()
+    return src
+
+
+def refresh():
+    """Drop the cache so the next lookup re-reads the current source.
+
+    For the weekly reload: the data changes, this is called, and nothing else has to be
+    told anything. No fiscal week is configured anywhere.
+    """
+    global _CACHE, _SOURCE
+    _CACHE = None
+    _SOURCE = None
+    return _load() is not None
+
+
+def configured_source():
+    """"sql", "json", or None if nothing has loaded yet. For diagnostics and the UI."""
+    return _SOURCE
+
+
+def _load_from_sql():
+    from . import holiday_sql
+    cur = _cursor()
+    if cur is None:
+        raise RuntimeError("no SQL cursor available")
+    return holiday_sql.build(cur)
+
+
+def _load_from_json():
+    if not _DATA_PATH.exists():
+        return {"_error": ("holiday master extract not built -- run "
+                           "`python backend/load_holiday_master.py`")}
+    try:
+        return json.loads(_DATA_PATH.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {"_error": f"holiday master could not be read: {exc}"}
 
 
 def _load():
-    global _CACHE
-    if _CACHE is None:
-        if _DATA_PATH.exists():
-            try:
-                _CACHE = json.loads(_DATA_PATH.read_text(encoding="utf-8"))
-            except Exception as exc:
-                _CACHE = {"_error": f"holiday master could not be read: {exc}"}
-        else:
-            _CACHE = {"_error": ("holiday master extract not built -- run "
-                                 "`python backend/load_holiday_master.py`")}
+    global _CACHE, _SOURCE
+    if _CACHE is not None:
+        return _CACHE
+    if _SQL_CURSOR is not None:
+        try:
+            _CACHE, _SOURCE = _load_from_sql(), "sql"
+            return _CACHE
+        except Exception as exc:
+            # Fall through to the extract rather than lose holiday reasoning outright. The
+            # reason is carried so a failed switch is visible instead of looking like the
+            # calendar was simply never deployed.
+            fallback = _load_from_json()
+            if "_error" in fallback:
+                _CACHE = {"_error": f"holiday master could not be read from SQL: {exc}"}
+                _SOURCE = None
+            else:
+                fallback["_sql_error"] = str(exc)
+                _CACHE, _SOURCE = fallback, "json"
+            return _CACHE
+    _CACHE, _SOURCE = _load_from_json(), "json"
     return _CACHE
 
 
@@ -75,11 +163,18 @@ def semantic_group_names():
 
 def loaded():
     d = _load()
-    return {"available": "_error" not in d,
-            "reason": d.get("_error"),
-            "active_rows": d.get("active_rows"),
-            "country_weeks": d.get("country_weeks"),
-            "source": d.get("source")}
+    out = {"available": "_error" not in d,
+           "reason": d.get("_error"),
+           "active_rows": d.get("active_rows"),
+           "country_weeks": d.get("country_weeks"),
+           "source": d.get("source"),
+           "served_from": _SOURCE}
+    # A SQL switch that silently fell back to the extract is a thing an operator must see.
+    if d.get("_sql_error"):
+        out["sql_error"] = d["_sql_error"]
+    if d.get("_parity_gaps"):
+        out["parity_gaps"] = d["_parity_gaps"]
+    return out
 
 
 def _norm_country(c):

@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Multi-agent RCA</title>
+<style>
+:root{
+  --ink:#131a23; --body:#3b4757; --muted:#71809a; --faint:#96a3b7;
+  --page:#f5f7f9; --card:#fff; --rule:#e2e7ee; --rule2:#eef1f5; --sunk:#fafbfc;
+  --teal:#1c7663; --teal-bg:#ecf7f3; --teal-line:#a4d4c7;
+  --amber:#a9691a; --amber-bg:#fdf5e8; --amber-line:#e6c894;
+  --red:#a03f39; --red-bg:#fbeeed; --red-line:#e5bcb9;
+  --blue:#2a5f96; --blue-bg:#eef4fa; --blue-line:#b6cee5;
+  --violet:#5b4a9e; --violet-bg:#f1eff9; --violet-line:#c4bce4;
+  --sans:"Segoe UI",Roboto,-apple-system,Arial,sans-serif;
+  --mono:"Cascadia Mono",Consolas,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--body);font:14.5px/1.6 var(--sans)}
+.wrap{max-width:1180px;margin:0 auto;padding:0 22px 70px}
+h1{font:640 22px/1.2 var(--sans);color:var(--ink);margin:0}
+h2{font:640 13px/1 var(--sans);color:var(--ink);margin:0;letter-spacing:.02em}
+header{background:var(--card);border-bottom:1px solid var(--rule);margin-bottom:18px}
+header .wrap{padding:20px 22px 18px}
+.sub{font-size:13.5px;color:var(--muted);margin-top:6px;max-width:76ch}
+.pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
+.pill{font:600 11px/1 var(--mono);padding:5px 8px;border-radius:3px;border:1px solid}
+.p-ok{background:var(--teal-bg);color:var(--teal);border-color:var(--teal-line)}
+.p-no{background:var(--red-bg);color:var(--red);border-color:var(--red-line)}
+.p-inf{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-line)}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:6px;padding:16px 18px;
+  margin-bottom:14px}
+label{font:600 10.5px/1 var(--sans);letter-spacing:.09em;text-transform:uppercase;
+  color:var(--muted);display:block;margin-bottom:5px}
+select,input{font:13px var(--mono);padding:7px 9px;border:1px solid var(--rule);
+  border-radius:4px;background:var(--card);color:var(--ink);width:100%}
+button{font:600 13px var(--sans);padding:9px 16px;border-radius:4px;border:1px solid var(--rule);
+  background:var(--card);color:var(--ink);cursor:pointer}
+button.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+button:disabled{opacity:.5;cursor:default}
+.grid{display:grid;gap:12px}
+.g-form{grid-template-columns:2.4fr 1fr auto}
+.g-models{grid-template-columns:repeat(4,1fr)}
+.g-stats{grid-template-columns:repeat(5,1fr)}
+.g-pair{grid-template-columns:1fr 1fr}
+@media(max-width:900px){.g-form,.g-models,.g-stats,.g-pair{grid-template-columns:1fr}}
+.stat{background:var(--card);border:1px solid var(--rule);border-radius:6px;padding:12px 14px}
+.stat .k{font:600 9.5px/1.3 var(--sans);letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:7px}
+.stat .v{font:640 21px/1 var(--mono);color:var(--ink)}
+.stat .s{font-size:11px;color:var(--faint);margin-top:5px}
+.stat.good .v{color:var(--teal)} .stat.warn .v{color:var(--amber)} .stat.bad .v{color:var(--red)}
+.agent{border-left:3px solid var(--rule);padding-left:14px;margin-bottom:14px}
+.agent.an{border-left-color:var(--blue)} .agent.ch{border-left-color:var(--amber)}
+.agent.ed{border-left-color:var(--teal)} .agent.ju{border-left-color:var(--violet)}
+.agent .who{font:600 10.5px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;
+  margin-bottom:7px}
+.agent.an .who{color:var(--blue)} .agent.ch .who{color:var(--amber)}
+.agent.ed .who{color:var(--teal)} .agent.ju .who{color:var(--violet)}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:5px 12px;font-size:13.3px}
+.kv .k{color:var(--muted);font-size:12px}
+.kv .v b{color:var(--ink)}
+dl.rep{margin:0}
+dl.rep dt{font:640 10px/1 var(--mono);letter-spacing:.08em;color:var(--teal);margin:12px 0 4px}
+dl.rep dt:first-child{margin-top:0}
+dl.rep dd{margin:0;font-size:13.5px}
+table{width:100%;border-collapse:collapse;font-size:12.8px}
+th{text-align:left;font:600 10px/1.3 var(--sans);letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);padding:0 8px 7px;border-bottom:1px solid var(--rule)}
+td{padding:8px;border-bottom:1px solid var(--rule2);vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+td.n{text-align:right;font-family:var(--mono);white-space:nowrap}
+.vpass{color:var(--teal);font-weight:600} .vfail{color:var(--red);font-weight:600}
+pre{margin:0;background:var(--sunk);border:1px solid var(--rule);border-radius:5px;
+  padding:12px 14px;overflow-x:auto;font:11.8px/1.6 var(--mono);color:#2d3846;max-height:280px}
+.note{font-size:12px;color:var(--faint)}
+.msg{border-radius:5px;padding:12px 15px;font-size:13.5px;border:1px solid;margin-bottom:14px}
+.m-warn{background:var(--amber-bg);border-color:var(--amber-line);color:#6a4512}
+.m-err{background:var(--red-bg);border-color:var(--red-line);color:#79302b}
+.m-ok{background:var(--teal-bg);border-color:var(--teal-line);color:#14513f}
+.g-filters{grid-template-columns:repeat(5,1fr)}
+@media(max-width:1000px){.g-filters{grid-template-columns:repeat(2,1fr)}}
+.fw{font:12px var(--mono)}
+#results{max-height:270px;overflow-y:auto;border:1px solid var(--rule);border-radius:5px}
+#results table{font-size:12.3px}
+#results tbody tr{cursor:pointer}
+#results tbody tr:hover{background:var(--sunk)}
+#results tbody tr.sel{background:var(--blue-bg)}
+.chart{background:var(--card);border:1px solid var(--rule);border-radius:6px;padding:14px 16px}
+.chart h3{font:640 12px/1 var(--sans);color:var(--ink);margin:0 0 3px}
+.chart .cs{font-size:11.5px;color:var(--faint);margin-bottom:10px}
+svg{display:block;width:100%;height:auto;overflow:visible}
+.gl{stroke:var(--rule2);stroke-width:1}
+.zl{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3}
+.ax{font:10px var(--mono);fill:var(--faint)}
+.lg{font:10.5px var(--sans);fill:var(--body)}
+.chips{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:9px}
+.chip{font:600 10.5px/1 var(--mono);padding:4px 7px;border-radius:3px;border:1px solid var(--rule);
+  background:var(--sunk);color:var(--muted);cursor:pointer}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+#out{display:none}
+.spin{display:inline-block;width:11px;height:11px;border:2px solid var(--rule);
+  border-top-color:var(--ink);border-radius:50%;animation:s .7s linear infinite;
+  vertical-align:-1px;margin-right:6px}
+@keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<header><div class="wrap">
+  <h1>Multi-agent RCA</h1>
+  <p class="sub">Analyst states the mechanism · Challenger tries to falsify it from the same
+  evidence · Editor reconciles both inside a 200-word budget · Judge scores against a rubric and
+  may force one revision. Every figure is computed deterministically first — the agents only
+  write prose around numbers they were handed.</p>
+  <div class="pills" id="pills"></div>
+</div></header>
+
+<div class="wrap">
+  <div id="msg"></div>
+
+  <div class="card">
+    <label>Filters — every dimension the source table carries. Choices narrow as you pick.</label>
+    <div class="grid g-filters" id="filterbox" style="margin-bottom:12px"></div>
+    <div class="grid g-form" style="grid-template-columns:1fr 1fr 1fr auto;margin-bottom:12px">
+      <div><label for="minfc">Min forecast</label>
+        <input id="minfc" type="number" min="0" step="500" value="3000"></div>
+      <div><label for="minadh">Min |adherence| %</label>
+        <input id="minadh" type="number" min="0" max="100" step="5" value="25"></div>
+      <div><label for="lim">Max results</label>
+        <input id="lim" type="number" min="5" max="300" step="5" value="50"></div>
+      <div style="display:flex;align-items:flex-end"><button id="find">Find cases</button></div>
+    </div>
+    <div id="results"><p class="note" style="padding:12px">Press <b>Find cases</b>.</p></div>
+    <p class="note" id="rescount" style="margin:8px 0 0"></p>
+  </div>
+
+  <div class="card">
+    <div class="grid g-form">
+      <div>
+        <label for="case">Selected case — click a row above, or choose here</label>
+        <select id="case"><option value="">no case selected</option></select>
+      </div>
+      <div>
+        <label for="key">Groq key (optional)</label>
+        <input id="key" type="password" placeholder="leave blank to use the server's"
+               autocomplete="off">
+      </div>
+      <div style="display:flex;align-items:flex-end">
+        <button id="go" class="primary">Run agents</button>
+      </div>
+    </div>
+    <div style="margin-top:14px">
+      <label>Model per role — switch any of them</label>
+      <div class="grid g-models">
+        <div><span class="note">Analyst</span><select id="m_analyst"></select></div>
+        <div><span class="note">Challenger</span><select id="m_challenger"></select></div>
+        <div><span class="note">Editor</span><select id="m_editor"></select></div>
+        <div><span class="note">Judge</span><select id="m_judge"></select></div>
+      </div>
+      <p class="note" style="margin-top:8px">Giving the Challenger a different model family makes
+        it genuinely disagree rather than echo the Analyst. Only chat-capable models are listed —
+        Whisper, Orpheus and prompt-guard cannot fill an agent role.</p>
+    </div>
+  </div>
+
+  <div id="out">
+    <div class="grid g-stats" id="stats" style="margin-bottom:14px"></div>
+
+    <div class="card">
+      <h2>Trends — straight from SQL, no model involved</h2>
+      <div class="chips" id="wchips" style="margin-top:10px"></div>
+      <div class="grid g-pair">
+        <div class="chart"><h3>Forecast vs actual</h3>
+          <div class="cs" id="cs1">—</div><div id="ch1"></div></div>
+        <div class="chart"><h3>Adherence by fiscal week</h3>
+          <div class="cs" id="cs2">—</div><div id="ch2"></div></div>
+      </div>
+      <div class="chart" style="margin-top:12px">
+        <h3>Mean absolute adherence by dimension</h3>
+        <div class="cs">Where the misses concentrate, within your current filters.</div>
+        <div class="chips" id="bchips"></div>
+        <div id="ch3"></div>
+      </div>
+    </div>
+
+    <div class="card" id="holcard" style="display:none">
+      <h2>The same holiday in previous years</h2>
+      <div class="cs" style="font-size:11.5px;color:var(--faint);margin:4px 0 10px">
+        A holiday drifts across fiscal weeks year to year, so "same week last year" can compare a
+        holiday week against a normal one. This finds it by name.</div>
+      <div id="holprior"></div>
+    </div>
+
+    <div class="card">
+      <h2>SQL ingestion — the same three sources the approved engine uses</h2>
+      <div class="grid g-pair" id="ingest" style="margin-top:12px"></div>
+      <p class="note" style="margin-top:10px">Every figure below is computed by the 33
+        deterministic modules before any agent runs. The agents never query SQL and never
+        calculate.</p>
+    </div>
+
+    <div class="card">
+      <h2>The report a lead sees</h2>
+      <div id="report" style="margin-top:12px"></div>
+    </div>
+
+    <div class="grid g-pair">
+      <div class="card">
+        <h2>The two findings</h2>
+        <div id="findings" style="margin-top:12px"></div>
+      </div>
+      <div class="card">
+        <h2>Judge</h2>
+        <div id="judge" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Cost, per call</h2>
+      <div id="calls" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card">
+      <h2>What the agents were allowed to see</h2>
+      <p class="note" id="ctxnote" style="margin:6px 0 10px"></p>
+      <pre id="evidence"></pre>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = location.origin;
+const $ = id => document.getElementById(id);
+const ROLES = ['analyst','challenger','editor','judge'];
+const DIMS = ['Region','SubRegion','Country','channel','Offering','Forecaster',
+              'Volume_Category','Forecast_name','Fiscal_Week'];
+const DIMLABEL = {channel:'Channel', Forecast_name:'Queue', Fiscal_Week:'Fiscal week',
+                  Volume_Category:'Volume band', SubRegion:'Sub-region'};
+let CHAT = [], DEFAULTS = {}, SEL = {}, RESULTS = [], TREND = null,
+    TWEEKS = 26, BDIM = 'Region';
+
+function esc(s){ const d=document.createElement('div'); d.textContent = s==null?'':String(s); return d.innerHTML; }
+function n(v){ return v==null ? '—' : Number(v).toLocaleString(); }
+function msg(kind, text){
+  $('msg').innerHTML = text ? '<div class="msg m-'+kind+'">'+esc(text)+'</div>' : '';
+}
+
+async function boot(){
+  try{
+    const h = await (await fetch(API+'/api/health')).json();
+    const p = [];
+    p.push('<span class="pill '+(h.groq_key_present?'p-ok':'p-no')+'">groq key: '
+      + esc(h.groq_key_present ? h.groq_key_source : 'none — paste one below') + '</span>');
+    p.push('<span class="pill p-inf">table: '+esc(h.sql_table)+'</span>');
+    ROLES.forEach(r => p.push('<span class="pill p-inf">'+r+': '+esc(h.roles[r])+'</span>'));
+    $('pills').innerHTML = p.join('');
+    DEFAULTS = h.roles || {};
+    if((h.config_problems||[]).length) msg('warn', h.config_problems.join(' · '));
+  }catch(e){ msg('err','Backend unreachable: '+e.message); }
+
+  try{
+    const m = await (await fetch(API+'/api/models')).json();
+    CHAT = m.chat_models || [];
+    ROLES.forEach(r => {
+      const sel = $('m_'+r);
+      sel.innerHTML = CHAT.map(x =>
+        '<option value="'+esc(x)+'"'+(x===DEFAULTS[r]?' selected':'')+'>'+esc(x)+'</option>').join('');
+    });
+    if(!CHAT.length) msg('warn','No chat models returned. '+(m.verify && m.verify.reason || ''));
+  }catch(e){ msg('warn','Could not list models: '+e.message); }
+
+  await loadFilters();
+  await findCases();
+}
+
+// ------------------------------------------------------------------ filters
+async function loadFilters(){
+  try{
+    const r = await fetch(API+'/api/filters', {method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify({selection:SEL})});
+    if(!r.ok){ msg('warn','Filters unavailable — is the VPN connected?'); return; }
+    const d = await r.json();
+    const box = $('filterbox');
+    box.innerHTML = DIMS.map(dim => {
+      const opts = d.options[dim] || [];
+      const cur = SEL[dim] || '';
+      const label = DIMLABEL[dim] || dim;
+      return '<div><label for="f_'+dim+'">'+esc(label)+' <span class="note">('+opts.length+')</span></label>'
+        + '<select id="f_'+dim+'" data-dim="'+dim+'">'
+        + '<option value="">all</option>'
+        + opts.map(o => '<option value="'+esc(o)+'"'+(String(o)===String(cur)?' selected':'')
+            +'>'+esc(o)+'</option>').join('')
+        + '</select></div>';
+    }).join('');
+    DIMS.forEach(dim => {
+      const el = $('f_'+dim);
+      if(el) el.onchange = () => {
+        const v = el.value;
+        if(v) SEL[dim] = v; else delete SEL[dim];
+        loadFilters();          // cascade
+        loadBreakdown();
+      };
+    });
+    $('rescount').textContent = d.matching_rows.toLocaleString()
+      + ' rows match the current filters.';
+  }catch(e){ msg('warn','Could not load filters: '+e.message); }
+}
+
+async function findCases(){
+  $('find').disabled = true;
+  try{
+    const r = await fetch(API+'/api/search', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({selection:SEL,
+        min_forecast: parseFloat($('minfc').value)||0,
+        min_abs_adherence: parseFloat($('minadh').value)||0,
+        limit: parseInt($('lim').value,10)||50})});
+    const d = await r.json();
+    if(!r.ok){ msg('err', d.detail || r.statusText); return; }
+    RESULTS = d.results || [];
+    if(!RESULTS.length){
+      $('results').innerHTML = '<p class="note" style="padding:12px">'
+        + 'Nothing matched. Loosen the filters or lower the thresholds.</p>';
+      $('case').innerHTML = '<option value="">no case selected</option>';
+      return;
+    }
+    $('results').innerHTML = '<table><thead><tr><th>Queue</th><th>Week</th><th>Region</th>'
+      + '<th>Country</th><th>Ch</th><th class="n">Forecast</th><th class="n">Actual</th>'
+      + '<th class="n">Gap</th><th class="n">Adh %</th><th class="n">Hol</th></tr></thead><tbody>'
+      + RESULTS.map((x,i) => '<tr data-i="'+i+'"><td>'+esc(x.queue)+'</td>'
+        + '<td class="n">'+x.fiscal_week+'</td><td>'+esc(x.region||'')+'</td>'
+        + '<td>'+esc(x.country||'')+'</td><td>'+esc(x.channel||'')+'</td>'
+        + '<td class="n">'+n(x.forecast)+'</td><td class="n">'+n(x.actual)+'</td>'
+        + '<td class="n">'+n(x.gap)+'</td>'
+        + '<td class="n" style="color:'+(Math.abs(x.adherence_pct)>25?'var(--red)':'var(--body)')
+        + '">'+x.adherence_pct+'</td>'
+        + '<td class="n">'+(x.holiday_count||'')+'</td></tr>').join('')
+      + '</tbody></table>';
+    $('results').querySelectorAll('tbody tr').forEach(tr => {
+      tr.onclick = () => {
+        $('results').querySelectorAll('tr').forEach(t => t.classList.remove('sel'));
+        tr.classList.add('sel');
+        const x = RESULTS[parseInt(tr.dataset.i,10)];
+        $('case').value = x.queue+'|'+x.fiscal_week;
+        loadTrend();
+      };
+    });
+    $('case').innerHTML = RESULTS.map(x =>
+      '<option value="'+esc(x.queue)+'|'+x.fiscal_week+'">'+esc(x.queue)+' — FW'+x.fiscal_week
+      + ' — '+n(x.gap)+' contacts, '+x.adherence_pct+'%</option>').join('');
+    $('rescount').textContent = RESULTS.length + ' case(s) shown, biggest miss first.';
+    $('out').style.display = 'block';
+    loadTrend(); loadBreakdown();
+  }catch(e){ msg('err','Search failed: '+e.message); }
+  finally{ $('find').disabled = false; }
+}
+
+// ------------------------------------------------------------------ charts (inline SVG)
+function niceTicks(lo, hi, count){
+  // Round tick values, so the axis reads 0 / 25 / 50 rather than 31 / -0 / -63.
+  const span = hi - lo;
+  if(!(span > 0)) return [lo];
+  const raw = span / count;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1,2,2.5,5,10].map(m=>m*mag).find(v=>v>=raw) || 10*mag;
+  const out = [];
+  for(let v = Math.ceil(lo/step)*step; v <= hi + step*0.001; v += step) out.push(v);
+  return out.length ? out : [lo, hi];
+}
+
+function svgLine(points, opts){
+  const W=560, H=200, L=54, R=14, T=14, B=30;
+  const iw=W-L-R, ih=H-T-B;
+  if(!points.length) return '<p class="note">no data</p>';
+  const series = opts.series;
+  let lo=Infinity, hi=-Infinity;
+  series.forEach(sr => points.forEach(p => {
+    const v=sr.get(p); if(v==null) return; lo=Math.min(lo,v); hi=Math.max(hi,v); }));
+  if(opts.zero){ lo=Math.min(lo,0); hi=Math.max(hi,0); }
+  if(lo===hi){ lo-=1; hi+=1; }
+  const pad=(hi-lo)*0.10; lo-=pad; hi+=pad;
+  const X = i => L + (points.length<2?iw/2:(i/(points.length-1))*iw);
+  const Y = v => T + ih - ((v-lo)/(hi-lo))*ih;
+  let g='';
+  niceTicks(lo, hi, 4).forEach(v => {
+    const y=Y(v);
+    if(y < T-1 || y > T+ih+1) return;
+    const isZero = Math.abs(v) < 1e-9;
+    g += '<line class="'+(isZero?'zl':'gl')+'" x1="'+L+'" y1="'+y.toFixed(1)+'" x2="'+(W-R)
+      + '" y2="'+y.toFixed(1)+'"/>'
+      + '<text class="ax" x="'+(L-7)+'" y="'+(y+3.5).toFixed(1)+'" text-anchor="end">'
+      + (opts.fmt ? opts.fmt(isZero?0:v) : Math.round(v)) + '</text>';
+  });
+
+  // Holiday weeks. Bands only when there are few enough to mean something; above that they
+  // become wallpaper, so use small ticks on the baseline instead.
+  const hol = points.map((p,i)=>p.holiday?i:-1).filter(i=>i>=0);
+  if(hol.length && hol.length <= 14){
+    hol.forEach(i => { g += '<line x1="'+X(i).toFixed(1)+'" y1="'+T+'" x2="'+X(i).toFixed(1)
+      + '" y2="'+(T+ih)+'" stroke="var(--amber-line)" stroke-width="5" opacity=".3"/>'; });
+  } else if(hol.length){
+    hol.forEach(i => { g += '<line x1="'+X(i).toFixed(1)+'" y1="'+(T+ih)+'" x2="'+X(i).toFixed(1)
+      + '" y2="'+(T+ih+5)+'" stroke="var(--amber)" stroke-width="1.6" opacity=".75"/>'; });
+  }
+
+  // The week being investigated, if it is in range -- the single most useful marker.
+  if(opts.markWeek){
+    const i = points.findIndex(p => p.fiscal_week === opts.markWeek);
+    if(i >= 0){
+      g += '<line x1="'+X(i).toFixed(1)+'" y1="'+T+'" x2="'+X(i).toFixed(1)+'" y2="'+(T+ih)
+        + '" stroke="var(--ink)" stroke-width="1" stroke-dasharray="2 3" opacity=".55"/>'
+        + '<text class="ax" x="'+X(i).toFixed(1)+'" y="'+(T-4)+'" text-anchor="middle" '
+        + 'style="fill:var(--ink)">this week</text>';
+    }
+  }
+
+  [0, Math.floor(points.length/2), points.length-1].filter((v,i,a)=>a.indexOf(v)===i)
+    .forEach(i => { if(points[i]) g += '<text class="ax" x="'+X(i).toFixed(1)+'" y="'+(H-10)
+      + '" text-anchor="middle">'+points[i].fiscal_week+'</text>'; });
+
+  series.forEach(sr => {
+    const d = points.map((p,i)=>{ const v=sr.get(p); return v==null?null:
+      (i===0?'M':'L')+X(i).toFixed(1)+' '+Y(v).toFixed(1); }).filter(Boolean).join(' ');
+    g += '<path d="'+d+'" fill="none" stroke="'+sr.colour+'" stroke-width="'
+      + (sr.thin?1.3:1.9)+'" opacity="'+(sr.thin?0.75:1)+'"/>';
+    const lv = sr.get(points[points.length-1]);
+    if(lv!=null) g += '<circle cx="'+X(points.length-1).toFixed(1)+'" cy="'+Y(lv).toFixed(1)
+      + '" r="3.2" fill="'+sr.colour+'"/>';
+  });
+  const lgd = series.map((sr,i) =>
+    '<rect x="'+(L+i*112)+'" y="0" width="9" height="9" fill="'+sr.colour+'"/>'
+    + '<text class="lg" x="'+(L+i*112+14)+'" y="8">'+esc(sr.name)+'</text>').join('')
+    + (hol.length ? '<rect x="'+(L+series.length*112)+'" y="0" width="9" height="9" '
+        + 'fill="var(--amber-line)"/><text class="lg" x="'+(L+series.length*112+14)+'" y="8">'
+        + hol.length+' holiday weeks</text>' : '');
+  return '<svg viewBox="0 0 '+W+' '+(H+18)+'" role="img">'
+    + '<g transform="translate(0,'+(H+6)+')">'+lgd+'</g>' + g + '</svg>';
+}
+
+async function loadTrend(){
+  const v = $('case').value; if(!v) return;
+  const [queue] = v.split('|');
+  try{
+    const r = await fetch(API+'/api/trend?queue='+encodeURIComponent(queue)+'&weeks='+TWEEKS);
+    const d = await r.json();
+    if(!r.ok){ $('ch1').innerHTML = '<p class="note">'+esc(d.detail||'')+'</p>'; return; }
+    TREND = d;
+    $('wchips').innerHTML = [13,26,52,104].map(w =>
+      '<span class="chip'+(w===TWEEKS?' on':'')+'" data-w="'+w+'">'+w+' weeks</span>').join('');
+    $('wchips').querySelectorAll('.chip').forEach(c => c.onclick = () => {
+      TWEEKS = parseInt(c.dataset.w,10); loadTrend(); });
+
+    const p = d.points || [];
+    const wk = parseInt(($('case').value.split('|')[1]||'0'),10);
+    $('cs1').textContent = queue + ' · ' + p.length + ' weeks · the dashed line is the week '
+      + 'being investigated';
+    $('ch1').innerHTML = svgLine(p, {markWeek:wk, series:[
+      {name:'Forecast', colour:'var(--blue)', thin:true, get:x=>x.forecast},
+      {name:'Actual', colour:'var(--red)', get:x=>x.actual}],
+      fmt:v=>Math.round(v/1000)+'k'});
+    const st = d.stats||{};
+    $('cs2').textContent = 'mean |adherence| ' + (st.mean_abs_adherence ?? '—') + '% · '
+      + st.weeks_over_10pct + ' of ' + p.length + ' weeks beyond ±10% · worst '
+      + (st.worst ?? '—') + '% — the flat line at zero is a perfect forecast';
+    $('ch2').innerHTML = svgLine(p, {zero:true, markWeek:wk, series:[
+      {name:'Adherence %', colour:'var(--teal)', get:x=>x.adherence_pct}],
+      fmt:v=>(v>0?'+':'')+v.toFixed(0)+'%'});
+  }catch(e){ $('ch1').innerHTML = '<p class="note">'+esc(e.message)+'</p>'; }
+}
+
+async function loadBreakdown(){
+  $('bchips').innerHTML = ['Region','SubRegion','Country','channel','Offering','Forecaster',
+    'Volume_Category'].map(dm =>
+    '<span class="chip'+(dm===BDIM?' on':'')+'" data-d="'+dm+'">'
+    + esc(DIMLABEL[dm]||dm)+'</span>').join('');
+  $('bchips').querySelectorAll('.chip').forEach(c => c.onclick = () => {
+    BDIM = c.dataset.d; loadBreakdown(); });
+  try{
+    const r = await fetch(API+'/api/breakdown', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({dimension:BDIM, selection:SEL})});
+    const d = await r.json();
+    if(!r.ok){ $('ch3').innerHTML = '<p class="note">'+esc(d.detail||'')+'</p>'; return; }
+    const gs = (d.groups||[]).slice(0,12);
+    if(!gs.length){ $('ch3').innerHTML = '<p class="note">no data</p>'; return; }
+    // One bar is not a comparison. It looks like a finding and is not one -- it usually means a
+    // filter has narrowed the data to a single group.
+    if(gs.length === 1){
+      const narrowing = DIMS.filter(x => SEL[x]).map(x => (DIMLABEL[x]||x)+'='+SEL[x]);
+      $('ch3').innerHTML = '<div class="msg m-warn">Only one '
+        + esc(DIMLABEL[BDIM]||BDIM) + ' matches, so there is nothing to compare — '
+        + esc(gs[0].value) + ' at ' + gs[0].mean_abs_adherence_pct + '% over '
+        + n(gs[0].rows) + ' rows.'
+        + (narrowing.length ? ' Your filters (' + esc(narrowing.join(', '))
+            + ') have narrowed it to one. Clear a filter, or pick a different dimension.' : '')
+        + '</div>';
+      return;
+    }
+    const W=1080, rowH=24, L=190, R=90, H=gs.length*rowH+10;
+    const max = Math.max.apply(null, gs.map(g=>g.mean_abs_adherence_pct));
+    $('ch3').innerHTML = '<svg viewBox="0 0 '+W+' '+H+'" role="img">'
+      + gs.map((g,i) => {
+        const y=i*rowH+4, w=Math.max(2,(g.mean_abs_adherence_pct/max)*(W-L-R));
+        return '<text class="ax" x="'+(L-8)+'" y="'+(y+13)+'" text-anchor="end">'
+          + esc(String(g.value).slice(0,26))+'</text>'
+          + '<rect x="'+L+'" y="'+y+'" width="'+w.toFixed(1)+'" height="'+(rowH-8)
+          + '" rx="2" fill="var(--amber)" opacity=".8"/>'
+          + '<text class="ax" x="'+(L+w+7).toFixed(1)+'" y="'+(y+13)+'">'
+          + g.mean_abs_adherence_pct+'%  ·  '+n(g.rows)+' rows</text>';
+      }).join('') + '</svg>';
+  }catch(e){ $('ch3').innerHTML = '<p class="note">'+esc(e.message)+'</p>'; }
+}
+
+async function run(){
+  const v = $('case').value;
+  if(!v){ msg('err','No case selected.'); return; }
+  const [queue, week] = v.split('|');
+  const models = {};
+  ROLES.forEach(r => { models[r] = $('m_'+r).value; });
+
+  $('go').disabled = true;
+  $('go').innerHTML = '<span class="spin"></span>running…';
+  msg('ok','Computing deterministic evidence, then running four agents. Typically 5–15 seconds.');
+
+  try{
+    const r = await fetch(API+'/api/run', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({queue, fiscal_week: parseInt(week,10), models,
+                            api_key: $('key').value.trim() || undefined})
+    });
+    const d = await r.json();
+    if(!r.ok){ msg('err', d.detail || r.statusText); return; }
+    render(d);
+    msg('', '');
+  }catch(e){ msg('err','Request failed: '+e.message); }
+  finally{ $('go').disabled = false; $('go').textContent = 'Run agents'; }
+}
+
+function render(d){
+  $('out').style.display = 'block';
+  const s = d.summary || {}, c = d.context || {};
+
+  $('stats').innerHTML = [
+    ['Gap', n(d.case.gap)+' ', d.case.adherence_pct+'% adherence', 'bad'],
+    ['Agent tokens', n(s.total_tokens), (d.calls||[]).length+' calls', 'good'],
+    ['Context sent', c.scoped_share_pct+'%', n(c.scoped_tokens_approx)+' of '
+      +n(c.whole_finding_tokens_approx)+' tokens', 'good'],
+    ['Seconds', d.agent_seconds, 'plus '+d.deterministic_seconds+'s deterministic', ''],
+    ['Challenger', s.challenger_dissented ? 'dissented' : 'agreed',
+      s.revisions ? s.revisions+' revision' : 'no revision', s.challenger_dissented?'warn':''],
+  ].map(([k,v,sub,cls]) =>
+    '<div class="stat '+cls+'"><div class="k">'+k+'</div><div class="v">'+esc(v)
+    +'</div><div class="s">'+esc(sub)+'</div></div>').join('');
+
+  // ingestion
+  const g = d.ingestion || {};
+  const blk = (title, colour, rows) =>
+    '<div class="agent '+colour+'"><div class="who">'+title+'</div><div class="kv">'
+    + rows.filter(r => r[1] !== undefined && r[1] !== null && r[1] !== '')
+          .map(r => '<div class="k">'+esc(r[0])+'</div><div class="v">'+esc(r[1])+'</div>').join('')
+    + '</div></div>';
+  const im = g.input_to_ml || {}, ic = g.cqn || {}, ih = g.holiday || {};
+  $('ingest').innerHTML =
+      blk('1 · Input_To_ML', 'an', [
+        ['table', im.table], ['target columns', im.target_columns],
+        ['history rows', n(im.history_rows)], ['forward rows', im.forward_rows],
+        ['prior week', im.prior_week], ['prior year week', im.prior_year_week]])
+    + blk('2 · CQN mapping (joined)', 'ed', [
+        ['table', ic.table], ['source', ic.source],
+        ['CQN names', (ic.cqn_names||[]).join(', ')],
+        ['peer rows same week', ic.sibling_rows_same_week],
+        ['ladder levels', ic.ladder_levels]])
+    + blk('3 · Holiday calendar', (ih.served_from === 'sql' ? 'ed' : 'ch'), [
+        ['served from', (ih.served_from||'?').toUpperCase()
+          + (ih.served_from === 'sql' ? '  — not the JSON extract' : '  — JSON extract')],
+        ['source', ih.source], ['rows', n(ih.rows)],
+        ['availability', ih.availability],
+        ['country resolved', (ih.country_resolved||[]).join(', ')],
+        ['phase', ih.phase],
+        ['holidays in week', (ih.holidays_in_week||[]).join(', ') || 'none']]);
+
+  // prior-year holiday
+  const ph = (d.scoped_evidence||{}).same_holiday_previous_years;
+  if(ph && ph.length){
+    $('holcard').style.display = 'block';
+    const typ = (d.scoped_evidence||{}).holiday_weeks_typical_adherence_pct;
+    const now = (d.case||{}).adherence_pct;
+    $('holprior').innerHTML = '<table><thead><tr><th>When</th><th class="n">Fiscal week</th>'
+      + '<th class="n">Week no.</th><th>Same week as now?</th><th class="n">Forecast</th>'
+      + '<th class="n">Actual</th><th class="n">Adherence</th></tr></thead><tbody>'
+      + ph.map(r => '<tr><td>'+r.years_ago+' year'+(r.years_ago>1?'s':'')+' ago</td>'
+        + '<td class="n">'+r.fiscal_week+'</td><td class="n">'+r.week_number+'</td>'
+        + '<td>'+(r.landed_in_the_same_week_number ? 'yes'
+            : '<span style="color:var(--amber)">no — drifted</span>')+'</td>'
+        + '<td class="n">'+(r.this_queue_forecast!=null?n(r.this_queue_forecast):'—')+'</td>'
+        + '<td class="n">'+(r.this_queue_actual!=null?n(r.this_queue_actual):'—')+'</td>'
+        + '<td class="n">'+(r.this_queue_adherence_pct!=null?r.this_queue_adherence_pct+'%':'—')
+        + '</td></tr>').join('')
+      + '</tbody></table>'
+      + (typ!=null ? '<div class="msg '+(Math.abs(now)>Math.abs(typ)*2?'m-warn':'m-ok')
+          + '" style="margin-top:12px">Holiday weeks for this queue typically run <b>'+typ
+          + '%</b>. This week is <b>'+now+'%</b>'
+          + (Math.abs(now)>Math.abs(typ)*2
+              ? ' — roughly '+(Math.abs(now)/Math.abs(typ)).toFixed(1)
+                + '× larger, so the holiday alone cannot account for it.'
+              : ' — in line with the holiday pattern.')+'</div>' : '');
+  } else {
+    $('holcard').style.display = 'none';
+  }
+
+  // report
+  if(d.report){
+    const F = [['what_happened','WHAT HAPPENED'],['why','WHY'],['how_sure','HOW SURE'],
+               ['do_this','DO THIS'],['not_assessed','NOT ASSESSED']];
+    $('report').innerHTML = '<dl class="rep">'
+      + F.map(([k,lab]) => '<dt>'+lab+'</dt><dd>'+esc(d.report[k])+'</dd>').join('')
+      + '</dl><p class="note" style="margin-top:12px">'+esc(d.report._word_count)
+      + ' / 200 words · '+esc(d.publish_note)+'</p>';
+  } else {
+    $('report').innerHTML = '<div class="msg m-err">No report was produced.</div>';
+  }
+
+  // findings
+  const a = d.analyst || {}, ch = d.challenger || {};
+  let fh = '<div class="agent an"><div class="who">Analyst · '+esc(d.models_used.analyst)+'</div>'
+    + '<div class="kv"><div class="k">claim</div><div class="v"><b>'+esc(a.claim)+'</b></div>'
+    + '<div class="k">mechanism</div><div class="v">'+esc(a.mechanism)+'</div>'
+    + '<div class="k">confidence</div><div class="v">'+esc(a.confidence)+'</div>'
+    + '<div class="k">would change it</div><div class="v">'+esc(a.what_would_change_it)+'</div></div></div>';
+  fh += '<div class="agent ch"><div class="who">Challenger · '+esc(d.models_used.challenger)+'</div>'
+    + '<div class="kv"><div class="k">dissents</div><div class="v"><b>'
+    + (ch.dissents ? 'YES' : 'no') + '</b></div>';
+  if(ch.dissents){
+    fh += '<div class="k">objection</div><div class="v">'+esc(ch.objection)+'</div>'
+       + '<div class="k">evidence cited</div><div class="v">'+esc(ch.evidence_cited)+'</div>';
+    if(ch.alternative_mechanism)
+      fh += '<div class="k">alternative</div><div class="v">'+esc(ch.alternative_mechanism)+'</div>';
+  }
+  fh += '<div class="k">weakest link</div><div class="v">'+esc(ch.weakest_link)+'</div></div></div>';
+  $('findings').innerHTML = fh;
+
+  // judge
+  const j = d.verdict || {};
+  if((j.factors||[]).length){
+    $('judge').innerHTML = '<div class="agent ju"><div class="who">Judge · '
+      + esc(d.models_used.judge)+'</div><table><tbody>'
+      + j.factors.map(f => '<tr><td>'+esc(f.factor)+'</td>'
+        + '<td class="'+(f.verdict==='pass'?'vpass':'vfail')+'">'+esc(f.verdict)+'</td>'
+        + '<td>'+esc(f.severity==='none'?'':f.severity)+'</td>'
+        + '<td>'+esc(f.note||'')+'</td></tr>').join('')
+      + '</tbody></table>'
+      + '<p class="note" style="margin-top:10px">overall: <b>'+esc(j.overall)+'</b>'
+      + (j.not_assessed ? ' · not assessed: '+esc(j.not_assessed.join(', ')) : '')
+      + (j.voided_for_no_evidence ? ' · voided for citing no evidence: '
+          +esc(j.voided_for_no_evidence.join(', ')) : '')
+      + '</p></div>';
+  } else {
+    $('judge').innerHTML = '<div class="note">No verdict produced.</div>';
+  }
+
+  // calls
+  $('calls').innerHTML = '<table><thead><tr><th>Role</th><th>Model</th><th class="n">Seconds</th>'
+    + '<th class="n">Tokens</th><th>Result</th></tr></thead><tbody>'
+    + (d.calls||[]).map(x => '<tr><td>'+esc(x.role)+'</td><td class="n">'+esc(x.model)+'</td>'
+      + '<td class="n">'+esc(x.seconds)+'</td><td class="n">'+n(x.total_tokens)+'</td>'
+      + '<td>'+(x.ok?'<span class="vpass">ok</span>'
+                   :'<span class="vfail">'+esc((x.error||'').slice(0,90))+'</span>')+'</td></tr>').join('')
+    + '</tbody></table>'
+    + ((s.gate_failures||[]).length
+        ? '<div class="msg m-warn" style="margin-top:12px">Automated checks flagged: '
+          + s.gate_failures.map(esc).join(' · ')+'</div>' : '')
+    + ((s.errors||[]).length
+        ? '<div class="msg m-err" style="margin-top:12px">'+s.errors.map(esc).join(' · ')+'</div>' : '');
+
+  $('ctxnote').textContent = 'The whole finding object is '
+    + n(c.whole_finding_chars) + ' characters (~' + n(c.whole_finding_tokens_approx)
+    + ' tokens). Each agent saw this slice instead — ' + n(c.scoped_chars) + ' characters, '
+    + c.scoped_share_pct + '% of it. ' + (d.permitted_figures||[]).length
+    + ' figures were permitted; anything else in the prose is flagged.';
+  $('evidence').textContent = JSON.stringify(d.scoped_evidence, null, 2);
+}
+
+$('go').onclick = run;
+$('find').onclick = findCases;
+$('case').onchange = loadTrend;
+boot();
+</script>
+</body>
+</html>

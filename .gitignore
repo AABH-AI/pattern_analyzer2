@@ -38,3 +38,10 @@ results/**/video/
 # committed as the shareable record. Convert with:
 #   ffmpeg -i <session>.webm -c:v libx264 -crf 24 -pix_fmt yuv420p -movflags +faststart out.mp4
 !results/**/*.mp4
+
+# Backups and variants of the secrets file. config.json itself is ignored above, but a copy named
+# config.json.bak / .bak-preGroq / .orig is not, and every such copy on disk carries the live SQL
+# password and the LLM API keys. One `git add -A` is all it takes.
+backend/config.json.*
+backend/config.*.json
+config.json.*

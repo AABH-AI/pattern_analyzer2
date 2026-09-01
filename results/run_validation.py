@@ -47,7 +47,7 @@ from sql_backend import connect, load_config           # noqa: E402
 from wfm import skeptic                                # noqa: E402
 
 OUT = os.path.dirname(os.path.abspath(__file__))
-BASE = "http://localhost:9000"
+BASE = "http://localhost:9400"
 BAND = 10.0
 MODEL = ("groq", "llama-3.3-70b-versatile")   # only provider that answers inside its timeout here
 PACE_SECONDS = 40                             # Groq on-demand cap is 12,000 TPM; a run is ~4.4k

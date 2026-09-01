@@ -1,0 +1,173 @@
+{
+  "queue": "Social Media English Basic",
+  "fiscal_week": 202637,
+  "headline": "Social Media English Basic, FW202637: 14,021 contacts over plan (16,423 planned, 30,444 handled), adherence -85.4%.",
+  "scoped_evidence": {
+    "forecast": 16422.9,
+    "actual": 30444,
+    "gap_contacts": 14021.1,
+    "adherence_pct": -85.4,
+    "direction": "Under-forecast",
+    "criticality_band": "Critical",
+    "typical_week_actual": 19750,
+    "same_direction_weeks": 5,
+    "data_quality_clean": true,
+    "holiday_phase": "holiday",
+    "holidays_in_week": [
+      "Columbus Day"
+    ],
+    "holiday_measurable": "inconsistent_history",
+    "holiday_not_measurable_reason": "This queue's response to holiday weeks has not been consistent (63.0% moved the same way), so the forecast cannot be held to it.",
+    "confidence_pct": 75.6,
+    "deterministic_root_cause": "Forecast Bias",
+    "miss_mechanism": "COMPOUND_MISS"
+  },
+  "permitted_figures": [
+    "-85.4",
+    "14021.1",
+    "16422.9",
+    "19750",
+    "30444",
+    "5",
+    "75.6"
+  ],
+  "analyst": {
+    "claim": "The forecast under‑predicted contacts by about 14,021, indicating a compound miss.",
+    "mechanism": "The evidence shows a forecast bias (forecast 16422.9 vs actual 30444) and a large negative adherence (-85.4) consistent with a COMPOUND_MISS. This aligns with the deterministic root cause of Forecast Bias.",
+    "figures_used": [
+      "16422.9",
+      "30444",
+      "14021.1",
+      "-85.4",
+      "19750",
+      "5",
+      "75.6"
+    ],
+    "confidence": "high",
+    "what_would_change_it": "Improving the forecast model to better capture holiday effects could reduce the miss."
+  },
+  "challenger": {
+    "dissents": true,
+    "objection": "The evidence does not substantiate that the large negative adherence (-85.4%) proves a compound miss; adherence is not defined as a marker of multiple failure mechanisms.",
+    "evidence_cited": "\"adherence_pct\": -85.4",
+    "alternative_mechanism": "A simple forecast bias (forecast 16422.9 vs actual 30444) without additional compounding factors",
+    "weakest_link": "Linking the -85.4% adherence figure to the claim of a COMPOUND_MISS",
+    "figures_used": [
+      "-85.4",
+      "16422.9",
+      "30444",
+      "14021.1"
+    ]
+  },
+  "report": {
+    "what_happened": "Queue Social Media English Basic, week 202637, 14,021 contacts over plan (16,423 planned, 30,444 handled), adherence -85.4%.",
+    "why": "Analyst claims a compound miss due to forecast bias (16422.9 vs 30444) and negative adherence (-85.4). Reviewer contests that adherence does not prove a compound miss, suggesting a simple forecast bias.",
+    "how_sure": "Confidence high, but the link between -85.4% adherence and a compound miss remains uncertain.",
+    "do_this": "Improve forecast model to capture holiday effects – Forecast Team",
+    "not_assessed": "Whether adherence is a valid marker for compound miss could not be evaluated.",
+    "_word_count": 85
+  },
+  "verdict": {
+    "factors": [
+      {
+        "factor": "internal_contradiction",
+        "verdict": "pass",
+        "evidence": "\"why\": \"Analyst claims a compound miss due to forecast bias (16422.9 vs 30444) and negative adherence (-85.4). Reviewer contests that adherence does not prove a compound miss, suggesting a simple forecast bias.\"",
+        "severity": "none",
+        "note": "Both perspectives are presented without contradicting each other."
+      },
+      {
+        "factor": "hedging_matches_confidence",
+        "verdict": "fail",
+        "evidence": "\"how_sure\": \"Confidence high, but the link between -85.4% adherence and a compound miss remains uncertain.\"",
+        "severity": "minor",
+        "note": "High confidence is stated while simultaneously expressing uncertainty."
+      },
+      {
+        "factor": "recommendation_follows_from_cause",
+        "verdict": "pass",
+        "evidence": "\"do_this\": \"Improve forecast model to capture holiday effects – Forecast Team\"",
+        "severity": "none",
+        "note": "Improving the forecast model addresses the identified forecast bias."
+      },
+      {
+        "factor": "readable_in_thirty_seconds",
+        "verdict": "pass",
+        "evidence": "The report is 85 words long and presents key points in short bullet‑style fields.",
+        "severity": "none",
+        "note": "A busy lead can grasp the gist in under half a minute."
+      },
+      {
+        "factor": "faithful_to_the_findings",
+        "verdict": "pass",
+        "evidence": "\"not_assessed\": \"Whether adherence is a valid marker for compound miss could not be evaluated.\"",
+        "severity": "none",
+        "note": "No claims are made beyond what the analyst or challenger provided."
+      }
+    ],
+    "overall": "publish",
+    "revision_instruction": "",
+    "_blocking": []
+  },
+  "summary": {
+    "queue": "Social Media English Basic",
+    "fiscal_week": 202637,
+    "calls": 4,
+    "failed_calls": 0,
+    "total_tokens": 6544,
+    "seconds": 6.77,
+    "challenger_dissented": true,
+    "gate_failures": [
+      "report wrote ungrounded numbers: ['202637,']"
+    ],
+    "revisions": 0,
+    "errors": []
+  },
+  "calls": [
+    {
+      "role": "analyst",
+      "model": "openai/gpt-oss-120b",
+      "ok": true,
+      "seconds": 1.54,
+      "prompt_tokens": 675,
+      "completion_tokens": 588,
+      "total_tokens": 1263,
+      "error": null
+    },
+    {
+      "role": "challenger",
+      "model": "openai/gpt-oss-120b",
+      "ok": true,
+      "seconds": 1.73,
+      "prompt_tokens": 786,
+      "completion_tokens": 681,
+      "total_tokens": 1467,
+      "error": null
+    },
+    {
+      "role": "editor",
+      "model": "openai/gpt-oss-20b",
+      "ok": true,
+      "seconds": 1.64,
+      "prompt_tokens": 780,
+      "completion_tokens": 1239,
+      "total_tokens": 2019,
+      "error": null
+    },
+    {
+      "role": "judge",
+      "model": "openai/gpt-oss-120b",
+      "ok": true,
+      "seconds": 1.86,
+      "prompt_tokens": 1041,
+      "completion_tokens": 754,
+      "total_tokens": 1795,
+      "error": null
+    }
+  ],
+  "context_comparison": {
+    "whole_finding_chars": 279508,
+    "scoped_chars": 616,
+    "scoped_share_pct": 0.22
+  }
+}

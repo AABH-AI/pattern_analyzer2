@@ -1,0 +1,76 @@
+# Build context exclusions.
+#
+# WHY THIS FILE IS NOT OPTIONAL
+# -----------------------------
+# backend/Dockerfile does `COPY . /app`. Without this file that copies, in order of severity:
+#
+#   1. backend/config.json -- live SQL credentials and the LLM API keys. It is gitignored, so it
+#      is not in the repo, but it IS on any machine that has run the app, and a local
+#      `docker build` would bake it into an image layer and push it to the registry. Layers are
+#      not secret. This is the single most important line in this file.
+#   2. backend/config.json.bak* -- the same secrets under a different name. The copy on the dev
+#      machine carries the SQL password and three separate API keys.
+#   3. results/ -- tens of megabytes of test evidence. Not one byte is needed at runtime.
+#   4. .git/, __pycache__/, .venv/ -- noise that invalidates the layer cache on every commit.
+#
+# Secrets reach the container as ENVIRONMENT VARIABLES at run time (sql_backend.load_config
+# prefers env over the file), never as build args and never as a copied file.
+
+# ---- secrets: never in an image ------------------------------------------------------------
+backend/config.json
+backend/config.json.*
+backend/config.*.json
+config.json
+config.json.*
+.env
+backend/.env
+*.env
+!backend/.env.example
+*.pem
+*.key
+*.pfx
+
+# ---- source data: gitignored, large, not needed at runtime ---------------------------------
+*.xlsx
+*.xls
+*.csv
+
+# ---- test evidence: runtime-irrelevant -----------------------------------------------------
+results/
+canary-*/
+*.har
+
+# ---- version control and tooling -----------------------------------------------------------
+.git/
+.gitignore
+.gitattributes
+.github/
+.vscode/
+.idea/
+.claude/
+
+# ---- python build noise --------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- docs: keep the image lean -------------------------------------------------------------
+# Both consoles ARE needed and are deliberately not excluded:
+#   agents_console.html  -- the multi-agent UI this branch serves
+#   rca_console.html     -- the original engine's UI
+IMP_DOCS/
+*.md
+!backend/README.md
+Gemini_Generated_Image*.png
+*.log
+
+# ---- local run artefacts -------------------------------------------------------------------
+*.sqlite
+*.db
+nohup.out
