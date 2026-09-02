@@ -134,6 +134,82 @@ The link will be **`https://rca-multiagent.azurewebsites.net`**.
 
 ---
 
+## Can Azure SQL hold everything, so people use it without the VPN?
+
+Yes. Checked rather than assumed, and there is one trap.
+
+### The tables — all of them are covered
+
+Every table either engine queries at runtime appears in `migrate_to_azure_sql.py`. Cross-checked
+by extracting every `dbo.<name>` reference from both codebases against the script's list:
+
+| Table | Read by |
+|---|---|
+| `Input_To_ML_Full_138_Trimmed` | the fact table — forecasts and actuals |
+| `CQN_Mapping`, `CQN_Forecast_Pair` | queue grouping and pairing |
+| `Holiday_Master`, `Holiday_Aggregate_Group`, `Holiday_Semantic_Group` | holiday calendar and grouping |
+| `Holiday_Country_Alias`, `Holiday_Name_Alias`, `Holiday_Name_Pair_Review` | name and country matching |
+| `Fiscal_Calendar_Week` | fiscal week to real dates |
+
+Two names show up in the code but are deliberately **not** migrated: `Input_To_ML` and
+`Input_To_ML_Full` are older copies. `Input_To_ML_Full` appears only in comments;
+`Input_To_ML` appears only as a fallback default, which is the trap below.
+
+### The trap: `SQL_TABLE` must be set explicitly
+
+The code reads the fact table as `sql.get("table", "dbo.Input_To_ML")`. Both `config.json`
+files set it to `Input_To_ML_Full_138_Trimmed`, so it never bites locally — but a container has
+no `config.json`. If `SQL_TABLE` is ever missing from the Web App settings the app silently falls
+back to `dbo.Input_To_ML`, which will not exist in the migrated database, and every query fails
+with a table-not-found rather than anything that points at the real cause. The deploy pipeline
+sets it explicitly. Do not remove it.
+
+### No Transact-SQL that Azure SQL rejects
+
+Scanned both engines for the usual blockers — `OPENROWSET`, `OPENDATASOURCE`, linked servers,
+`BULK INSERT`, `xp_cmdshell`, `FILESTREAM`, cross-database `USE`. None present. The queries are
+ordinary `SELECT` with joins and aggregates, which port unchanged.
+
+### Files — the part that is easy to miss
+
+Moving the tables is not sufficient on its own, because one file is read *at run time*, not just
+during loading.
+
+**`backend/wfm/context_repository/holiday_master.json`** (about 2 MB) is the holiday calendar as
+a file. It matters differently for the two engines:
+
+- **The multi-agent engine does not need it.** `holiday_calendar.use_sql()` switches the source
+  to the published tables, and `RCA_HOLIDAY_SOURCE=sql` is set by the deploy pipeline. The
+  running server confirms it: `served_from: sql`, 10,702 rows. Once the holiday tables are in
+  Azure SQL, this engine reads them there.
+- **The original engine still reads the file.** Its copy of `holiday_calendar.py` has no
+  `use_sql`. The file is not excluded by `.dockerignore`, so it ships inside the image and the
+  engine works — but it is a **snapshot frozen at image build time**, not live data. If the
+  holiday calendar is updated, that engine keeps using the old one until the image is rebuilt.
+
+Everything else that touches a file is a **loader**, not runtime: `upload_excel_to_sql.py`,
+`upload_cqn_mapping.py`, `load_holiday_master.py`. They read the weekly workbooks and write to
+SQL. They stay on a machine with the VPN, and Azure never sees a spreadsheet.
+
+### What this gets you, and what it does not
+
+People open a URL and use the console with no VPN and nothing installed. That is the whole point,
+and it works.
+
+What it does not do is make the data live. The weekly refresh still needs somebody on the VPN to
+run `migrate_to_azure_sql.py --apply --refresh`, because a hosted agent cannot reach the internal
+server. Worth automating on a scheduled task on a machine that is always on the network, once
+the manual run has been proven.
+
+### Not yet verified
+
+`migrate_to_azure_sql.py --check` has not been run end to end. It needs the VPN, and the VPN was
+down while this was written — a TCP connection to `10.10.9.75:1433` timed out. Run `--check`
+first: it reports the row count and column shape of each table and writes nothing, so it is the
+cheap way to confirm the schema ports before creating anything in Azure.
+
+---
+
 ## "There's a Releases button — can we just release it there?"
 
 Reasonable question, and Releases *is* a deployment mechanism. It will not get you there any
