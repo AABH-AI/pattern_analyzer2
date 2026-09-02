@@ -1,0 +1,181 @@
+# =============================================================================================
+# DEPLOY PIPELINE -- push the image to a registry, then run it as a Web App.
+#
+# WHY THIS IS A SEPARATE FILE
+# ---------------------------
+# Azure DevOps resolves a service connection when a run is QUEUED, before any `condition:` is
+# evaluated. So a pipeline that merely *mentions* a connection that does not exist yet is invalid
+# and cannot run at all -- that is what broke the first attempt on test3_azure ("input
+# containerRegistry references service connection rca-acr which could not be found").
+#
+# Keeping deployment here means azure-pipelines.yml stays valid and keeps building and
+# smoke-testing on every commit TODAY, with nothing commented out. This file is not registered as
+# a pipeline until the two service connections and the variable group exist. Register it then; no
+# edits required.
+#
+# WHAT AN ADMIN MUST CREATE FIRST -- see HOSTING.md for the click-by-click
+# ------------------------------------------------------------------------
+#   1. Azure Container Registry, Basic tier
+#   2. Service connection, type "Docker Registry" -> Azure Container Registry, named  rca-acr
+#   3. Service connection, type "Azure Resource Manager",              named  rca-azure-subscription
+#   4. Web App for Containers, Linux, B1 or better,                    named  rca-multiagent
+#   5. Variable group named  rca-secrets  (Pipelines -> Library), holding the four secret values
+#      listed under `variables` below, each marked secret with the padlock
+#
+# THE DATABASE IS THE REAL PRECONDITION
+# -------------------------------------
+# 10.10.9.75 is RFC1918 private space. An Azure Web App cannot route to it -- that is addressing,
+# not configuration, and no app setting fixes it. Before this pipeline produces a working link,
+# the data must live somewhere Azure can reach. Run backend/migrate_to_azure_sql.py from a
+# machine on the VPN to copy the ten tables into an Azure SQL Database, then point SQL_SERVER at
+# that. HOSTING.md covers the alternative (VNet integration) and why it is more work.
+# =============================================================================================
+
+name: deploy-$(Date:yyyyMMdd)-$(Rev:r)
+
+# Manual only. Deployment should be a decision, not a side effect of a commit.
+trigger: none
+pr: none
+
+resources:
+  - repo: self
+
+variables:
+  # Secrets live here, NOT in this file and NOT in the image. Create the group in
+  # Pipelines -> Library, tick "Keep this value secret" on each, and grant it pipeline access.
+  #   SQL_USERNAME      the Azure SQL admin login
+  #   SQL_PASSWORD      its password
+  #   SQL_SERVER_HOST   e.g. rca-sql.database.windows.net
+  #   GROQ_API_KEY      the company Groq key
+  - group: rca-secrets
+
+  - name: imageRepository
+    value: 'rca-multiagent'
+  - name: dockerfilePath
+    value: '$(Build.SourcesDirectory)/backend/Dockerfile'
+  - name: buildContext
+    value: '$(Build.SourcesDirectory)'    # MUST be the repo root: the Dockerfile copies the
+                                          # root-level consoles and backend/requirements.txt
+  - name: tag
+    value: '$(Build.BuildId)'
+  - name: vmImageName
+    value: 'ubuntu-latest'
+  - name: registryConnection
+    value: 'rca-acr'
+  - name: azureSubscriptionConnection
+    value: 'rca-azure-subscription'
+  - name: webAppName
+    value: 'rca-multiagent'
+
+  # The container listens here; Azure must be told, or the site serves a blank page.
+  - name: containerPort
+    value: '9402'
+
+  # The image installs msodbcsql18, NOT 17. backend/config.json says 17 because that is what the
+  # development laptops have -- carrying that value into the container gives
+  # "Can't open lib 'ODBC Driver 17 for SQL Server'" and a connection that never succeeds.
+  - name: odbcDriver
+    value: 'ODBC Driver 18 for SQL Server'
+
+stages:
+
+  # -------------------------------------------------------------------------------------------
+  - stage: Push
+    displayName: Push image to the registry
+    jobs:
+      - job: Push
+        displayName: Build and push
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - script: |
+              set -e
+              test -f .dockerignore || {
+                echo "##vso[task.logissue type=error].dockerignore missing -- refusing to push. It is the only thing keeping backend/config.json out of a published image layer, and layers are not secret."
+                exit 1; }
+              echo ".dockerignore present"
+            displayName: 'Refuse to push without .dockerignore'
+
+          # buildAndPush resolves the registry hostname from the service connection, so there is
+          # no login server to hand-edit and get wrong.
+          - task: Docker@2
+            displayName: 'Build and push'
+            inputs:
+              command: buildAndPush
+              containerRegistry: $(registryConnection)
+              repository: $(imageRepository)
+              dockerfile: $(dockerfilePath)
+              buildContext: $(buildContext)
+              tags: |
+                $(tag)
+                latest
+
+  # -------------------------------------------------------------------------------------------
+  - stage: Deploy
+    displayName: Run it as a Web App
+    dependsOn: Push
+    condition: succeeded()
+    jobs:
+      - deployment: Deploy
+        displayName: Deploy container
+        pool:
+          vmImage: $(vmImageName)
+        environment: 'rca-multiagent-production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                # THE SECRETS LIVE HERE, NOT IN THE BUILD. They become Web App application
+                # settings -- present only in the running container's environment. Verified
+                # empirically: sql_backend.load_config() reads every SQL_* name below and lets it
+                # override backend/config.json, and agents/server.py reads GROQ_API_KEY in
+                # preference to the file. A container with no config.json at all works.
+                - task: AzureWebAppContainer@1
+                  displayName: 'Deploy to $(webAppName)'
+                  inputs:
+                    azureSubscription: $(azureSubscriptionConnection)
+                    appName: $(webAppName)
+                    containers: '$(imageRepository):$(tag)'
+                    appSettings: >-
+                      -WEBSITES_PORT $(containerPort)
+                      -PORT $(containerPort)
+                      -APP_MODULE agents.server:app
+                      -RCA_HOLIDAY_SOURCE sql
+                      -SQL_SERVER $(SQL_SERVER_HOST)
+                      -SQL_DATABASE rca
+                      -SQL_TABLE dbo.Input_To_ML_Full_138_Trimmed
+                      -SQL_AUTH sql
+                      -SQL_USERNAME $(SQL_USERNAME)
+                      -SQL_PASSWORD $(SQL_PASSWORD)
+                      -SQL_DRIVER "$(odbcDriver)"
+                      -SQL_ENCRYPT true
+                      -SQL_TRUST_CERT false
+                      -GROQ_API_KEY $(GROQ_API_KEY)
+
+                # A deploy that returns 200 on the home page but cannot reach the database is a
+                # deploy that looks fine and is not. Check both, and say which failed.
+                - script: |
+                    set +e
+                    URL="https://$(webAppName).azurewebsites.net"
+                    echo "Waiting for $URL to come up (cold start on B1 is slow)."
+                    for i in $(seq 1 40); do
+                      code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$URL/api/health")
+                      [ "$code" = "200" ] && { echo "  /api/health answered 200 after ${i} tries"; break; }
+                      sleep 6
+                    done
+                    echo ""
+                    echo "--- /api/health ---"
+                    curl -s --max-time 30 "$URL/api/health"
+                    echo ""
+                    echo "--- can it actually see the database? ---"
+                    src=$(curl -s --max-time 90 "$URL/api/sources")
+                    echo "$src" | head -c 900
+                    echo ""
+                    if echo "$src" | grep -q '"ok": *true'; then
+                      echo "DATABASE REACHABLE -- the link is live: $URL"
+                    else
+                      echo "##vso[task.logissue type=warning]The app is serving but cannot reach SQL. Expected if the data has not been migrated to Azure SQL yet, or if the firewall has no rule for Azure services. See HOSTING.md."
+                    fi
+                    echo ""
+                    echo "##vso[task.logissue type=warning]Share this link: $URL"
+                  displayName: 'Verify the link, and whether the database is connected'
