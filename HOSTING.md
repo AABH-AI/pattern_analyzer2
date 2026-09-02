@@ -134,6 +134,42 @@ The link will be **`https://rca-multiagent.azurewebsites.net`**.
 
 ---
 
+## "There's a Releases button — can we just release it there?"
+
+Reasonable question, and Releases *is* a deployment mechanism. It will not get you there any
+faster, for three reasons.
+
+**It needs the same things that are missing.** A release stage deploying to App Service requires
+an Azure Resource Manager service connection, a Web App to deploy to, and a registry holding the
+image. None of those exist yet, so the template's service-connection dropdown is empty and the
+stage cannot be configured. Releases is a different front-end for the same work — it does not
+create Azure resources.
+
+**Do not attach this repository's build artifact to it.** The artifact the build publishes
+(`multiagent-rca-<BuildId>`) is *evidence and documentation* — the health response, the endpoint
+sweep, the registered routes, `BUILD_SUMMARY.md`, and these markdown files. It is deliberately
+not a deployable application. For a container deployment the deployed thing is the **image in the
+registry**, referenced by tag; a classic release can do that with no artifact attached at all.
+Wiring the evidence artifact in produces a release that ships markdown.
+
+**The work is already written, in the current format.** `azure-pipelines-deploy.yml` does the
+push and the deploy with all fourteen application settings, and it is validated. Classic release
+pipelines are the older, UI-configured mechanism; YAML multi-stage pipelines are what new work in
+Azure DevOps uses. Building the same thing again by hand in the Releases UI means maintaining it
+in two places and hand-retyping fourteen settings, including four secrets.
+
+**If your team would still rather click than edit YAML**, that is a legitimate preference and the
+route works. Once an administrator has created the resources listed above: New release pipeline →
+*Azure App Service deployment* template → set **App type** to *Web App for Containers (Linux)* →
+pick the `rca-azure-subscription` connection and the `rca-multiagent` app → set the image to
+`<registry>/rca-multiagent:latest` → then add every setting from the `appSettings` block of
+`azure-pipelines-deploy.yml` under *Application and Configuration Settings*, and link the
+`rca-secrets` variable group under *Variables*. Skip the artifact entirely.
+
+Either way the administrator step comes first. That is the only thing actually blocking a link.
+
+---
+
 ## Four things that will otherwise waste an afternoon
 
 **`WEBSITES_PORT` must be 9402.** The container listens on 9402, not 80. Without this setting
